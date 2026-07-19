@@ -10,6 +10,7 @@ struct OnboardingFlowView: View {
 
     @State private var model = OnboardingViewModel()
     @State private var saveErrorMessage: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -40,8 +41,7 @@ struct OnboardingFlowView: View {
             }
             .padding(.top, BudgetSpacing.medium)
         }
-        .preferredColorScheme(.dark)
-        .animation(.easeInOut(duration: 0.2), value: model.step)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: model.step)
     }
 
     // MARK: - Header
@@ -79,7 +79,7 @@ struct OnboardingFlowView: View {
                     .foregroundStyle(LinearGradient.budgetAccent)
                 Text("Le tableau de bord financier de votre ménage")
                     .font(BudgetFont.body)
-                    .foregroundStyle(BudgetColor.coolGray)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, BudgetSpacing.extraLarge)
@@ -248,7 +248,7 @@ struct OnboardingFlowView: View {
                     model.goBack()
                 }
                 .font(BudgetFont.body)
-                .foregroundStyle(BudgetColor.coolGray)
+                .foregroundStyle(.secondary)
             }
         }
     }

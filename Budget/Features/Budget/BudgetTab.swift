@@ -31,7 +31,8 @@ struct BudgetTab: View {
         return budgets.first { $0.year == year && $0.month == month }
     }
 
-    private var report: BudgetReport {
+    /// Built once per render at the top of `body`, then passed down.
+    private func makeReport() -> BudgetReport {
         varianceService.report(budget: currentBudget, monthOf: currentAnchor, transactions: transactions)
     }
 
@@ -44,7 +45,8 @@ struct BudgetTab: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let report = makeReport()
+        return NavigationStack {
             ZStack {
                 BudgetScreenBackground()
                 ScrollView {
@@ -53,10 +55,10 @@ struct BudgetTab: View {
                         if report.lineReports.isEmpty {
                             emptyState
                         } else {
-                            summaryCard
-                            lineSections
+                            summaryCard(report)
+                            lineSections(report)
                         }
-                        outOfBudgetSection
+                        outOfBudgetSection(report)
                         if let actionErrorMessage {
                             Label(actionErrorMessage, systemImage: "exclamationmark.circle")
                                 .foregroundStyle(BudgetColor.negative)
@@ -126,7 +128,7 @@ struct BudgetTab: View {
 
     // MARK: - Summary
 
-    private var summaryCard: some View {
+    private func summaryCard(_ report: BudgetReport) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Reste à dépenser (lignes budgétées)")
@@ -159,7 +161,7 @@ struct BudgetTab: View {
 
     // MARK: - Lines
 
-    private var groupedReports: [(title: String, reports: [BudgetLineReport])] {
+    private func groupedReports(_ report: BudgetReport) -> [(title: String, reports: [BudgetLineReport])] {
         let expenses = report.lineReports.filter { $0.categoryKind == .expense }
         return [
             ("Revenus", report.lineReports.filter { $0.categoryKind == .income }),
@@ -170,8 +172,8 @@ struct BudgetTab: View {
         ].filter { !$0.1.isEmpty }
     }
 
-    private var lineSections: some View {
-        ForEach(groupedReports, id: \.title) { group in
+    private func lineSections(_ report: BudgetReport) -> some View {
+        ForEach(groupedReports(report), id: \.title) { group in
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text(group.title)
                     .font(BudgetFont.sectionTitle)
@@ -191,7 +193,7 @@ struct BudgetTab: View {
     // MARK: - Out of budget
 
     @ViewBuilder
-    private var outOfBudgetSection: some View {
+    private func outOfBudgetSection(_ report: BudgetReport) -> some View {
         if !report.outOfBudget.isEmpty {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Hors budget")

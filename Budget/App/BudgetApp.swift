@@ -56,14 +56,13 @@ struct StartupErrorView: View {
                     .foregroundStyle(BudgetColor.warning)
                 Text("Impossible d'ouvrir vos données")
                     .font(BudgetFont.sectionTitle)
-                    .foregroundStyle(BudgetColor.offWhite)
+                    .foregroundStyle(.primary)
                 Text("Vos données locales n'ont pas pu être chargées. Redémarrez l'app ; si le problème persiste, contactez le support avant toute réinstallation afin de ne rien perdre.")
                     .font(BudgetFont.body)
-                    .foregroundStyle(BudgetColor.coolGray)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
             .padding(BudgetSpacing.extraLarge)
         }
-        .preferredColorScheme(.dark)
     }
 }

@@ -156,7 +156,7 @@ struct NetWorthView: View {
                     }
                     .chartYAxis {
                         AxisMarks(position: .leading) { _ in
-                            AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                            AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
                             AxisValueLabel().font(.caption2)
                         }
                     }

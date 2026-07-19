@@ -26,7 +26,10 @@ struct HomeTab: View {
         MonthlySnapshotService(calendar: appContainer.calendar, balanceService: appContainer.balanceService)
     }
 
-    private var snapshot: MonthSnapshot {
+    /// Built exactly once per render, at the top of `body`, then passed
+    /// down — never recomputed by each section (quality-plan rule: no
+    /// repeated heavy calculation in body).
+    private func makeSnapshot() -> MonthSnapshot {
         snapshotService.snapshot(
             monthOf: currentAnchor,
             now: appContainer.dateProvider.now,
@@ -43,10 +46,10 @@ struct HomeTab: View {
     }
 
     /// Remaining recurring occurrences of the displayed month.
-    private var monthForecast: [ForecastOccurrence] {
+    private func makeForecast(interval: MonthInterval) -> [ForecastOccurrence] {
         scheduleService.monthForecast(
             recurrings: recurrings,
-            in: snapshot.interval,
+            in: interval,
             transactions: transactions
         )
     }
@@ -72,15 +75,15 @@ struct HomeTab: View {
         )
     }
 
-    private var uncategorizedCount: Int {
+    private func uncategorizedCount(in interval: MonthInterval) -> Int {
         let service = TransactionValidationService()
         return transactions.filter {
-            snapshot.interval.contains($0.date) && service.categoryRequired(for: $0.type) && $0.category == nil
+            interval.contains($0.date) && service.categoryRequired(for: $0.type) && $0.category == nil
         }.count
     }
 
-    private var recentTransactions: [BudgetTransaction] {
-        Array(transactions.filter { snapshot.interval.contains($0.date) }.prefix(5))
+    private func recentTransactions(in interval: MonthInterval) -> [BudgetTransaction] {
+        Array(transactions.filter { interval.contains($0.date) }.prefix(5))
     }
 
     private var greetingName: String? {
@@ -88,7 +91,12 @@ struct HomeTab: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let snapshot = makeSnapshot()
+        let forecast = makeForecast(interval: snapshot.interval)
+        let uncategorized = uncategorizedCount(in: snapshot.interval)
+        let recent = recentTransactions(in: snapshot.interval)
+        let actions = makePriorityActions(snapshot: snapshot, uncategorized: uncategorized)
+        return NavigationStack {
             ZStack {
                 BudgetScreenBackground()
                 ScrollView {
@@ -97,17 +105,17 @@ struct HomeTab: View {
                         // "Truly available" mixes today's balances with the
                         // month's planned flows — only meaningful for the
                         // month containing "now". Other months get a recap.
-                        if isCurrentMonth {
-                            availableHeroCard
-                            dailyBudgetRow
+                        if snapshot.interval.contains(appContainer.dateProvider.now) {
+                            availableHeroCard(snapshot)
+                            dailyBudgetRow(snapshot)
                         } else {
-                            monthRecapCard
+                            monthRecapCard(snapshot)
                         }
-                        statGrid
-                        forecastSection
+                        statGrid(snapshot)
+                        forecastSection(forecast: forecast)
                         flowsChartCard
-                        priorityActionsSection
-                        recentSection
+                        priorityActionsSection(actions: actions)
+                        recentSection(recent: recent)
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
@@ -150,11 +158,7 @@ struct HomeTab: View {
 
     // MARK: - Hero
 
-    private var isCurrentMonth: Bool {
-        snapshot.interval.contains(appContainer.dateProvider.now)
-    }
-
-    private var monthRecapCard: some View {
+    private func monthRecapCard(_ snapshot: MonthSnapshot) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Flux net du mois")
@@ -174,7 +178,7 @@ struct HomeTab: View {
         }
     }
 
-    private var availableHeroCard: some View {
+    private func availableHeroCard(_ snapshot: MonthSnapshot) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Vraiment disponible")
@@ -218,7 +222,7 @@ struct HomeTab: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var dailyBudgetRow: some View {
+    private func dailyBudgetRow(_ snapshot: MonthSnapshot) -> some View {
         GlassCard(style: .row) {
             HStack {
                 Label {
@@ -252,7 +256,7 @@ struct HomeTab: View {
 
     // MARK: - Stat cards
 
-    private var statGrid: some View {
+    private func statGrid(_ snapshot: MonthSnapshot) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
             statCard("Revenus", snapshot.totalIncome, icon: "arrow.down.circle", tint: BudgetColor.positive)
             statCard("Coût de la vie", snapshot.totalLivingExpenses, icon: "arrow.up.circle", tint: BudgetColor.negative)
@@ -290,8 +294,8 @@ struct HomeTab: View {
     /// Upcoming recurring occurrences of the displayed month, with a
     /// one-tap action to materialize each into a posted movement.
     @ViewBuilder
-    private var forecastSection: some View {
-        let occurrences = Array(monthForecast.prefix(4))
+    private func forecastSection(forecast: [ForecastOccurrence]) -> some View {
+        let occurrences = Array(forecast.prefix(4))
         if !occurrences.isEmpty {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 HStack {
@@ -405,7 +409,7 @@ struct HomeTab: View {
                 ])
                 .chartXAxis {
                     AxisMarks { _ in
-                        AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
                         AxisValueLabel().font(.caption2)
                     }
                 }
@@ -465,7 +469,7 @@ struct HomeTab: View {
                     ])
                     .chartYAxis {
                         AxisMarks(position: .leading) { _ in
-                            AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                            AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
                             AxisValueLabel().font(.caption2)
                         }
                     }
@@ -528,7 +532,7 @@ struct HomeTab: View {
             .first { $0.1.scheduleStatus == .behind || $0.1.scheduleStatus == .overdue }
     }
 
-    private var priorityActions: [PriorityAction] {
+    private func makePriorityActions(snapshot: MonthSnapshot, uncategorized: Int) -> [PriorityAction] {
         var actions: [PriorityAction] = []
         if let late = lateGoal {
             actions.append(PriorityAction(
@@ -553,10 +557,10 @@ struct HomeTab: View {
                 systemImage: "exclamationmark.triangle"
             ))
         }
-        if uncategorizedCount > 0 {
+        if uncategorized > 0 {
             actions.append(PriorityAction(
                 id: "uncategorized",
-                title: "Catégorisez \(uncategorizedCount) mouvement(s)",
+                title: "Catégorisez \(uncategorized) mouvement(s)",
                 systemImage: "questionmark.folder"
             ))
         }
@@ -585,8 +589,7 @@ struct HomeTab: View {
     }
 
     @ViewBuilder
-    private var priorityActionsSection: some View {
-        let actions = priorityActions
+    private func priorityActionsSection(actions: [PriorityAction]) -> some View {
         if !actions.isEmpty {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("À faire")
@@ -622,7 +625,7 @@ struct HomeTab: View {
 
     // MARK: - Recent
 
-    private var recentSection: some View {
+    private func recentSection(recent: [BudgetTransaction]) -> some View {
         VStack(alignment: .leading, spacing: BudgetSpacing.small) {
             HStack {
                 Text("Mouvements récents")
@@ -637,14 +640,14 @@ struct HomeTab: View {
                         .foregroundStyle(BudgetColor.electricBlue)
                 }
             }
-            if recentTransactions.isEmpty {
+            if recent.isEmpty {
                 GlassCard(style: .row) {
                     Text("Aucun mouvement ce mois pour l'instant.")
                         .font(BudgetFont.body)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                ForEach(recentTransactions) { transaction in
+                ForEach(recent) { transaction in
                     TransactionRow(transaction: transaction)
                 }
             }

@@ -38,7 +38,8 @@ struct TaxesView: View {
         profile?.provisions.first { $0.year == currentYear }
     }
 
-    private var report: TaxYearReport {
+    /// Built once per render at the top of `body`, then passed down.
+    private func makeReport() -> TaxYearReport {
         taxService.report(
             year: currentYear,
             profile: profile,
@@ -49,15 +50,16 @@ struct TaxesView: View {
     }
 
     var body: some View {
-        ZStack {
+        let report = makeReport()
+        return ZStack {
             BudgetScreenBackground()
             ScrollView {
                 VStack(spacing: BudgetSpacing.medium) {
                     yearSelector
-                    heroCard
-                    stateGrid
+                    heroCard(report)
+                    stateGrid(report)
                     dueDatesSection
-                    assumptionsCard
+                    assumptionsCard(report)
                     disclaimer
                     if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.circle")
@@ -124,7 +126,7 @@ struct TaxesView: View {
         .tint(BudgetColor.indigo)
     }
 
-    private var heroCard: some View {
+    private func heroCard(_ report: TaxYearReport) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Encore dû (arriérés compris)")
@@ -148,7 +150,7 @@ struct TaxesView: View {
         }
     }
 
-    private var stateGrid: some View {
+    private func stateGrid(_ report: TaxYearReport) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
             stateCard("Estimation annuelle", report.estimatedTax, icon: "function",
                       detail: report.isOverridden ? "Corrigée manuellement" : "Revenus × \(FinanceFormatting.percent(report.rate))")
@@ -244,7 +246,7 @@ struct TaxesView: View {
         .accessibilityElement(children: .contain)
     }
 
-    private var assumptionsCard: some View {
+    private func assumptionsCard(_ report: TaxYearReport) -> some View {
         GlassCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Hypothèses visibles")
@@ -294,7 +296,7 @@ struct TaxesView: View {
     private func amountSheet(for kind: SheetKind) -> some View {
         let (title, footer, initial): (String, String, Decimal?) = switch kind {
         case .rate:
-            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un point de départ prudent courant en Suisse.", (profile?.provisionRate ?? report.rate) * 100)
+            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un point de départ prudent courant en Suisse.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
         case .reserved:
             ("Réserve constituée", "Argent déjà mis de côté pour les impôts \(String(currentYear)).", provision?.reservedAmount)
         case .arrears:

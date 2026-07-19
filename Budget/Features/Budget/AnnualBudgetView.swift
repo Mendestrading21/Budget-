@@ -22,13 +22,18 @@ struct AnnualBudgetView: View {
         BudgetVarianceService(calendar: calendar)
     }
 
-    /// Reports per month (1...12) for this year.
+    /// Reports per month (1...12) for this year. Transactions are filtered
+    /// to the year ONCE, so building twelve reports scans the short list
+    /// twelve times instead of the whole history.
     private var monthReports: [Int: BudgetReport] {
+        let yearTransactions = transactions.filter {
+            calendar.component(.year, from: $0.date) == year
+        }
         var result: [Int: BudgetReport] = [:]
         for month in 1...12 {
             guard let anchor = calendar.date(from: DateComponents(year: year, month: month, day: 1)) else { continue }
             let budget = budgets.first { $0.year == year && $0.month == month }
-            result[month] = varianceService.report(budget: budget, monthOf: anchor, transactions: transactions)
+            result[month] = varianceService.report(budget: budget, monthOf: anchor, transactions: yearTransactions)
         }
         return result
     }

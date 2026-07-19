@@ -334,7 +334,7 @@ struct LockScreenView: View {
                     .foregroundStyle(LinearGradient.budgetAccent)
                 Text("Budget est verrouillé")
                     .font(BudgetFont.screenTitle)
-                    .foregroundStyle(BudgetColor.offWhite)
+                    .foregroundStyle(.primary)
                 if let message = lockManager.lastErrorMessage {
                     Text(message)
                         .font(BudgetFont.body)
@@ -358,7 +358,6 @@ struct LockScreenView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
-        .preferredColorScheme(.dark)
         .accessibilityAddTraits(.isModal)
     }
 }
