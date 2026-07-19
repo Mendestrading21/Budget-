@@ -21,14 +21,17 @@ final class AppContainer {
         }
     }
 
-    init(dateProvider: DateProviding = SystemDateProvider()) throws {
+    /// `inMemory` keeps previews and tests away from the production store.
+    init(dateProvider: DateProviding = SystemDateProvider(), inMemory: Bool = false) throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = FinanceFormatting.locale
         self.calendar = calendar
         self.dateProvider = dateProvider
         self.balanceService = AccountBalanceService()
         self.isDemoMode = false
-        self.modelContainer = try PersistenceFactory.makeProductionContainer()
+        self.modelContainer = inMemory
+            ? try PersistenceFactory.makeInMemoryContainer()
+            : try PersistenceFactory.makeProductionContainer()
     }
 
     private func rebuildContainer() {

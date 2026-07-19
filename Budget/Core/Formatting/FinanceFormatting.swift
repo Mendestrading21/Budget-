@@ -64,6 +64,21 @@ enum FinanceFormatting {
         swissDateFormatter.string(from: date)
     }
 
+    /// Parses user-typed amounts, accepting Swiss conventions: apostrophe
+    /// or space grouping, comma or dot decimal separator.
+    static func parseAmount(_ text: String) -> Decimal? {
+        var cleaned = text
+            .replacingOccurrences(of: "'", with: "")
+            .replacingOccurrences(of: "\u{2019}", with: "")
+            .replacingOccurrences(of: "\u{00A0}", with: "")
+            .replacingOccurrences(of: "\u{202F}", with: "")
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "CHF", with: "")
+        cleaned = cleaned.replacingOccurrences(of: ",", with: ".")
+        guard !cleaned.isEmpty else { return nil }
+        return Decimal(string: cleaned, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
     /// Month title such as `juillet 2026`.
     static func monthTitle(_ date: Date, calendar: Calendar) -> String {
         let formatter = DateFormatter()
