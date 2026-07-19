@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "claude/**"
+      - "version/**"
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build + tests (simulateur iOS)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Version d'Xcode
+        run: xcodebuild -version
+
+      - name: Simulateurs disponibles
+        run: xcrun simctl list devices available | head -40
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Tests unitaires
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath TestResults.xcresult \
+            test
+
+      - name: Publier le bundle de résultats en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults
+          path: TestResults.xcresult
+          if-no-files-found: ignore
