@@ -14,6 +14,7 @@ struct HomeTab: View {
     @Query private var households: [Household]
     @Query private var budgets: [MonthlyBudget]
     @Query private var recurrings: [RecurringTransaction]
+    @Query private var taxProfiles: [TaxProfile]
     @Environment(\.modelContext) private var modelContext
 
     @State private var monthAnchor: Date?
@@ -31,7 +32,8 @@ struct HomeTab: View {
             household: households.first,
             accounts: accounts,
             transactions: transactions,
-            recurrings: recurrings
+            recurrings: recurrings,
+            taxProfile: taxProfiles.first
         )
     }
 
@@ -503,8 +505,25 @@ struct HomeTab: View {
         }
     }
 
+    /// Next tax due date within 30 days for the current year.
+    private var upcomingTaxDueDate: TaxDueDate? {
+        let now = appContainer.dateProvider.now
+        let year = appContainer.calendar.component(.year, from: now)
+        let provision = taxProfiles.first?.provisions.first { $0.year == year }
+        return TaxService(calendar: appContainer.calendar)
+            .upcomingDueDates(provision: provision, now: now)
+            .first { $0.date.timeIntervalSince(now) < 30 * 86_400 }
+    }
+
     private var priorityActions: [PriorityAction] {
         var actions: [PriorityAction] = []
+        if let dueDate = upcomingTaxDueDate {
+            actions.append(PriorityAction(
+                id: "taxDueDate",
+                title: "Échéance d'impôts « \(dueDate.label) » le \(FinanceFormatting.swissDate(dueDate.date))",
+                systemImage: "calendar.badge.exclamationmark"
+            ))
+        }
         if let closing = closingSubscriptions.first {
             actions.append(PriorityAction(
                 id: "cancellation",
@@ -555,6 +574,8 @@ struct HomeTab: View {
                     NavigationLink {
                         if action.id == "cancellation" {
                             RecurringListView()
+                        } else if action.id == "taxDueDate" || action.id == "tax" {
+                            TaxesView()
                         } else {
                             TransactionsListView()
                         }

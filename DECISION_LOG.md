@@ -1,5 +1,34 @@
 # Budget decision log
 
+## ADR-008 — Impôts : profil paresseux, états dérivés, schéma V4
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+La Phase 7 doit distinguer recommandé / réservé / payé / encore dû / arriérés avec des états qui se réconcilient toujours, et solder l'ADR-003 (taux sur Household).
+
+### Decision
+
+- Schéma V4 : `TaxProfile` (localisation + taux, source de vérité) et `TaxProvision` par année (override d'estimation, réserve, arriérés, échéances `[TaxDueDate]` Codable). Migration légère, purement additive.
+- Pas de stage de migration custom : `TaxService.ensureProfile` crée le profil **paresseusement** en le semant depuis `Household.taxProvisionRate` — couvre stores migrés ET installations neuves par le même chemin ; le champ Household devient un simple seed conservé cohérent quand le taux change.
+- Payé et encore dû ne sont JAMAIS stockés : dérivés des mouvements `taxPayment` comptabilisés de l'année → `estimé = payé + encore dû` par construction ; `écart de réserve = max(0, encore dû + arriérés − réserve)`.
+- Hypothèses visibles à l'écran (taux, revenus, base de calcul) + avertissement explicite « estimation d'organisation, pas un décompte officiel ».
+
+### Alternatives considered
+
+- Stage `MigrationStage.custom` copiant le taux : fragile avec le pattern de classes partagées et redondant avec la création paresseuse.
+- Stocker paid/outstanding sur la provision : casse la réconciliation à la première divergence.
+
+### Consequences
+
+Un seul profil par store (garanti par ensureProfile) ; une provision par (profil, année) (garantie par ensureProvision).
+
+### Verification
+
+`TaxServiceTests` : réconciliation estimé/payé/dû, override, bornes d'années, écart de réserve avec arriérés, unicité, échéances, priorité du taux profil dans le snapshot, round-trip V4.
+
 ## ADR-007 — Récurrents : entité unique, occurrences par multiples d'ancre, schéma V3
 
 Date: 2026-07-19

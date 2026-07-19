@@ -11,7 +11,6 @@ struct MoreTab: View {
     }
 
     private let upcoming: [Entry] = [
-        Entry(title: "Impôts", systemImage: "doc.text", isAvailable: false),
         Entry(title: "Assurances", systemImage: "shield", isAvailable: false),
         Entry(title: "Prévoyance", systemImage: "shield.checkered", isAvailable: false),
         Entry(title: "Patrimoine", systemImage: "chart.bar", isAvailable: false),
@@ -33,6 +32,11 @@ struct MoreTab: View {
                         RecurringListView()
                     } label: {
                         Label("Récurrents et abonnements", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    NavigationLink {
+                        TaxesView()
+                    } label: {
+                        Label("Impôts", systemImage: "doc.text")
                     }
                 }
                 Section("À venir") {

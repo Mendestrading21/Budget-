@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
-Current phase: Phases 0 à 6 terminées — prochaine : Phase 7 (Impôts)
+Current phase: Phases 0 à 7 terminées — prochaine : Phase 8 (Objectifs)
 Invocation mode: build (session Claude Code sur Linux, vérification via CI GitHub Actions)
 
 ## Product goal (confirmé par l'utilisateur, 2026-07-19)
@@ -13,7 +13,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Product state
 
 - App launches: phases 0-4 compilées et validées sur Mac par l'utilisateur ; ajouts de la phase 5 NON COMPILÉS (Linux, pas de toolchain Apple)
-- Persistence: SwiftData, schéma versionné V3 (`BudgetSchemaV3` : + RecurringTransaction, + BudgetTransaction.recurringID), migrations légères V1→V2→V3 (ADR-006/007)
+- Persistence: SwiftData, schéma versionné V4 (`BudgetSchemaV4` : + TaxProfile/TaxProvision), migrations légères V1→…→V4 (ADR-006/007/008)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
 - Accounts: liste groupée, détail, formulaire, réconciliation horodatée, archivage, flags cash/patrimoine, solde dérivé
@@ -21,7 +21,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - Dashboard: `MonthlySnapshotService` (pur, calendrier + « now » injectés), montant vraiment disponible avec décomposition, budget quotidien, 4 cartes, graphique 6 mois (Swift Charts) avec résumé accessible, 3 actions prioritaires, mouvements récents
 - Budget: onglet complet — lignes par catégorie (groupes essentiel/discrétionnaire/épargne/impôts), planifié vs réel avec badge de dépassement, section « Hors budget » (réconciliation totale), copie du mois précédent, grille annuelle 12 mois, graphique dashboard budget-vs-réel avec fallback 6 mois
 - Recurring/subscriptions: entité unique (charges/revenus/abonnements), occurrences par multiples d'ancre sans dérive, dédup prévision/réel par recurringID, équivalents mensuel/annualisé, échéances de résiliation (badge + action prioritaire), section « À venir ce mois » avec comptabilisation en un geste, liste + formulaire complets (ADR-007)
-- Taxes: taux sur `Household` (ADR-003), résumé mensuel recommandé/payé/écart ; module complet en Phase 7
+- Taxes: module complet — TaxProfile (taux, source de vérité, seedé depuis Household), TaxProvision par année (réserve, arriérés, override, échéances), états dérivés toujours réconciliés (estimé = payé + dû), écran avec hypothèses visibles + disclaimer, échéances en action prioritaire du dashboard (ADR-008)
 - Goals: non commencé (Phase 8)
 - Insurance/pension: non commencé (Phase 9)
 - Net worth: somme des comptes inclus (convention signée, dettes négatives) ; entités Asset/Liability en Phase 10
@@ -37,11 +37,12 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 3 : tests de neutralité des virements et de rejets de transactions invalides ; liste gère vide et volume
 - [x] Phase 4 : toutes les valeurs du dashboard dérivent des données persistées via des tests d'invariants
 - [x] Phase 5 : planifié et réel restent séparés ; toutes les variances se réconcilient (tests) ; copie de mois sans doublons ; grille annuelle
-- [x] Phase 6 : toute charge active apparaît exactement une fois dans les prévisions du mois ; les inactives jamais (tests d'échéancier + dédup)
+- [x] Phase 6 : toute charge active apparaît exactement une fois dans les prévisions du mois ; les inactives jamais (tests d'échéancier + dédup) — CI verte (run 29702260574)
+- [x] Phase 7 : tous les états fiscaux se réconcilient (estimé = payé + dû, tests) et les hypothèses sont visibles à l'écran
 - [x] Build + tests des phases 0-4 validés sur Mac par l'utilisateur (« Ça fonctionne ✓ »)
 - [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
-- [ ] CI verte sur la phase 6 (en cours au moment de cette mise à jour — voir Actions)
-- [ ] Migration V1→V3 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [ ] CI verte sur la phase 7 (en cours — voir Actions)
+- [ ] Migration V1→V4 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
@@ -63,5 +64,5 @@ Voir DECISION_LOG.md (ADR-001 à ADR-005). Convention patrimoine : soldes signé
 
 ## Next exact action
 
-1. Attendre la CI verte sur la phase 6 ; en cas d'échec, corriger et repousser (boucle habituelle).
-2. Puis : `/budget-v1 build` → Phase 7 (module Impôts complet : profil fiscal, provision réservé/payé/arriérés, échéances, migration du taux depuis Household).
+1. Attendre la CI verte sur la phase 7 ; en cas d'échec, corriger et repousser (boucle habituelle).
+2. Puis : `/budget-v1 build` → Phase 8 (objectifs d'épargne : CRUD, projections, contribution mensuelle requise, comptes liés, célébrations sobres).

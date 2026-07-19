@@ -214,6 +214,36 @@ enum DemoDataFactory {
             }
         }
 
+        // Tax profile and current-year provision with instalment deadlines.
+        let taxProfile = TaxProfile(
+            canton: SwissCanton.VD.rawValue,
+            municipality: "Lausanne",
+            provisionRate: Decimal("0.30"),
+            createdAt: now,
+            updatedAt: now
+        )
+        context.insert(taxProfile)
+        let taxYear = calendar.component(.year, from: now)
+        let provision = TaxProvision(
+            year: taxYear,
+            reservedAmount: Decimal("5200.00"),
+            arrearsAmount: .zero,
+            dueDates: [
+                TaxDueDate(
+                    date: calendar.date(byAdding: .day, value: 24, to: now) ?? now,
+                    label: "Acompte cantonal"
+                ),
+                TaxDueDate(
+                    date: calendar.date(byAdding: .day, value: 115, to: now) ?? now,
+                    label: "Acompte cantonal"
+                ),
+            ],
+            createdAt: now,
+            updatedAt: now
+        )
+        provision.profile = taxProfile
+        context.insert(provision)
+
         do {
             try context.save()
         } catch {

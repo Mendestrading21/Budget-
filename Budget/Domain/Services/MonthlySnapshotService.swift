@@ -17,7 +17,8 @@ struct MonthlySnapshotService {
         household: Household?,
         accounts: [Account],
         transactions: [BudgetTransaction],
-        recurrings: [RecurringTransaction] = []
+        recurrings: [RecurringTransaction] = [],
+        taxProfile: TaxProfile? = nil
     ) -> MonthSnapshot {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let inMonth = transactions.filter { interval.contains($0.date) }
@@ -54,7 +55,9 @@ struct MonthlySnapshotService {
             - totalTaxPayments
             - totalDebtPayments
 
-        let rate = household?.taxProvisionRate ?? Decimal("0.30")
+        // The tax profile is the source of truth once it exists; the
+        // household field only covers pre-Phase-7 stores (ADR-008).
+        let rate = taxProfile?.provisionRate ?? household?.taxProvisionRate ?? Decimal("0.30")
         let taxProvision = TaxProvisionSummary(
             rate: rate,
             recommended: FinanceMath.roundedToCents(totalIncome * rate),

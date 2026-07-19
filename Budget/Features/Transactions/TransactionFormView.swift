@@ -10,6 +10,9 @@ struct TransactionFormView: View {
     }
 
     let mode: Mode
+    /// Preselects the movement type on creation (e.g. a tax payment
+    /// started from the tax module).
+    var prefilledType: TransactionType? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -161,6 +164,7 @@ struct TransactionFormView: View {
         switch mode {
         case .create(let prefilledAccount):
             date = appContainer.dateProvider.now
+            if let prefilledType { type = prefilledType }
             account = prefilledAccount ?? allAccounts.first { $0.isActive && $0.type == .current } ?? allAccounts.first(where: \.isActive)
         case .edit(let transaction):
             type = transaction.type
