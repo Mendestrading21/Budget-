@@ -12,7 +12,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 ## Product state
 
-- App launches: phases 0-4 compilées et validées sur Mac par l'utilisateur ; ajouts de la phase 5 NON COMPILÉS (Linux, pas de toolchain Apple)
+- App launches: phases 0-7 compilées et testées en CI GitHub Actions (dernier run vert : 29702569987)
 - Persistence: SwiftData, schéma versionné V4 (`BudgetSchemaV4` : + TaxProfile/TaxProvision), migrations légères V1→…→V4 (ADR-006/007/008)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
@@ -29,7 +29,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - Security: non commencé (Phase 12)
 - Release readiness: non commencé
 
-## Current acceptance criteria (Phases 0-4)
+## Current acceptance criteria (Phases 0-7)
 
 - [x] Phase 0 : fondation compilable en principe (projet Xcode 16, thème, formatage fr-CH, modèles, démo, tests)
 - [x] Phase 1 : un nouvel utilisateur crée un profil local valide et retombe dans l'app au relancement (test de persistance inclus)
@@ -47,22 +47,20 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Build and test evidence
 
 - CI GitHub Actions (`.github/workflows/ci.yml`, runner macos-15, simulateur iPhone 16) : build + `xcodebuild test` à chaque push.
-- **Run vert** : run 29701802089 sur le commit `5f22ec4` (phases 0-5 + correctifs) — build OK, **82 tests, 0 échec**.
-  https://github.com/Mendestrading21/Budget-/actions/runs/29701802089
+- **Derniers runs verts** : phase 5 (29701802089), phase 6 (29702260574), phase 7 (29702569987) — build OK, suite complète sans échec.
+  https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
-- Reste à vérifier sur appareil : la migration V1→V2 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
+- Reste à vérifier sur appareil : la migration V1→V4 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
 
 ## Decisions made
 
-Voir DECISION_LOG.md (ADR-001 à ADR-005). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
+Voir DECISION_LOG.md (ADR-001 à ADR-008). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
 
 ## Known risks or blockers
 
-- Ajouts phase 5 non compilés : erreurs résiduelles possibles à l'ouverture dans Xcode.
-- Migration V1→V2 : à valider impérativement sur un simulateur/appareil contenant déjà des données des phases 0-4 (aucune perte attendue, changement additif).
+- Migration V1→V4 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
 - Filtres et rapports calculés en mémoire (volumes V1 acceptables) — indexation/#Predicate à revisiter en Phase 13 (performance).
 
 ## Next exact action
 
-1. Attendre la CI verte sur la phase 7 ; en cas d'échec, corriger et repousser (boucle habituelle).
-2. Puis : `/budget-v1 build` → Phase 8 (objectifs d'épargne : CRUD, projections, contribution mensuelle requise, comptes liés, célébrations sobres).
+1. `/budget-v1 build` → Phase 8 (objectifs d'épargne : CRUD, projections, contribution mensuelle requise, comptes liés, célébrations sobres).
