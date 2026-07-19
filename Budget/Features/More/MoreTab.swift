@@ -23,6 +23,13 @@ struct MoreTab: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink {
+                        TransactionsListView()
+                    } label: {
+                        Label("Mouvements", systemImage: "list.bullet.rectangle")
+                    }
+                }
                 Section("À venir") {
                     ForEach(upcoming) { entry in
                         HStack {

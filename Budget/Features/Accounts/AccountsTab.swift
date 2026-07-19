@@ -177,9 +177,10 @@ struct AccountRow: View {
 }
 
 #Preview("Comptes") {
-    AccountsTab()
-        .environment(try! AppContainer(inMemory: true))
+    let preview = DemoDataFactory.previewAppContainer()
+    return AccountsTab()
+        .environment(preview)
         .environment(AppRouter())
-        .modelContainer(DemoDataFactory.previewContainer())
+        .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
 }

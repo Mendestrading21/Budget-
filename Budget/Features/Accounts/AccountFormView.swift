@@ -156,8 +156,9 @@ struct AccountFormView: View {
 }
 
 #Preview("Nouveau compte") {
-    AccountFormView(mode: .create)
-        .environment(try! AppContainer(inMemory: true))
-        .modelContainer(DemoDataFactory.previewContainer())
+    let preview = DemoDataFactory.previewAppContainer()
+    return AccountFormView(mode: .create)
+        .environment(preview)
+        .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
 }

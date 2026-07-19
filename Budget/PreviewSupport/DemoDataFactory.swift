@@ -132,19 +132,37 @@ enum DemoDataFactory {
         }
     }
 
-    /// In-memory container pre-populated with demo data at a fixed date —
+    /// Fixed reference date for deterministic previews: 15.06.2026 12:00 UTC.
+    static let previewReferenceDate = Date(timeIntervalSince1970: 1_781_524_800)
+
+    /// In-memory container pre-populated with demo data at the fixed date —
     /// use in previews so they stay deterministic.
     static func previewContainer() -> ModelContainer {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = FinanceFormatting.locale
-        // Fixed reference: 15.06.2026 12:00 UTC.
-        let reference = Date(timeIntervalSince1970: 1_781_524_800)
         do {
             let container = try PersistenceFactory.makeInMemoryContainer()
-            populate(container: container, now: reference, calendar: calendar)
+            populate(container: container, now: previewReferenceDate, calendar: calendar)
             return container
         } catch {
             fatalError("Preview container creation failed: \(error)")
+        }
+    }
+
+    /// Full preview composition root: fixed "now" aligned with the demo
+    /// history, isolated in-memory store already populated.
+    static func previewAppContainer() -> AppContainer {
+        do {
+            let appContainer = try AppContainer(
+                dateProvider: FixedDateProvider(now: previewReferenceDate),
+                inMemory: true
+            )
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.locale = FinanceFormatting.locale
+            populate(container: appContainer.modelContainer, now: previewReferenceDate, calendar: calendar)
+            return appContainer
+        } catch {
+            fatalError("Preview app container creation failed: \(error)")
         }
     }
 }

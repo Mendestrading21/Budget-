@@ -11,6 +11,7 @@ struct AccountDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var isPresentingEdit = false
+    @State private var isPresentingNewMovement = false
     @State private var isPresentingReconcile = false
     @State private var isConfirmingArchive = false
     @State private var isConfirmingDelete = false
@@ -66,6 +67,7 @@ struct AccountDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
+                    Button("Ajouter un mouvement", systemImage: "plus") { isPresentingNewMovement = true }
                     Button("Modifier", systemImage: "pencil") { isPresentingEdit = true }
                     Button("Réconcilier le solde", systemImage: "checkmark.seal") { isPresentingReconcile = true }
                     if account.isActive {
@@ -83,6 +85,9 @@ struct AccountDetailView: View {
         }
         .sheet(isPresented: $isPresentingEdit) {
             AccountFormView(mode: .edit(account))
+        }
+        .sheet(isPresented: $isPresentingNewMovement) {
+            TransactionFormView(mode: .create(prefilledAccount: account))
         }
         .sheet(isPresented: $isPresentingReconcile) {
             ReconcileSheet(account: account)
