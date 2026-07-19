@@ -11,8 +11,6 @@ struct MoreTab: View {
     }
 
     private let upcoming: [Entry] = [
-        Entry(title: "Assurances", systemImage: "shield", isAvailable: false),
-        Entry(title: "Prévoyance", systemImage: "shield.checkered", isAvailable: false),
         Entry(title: "Patrimoine", systemImage: "chart.bar", isAvailable: false),
         Entry(title: "Documents", systemImage: "folder", isAvailable: false),
         Entry(title: "Import / Export", systemImage: "square.and.arrow.up.on.square", isAvailable: false),
@@ -37,6 +35,16 @@ struct MoreTab: View {
                         TaxesView()
                     } label: {
                         Label("Impôts", systemImage: "doc.text")
+                    }
+                    NavigationLink {
+                        InsuranceListView()
+                    } label: {
+                        Label("Assurances", systemImage: "shield")
+                    }
+                    NavigationLink {
+                        PensionView()
+                    } label: {
+                        Label("Prévoyance", systemImage: "shield.checkered")
                     }
                 }
                 Section("À venir") {

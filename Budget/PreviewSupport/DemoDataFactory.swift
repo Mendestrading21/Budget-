@@ -289,6 +289,54 @@ enum DemoDataFactory {
             context.insert(goal)
         }
 
+        // Insurance register and pension positions.
+        let lamalContract = InsuranceContract(
+            insurerName: "Caisse Exemple",
+            policyName: "LAMal famille",
+            kind: .healthBase,
+            premiumAmount: Decimal("745.60"),
+            premiumUnit: .month,
+            deductible: Decimal("2500.00"),
+            createdAt: now, updatedAt: now,
+            member: owner
+        )
+        let liabilityContract = InsuranceContract(
+            insurerName: "Assurance Exemple",
+            policyName: "RC + ménage",
+            kind: .householdContents,
+            premiumAmount: Decimal("320.00"),
+            premiumUnit: .year,
+            deductible: Decimal("200.00"),
+            renewalDate: calendar.date(byAdding: .month, value: 5, to: now),
+            cancellationDeadline: calendar.date(byAdding: .day, value: 40, to: now),
+            createdAt: now, updatedAt: now
+        )
+        context.insert(lamalContract)
+        context.insert(liabilityContract)
+
+        let lppAsset = PensionAsset(
+            pillar: .pillar2,
+            institutionName: "Caisse de pension Exemple",
+            currentValue: Decimal("85000.00"),
+            annualContribution: Decimal("9600.00"),
+            projectedValueAtRetirement: Decimal("420000.00"),
+            retirementAge: 65,
+            sourceDocumentDate: calendar.date(byAdding: .month, value: -5, to: now),
+            createdAt: now, updatedAt: now,
+            owner: owner
+        )
+        let thirdPillarAsset = PensionAsset(
+            pillar: .pillar3a,
+            institutionName: "Fondation Exemple",
+            currentValue: Decimal("18190.00"),
+            annualContribution: Decimal("7044.00"),
+            sourceDocumentDate: calendar.date(byAdding: .month, value: -1, to: now),
+            createdAt: now, updatedAt: now,
+            owner: owner
+        )
+        context.insert(lppAsset)
+        context.insert(thirdPillarAsset)
+
         do {
             try context.save()
         } catch {

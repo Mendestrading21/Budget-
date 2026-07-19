@@ -1,5 +1,29 @@
 # Budget decision log
 
+## ADR-010 — Assurances/prévoyance : prime au rythme réel, projections jamais inventées
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+Phase 9. Les primes suisses se paient à des rythmes variés (LAMal mensuelle, RC annuelle) et la prévoyance vient de relevés officiels.
+
+### Decision
+
+- Schéma V6 : `InsuranceContract` (prime stockée à son rythme réel via RecurrenceUnit + intervalle ; équivalents annuel/mensuel DÉRIVÉS par `InsurancePensionService` avec les mêmes formules que les récurrents → réconciliation garantie, le total mensuel dérive du total annuel) et `PensionAsset` (piliers 1/2/3a/3b, valeurs recopiées des certificats).
+- L'app n'invente aucune croissance : la « projection à la retraite » est celle imprimée sur le certificat de l'institution, étiquetée comme hypothèse ; la somme des projections n'est affichée que si CHAQUE position en a une (une somme partielle serait trompeuse).
+- Délais de résiliation surveillés à 60 jours (les résiliations d'assurance demandent plus d'anticipation que les abonnements à 30 j).
+- Pas de comparaison commerciale d'assurances en V1 (contrat produit).
+
+### Consequences
+
+`documentReference` reste un champ libre jusqu'au module Documents (Phase 11).
+
+### Verification
+
+`InsurancePensionServiceTests` : équivalents mensuel/trimestriel/annuel, totaux ménage réconciliés, tri des délais, totaux par pilier = total général, refus de somme partielle, round-trip V6.
+
 ## ADR-009 — Objectifs : valeur courante exclusive, contributions non soustraites du disponible
 
 Date: 2026-07-19
