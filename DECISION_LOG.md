@@ -1,5 +1,31 @@
 # Budget decision log
 
+## ADR-013 — Sécurité/portabilité : verrouillage authentifié dans les deux sens, sauvegarde en montants String
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+Phase 12. Critères : états de verrouillage, annulation, version de restauration et confirmations destructives corrects ; textes de confidentialité conformes à l'implémentation.
+
+### Decision
+
+- `AuthenticationProviding` (protocole, contrat architecture) : impl LAContext (`deviceOwnerAuthentication` = biométrie avec repli code) + fake scripté. `AppLockManager` : verrouillé au lancement et au passage en arrière-plan quand activé ; annulation/échec = reste verrouillé ; l'ACTIVATION ET la désactivation exigent une authentification (un passant ne désactive pas la protection). Préférence dans UserDefaults (pas un secret) ; `NSFaceIDUsageDescription` ajouté au projet.
+- Sauvegarde JSON versionnée (`schemaVersion` = 8) : chaque montant voyage en **String** (`"2150.00"`) — le Codable de Decimal via JSON perdrait la précision ; relations recousues par UUID à la restauration ; une sauvegarde d'un schéma PLUS RÉCENT est refusée avec message clair ; un JSON corrompu est refusé AVANT tout effacement.
+- Restauration = remplacement total (confirmation destructive) ; les fichiers de documents ne voyagent pas dans le JSON (métadonnées seulement, référence conservée).
+- Export CSV machine-stable (dates ISO, décimales à point, `;`, guillemets doublés) — l'affichage fr-CH reste dans l'app, l'export vise la portabilité.
+- Suppression totale : double confirmation, efface toutes les entités (transactions d'abord pour ne jamais heurter les règles .deny) ET les fichiers de documents.
+- Écrans Confidentialité/Méthodologie : textes alignés sur le comportement réel (aucun réseau, aucune analyse, formules exactes du disponible/taux d'épargne/impôts).
+
+### Consequences
+
+L'export sur demande uniquement ; aucune écriture réseau nulle part.
+
+### Verification
+
+`BackupServiceTests` (round-trip complet sur les données démo, remplacement, rejet schéma plus récent sans effacement, rejet corruption, suppression totale fichiers compris, échappement CSV) et `AppLockManagerTests` (défaut déverrouillé, activation authentifiée, annulation/échec/succès, persistance à la relance).
+
 ## ADR-012 — Import CSV : empreintes SHA-256, écriture au dernier pas, fichiers derrière protocole
 
 Date: 2026-07-19

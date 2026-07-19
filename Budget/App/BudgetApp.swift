@@ -5,16 +5,27 @@ import SwiftData
 struct BudgetApp: App {
     @State private var appContainer: AppContainer?
     @State private var startupError: Error?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             if let appContainer {
-                RootView()
-                    .environment(appContainer)
-                    .modelContainer(appContainer.modelContainer)
-                    // Rebuild the view hierarchy when switching between the
-                    // real store and the isolated demo store.
-                    .id(appContainer.isDemoMode)
+                ZStack {
+                    RootView()
+                        .environment(appContainer)
+                        .modelContainer(appContainer.modelContainer)
+                        // Rebuild the view hierarchy when switching between
+                        // the real store and the isolated demo store.
+                        .id(appContainer.isDemoMode)
+                    if appContainer.lockManager.isLocked {
+                        LockScreenView(lockManager: appContainer.lockManager)
+                    }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .background {
+                        appContainer.lockManager.lockIfEnabled()
+                    }
+                }
             } else if let startupError {
                 StartupErrorView(error: startupError)
             } else {

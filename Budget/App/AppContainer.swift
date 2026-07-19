@@ -12,6 +12,7 @@ final class AppContainer {
     let dateProvider: DateProviding
     let balanceService: AccountBalanceService
     let documentFileStore: DocumentFileStoring
+    let lockManager: AppLockManager
 
     /// Demo mode runs the whole app on an isolated in-memory store filled
     /// with fictional data. It never touches the production store.
@@ -33,6 +34,9 @@ final class AppContainer {
         self.dateProvider = dateProvider
         self.balanceService = AccountBalanceService()
         self.documentFileStore = inMemory ? InMemoryDocumentFileStore() : LocalDocumentFileStore()
+        self.lockManager = AppLockManager(
+            authService: inMemory ? FakeAuthenticationService() : BiometricAuthenticationService()
+        )
         self.isDemoMode = false
         self.modelContainer = inMemory
             ? try PersistenceFactory.makeInMemoryContainer()

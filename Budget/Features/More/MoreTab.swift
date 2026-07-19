@@ -1,20 +1,7 @@
 import SwiftUI
 
-/// "Plus" tab: entry points to secondary modules. Modules from later
-/// phases are visible but clearly marked as upcoming.
+/// "Plus" tab: entry points to secondary modules.
 struct MoreTab: View {
-    private struct Entry: Identifiable {
-        let id = UUID()
-        let title: String
-        let systemImage: String
-        let isAvailable: Bool
-    }
-
-    private let upcoming: [Entry] = [
-        Entry(title: "Export et sauvegarde", systemImage: "square.and.arrow.up.on.square", isAvailable: false),
-        Entry(title: "Réglages", systemImage: "gearshape", isAvailable: false),
-    ]
-
     var body: some View {
         NavigationStack {
             List {
@@ -59,18 +46,10 @@ struct MoreTab: View {
                     } label: {
                         Label("Import CSV", systemImage: "square.and.arrow.down")
                     }
-                }
-                Section("À venir") {
-                    ForEach(upcoming) { entry in
-                        HStack {
-                            Label(entry.title, systemImage: entry.systemImage)
-                            Spacer()
-                            Text("Bientôt")
-                                .font(BudgetFont.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(entry.title), disponible prochainement")
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Label("Réglages", systemImage: "gearshape")
                     }
                 }
             }
