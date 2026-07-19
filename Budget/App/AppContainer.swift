@@ -11,6 +11,7 @@ final class AppContainer {
     let calendar: Calendar
     let dateProvider: DateProviding
     let balanceService: AccountBalanceService
+    let documentFileStore: DocumentFileStoring
 
     /// Demo mode runs the whole app on an isolated in-memory store filled
     /// with fictional data. It never touches the production store.
@@ -23,13 +24,15 @@ final class AppContainer {
 
     private var isRevertingDemoToggle = false
 
-    /// `inMemory` keeps previews and tests away from the production store.
+    /// `inMemory` keeps previews and tests away from the production store
+    /// and from the real file system.
     init(dateProvider: DateProviding = SystemDateProvider(), inMemory: Bool = false) throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = FinanceFormatting.locale
         self.calendar = calendar
         self.dateProvider = dateProvider
         self.balanceService = AccountBalanceService()
+        self.documentFileStore = inMemory ? InMemoryDocumentFileStore() : LocalDocumentFileStore()
         self.isDemoMode = false
         self.modelContainer = inMemory
             ? try PersistenceFactory.makeInMemoryContainer()

@@ -11,8 +11,7 @@ struct MoreTab: View {
     }
 
     private let upcoming: [Entry] = [
-        Entry(title: "Documents", systemImage: "folder", isAvailable: false),
-        Entry(title: "Import / Export", systemImage: "square.and.arrow.up.on.square", isAvailable: false),
+        Entry(title: "Export et sauvegarde", systemImage: "square.and.arrow.up.on.square", isAvailable: false),
         Entry(title: "Réglages", systemImage: "gearshape", isAvailable: false),
     ]
 
@@ -49,6 +48,16 @@ struct MoreTab: View {
                         NetWorthView()
                     } label: {
                         Label("Patrimoine", systemImage: "chart.bar")
+                    }
+                    NavigationLink {
+                        DocumentsListView()
+                    } label: {
+                        Label("Documents", systemImage: "folder")
+                    }
+                    NavigationLink {
+                        ImportWizardView()
+                    } label: {
+                        Label("Import CSV", systemImage: "square.and.arrow.down")
                     }
                 }
                 Section("À venir") {

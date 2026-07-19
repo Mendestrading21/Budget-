@@ -379,6 +379,25 @@ enum DemoDataFactory {
             ))
         }
 
+        // Documents: metadata-only entries (no real files in demo).
+        let lppDocument = FinancialDocument(
+            title: "Certificat LPP 2026",
+            kind: .pensionCertificate,
+            year: calendar.component(.year, from: now),
+            provider: "Caisse de pension Exemple",
+            addedAt: now, updatedAt: now,
+            member: owner
+        )
+        let policyDocument = FinancialDocument(
+            title: "Police RC ménage",
+            kind: .insurancePolicy,
+            year: calendar.component(.year, from: now),
+            provider: "Assurance Exemple",
+            addedAt: now, updatedAt: now
+        )
+        context.insert(lppDocument)
+        context.insert(policyDocument)
+
         do {
             try context.save()
         } catch {

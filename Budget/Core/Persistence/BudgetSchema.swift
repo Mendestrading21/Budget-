@@ -148,12 +148,42 @@ enum BudgetSchemaV7: VersionedSchema {
     }
 }
 
+/// Schema v8.0.0 — adds documents and import batches (FinancialDocument,
+/// ImportBatch) plus the optional BudgetTransaction.importBatchID link.
+/// Purely additive.
+enum BudgetSchemaV8: VersionedSchema {
+    static let versionIdentifier = Schema.Version(8, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            Household.self,
+            HouseholdMember.self,
+            Account.self,
+            BudgetCategory.self,
+            BudgetTransaction.self,
+            MonthlyBudget.self,
+            BudgetLine.self,
+            RecurringTransaction.self,
+            TaxProfile.self,
+            TaxProvision.self,
+            FinancialGoal.self,
+            InsuranceContract.self,
+            PensionAsset.self,
+            Asset.self,
+            Liability.self,
+            NetWorthSnapshot.self,
+            FinancialDocument.self,
+            ImportBatch.self,
+        ]
+    }
+}
+
 enum BudgetMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [
             BudgetSchemaV1.self, BudgetSchemaV2.self, BudgetSchemaV3.self,
             BudgetSchemaV4.self, BudgetSchemaV5.self, BudgetSchemaV6.self,
-            BudgetSchemaV7.self,
+            BudgetSchemaV7.self, BudgetSchemaV8.self,
         ]
     }
 
@@ -165,6 +195,7 @@ enum BudgetMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: BudgetSchemaV4.self, toVersion: BudgetSchemaV5.self),
             .lightweight(fromVersion: BudgetSchemaV5.self, toVersion: BudgetSchemaV6.self),
             .lightweight(fromVersion: BudgetSchemaV6.self, toVersion: BudgetSchemaV7.self),
+            .lightweight(fromVersion: BudgetSchemaV7.self, toVersion: BudgetSchemaV8.self),
         ]
     }
 }
@@ -174,7 +205,7 @@ enum PersistenceFactory {
     static func makeProductionContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV7.self),
+            for: Schema(versionedSchema: BudgetSchemaV8.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
@@ -184,7 +215,7 @@ enum PersistenceFactory {
     static func makeInMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV7.self),
+            for: Schema(versionedSchema: BudgetSchemaV8.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )

@@ -95,6 +95,9 @@ final class BudgetTransaction {
     /// lets forecasts avoid duplicating already-posted occurrences.
     var recurringID: UUID?
 
+    /// Import batch this movement came from (rollback handle).
+    var importBatchID: UUID?
+
     var createdAt: Date
     var updatedAt: Date
 
@@ -133,6 +136,7 @@ final class BudgetTransaction {
         adjustmentIncreasesBalance: Bool = true,
         importFingerprint: String? = nil,
         recurringID: UUID? = nil,
+        importBatchID: UUID? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         account: Account? = nil,
@@ -151,6 +155,7 @@ final class BudgetTransaction {
         self.adjustmentIncreasesBalance = adjustmentIncreasesBalance
         self.importFingerprint = importFingerprint
         self.recurringID = recurringID
+        self.importBatchID = importBatchID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.account = account

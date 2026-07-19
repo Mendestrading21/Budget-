@@ -1,5 +1,30 @@
 # Budget decision log
 
+## ADR-012 — Import CSV : empreintes SHA-256, écriture au dernier pas, fichiers derrière protocole
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+Phase 11. La spec CSV_IMPORT_SPEC exige : aucun doublon au ré-import, chaque ligne rejetée visible, jamais d'import depuis une préview, pas de création massive de catégories.
+
+### Decision
+
+- Empreinte = SHA-256 (CryptoKit, framework système) de l'identité normalisée `fichier|index|dateISO|montant|type|intitulé` → stockée dans `importFingerprint` (existant depuis V1) ; doublon si l'empreinte existe déjà (dans le store OU plus haut dans le même fichier). L'index de ligne fait partie de l'identité : deux lignes volontairement identiques dans le fichier restent deux mouvements.
+- Le wizard est pur jusqu'au bout : parse/mapping/validation ne touchent jamais le store ; seul `apply` écrit, en lot (`ImportBatch` + `importBatchID` additif sur BudgetTransaction) → rollback exact du lot (les catégories créées survivent car potentiellement réutilisées).
+- Catégories manquantes listées et créées UNIQUEMENT si cochées ; lignes non confirmées importées sans catégorie (file « non catégorisés » existante).
+- Fichiers de documents : protocole `DocumentFileStoring` (contrat architecture), impl réelle FileManager avec `.completeFileProtection` dans le conteneur, fake in-memory pour tests/previews. Pas de blob SwiftData.
+- Export CSV/JSON : Phase 12, conformément au découpage de la roadmap.
+
+### Consequences
+
+Le rapport réconcilie par construction (total = importées + doublons + invalides) ; le texte brut des lignes est conservé dans le rapport jusqu'à sa fermeture.
+
+### Verification
+
+`CSVImportServiceTests` : détection, guillemets, dates suisses, raisons visibles, ré-import 0 doublon, stabilité d'empreinte, confirmations de catégories, réconciliation, rollback ciblé, fake store.
+
 ## ADR-011 — Patrimoine : dettes positives soustraites, instantané quotidien
 
 Date: 2026-07-19

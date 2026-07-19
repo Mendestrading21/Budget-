@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
-Current phase: Phases 0 à 10 terminées — prochaine : Phase 11 (Documents + import CSV)
+Current phase: Phases 0 à 11 terminées — prochaine : Phase 12 (Sécurité et portabilité)
 Invocation mode: build (session Claude Code sur Linux, vérification via CI GitHub Actions)
 
 ## Product goal (confirmé par l'utilisateur, 2026-07-19)
@@ -13,7 +13,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Product state
 
 - App launches: phases 0-10 compilées et testées en CI GitHub Actions (dernier run vert : 29704249404)
-- Persistence: SwiftData, schéma versionné V7 (`BudgetSchemaV7` : + Asset/Liability/NetWorthSnapshot), migrations légères V1→…→V7 (ADR-006..011)
+- Persistence: SwiftData, schéma versionné V8 (`BudgetSchemaV8` : + FinancialDocument/ImportBatch, + importBatchID), migrations légères V1→…→V8 (ADR-006..012)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
 - Accounts: liste groupée, détail, formulaire, réconciliation horodatée, archivage, flags cash/patrimoine, solde dérivé
@@ -25,7 +25,8 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - Goals: onglet complet — types suisses (fonds d'urgence, 3a, voyage…), progrès via compte lié ou montant manuel, contribution mensuelle requise vs prévue, statuts En bonne voie/À accélérer/Échéance dépassée/Atteint (célébration sobre), projection au rythme prévu, action prioritaire dashboard (ADR-009)
 - Insurance/pension: registre de contrats (prime + fréquence réelle, équivalents annuel/mensuel réconciliés, franchise, renouvellement, délais de résiliation à 60 j) ; prévoyance par piliers 1/2/3a/3b (valeurs des relevés officiels, contributions, projections des institutions jamais présentées comme garanties, somme partielle refusée) (ADR-010)
 - Net worth: écran Patrimoine complet — décomposition réconciliée (comptes signés + actifs + prévoyance − dettes stockées positives), toggles d'inclusion respectés partout, instantané quotidien automatique, courbe de tendance Swift Charts avec résumé accessible, CRUD actifs/dettes (ADR-011)
-- Import/export: champ `importFingerprint` prêt ; module en Phase 11
+- Import/export: wizard CSV Notion complet (détection délimiteur/en-têtes, mappage corrigeable, parsing dates/montants suisses, états ready/doublon/invalide, empreintes SHA-256 → ré-import 0 doublon, catégories créées uniquement sur confirmation, rapport réconcilié + file de réparation avec texte brut, rollback de lot) ; export en Phase 12 (ADR-012)
+- Documents: registre local — fichiers copiés dans le conteneur protégé (completeFileProtection) via protocole DocumentFileStoring (impl réelle + fake), métadonnées typées, partage ShareLink, suppression fichier+métadonnées
 - Security: non commencé (Phase 12)
 - Release readiness: non commencé
 
@@ -45,8 +46,9 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 8 : contribution requise et bords cible-zéro/date passée sûrs (tests) — CI verte (run 29702937482)
 - [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI verte (run 29703182761)
 - [x] Phase 10 : neutralité des virements, signes des dettes et toggles inclus/exclus corrects (tests) — CI verte (run 29704249404)
+- [x] Phase 11 : un ré-import ne duplique jamais ; chaque ligne rejetée est visible avec sa raison (tests) — CI en cours
 
-- [ ] Migration V1→V7 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
@@ -54,17 +56,17 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - **Derniers runs verts** : phases 5→10 (dernier : 29704249404) — build OK, suite complète (~140 tests) sans échec.
   https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
-- Reste à vérifier sur appareil : la migration V1→V7 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
+- Reste à vérifier sur appareil : la migration V1→V8 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
 
 ## Decisions made
 
-Voir DECISION_LOG.md (ADR-001 à ADR-011). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
+Voir DECISION_LOG.md (ADR-001 à ADR-012). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
 
 ## Known risks or blockers
 
-- Migration V1→V7 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
+- Migration V1→V8 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
 - Filtres et rapports calculés en mémoire (volumes V1 acceptables) — indexation/#Predicate à revisiter en Phase 13 (performance).
 
 ## Next exact action
 
-1. `/budget-v1 build` → Phase 11 (documents + import CSV Notion : assistant de mappage, idempotence, file de réparation, export).
+1. `/budget-v1 build` → Phase 12 (Face ID, export CSV/JSON, sauvegarde/restauration, suppression complète, écrans confidentialité/méthodologie).
