@@ -47,9 +47,9 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI verte (run 29703182761)
 - [x] Phase 10 : neutralité des virements, signes des dettes et toggles inclus/exclus corrects (tests) — CI verte (run 29704249404)
 - [x] Phase 11 : un ré-import ne duplique jamais ; chaque ligne rejetée est visible avec sa raison (tests) — CI verte (run 29704772603)
-- [x] Phase 12 : états de verrouillage, annulation, version de restauration et confirmations destructives corrects (tests) — run 29704984445 rouge (l'API batch `context.delete(model:)` est incompatible avec les règles `.deny` de Account), corrigé par des suppressions individuelles dans `BackupService.deleteAll`
+- [x] Phase 12 : états de verrouillage, annulation, version de restauration et confirmations destructives corrects (tests) — run 29704984445 rouge (l'API batch `context.delete(model:)` est incompatible avec les règles `.deny` de Account), corrigé par des suppressions individuelles dans `BackupService.deleteAll` — CI verte (run 29705302551)
 
-- [x] Phase 13 : perf (un seul calcul de snapshot/rapport par rendu, préfiltre annuel), mode clair/mouvement réduit/a11y, checklist QA manuelle ; audit par agent → 1 bloqueur corrigé (la restauration effaçait définitivement les fichiers de documents, ADR-014) + restauration transactionnelle avec rollback, round-trip complet (ImportBatch, employmentStatus, updatedAt), voile de confidentialité dans le sélecteur d'apps, contraste carte impôts en mode clair
+- [x] Phase 13 : perf (un seul calcul de snapshot/rapport par rendu, préfiltre annuel), mode clair/mouvement réduit/a11y, checklist QA manuelle ; audit par agent → 1 bloqueur corrigé (la restauration effaçait définitivement les fichiers de documents, ADR-014) + restauration transactionnelle avec rollback, round-trip complet (ImportBatch, employmentStatus, updatedAt), voile de confidentialité dans le sélecteur d'apps, contraste carte impôts en mode clair — CI verte (runs 29705322894 puis 29705497072, ~168 tests)
 
 - [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 - [ ] Dérouler MANUAL_QA_CHECKLIST.md sur un appareil réel
@@ -57,7 +57,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Build and test evidence
 
 - CI GitHub Actions (`.github/workflows/ci.yml`, runner macos-15, simulateur iPhone 16) : build + `xcodebuild test` à chaque push.
-- **Derniers runs verts** : phases 5→11 (dernier : 29704772603) — build OK, suite complète (~155 tests) sans échec.
+- **Derniers runs verts** : phases 5→13 (dernier : 29705497072, correctifs d'audit Phase 13) — build OK, suite complète (~168 tests) sans échec.
   https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
 - Reste à vérifier sur appareil : la migration V1→V8 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
@@ -73,4 +73,5 @@ Voir DECISION_LOG.md (ADR-001 à ADR-013). Convention patrimoine : soldes signé
 
 ## Next exact action
 
-1. `/budget-v1 build` → Phase 13 (polish : accessibilité, apparence claire, transparence/mouvement réduits, audit de localisation, performance, checklist visuelle).
+1. `/budget-v1 release` → Phase 14 (paquet App Store : icône, écran de lancement, textes de la fiche, plan de captures, décision de prix) — sur « Go » de l'utilisateur.
+2. Sur appareil : dérouler MANUAL_QA_CHECKLIST.md et valider la migration V1→V8 sur un store existant.
