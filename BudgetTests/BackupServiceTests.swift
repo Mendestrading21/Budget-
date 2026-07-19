@@ -75,6 +75,10 @@ final class BackupServiceTests: XCTestCase {
 
     func testBackupRestoreRoundTripPreservesEverything() throws {
         try populateSampleStore()
+        context.insert(ImportBatch(fileName: "notion.csv", importedAt: now, totalRows: 3,
+                                   importedCount: 2, duplicateCount: 1, invalidCount: 0,
+                                   createdCategories: 0))
+        try context.save()
         let before = try counts(in: context)
         XCTAssertGreaterThan(before["transactions"] ?? 0, 0)
 
@@ -99,6 +103,27 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertTrue(lines.allSatisfy { $0.budget != nil && $0.category != nil })
         let provisions = try freshContext.fetch(FetchDescriptor<TaxProvision>())
         XCTAssertEqual(provisions.first?.dueDates.count, 2, "Les échéances Codable voyagent aussi")
+        let batches = try freshContext.fetch(FetchDescriptor<ImportBatch>())
+        XCTAssertEqual(batches.count, 1, "L'historique d'import (et ses poignées de rollback) voyage aussi")
+        XCTAssertEqual(batches.first?.duplicateCount, 1)
+    }
+
+    func testRestoreNeverDeletesDocumentFiles() throws {
+        try populateSampleStore()
+        let fileStore = InMemoryDocumentFileStore()
+        fileStore.store(Data("certificat".utf8), reference: "lpp.pdf")
+        let documents = try context.fetch(FetchDescriptor<FinancialDocument>())
+        documents.first?.fileReference = "lpp.pdf"
+        try context.save()
+
+        let data = try service.makeBackup(context: context, now: now)
+        try service.restore(data: data, context: context, documentFileStore: fileStore)
+
+        XCTAssertNotNil(fileStore.url(for: "lpp.pdf"),
+                        "Les fichiers ne voyagent pas dans le JSON : la restauration ne doit JAMAIS les détruire")
+        let restored = try context.fetch(FetchDescriptor<FinancialDocument>())
+        XCTAssertTrue(restored.contains { $0.fileReference == "lpp.pdf" },
+                      "La référence restaurée pointe toujours sur le fichier encore présent")
     }
 
     func testRestoreReplacesExistingData() throws {
@@ -170,16 +195,21 @@ final class AppLockManagerTests: XCTestCase {
     private var manager: AppLockManager!
     private var defaults: UserDefaults!
 
+    private var suiteName: String!
+
     override func setUp() {
         auth = FakeAuthenticationService()
-        defaults = UserDefaults(suiteName: "AppLockManagerTests-\(UUID().uuidString)")
+        suiteName = "AppLockManagerTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
         manager = AppLockManager(authService: auth, defaults: defaults)
     }
 
     override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
         manager = nil
         auth = nil
         defaults = nil
+        suiteName = nil
     }
 
     func testDisabledByDefaultAndUnlocked() {

@@ -302,3 +302,27 @@ Le contrat interdit toute donnée démo dans le store de production.
 ### Consequences
 
 Isolation totale ; l'interface est reconstruite au changement de mode (`.id(isDemoMode)`).
+
+## ADR-014 — La restauration ne touche jamais aux fichiers de documents
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+L'audit de la Phase 13 a révélé un scénario de perte définitive : `restore()` appelait `deleteAll` avec le vrai `DocumentFileStore`, effaçait donc tous les fichiers de documents, puis réinsérait des métadonnées dont les `fileReference` ne pointaient plus sur rien. Les fichiers ne voyagent pas dans la sauvegarde JSON — rien ne pouvait les faire revenir.
+
+### Decision
+
+1. La restauration remplace les ENTITÉS uniquement (`wipeEntities`) et ne supprime jamais un fichier : une référence restaurée retrouve son fichier s'il est encore présent.
+2. Aucune écriture n'est committée avant la fin de la reconstruction : la purge et les insertions partagent la même transaction, un échec fait `rollback()` et le store reste tel quel — le message « vos données actuelles sont intactes » est vrai dans tous les cas.
+3. Dans la suppression totale, les fichiers ne sont effacés qu'APRÈS le commit de la purge des entités (jamais de fichiers perdus avec des enregistrements survivants).
+4. La sauvegarde embarque désormais aussi `ImportBatch`, `employmentStatus` et les `updatedAt` (round-trip réellement sans perte) ; les nouveaux champs sont optionnels au décodage pour rester compatibles avec les sauvegardes antérieures.
+
+### Consequences
+
+Restaurer sur un appareil contenant des documents est sans danger ; l'historique d'import et ses poignées de rollback survivent au round-trip.
+
+### Verification
+
+`testRestoreNeverDeletesDocumentFiles`, round-trip étendu aux lots d'import (`BackupServiceTests`).

@@ -19,6 +19,11 @@ struct BudgetApp: App {
                         .id(appContainer.isDemoMode)
                     if appContainer.lockManager.isLocked {
                         LockScreenView(lockManager: appContainer.lockManager)
+                    } else if scenePhase != .active && appContainer.lockManager.isLockEnabled {
+                        // The app-switcher snapshot is taken while the scene
+                        // is inactive: cover the financial content so it
+                        // never appears there.
+                        PrivacyShieldView()
                     }
                 }
                 .onChange(of: scenePhase) { _, newPhase in
@@ -38,6 +43,20 @@ struct BudgetApp: App {
                         }
                     }
             }
+        }
+    }
+}
+
+/// Opaque cover shown while the scene is inactive and the lock is
+/// enabled, so no amount leaks into the app-switcher snapshot.
+struct PrivacyShieldView: View {
+    var body: some View {
+        ZStack {
+            BudgetScreenBackground()
+            Image(systemName: "lock.shield")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
     }
 }

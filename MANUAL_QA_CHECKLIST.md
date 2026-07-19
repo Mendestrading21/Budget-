@@ -27,7 +27,8 @@ Cocher chaque point ; noter tout écart dans PROJECT_STATUS.md.
 - [ ] Ré-importer le même fichier : 0 doublon.
 - [ ] Annuler le lot : les mouvements importés disparaissent, le reste survit.
 - [ ] Export CSV : le fichier s'ouvre dans Numbers/Excel.
-- [ ] Sauvegarde JSON → suppression totale (double confirmation) → restauration : tout revient à l'identique.
+- [ ] Sauvegarde JSON → suppression totale (double confirmation) → restauration : toutes les données reviennent à l'identique (les fichiers de documents ne voyagent pas dans le JSON : seuls ceux encore présents sur l'appareil restent ouvrables).
+- [ ] Restaurer une sauvegarde SANS suppression préalable : les documents déjà stockés restent ouvrables après la restauration.
 - [ ] Tenter de restaurer un fichier quelconque (non-JSON) : refus propre, aucune perte.
 
 ## Verrouillage (Phase 12 — états critiques)
@@ -37,6 +38,8 @@ Cocher chaque point ; noter tout écart dans PROJECT_STATUS.md.
 - [ ] ANNULER l'authentification : l'app reste verrouillée, sans crash.
 - [ ] Échec biométrique : message affiché, app toujours verrouillée ; succès : déverrouillée.
 - [ ] Désactiver le verrouillage : une authentification est exigée.
+- [ ] Verrouillage activé, ouvrir le sélecteur d'apps : la miniature de Budget ne montre aucun montant (voile de confidentialité).
+- [ ] Revenir depuis le sélecteur sans passer par l'arrière-plan : l'app se réaffiche sans exiger d'authentification (le voile disparaît seul).
 - [ ] Migration : installer cette version PAR-DESSUS une ancienne (store V1-V7) et vérifier qu'aucune donnée ne manque.
 
 ## Accessibilité

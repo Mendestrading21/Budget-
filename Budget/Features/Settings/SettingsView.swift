@@ -243,6 +243,9 @@ struct SettingsView: View {
                 documentFileStore: appContainer.documentFileStore
             )
             statusMessage = "Sauvegarde restaurée."
+            // Stale share links would still offer pre-restore exports.
+            exportCSVURL = nil
+            backupURL = nil
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? "La restauration a échoué ; vos données actuelles sont intactes."

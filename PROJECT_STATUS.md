@@ -49,7 +49,10 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 11 : un ré-import ne duplique jamais ; chaque ligne rejetée est visible avec sa raison (tests) — CI verte (run 29704772603)
 - [x] Phase 12 : états de verrouillage, annulation, version de restauration et confirmations destructives corrects (tests) — run 29704984445 rouge (l'API batch `context.delete(model:)` est incompatible avec les règles `.deny` de Account), corrigé par des suppressions individuelles dans `BackupService.deleteAll`
 
+- [x] Phase 13 : perf (un seul calcul de snapshot/rapport par rendu, préfiltre annuel), mode clair/mouvement réduit/a11y, checklist QA manuelle ; audit par agent → 1 bloqueur corrigé (la restauration effaçait définitivement les fichiers de documents, ADR-014) + restauration transactionnelle avec rollback, round-trip complet (ImportBatch, employmentStatus, updatedAt), voile de confidentialité dans le sélecteur d'apps, contraste carte impôts en mode clair
+
 - [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [ ] Dérouler MANUAL_QA_CHECKLIST.md sur un appareil réel
 
 ## Build and test evidence
 

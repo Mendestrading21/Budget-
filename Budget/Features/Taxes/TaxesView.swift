@@ -164,7 +164,7 @@ struct TaxesView: View {
         }
     }
 
-    private func stateCard(_ title: String, _ amount: Decimal, icon: String, tint: Color = BudgetColor.offWhite, detail: String?) -> some View {
+    private func stateCard(_ title: String, _ amount: Decimal, icon: String, tint: Color = .primary, detail: String?) -> some View {
         GlassCard(style: .row) {
             VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
                 Label(title, systemImage: icon)

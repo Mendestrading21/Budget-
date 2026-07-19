@@ -26,21 +26,24 @@ struct BackupFile: Codable {
     var liabilities: [LiabilityDTO]
     var netWorthSnapshots: [NetWorthSnapshotDTO]
     var documents: [DocumentDTO]
+    // Optional: absent from backups made before the round-trip audit.
+    var importBatches: [ImportBatchDTO]?
 
     struct HouseholdDTO: Codable {
         var id: UUID; var name: String; var currency: String; var canton: String
         var municipality: String; var taxRate: String; var createdAt: Date
+        var updatedAt: Date?
     }
     struct MemberDTO: Codable {
         var id: UUID; var householdID: UUID?; var firstName: String; var role: String
-        var birthDate: Date?; var includeInBudget: Bool
+        var birthDate: Date?; var employmentStatus: String?; var includeInBudget: Bool
     }
     struct AccountDTO: Codable {
         var id: UUID; var name: String; var institution: String; var type: String
         var currency: String; var openingBalance: String; var reconciledBalance: String?
         var reconciledAt: Date?; var isShared: Bool; var isActive: Bool
         var includeInAvailableCash: Bool; var includeInNetWorth: Bool
-        var ownerID: UUID?; var createdAt: Date
+        var ownerID: UUID?; var createdAt: Date; var updatedAt: Date?
     }
     struct CategoryDTO: Codable {
         var id: UUID; var name: String; var kind: String; var iconToken: String
@@ -54,6 +57,7 @@ struct BackupFile: Codable {
         var recurringID: UUID?; var importBatchID: UUID?
         var accountID: UUID?; var destinationAccountID: UUID?
         var categoryID: UUID?; var memberID: UUID?; var createdAt: Date
+        var updatedAt: Date?
     }
     struct BudgetDTO: Codable { var id: UUID; var year: Int; var month: Int }
     struct BudgetLineDTO: Codable {
@@ -112,6 +116,12 @@ struct BackupFile: Codable {
         var id: UUID; var title: String; var kind: String; var year: Int?
         var provider: String?; var note: String?; var fileReference: String
         var fileSizeBytes: Int?; var memberID: UUID?
+        var addedAt: Date?; var updatedAt: Date?
+    }
+    struct ImportBatchDTO: Codable {
+        var id: UUID; var fileName: String; var importedAt: Date
+        var totalRows: Int; var importedCount: Int; var duplicateCount: Int
+        var invalidCount: Int; var createdCategories: Int
     }
 }
 
@@ -184,11 +194,13 @@ struct BackupService {
             exportedAt: now,
             households: try fetch(Household.self).map {
                 .init(id: $0.id, name: $0.name, currency: $0.baseCurrencyCode, canton: $0.canton,
-                      municipality: $0.municipality, taxRate: decimalString($0.taxProvisionRate), createdAt: $0.createdAt)
+                      municipality: $0.municipality, taxRate: decimalString($0.taxProvisionRate),
+                      createdAt: $0.createdAt, updatedAt: $0.updatedAt)
             },
             members: try fetch(HouseholdMember.self).map {
                 .init(id: $0.id, householdID: $0.household?.id, firstName: $0.firstName,
-                      role: $0.roleRawValue, birthDate: $0.birthDate, includeInBudget: $0.includeInBudget)
+                      role: $0.roleRawValue, birthDate: $0.birthDate,
+                      employmentStatus: $0.employmentStatus, includeInBudget: $0.includeInBudget)
             },
             accounts: try fetch(Account.self).map {
                 .init(id: $0.id, name: $0.name, institution: $0.institutionName, type: $0.typeRawValue,
@@ -196,7 +208,7 @@ struct BackupService {
                       reconciledBalance: $0.reconciledBalance.map(decimalString), reconciledAt: $0.reconciledAt,
                       isShared: $0.isShared, isActive: $0.isActive,
                       includeInAvailableCash: $0.includeInAvailableCash, includeInNetWorth: $0.includeInNetWorth,
-                      ownerID: $0.owner?.id, createdAt: $0.createdAt)
+                      ownerID: $0.owner?.id, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
             },
             categories: try fetch(BudgetCategory.self).map {
                 .init(id: $0.id, name: $0.name, kind: $0.kindRawValue, iconToken: $0.iconToken,
@@ -210,7 +222,7 @@ struct BackupService {
                       importFingerprint: $0.importFingerprint, recurringID: $0.recurringID,
                       importBatchID: $0.importBatchID, accountID: $0.account?.id,
                       destinationAccountID: $0.destinationAccount?.id, categoryID: $0.category?.id,
-                      memberID: $0.member?.id, createdAt: $0.createdAt)
+                      memberID: $0.member?.id, createdAt: $0.createdAt, updatedAt: $0.updatedAt)
             },
             budgets: try fetch(MonthlyBudget.self).map {
                 .init(id: $0.id, year: $0.year, month: $0.month)
@@ -284,7 +296,14 @@ struct BackupService {
             documents: try fetch(FinancialDocument.self).map {
                 .init(id: $0.id, title: $0.title, kind: $0.kindRawValue, year: $0.year,
                       provider: $0.provider, note: $0.note, fileReference: $0.fileReference,
-                      fileSizeBytes: $0.fileSizeBytes, memberID: $0.member?.id)
+                      fileSizeBytes: $0.fileSizeBytes, memberID: $0.member?.id,
+                      addedAt: $0.addedAt, updatedAt: $0.updatedAt)
+            },
+            importBatches: try fetch(ImportBatch.self).map {
+                .init(id: $0.id, fileName: $0.fileName, importedAt: $0.importedAt,
+                      totalRows: $0.totalRows, importedCount: $0.importedCount,
+                      duplicateCount: $0.duplicateCount, invalidCount: $0.invalidCount,
+                      createdCategories: $0.createdCategories)
             }
         )
         let encoder = JSONEncoder()
@@ -295,7 +314,12 @@ struct BackupService {
 
     // MARK: Restore (REPLACES everything)
 
+    /// Replaces every entity with the backup's content. Stored document
+    /// FILES are deliberately never touched: they do not travel in the
+    /// JSON, so a still-present file stays reachable via its restored
+    /// `fileReference`.
     func restore(data: Data, context: ModelContext, documentFileStore: DocumentFileStoring?) throws {
+        _ = documentFileStore // kept for call-site stability; files are never deleted here
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let file = try? decoder.decode(BackupFile.self, from: data) else {
@@ -305,7 +329,16 @@ struct BackupService {
             throw BackupError.newerSchema(found: file.schemaVersion, supported: Self.currentSchemaVersion)
         }
 
-        try deleteAll(context: context, documentFileStore: documentFileStore)
+        // Entities only — document files never travel in the JSON backup,
+        // so deleting them here would irreversibly orphan every restored
+        // fileReference. Nothing is committed before the rebuild succeeds:
+        // any failure below rolls back and leaves the store as it was.
+        do {
+            try wipeEntities(context: context)
+        } catch {
+            context.rollback()
+            throw error
+        }
 
         // Recreate in dependency order, resolving relationships by UUID.
         var members: [UUID: HouseholdMember] = [:]
@@ -313,7 +346,8 @@ struct BackupService {
             let member = HouseholdMember(
                 id: dto.id, firstName: dto.firstName,
                 role: HouseholdRole(rawValue: dto.role) ?? .owner,
-                birthDate: dto.birthDate, includeInBudget: dto.includeInBudget
+                birthDate: dto.birthDate, employmentStatus: dto.employmentStatus,
+                includeInBudget: dto.includeInBudget
             )
             members[dto.id] = member
             context.insert(member)
@@ -322,7 +356,8 @@ struct BackupService {
             let household = Household(
                 id: dto.id, name: dto.name, baseCurrencyCode: dto.currency,
                 canton: dto.canton, municipality: dto.municipality,
-                taxProvisionRate: decimal(dto.taxRate), createdAt: dto.createdAt, updatedAt: dto.createdAt
+                taxProvisionRate: decimal(dto.taxRate), createdAt: dto.createdAt,
+                updatedAt: dto.updatedAt ?? dto.createdAt
             )
             household.members = file.members
                 .filter { $0.householdID == dto.id }
@@ -354,7 +389,7 @@ struct BackupService {
                 isShared: dto.isShared, isActive: dto.isActive,
                 includeInAvailableCash: dto.includeInAvailableCash,
                 includeInNetWorth: dto.includeInNetWorth,
-                createdAt: dto.createdAt, updatedAt: dto.createdAt,
+                createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
                 owner: dto.ownerID.flatMap { members[$0] }
             )
             account.reconciledBalance = dto.reconciledBalance.map(decimal)
@@ -372,7 +407,7 @@ struct BackupService {
                 adjustmentIncreasesBalance: dto.adjustmentIncreasesBalance,
                 importFingerprint: dto.importFingerprint, recurringID: dto.recurringID,
                 importBatchID: dto.importBatchID,
-                createdAt: dto.createdAt, updatedAt: dto.createdAt,
+                createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
                 account: dto.accountID.flatMap { accounts[$0] },
                 destinationAccount: dto.destinationAccountID.flatMap { accounts[$0] },
                 category: dto.categoryID.flatMap { categories[$0] },
@@ -500,11 +535,26 @@ struct BackupService {
                 id: dto.id, title: dto.title, kind: DocumentKind(rawValue: dto.kind) ?? .other,
                 year: dto.year, provider: dto.provider, note: dto.note,
                 fileReference: dto.fileReference, fileSizeBytes: dto.fileSizeBytes,
+                addedAt: dto.addedAt ?? file.exportedAt,
+                updatedAt: dto.updatedAt ?? file.exportedAt,
                 member: dto.memberID.flatMap { members[$0] }
             ))
         }
+        for dto in file.importBatches ?? [] {
+            context.insert(ImportBatch(
+                id: dto.id, fileName: dto.fileName, importedAt: dto.importedAt,
+                totalRows: dto.totalRows, importedCount: dto.importedCount,
+                duplicateCount: dto.duplicateCount, invalidCount: dto.invalidCount,
+                createdCategories: dto.createdCategories
+            ))
+        }
 
-        try context.save()
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
     }
 
     // MARK: Complete deletion
@@ -512,15 +562,32 @@ struct BackupService {
     /// Removes every entity and every stored document file. Destructive —
     /// the UI must have confirmed twice before calling this.
     func deleteAll(context: ModelContext, documentFileStore: DocumentFileStoring?) throws {
+        // Collect the file references first, but only remove the files
+        // once the entity wipe is committed: if the save fails, the
+        // records survive with their files still present.
+        let fileReferences = try context.fetch(FetchDescriptor<FinancialDocument>())
+            .map(\.fileReference)
+            .filter { !$0.isEmpty }
+        do {
+            try wipeEntities(context: context)
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
         if let store = documentFileStore {
-            let documents = try context.fetch(FetchDescriptor<FinancialDocument>())
-            for document in documents where !document.fileReference.isEmpty {
-                try? store.delete(document.fileReference)
+            for reference in fileReferences {
+                try? store.delete(reference)
             }
         }
-        // Individual deletes, not context.delete(model:): the batch API
-        // rejects the .deny rules on Account.transactions/.incomingMovements.
-        // Transactions go first so those .deny rules never block.
+    }
+
+    /// Deletes every entity one by one WITHOUT saving — callers commit or
+    /// roll back. Individual deletes, not context.delete(model:): the
+    /// batch API rejects the .deny rules on Account.transactions and
+    /// Account.incomingMovements. Transactions go first so those .deny
+    /// rules never block.
+    private func wipeEntities(context: ModelContext) throws {
         func wipe<T: PersistentModel>(_ type: T.Type) throws {
             for item in try context.fetch(FetchDescriptor<T>()) {
                 context.delete(item)
@@ -544,6 +611,5 @@ struct BackupService {
         try wipe(BudgetCategory.self)
         try wipe(HouseholdMember.self)
         try wipe(Household.self)
-        try context.save()
     }
 }
