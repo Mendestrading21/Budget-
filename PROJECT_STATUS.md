@@ -5,6 +5,11 @@ Current branch: claude/execute-tbkhsd
 Current phase: Phases 0 à 5 terminées (phases 0-4 vérifiées sur Mac ; phase 5 non compilée) — prochaine : Phase 6 (Récurrents)
 Invocation mode: build (session Claude Code sur Linux)
 
+## Product goal (confirmé par l'utilisateur, 2026-07-19)
+
+1. **Court terme** : usage personnel par l'utilisateur sur son propre iPhone (via TestFlight dès qu'un compte Apple Developer existe).
+2. **Moyen terme** : publication sur l'App Store pour la **vendre** — la Phase 14 (release) devra inclure le choix du modèle de prix (app payante vs achat intégré), les métadonnées store et la conformité App Review.
+
 ## Product state
 
 - App launches: phases 0-4 compilées et validées sur Mac par l'utilisateur ; ajouts de la phase 5 NON COMPILÉS (Linux, pas de toolchain Apple)
