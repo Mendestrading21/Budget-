@@ -29,6 +29,11 @@ struct MoreTab: View {
                     } label: {
                         Label("Mouvements", systemImage: "list.bullet.rectangle")
                     }
+                    NavigationLink {
+                        RecurringListView()
+                    } label: {
+                        Label("Récurrents et abonnements", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
                 Section("À venir") {
                     ForEach(upcoming) { entry in

@@ -13,6 +13,8 @@ struct HomeTab: View {
     @Query private var accounts: [Account]
     @Query private var households: [Household]
     @Query private var budgets: [MonthlyBudget]
+    @Query private var recurrings: [RecurringTransaction]
+    @Environment(\.modelContext) private var modelContext
 
     @State private var monthAnchor: Date?
 
@@ -28,6 +30,20 @@ struct HomeTab: View {
             now: appContainer.dateProvider.now,
             household: households.first,
             accounts: accounts,
+            transactions: transactions,
+            recurrings: recurrings
+        )
+    }
+
+    private var scheduleService: RecurringScheduleService {
+        RecurringScheduleService(calendar: appContainer.calendar)
+    }
+
+    /// Remaining recurring occurrences of the displayed month.
+    private var monthForecast: [ForecastOccurrence] {
+        scheduleService.monthForecast(
+            recurrings: recurrings,
+            in: snapshot.interval,
             transactions: transactions
         )
     }
@@ -85,6 +101,7 @@ struct HomeTab: View {
                             monthRecapCard
                         }
                         statGrid
+                        forecastSection
                         flowsChartCard
                         priorityActionsSection
                         recentSection
@@ -168,7 +185,9 @@ struct HomeTab: View {
                     VStack(spacing: BudgetSpacing.micro) {
                         breakdownRow("Liquidités incluses", snapshot.available.liquidBalance)
                         breakdownRow("Revenus attendus", snapshot.available.expectedIncome, signed: true)
+                        breakdownRow("Revenus récurrents à venir", snapshot.available.recurringIncome, signed: true)
                         breakdownRow("Charges engagées", -snapshot.available.committedCharges, signed: true)
+                        breakdownRow("Charges récurrentes à venir", -snapshot.available.recurringCharges, signed: true)
                         breakdownRow("Réserve d'impôts manquante", -snapshot.available.taxReserveGap, signed: true)
                     }
                     .padding(.top, BudgetSpacing.micro)
@@ -261,6 +280,73 @@ struct HomeTab: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))\(detail.map { ", \($0)" } ?? "")")
+    }
+
+    // MARK: - Forecast
+
+    /// Upcoming recurring occurrences of the displayed month, with a
+    /// one-tap action to materialize each into a posted movement.
+    @ViewBuilder
+    private var forecastSection: some View {
+        let occurrences = Array(monthForecast.prefix(4))
+        if !occurrences.isEmpty {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                HStack {
+                    Text("À venir ce mois")
+                        .font(BudgetFont.sectionTitle)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    NavigationLink {
+                        RecurringListView()
+                    } label: {
+                        Text("Gérer")
+                            .font(BudgetFont.caption.weight(.semibold))
+                            .foregroundStyle(BudgetColor.electricBlue)
+                    }
+                }
+                ForEach(occurrences) { occurrence in
+                    GlassCard(style: .row) {
+                        HStack(spacing: BudgetSpacing.medium) {
+                            Image(systemName: occurrence.type.systemImage)
+                                .foregroundStyle(BudgetColor.indigo)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(occurrence.title)
+                                    .font(BudgetFont.body.weight(.medium))
+                                    .lineLimit(1)
+                                Text(FinanceFormatting.swissDate(occurrence.date))
+                                    .font(BudgetFont.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: BudgetSpacing.small)
+                            Text((occurrence.type == .income ? "+" : "−") + FinanceFormatting.chf(occurrence.amount))
+                                .font(BudgetFont.amount)
+                                .foregroundStyle(occurrence.type == .income ? BudgetColor.positive : .secondary)
+                            Button {
+                                post(occurrence)
+                            } label: {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.title3)
+                                    .foregroundStyle(BudgetColor.electricBlue)
+                            }
+                            .accessibilityLabel("Comptabiliser \(occurrence.title)")
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                }
+            }
+        }
+    }
+
+    private func post(_ occurrence: ForecastOccurrence) {
+        guard let recurring = recurrings.first(where: { $0.id == occurrence.recurringID }) else { return }
+        let transaction = scheduleService.makeTransaction(
+            from: recurring,
+            on: occurrence.date,
+            now: appContainer.dateProvider.now
+        )
+        modelContext.insert(transaction)
+        try? modelContext.save()
     }
 
     // MARK: - Chart
@@ -408,8 +494,24 @@ struct HomeTab: View {
         let systemImage: String
     }
 
+    /// Subscriptions whose cancellation deadline falls within 30 days.
+    private var closingSubscriptions: [RecurringTransaction] {
+        let now = appContainer.dateProvider.now
+        return recurrings.filter { recurring in
+            guard recurring.isActive, let deadline = recurring.cancellationDeadline else { return false }
+            return deadline >= now && deadline.timeIntervalSince(now) < 30 * 86_400
+        }
+    }
+
     private var priorityActions: [PriorityAction] {
         var actions: [PriorityAction] = []
+        if let closing = closingSubscriptions.first {
+            actions.append(PriorityAction(
+                id: "cancellation",
+                title: "« \(closing.title) » résiliable jusqu'au \(FinanceFormatting.swissDate(closing.cancellationDeadline ?? appContainer.dateProvider.now))",
+                systemImage: "exclamationmark.triangle"
+            ))
+        }
         if uncategorizedCount > 0 {
             actions.append(PriorityAction(
                 id: "uncategorized",
@@ -451,7 +553,11 @@ struct HomeTab: View {
                     .foregroundStyle(.secondary)
                 ForEach(actions) { action in
                     NavigationLink {
-                        TransactionsListView()
+                        if action.id == "cancellation" {
+                            RecurringListView()
+                        } else {
+                            TransactionsListView()
+                        }
                     } label: {
                         GlassCard(style: .row) {
                             HStack {

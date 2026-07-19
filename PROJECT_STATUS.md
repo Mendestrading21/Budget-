@@ -2,8 +2,8 @@
 
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
-Current phase: Phases 0 à 5 terminées (phases 0-4 vérifiées sur Mac ; phase 5 non compilée) — prochaine : Phase 6 (Récurrents)
-Invocation mode: build (session Claude Code sur Linux)
+Current phase: Phases 0 à 6 terminées — prochaine : Phase 7 (Impôts)
+Invocation mode: build (session Claude Code sur Linux, vérification via CI GitHub Actions)
 
 ## Product goal (confirmé par l'utilisateur, 2026-07-19)
 
@@ -13,14 +13,14 @@ Invocation mode: build (session Claude Code sur Linux)
 ## Product state
 
 - App launches: phases 0-4 compilées et validées sur Mac par l'utilisateur ; ajouts de la phase 5 NON COMPILÉS (Linux, pas de toolchain Apple)
-- Persistence: SwiftData, schéma versionné V2 (`BudgetSchemaV2` : + MonthlyBudget/BudgetLine), migration légère V1→V2 (ADR-006)
+- Persistence: SwiftData, schéma versionné V3 (`BudgetSchemaV3` : + RecurringTransaction, + BudgetTransaction.recurringID), migrations légères V1→V2→V3 (ADR-006/007)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
 - Accounts: liste groupée, détail, formulaire, réconciliation horodatée, archivage, flags cash/patrimoine, solde dérivé
 - Transactions: 9 types, validation typée FR, virements internes atomiques et neutres, liste avec mois/recherche/filtres/file non catégorisée, dupliquer/supprimer
 - Dashboard: `MonthlySnapshotService` (pur, calendrier + « now » injectés), montant vraiment disponible avec décomposition, budget quotidien, 4 cartes, graphique 6 mois (Swift Charts) avec résumé accessible, 3 actions prioritaires, mouvements récents
 - Budget: onglet complet — lignes par catégorie (groupes essentiel/discrétionnaire/épargne/impôts), planifié vs réel avec badge de dépassement, section « Hors budget » (réconciliation totale), copie du mois précédent, grille annuelle 12 mois, graphique dashboard budget-vs-réel avec fallback 6 mois
-- Recurring/subscriptions: non commencé (Phase 6)
+- Recurring/subscriptions: entité unique (charges/revenus/abonnements), occurrences par multiples d'ancre sans dérive, dédup prévision/réel par recurringID, équivalents mensuel/annualisé, échéances de résiliation (badge + action prioritaire), section « À venir ce mois » avec comptabilisation en un geste, liste + formulaire complets (ADR-007)
 - Taxes: taux sur `Household` (ADR-003), résumé mensuel recommandé/payé/écart ; module complet en Phase 7
 - Goals: non commencé (Phase 8)
 - Insurance/pension: non commencé (Phase 9)
@@ -37,9 +37,11 @@ Invocation mode: build (session Claude Code sur Linux)
 - [x] Phase 3 : tests de neutralité des virements et de rejets de transactions invalides ; liste gère vide et volume
 - [x] Phase 4 : toutes les valeurs du dashboard dérivent des données persistées via des tests d'invariants
 - [x] Phase 5 : planifié et réel restent séparés ; toutes les variances se réconcilient (tests) ; copie de mois sans doublons ; grille annuelle
+- [x] Phase 6 : toute charge active apparaît exactement une fois dans les prévisions du mois ; les inactives jamais (tests d'échéancier + dédup)
 - [x] Build + tests des phases 0-4 validés sur Mac par l'utilisateur (« Ça fonctionne ✓ »)
 - [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
-- [ ] Migration V1→V2 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [ ] CI verte sur la phase 6 (en cours au moment de cette mise à jour — voir Actions)
+- [ ] Migration V1→V3 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
@@ -61,5 +63,5 @@ Voir DECISION_LOG.md (ADR-001 à ADR-005). Convention patrimoine : soldes signé
 
 ## Next exact action
 
-1. Sur Mac : compiler + tester (commandes ci-dessus), puis lancer l'app sur un simulateur contenant des données existantes pour valider la migration V1→V2 ; parcours manuel : créer un budget, lignes, dépenses, variances, copie, grille annuelle, graphique dashboard.
-2. Puis : `/budget-v1 build` → Phase 6 (charges récurrentes et abonnements).
+1. Attendre la CI verte sur la phase 6 ; en cas d'échec, corriger et repousser (boucle habituelle).
+2. Puis : `/budget-v1 build` → Phase 7 (module Impôts complet : profil fiscal, provision réservé/payé/arriérés, échéances, migration du taux depuis Household).

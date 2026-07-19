@@ -1,5 +1,36 @@
 # Budget decision log
 
+## ADR-007 — Récurrents : entité unique, occurrences par multiples d'ancre, schéma V3
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+La Phase 6 introduit charges récurrentes et abonnements, avec prévisions mensuelles qui ne doivent jamais dupliquer les mouvements réels.
+
+### Decision
+
+- Une seule entité `RecurringTransaction` couvre charges, revenus, contributions ET abonnements (`isSubscription` + renouvellement/résiliation), plutôt que deux entités quasi identiques.
+- Rythme = (unité semaine/mois/année, intervalle N) : mensuel (mois,1), trimestriel (mois,3), annuel (année,1), personnalisé libre.
+- La k-ième occurrence = `firstOccurrence + k·intervalle` (multiples de l'ancre, jamais d'addition incrémentale) : 31 janv → 28 févr → **31** mars, sans dérive ; 29 févr bissextile → 28 févr les années communes.
+- Dédup prévision/réel par `BudgetTransaction.recurringID` : N mouvements liés dans le mois couvrent les N premières occurrences (couverture chronologique par comptage, tolérante aux jours décalés — un salaire versé le 24 couvre l'échéance du 25).
+- Schéma V3 (3.0.0) : + `RecurringTransaction`, + `recurringID` optionnel sur `BudgetTransaction` ; migrations légères V1→V2→V3 (changements purement additifs).
+- Le disponible intègre deux composantes visibles de plus : revenus récurrents à venir et charges récurrentes à venir ; les virements récurrents restent neutres.
+
+### Alternatives considered
+
+- Entité `Subscription` séparée : duplication de champs sans bénéfice V1.
+- Dédup par date exacte : casse dès qu'un salaire tombe un jour plus tôt.
+
+### Consequences
+
+Toute occurrence comptabilisée doit passer par `makeTransaction(from:on:now:)` (ou poser `recurringID`) pour sortir des prévisions.
+
+### Verification
+
+`RecurringScheduleServiceTests` : bornes de mois, bissextiles, trimestriel/annuel/hebdo/personnalisé, dédup partielle, neutralité des virements, intégration snapshot.
+
 ## ADR-001 — Projet Xcode manuscrit au format « synchronized groups » (Xcode 16)
 
 Date: 2026-07-19

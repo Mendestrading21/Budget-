@@ -91,6 +91,10 @@ final class BudgetTransaction {
     /// Source of a CSV import; used for idempotence (Phase 11).
     var importFingerprint: String?
 
+    /// Link to the RecurringTransaction that materialized this movement —
+    /// lets forecasts avoid duplicating already-posted occurrences.
+    var recurringID: UUID?
+
     var createdAt: Date
     var updatedAt: Date
 
@@ -128,6 +132,7 @@ final class BudgetTransaction {
         merchant: String? = nil,
         adjustmentIncreasesBalance: Bool = true,
         importFingerprint: String? = nil,
+        recurringID: UUID? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         account: Account? = nil,
@@ -145,6 +150,7 @@ final class BudgetTransaction {
         self.merchant = merchant
         self.adjustmentIncreasesBalance = adjustmentIncreasesBalance
         self.importFingerprint = importFingerprint
+        self.recurringID = recurringID
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.account = account

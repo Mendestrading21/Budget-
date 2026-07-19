@@ -38,7 +38,8 @@ struct MonthSnapshot: Equatable {
 }
 
 /// The "truly available" amount with its full, visible decomposition:
-/// total = liquidBalance + expectedIncome − committedCharges − taxReserveGap.
+/// total = liquidBalance + expectedIncome + recurringIncome
+///         − committedCharges − recurringCharges − taxReserveGap.
 struct AvailableBreakdown: Equatable {
     /// Current balance of accounts flagged include-in-available-cash.
     let liquidBalance: Decimal
@@ -48,11 +49,18 @@ struct AvailableBreakdown: Equatable {
     /// investments, taxes, debt payments) — committed goal contributions
     /// join in Phase 8.
     let committedCharges: Decimal
+    /// Recurring income occurrences of the month not yet materialized
+    /// (e.g. the salary that has not landed yet).
+    let recurringIncome: Decimal
+    /// Recurring charge occurrences of the month not yet materialized —
+    /// every active recurring charge appears in the forecast exactly once.
+    let recurringCharges: Decimal
     /// Recommended tax reserve for the month's income not yet covered.
     let taxReserveGap: Decimal
 
     var total: Decimal {
-        liquidBalance + expectedIncome - committedCharges - taxReserveGap
+        liquidBalance + expectedIncome + recurringIncome
+            - committedCharges - recurringCharges - taxReserveGap
     }
 }
 

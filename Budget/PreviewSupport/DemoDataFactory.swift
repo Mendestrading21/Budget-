@@ -62,6 +62,56 @@ enum DemoDataFactory {
             guard let start = calendar.dateInterval(of: .month, for: now)?.start else { return nil }
             return calendar.date(byAdding: .month, value: -offset, to: start)
         }
+        let oldestMonthStart = monthStarts.last ?? now
+        func anchorDay(_ day: Int) -> Date {
+            calendar.date(byAdding: .day, value: day - 1, to: oldestMonthStart) ?? oldestMonthStart
+        }
+
+        // Recurring definitions matching the generated history, so the
+        // month forecast dedupes against posted movements via recurringID.
+        let salaryRecurring = RecurringTransaction(
+            title: "Salaire", amount: Decimal("8450.00"), type: .income,
+            firstOccurrence: anchorDay(25),
+            account: currentAccount, category: category("Salaire"), member: owner
+        )
+        let rentRecurring = RecurringTransaction(
+            title: "Loyer", amount: Decimal("2150.00"), type: .expense,
+            firstOccurrence: anchorDay(1),
+            account: currentAccount, category: category("Logement")
+        )
+        let healthRecurring = RecurringTransaction(
+            title: "Primes maladie", amount: Decimal("745.60"), type: .expense,
+            firstOccurrence: anchorDay(3),
+            account: currentAccount, category: category("Assurance maladie")
+        )
+        let savingRecurring = RecurringTransaction(
+            title: "Épargne mensuelle", amount: Decimal("600.00"), type: .saving,
+            firstOccurrence: anchorDay(15),
+            account: currentAccount, destinationAccount: savingsAccount,
+            category: category("Épargne")
+        )
+        let streamingRecurring = RecurringTransaction(
+            title: "Streaming vidéo", amount: Decimal("15.90"), type: .expense,
+            firstOccurrence: anchorDay(10),
+            isSubscription: true,
+            renewalDate: calendar.date(byAdding: .day, value: 20, to: now),
+            account: currentAccount, category: category("Abonnements")
+        )
+        let halfFareRecurring = RecurringTransaction(
+            title: "Abonnement demi-tarif", amount: Decimal("190.00"), type: .expense,
+            intervalUnit: .year, intervalCount: 1,
+            firstOccurrence: calendar.date(byAdding: .month, value: -4, to: anchorDay(12)) ?? anchorDay(12),
+            isSubscription: true,
+            cancellationDeadline: calendar.date(byAdding: .day, value: 12, to: now),
+            account: currentAccount, category: category("Transports")
+        )
+        let demoRecurrings = [
+            salaryRecurring, rentRecurring, healthRecurring,
+            savingRecurring, streamingRecurring, halfFareRecurring,
+        ]
+        for recurring in demoRecurrings {
+            context.insert(recurring)
+        }
 
         for monthStart in monthStarts {
             func day(_ day: Int) -> Date {
@@ -79,18 +129,27 @@ enum DemoDataFactory {
 
             addIfPast(day: 25) { BudgetTransaction(
                 date: $0, amount: Decimal("8450.00"), type: .income,
-                title: "Salaire", account: currentAccount,
+                title: "Salaire", recurringID: salaryRecurring.id,
+                account: currentAccount,
                 category: category("Salaire"), member: owner
             ) }
             addIfPast(day: 1) { BudgetTransaction(
                 date: $0, amount: Decimal("2150.00"), type: .expense,
-                title: "Loyer", account: currentAccount,
+                title: "Loyer", recurringID: rentRecurring.id,
+                account: currentAccount,
                 category: category("Logement")
             ) }
             addIfPast(day: 3) { BudgetTransaction(
                 date: $0, amount: Decimal("745.60"), type: .expense,
-                title: "Primes maladie", account: currentAccount,
+                title: "Primes maladie", recurringID: healthRecurring.id,
+                account: currentAccount,
                 category: category("Assurance maladie")
+            ) }
+            addIfPast(day: 10) { BudgetTransaction(
+                date: $0, amount: Decimal("15.90"), type: .expense,
+                title: "Streaming vidéo", recurringID: streamingRecurring.id,
+                account: currentAccount,
+                category: category("Abonnements")
             ) }
             addIfPast(day: 6) { BudgetTransaction(
                 date: $0, amount: Decimal("512.35"), type: .expense,
@@ -109,7 +168,8 @@ enum DemoDataFactory {
             ) }
             addIfPast(day: 15) { BudgetTransaction(
                 date: $0, amount: Decimal("600.00"), type: .saving,
-                title: "Épargne mensuelle", account: currentAccount,
+                title: "Épargne mensuelle", recurringID: savingRecurring.id,
+                account: currentAccount,
                 destinationAccount: savingsAccount, category: category("Épargne")
             ) }
             addIfPast(day: 16) { BudgetTransaction(

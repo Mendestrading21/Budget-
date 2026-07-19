@@ -16,7 +16,8 @@ struct MonthlySnapshotService {
         now: Date,
         household: Household?,
         accounts: [Account],
-        transactions: [BudgetTransaction]
+        transactions: [BudgetTransaction],
+        recurrings: [RecurringTransaction] = []
     ) -> MonthSnapshot {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let inMonth = transactions.filter { interval.contains($0.date) }
@@ -64,10 +65,27 @@ struct MonthlySnapshotService {
             .filter { $0.isActive && $0.includeInAvailableCash }
             .reduce(Decimal.zero) { $0 + balanceService.balance(of: $1) }
 
+        // Recurring occurrences of the month not yet covered by a linked
+        // transaction; transfers stay neutral and enter neither side.
+        let scheduleService = RecurringScheduleService(calendar: calendar)
+        let forecast = scheduleService.monthForecast(
+            recurrings: recurrings,
+            in: interval,
+            transactions: transactions
+        )
+        let recurringIncome = forecast
+            .filter { $0.type == .income }
+            .reduce(Decimal.zero) { $0 + $1.amount }
+        let recurringCharges = forecast
+            .filter { [.expense, .saving, .investment, .taxPayment, .debtPayment].contains($0.type) }
+            .reduce(Decimal.zero) { $0 + $1.amount }
+
         let available = AvailableBreakdown(
             liquidBalance: liquidBalance,
             expectedIncome: plannedIncome,
             committedCharges: plannedOutflows,
+            recurringIncome: recurringIncome,
+            recurringCharges: recurringCharges,
             taxReserveGap: taxProvision.gap
         )
 

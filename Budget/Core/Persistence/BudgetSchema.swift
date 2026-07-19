@@ -35,14 +35,34 @@ enum BudgetSchemaV2: VersionedSchema {
     }
 }
 
+/// Schema v3.0.0 — adds recurring transactions/subscriptions and the
+/// optional BudgetTransaction.recurringID link. Purely additive.
+enum BudgetSchemaV3: VersionedSchema {
+    static let versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            Household.self,
+            HouseholdMember.self,
+            Account.self,
+            BudgetCategory.self,
+            BudgetTransaction.self,
+            MonthlyBudget.self,
+            BudgetLine.self,
+            RecurringTransaction.self,
+        ]
+    }
+}
+
 enum BudgetMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BudgetSchemaV1.self, BudgetSchemaV2.self]
+        [BudgetSchemaV1.self, BudgetSchemaV2.self, BudgetSchemaV3.self]
     }
 
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: BudgetSchemaV1.self, toVersion: BudgetSchemaV2.self),
+            .lightweight(fromVersion: BudgetSchemaV2.self, toVersion: BudgetSchemaV3.self),
         ]
     }
 }
@@ -52,7 +72,7 @@ enum PersistenceFactory {
     static func makeProductionContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV2.self),
+            for: Schema(versionedSchema: BudgetSchemaV3.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
@@ -62,7 +82,7 @@ enum PersistenceFactory {
     static func makeInMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV2.self),
+            for: Schema(versionedSchema: BudgetSchemaV3.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
