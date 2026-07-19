@@ -202,6 +202,54 @@ final class BudgetVarianceServiceTests: XCTestCase {
         XCTAssertEqual(report.totalPlanned, Decimal("3350.00"))
     }
 
+    func testConsumedFractionFloorsAtZeroOnNetRefund() {
+        _ = addLine(Decimal("600.00"), category: food)
+        let refund = addTransaction(Decimal("100.00"), type: .refund, category: food)
+        let line = makeReport([refund]).lineReports[0]
+        XCTAssertEqual(line.actual, Decimal("-100.00"))
+        XCTAssertEqual(line.consumedFraction, .zero, "La barre de progression ne descend jamais sous zéro")
+    }
+
+    func testRefundOnNonExpenseCategoryStillReducesItsLine() {
+        _ = addLine(Decimal("600.00"), category: savingCategory)
+        let saving = addTransaction(Decimal("600.00"), type: .saving, category: savingCategory, destination: savingsAccount)
+        let refund = addTransaction(Decimal("50.00"), type: .refund, category: savingCategory)
+        let line = makeReport([saving, refund]).lineReports[0]
+        XCTAssertEqual(line.actual, Decimal("550.00"), "Aucun franc comptabilisé ne disparaît du rapport")
+    }
+
+    func testOutOfBudgetIgnoresIncome() {
+        let salary = BudgetCategory(name: "Salaire", kind: .income)
+        context.insert(salary)
+        let income = addTransaction(Decimal("8450.00"), type: .income, category: salary)
+        let report = makeReport([income])
+        XCTAssertTrue(report.outOfBudget.isEmpty, "Un revenu sans ligne n'est pas une dépense hors budget")
+    }
+
+    func testSpendingTotalsExcludeIncomeLines() {
+        let salary = BudgetCategory(name: "Salaire", kind: .income)
+        context.insert(salary)
+        _ = addLine(Decimal("8450.00"), category: salary)
+        _ = addLine(Decimal("600.00"), category: food)
+        let expense = addTransaction(Decimal("200.00"), type: .expense, category: food)
+        let income = addTransaction(Decimal("8450.00"), type: .income, category: salary)
+
+        let report = makeReport([expense, income])
+        XCTAssertEqual(report.spendingPlanned, Decimal("600.00"))
+        XCTAssertEqual(report.spendingActual, Decimal("200.00"))
+        XCTAssertEqual(report.spendingVariance, Decimal("400.00"))
+        // Les totaux bruts, eux, gardent toutes les lignes.
+        XCTAssertEqual(report.totalPlanned, Decimal("9050.00"))
+    }
+
+    func testOutOfBudgetEntriesHaveStableIdentity() {
+        let expense = addTransaction(Decimal("100.00"), type: .expense, category: housing)
+        let first = makeReport([expense])
+        let second = makeReport([expense])
+        XCTAssertEqual(first.outOfBudget.map(\.id), second.outOfBudget.map(\.id))
+        XCTAssertEqual(first, second, "Deux constructions du même rapport sont égales")
+    }
+
     func testEmptyBudgetReportsEverythingOutOfBudget() {
         let expense = addTransaction(Decimal("120.00"), type: .expense, category: food)
         let report = service.report(budget: nil, monthOf: now, transactions: [expense])

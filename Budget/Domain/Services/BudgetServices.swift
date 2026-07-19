@@ -16,11 +16,12 @@ struct BudgetLineReport: Identifiable, Equatable {
 
     var variance: Decimal { planned - actual }
     var isOverrun: Bool { actual > planned }
-    /// Consumed fraction clamped to [0, 1] for progress bars; overrun is
-    /// signalled separately (never by color alone).
+    /// Consumed fraction clamped to [0, 1] for progress bars (a net-refund
+    /// month floors at 0); overrun is signalled separately (never by color
+    /// alone).
     var consumedFraction: Decimal {
         guard planned > 0 else { return actual > 0 ? Decimal(1) : .zero }
-        return min(Decimal(1), FinanceMath.safeRatio(actual, planned))
+        return max(.zero, min(Decimal(1), FinanceMath.safeRatio(actual, planned)))
     }
 }
 
@@ -34,7 +35,8 @@ struct BudgetReport: Equatable {
     let outOfBudget: [OutOfBudgetEntry]
 
     struct OutOfBudgetEntry: Identifiable, Equatable {
-        let id: UUID
+        /// Stable across report rebuilds: category UUID or "uncategorized".
+        let id: String
         let categoryName: String
         let categoryKind: CategoryKind
         let actual: Decimal
@@ -44,6 +46,16 @@ struct BudgetReport: Equatable {
     var totalActualInLines: Decimal { lineReports.reduce(.zero) { $0 + $1.actual } }
     var totalOutOfBudget: Decimal { outOfBudget.reduce(.zero) { $0 + $1.actual } }
     var totalVariance: Decimal { totalPlanned - totalActualInLines }
+
+    /// "Remaining to spend" totals: income lines are informative but must
+    /// not inflate the spending envelope.
+    var spendingPlanned: Decimal {
+        lineReports.filter { $0.categoryKind != .income }.reduce(.zero) { $0 + $1.planned }
+    }
+    var spendingActual: Decimal {
+        lineReports.filter { $0.categoryKind != .income }.reduce(.zero) { $0 + $1.actual }
+    }
+    var spendingVariance: Decimal { spendingPlanned - spendingActual }
 
     func totalPlanned(kind: CategoryKind) -> Decimal {
         lineReports.filter { $0.categoryKind == kind }.reduce(.zero) { $0 + $1.planned }
@@ -89,7 +101,9 @@ struct BudgetVarianceService {
                   transaction.category?.id == categoryID else { continue }
             if types.contains(transaction.type) {
                 total += transaction.amount
-            } else if kind == .expense && transaction.type == .refund {
+            } else if transaction.type == .refund {
+                // A refund always reduces its category, whatever the kind —
+                // otherwise the franc would silently vanish from the report.
                 total -= transaction.amount
             }
         }
@@ -132,13 +146,16 @@ struct BudgetVarianceService {
 
         let budgetedCategoryIDs = Set(lineReports.compactMap(\.categoryID))
 
-        // Aggregate the month's posted, budget-relevant movements that are
+        // Aggregate the month's posted spending-side movements that are
         // NOT covered by a line. Transfers and adjustments never belong to
-        // a budget; refunds follow their category.
+        // a budget; income without a line is not "out-of-budget spending";
+        // refunds follow their category.
         var uncovered: [UUID?: (name: String, kind: CategoryKind, total: Decimal)] = [:]
         for transaction in transactions {
             guard transaction.status == .posted, interval.contains(transaction.date) else { continue }
-            guard transaction.type != .transfer && transaction.type != .adjustment else { continue }
+            guard transaction.type != .transfer,
+                  transaction.type != .adjustment,
+                  transaction.type != .income else { continue }
             let categoryID = transaction.category?.id
             if let categoryID, budgetedCategoryIDs.contains(categoryID) { continue }
 
@@ -151,9 +168,9 @@ struct BudgetVarianceService {
         }
 
         let outOfBudget = uncovered
-            .map { _, value in
+            .map { key, value in
                 BudgetReport.OutOfBudgetEntry(
-                    id: UUID(),
+                    id: key?.uuidString ?? "uncategorized",
                     categoryName: value.name,
                     categoryKind: value.kind,
                     actual: value.total
@@ -226,8 +243,9 @@ struct BudgetPlanningService {
     }
 
     /// Copies the previous month's lines into the month of `anchor`,
-    /// skipping categories that already have a line. Returns the number of
-    /// lines copied.
+    /// skipping archived and already-budgeted categories. Returns the
+    /// number of lines copied; when nothing is copyable, no empty budget
+    /// is created as a side effect.
     @discardableResult
     func copyPreviousMonthLines(into anchor: Date, now: Date, context: ModelContext) throws -> Int {
         guard let previousAnchor = calendar.date(byAdding: .month, value: -1, to: anchor),
@@ -235,28 +253,28 @@ struct BudgetPlanningService {
               !previous.lines.isEmpty else {
             return 0
         }
-        let target = try findOrCreate(monthOf: anchor, now: now, context: context)
-        let existingCategoryIDs = Set(target.lines.compactMap { $0.category?.id })
+        let existingCategoryIDs = Set(
+            try budget(monthOf: anchor, context: context)?.lines.compactMap { $0.category?.id } ?? []
+        )
+        let copyableLines = previous.lines.filter { line in
+            guard let category = line.category else { return false }
+            return category.isActive && !existingCategoryIDs.contains(category.id)
+        }
+        guard !copyableLines.isEmpty else { return 0 }
 
-        var copied = 0
-        for line in previous.lines {
-            guard let category = line.category,
-                  category.isActive,
-                  !existingCategoryIDs.contains(category.id) else { continue }
+        let target = try findOrCreate(monthOf: anchor, now: now, context: context)
+        for line in copyableLines {
             let copy = BudgetLine(
                 plannedAmount: line.plannedAmount,
-                category: category,
+                category: line.category,
                 createdAt: now,
                 updatedAt: now
             )
             copy.budget = target
             context.insert(copy)
-            copied += 1
         }
-        if copied > 0 {
-            target.updatedAt = now
-            try context.save()
-        }
-        return copied
+        target.updatedAt = now
+        try context.save()
+        return copyableLines.count
     }
 }

@@ -149,6 +149,7 @@ struct BudgetLineFormView: View {
 
     private func deleteLine() {
         guard let line = editedLine else { return }
+        line.budget?.updatedAt = appContainer.dateProvider.now
         modelContext.delete(line)
         do {
             try modelContext.save()

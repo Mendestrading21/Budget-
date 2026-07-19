@@ -132,28 +132,28 @@ struct BudgetTab: View {
                 Text("Reste à dépenser (lignes budgétées)")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(report.totalVariance))
+                Text(FinanceFormatting.chf(report.spendingVariance))
                     .font(BudgetFont.heroAmount)
-                    .foregroundStyle(report.totalVariance < 0 ? BudgetColor.negative : .primary)
+                    .foregroundStyle(report.spendingVariance < 0 ? BudgetColor.negative : .primary)
                 HStack(spacing: BudgetSpacing.large) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Planifié")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(report.totalPlanned))
+                        Text(FinanceFormatting.chf(report.spendingPlanned))
                             .font(BudgetFont.amount)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Réel")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(report.totalActualInLines))
+                        Text(FinanceFormatting.chf(report.spendingActual))
                             .font(BudgetFont.amount)
                     }
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Budget du mois : planifié \(FinanceFormatting.chf(report.totalPlanned)), réel \(FinanceFormatting.chf(report.totalActualInLines)), reste \(FinanceFormatting.chf(report.totalVariance))")
+            .accessibilityLabel("Budget du mois : planifié \(FinanceFormatting.chf(report.spendingPlanned)), réel \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
         }
     }
 

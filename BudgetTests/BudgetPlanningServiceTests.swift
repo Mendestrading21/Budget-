@@ -117,6 +117,19 @@ final class BudgetPlanningServiceTests: XCTestCase {
         XCTAssertEqual(copied, 2, "La catégorie archivée n'est pas copiée")
     }
 
+    func testCopyDoesNotCreateEmptyBudgetWhenNothingIsCopyable() throws {
+        // Le budget de mai n'a qu'une ligne de catégorie archivée.
+        let may = try service.findOrCreate(monthOf: date(day: 1, month: 5), now: now, context: context)
+        let archivedLine = BudgetLine(plannedAmount: Decimal("50.00"), category: archivedCategory)
+        archivedLine.budget = may
+        context.insert(archivedLine)
+        try context.save()
+
+        let copied = try service.copyPreviousMonthLines(into: now, now: now, context: context)
+        XCTAssertEqual(copied, 0)
+        XCTAssertNil(try service.budget(year: 2026, month: 6, context: context), "Aucun budget vide créé en effet de bord")
+    }
+
     func testCopyWithoutPreviousBudgetDoesNothing() throws {
         let copied = try service.copyPreviousMonthLines(into: now, now: now, context: context)
         XCTAssertEqual(copied, 0)
