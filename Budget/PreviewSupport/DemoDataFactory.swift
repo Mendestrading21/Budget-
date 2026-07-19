@@ -67,62 +67,66 @@ enum DemoDataFactory {
             func day(_ day: Int) -> Date {
                 calendar.date(byAdding: .day, value: day - 1, to: monthStart) ?? monthStart
             }
-            // Only movements up to `now` are posted history.
-            func insertIfPast(_ transaction: BudgetTransaction) {
-                guard transaction.date <= now else { return }
-                context.insert(transaction)
+            // Only movements up to `now` become history. The date guard runs
+            // BEFORE constructing the model: linking a relationship to a
+            // persisted account would auto-insert the object on save even
+            // without an explicit context.insert.
+            func addIfPast(day dayNumber: Int, _ build: (Date) -> BudgetTransaction) {
+                let date = day(dayNumber)
+                guard date <= now else { return }
+                context.insert(build(date))
             }
 
-            insertIfPast(BudgetTransaction(
-                date: day(25), amount: Decimal("8450.00"), type: .income,
+            addIfPast(day: 25) { BudgetTransaction(
+                date: $0, amount: Decimal("8450.00"), type: .income,
                 title: "Salaire", account: currentAccount,
                 category: category("Salaire"), member: owner
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(1), amount: Decimal("2150.00"), type: .expense,
+            ) }
+            addIfPast(day: 1) { BudgetTransaction(
+                date: $0, amount: Decimal("2150.00"), type: .expense,
                 title: "Loyer", account: currentAccount,
                 category: category("Logement")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(3), amount: Decimal("745.60"), type: .expense,
+            ) }
+            addIfPast(day: 3) { BudgetTransaction(
+                date: $0, amount: Decimal("745.60"), type: .expense,
                 title: "Primes maladie", account: currentAccount,
                 category: category("Assurance maladie")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(6), amount: Decimal("512.35"), type: .expense,
+            ) }
+            addIfPast(day: 6) { BudgetTransaction(
+                date: $0, amount: Decimal("512.35"), type: .expense,
                 title: "Courses de la semaine", merchant: "Supermarché",
                 account: currentAccount, category: category("Alimentation")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(8), amount: Decimal("120.00"), type: .expense,
+            ) }
+            addIfPast(day: 8) { BudgetTransaction(
+                date: $0, amount: Decimal("120.00"), type: .expense,
                 title: "Abonnement transports", account: currentAccount,
                 category: category("Transports")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(12), amount: Decimal("98.50"), type: .expense,
+            ) }
+            addIfPast(day: 12) { BudgetTransaction(
+                date: $0, amount: Decimal("98.50"), type: .expense,
                 title: "Restaurant en famille", account: currentAccount,
                 category: category("Restaurants et sorties")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(15), amount: Decimal("600.00"), type: .saving,
+            ) }
+            addIfPast(day: 15) { BudgetTransaction(
+                date: $0, amount: Decimal("600.00"), type: .saving,
                 title: "Épargne mensuelle", account: currentAccount,
                 destinationAccount: savingsAccount, category: category("Épargne")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(16), amount: Decimal("587.00"), type: .investment,
+            ) }
+            addIfPast(day: 16) { BudgetTransaction(
+                date: $0, amount: Decimal("587.00"), type: .investment,
                 title: "Versement 3a", account: currentAccount,
                 destinationAccount: pillar3a, category: category("Pilier 3a")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(20), amount: Decimal("850.00"), type: .taxPayment,
+            ) }
+            addIfPast(day: 20) { BudgetTransaction(
+                date: $0, amount: Decimal("850.00"), type: .taxPayment,
                 title: "Acompte d'impôts", account: currentAccount,
                 category: category("Impôts")
-            ))
-            insertIfPast(BudgetTransaction(
-                date: day(18), amount: Decimal("200.00"), type: .transfer,
+            ) }
+            addIfPast(day: 18) { BudgetTransaction(
+                date: $0, amount: Decimal("200.00"), type: .transfer,
                 title: "Retrait espèces", account: currentAccount,
                 destinationAccount: cash
-            ))
+            ) }
         }
 
         // Monthly budgets mirroring the recurring demo movements, so the
