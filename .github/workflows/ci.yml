@@ -45,6 +45,20 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             test
 
+      # Vérification d'archive (Phase 14) : le build Release doit passer
+      # aussi proprement que le Debug — sans signature, faute de compte
+      # développeur en CI.
+      - name: Build Release (vérification d'archive)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -configuration Release \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
       - name: Publier le bundle de résultats en cas d'échec
         if: failure()
         uses: actions/upload-artifact@v4

@@ -51,8 +51,11 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 - [x] Phase 13 : perf (un seul calcul de snapshot/rapport par rendu, préfiltre annuel), mode clair/mouvement réduit/a11y, checklist QA manuelle ; audit par agent → 1 bloqueur corrigé (la restauration effaçait définitivement les fichiers de documents, ADR-014) + restauration transactionnelle avec rollback, round-trip complet (ImportBatch, employmentStatus, updatedAt), voile de confidentialité dans le sélecteur d'apps, contraste carte impôts en mode clair — CI verte (runs 29705322894 puis 29705497072, ~168 tests)
 
+- [x] Phase 14 : paquet App Store préparé sans publication — icône 1024 générée (monogramme B, identité verre sombre) et câblée dans AppIcon.appiconset, écran de lancement généré (clé INFOPLIST déjà en place), APP_STORE_LISTING.md (nom/sous-titre, description fr-CH, mots-clés, nutrition de confidentialité « aucune donnée collectée », storyboard des 6 captures en mode démo, placeholders support/confidentialité, recommandation de prix CHF 6.00 à l'achat), vérification d'archive = étape Build Release ajoutée à la CI
+
 - [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 - [ ] Dérouler MANUAL_QA_CHECKLIST.md sur un appareil réel
+- [ ] Décision de prix à valider par l'utilisateur (recommandation : CHF 6.00 à l'achat, sans IAP — APP_STORE_LISTING.md)
 
 ## Build and test evidence
 
@@ -73,5 +76,8 @@ Voir DECISION_LOG.md (ADR-001 à ADR-013). Convention patrimoine : soldes signé
 
 ## Next exact action
 
-1. `/budget-v1 release` → Phase 14 (paquet App Store : icône, écran de lancement, textes de la fiche, plan de captures, décision de prix) — sur « Go » de l'utilisateur.
-2. Sur appareil : dérouler MANUAL_QA_CHECKLIST.md et valider la migration V1→V8 sur un store existant.
+Le code V1 est terminé (phases 0-14). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
+
+1. Valider la décision de prix (APP_STORE_LISTING.md).
+2. Compte Apple Developer → App ID, fiche App Store Connect (textes prêts), pages support/confidentialité, archive signée, TestFlight sur l'iPhone de l'utilisateur.
+3. Sur appareil : MANUAL_QA_CHECKLIST.md + migration V1→V8 sur un store existant.
