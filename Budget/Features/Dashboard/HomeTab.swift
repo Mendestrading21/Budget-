@@ -57,8 +57,15 @@ struct HomeTab: View {
                 ScrollView {
                     VStack(spacing: BudgetSpacing.medium) {
                         monthSelector
-                        availableHeroCard
-                        dailyBudgetRow
+                        // "Truly available" mixes today's balances with the
+                        // month's planned flows — only meaningful for the
+                        // month containing "now". Other months get a recap.
+                        if isCurrentMonth {
+                            availableHeroCard
+                            dailyBudgetRow
+                        } else {
+                            monthRecapCard
+                        }
                         statGrid
                         flowsChartCard
                         priorityActionsSection
@@ -104,6 +111,30 @@ struct HomeTab: View {
     }
 
     // MARK: - Hero
+
+    private var isCurrentMonth: Bool {
+        snapshot.interval.contains(appContainer.dateProvider.now)
+    }
+
+    private var monthRecapCard: some View {
+        GlassCard(style: .hero) {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Flux net du mois")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                Text(FinanceFormatting.chfSigned(snapshot.cashFlow))
+                    .font(BudgetFont.heroAmount)
+                    .foregroundStyle(snapshot.cashFlow < 0 ? BudgetColor.negative : BudgetColor.positive)
+                if let comparison = snapshot.previousMonth {
+                    Text("Revenus \(FinanceFormatting.chfSigned(comparison.incomeDelta)) et coût de la vie \(FinanceFormatting.chfSigned(comparison.livingExpensesDelta)) par rapport au mois précédent")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Flux net du mois : \(FinanceFormatting.chfSigned(snapshot.cashFlow))")
+        }
+    }
 
     private var availableHeroCard: some View {
         GlassCard(style: .hero) {

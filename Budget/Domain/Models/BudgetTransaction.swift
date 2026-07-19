@@ -45,14 +45,8 @@ enum TransactionType: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// Money leaves the source account.
-    var isOutflowFromSource: Bool {
-        switch self {
-        case .income, .refund: false
-        case .expense, .saving, .investment, .transfer, .taxPayment, .debtPayment: true
-        case .adjustment: false // direction carried by adjustmentIncreasesBalance
-        }
-    }
+    // Direction arithmetic lives in one place only:
+    // AccountBalanceService.signedEffect(of:on:).
 
     /// Types that may route money into another owned account.
     var supportsDestinationAccount: Bool {

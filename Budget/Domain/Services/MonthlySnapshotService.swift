@@ -71,7 +71,7 @@ struct MonthlySnapshotService {
             taxReserveGap: taxProvision.gap
         )
 
-        let daysRemaining = daysRemaining(in: interval, now: now)
+        let daysRemaining = self.daysRemaining(in: interval, now: now)
         let dailyBudget: Decimal
         if available.total > 0, daysRemaining > 0 {
             dailyBudget = FinanceMath.roundedToCents(available.total / Decimal(daysRemaining))

@@ -27,11 +27,27 @@ final class FinanceFormattingTests: XCTestCase {
     }
 
     func testSwissDateFormat() {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        // Built in the current time zone so the assertion holds on any
+        // simulator/CI region (the formatter renders in the device zone).
+        let calendar = Calendar(identifier: .gregorian)
         let components = DateComponents(year: 2026, month: 7, day: 19, hour: 12)
         let date = calendar.date(from: components)!
         XCTAssertEqual(FinanceFormatting.swissDate(date), "19.07.2026")
+    }
+
+    func testParseAmountAcceptsSwissAndAngloConventions() {
+        XCTAssertEqual(FinanceFormatting.parseAmount("18'190.00"), Decimal("18190.00"))
+        XCTAssertEqual(FinanceFormatting.parseAmount("18 190,50"), Decimal("18190.50"))
+        XCTAssertEqual(FinanceFormatting.parseAmount("1,234.56"), Decimal("1234.56"))
+        XCTAssertEqual(FinanceFormatting.parseAmount("1.234,56"), Decimal("1234.56"))
+        XCTAssertEqual(FinanceFormatting.parseAmount("CHF 250"), Decimal("250"))
+    }
+
+    func testParseAmountRejectsMalformedInput() {
+        XCTAssertNil(FinanceFormatting.parseAmount("abc"))
+        XCTAssertNil(FinanceFormatting.parseAmount("12abc"))
+        XCTAssertNil(FinanceFormatting.parseAmount("12.34.56"))
+        XCTAssertNil(FinanceFormatting.parseAmount(""))
     }
 
     func testRoundedToCents() {

@@ -76,7 +76,7 @@ final class AccountBalanceServiceTests: XCTestCase {
         XCTAssertEqual(total, Decimal("1200.00"))
     }
 
-    func testSavingWithDestinationCreditsDestination() {
+    func testInvestmentWithDestinationCreditsDestination() {
         let source = makeAccount()
         let pillar3a = makeAccount(type: .pillar3a, openingBalance: .zero)
         let contribution = BudgetTransaction(

@@ -5,28 +5,25 @@ import Foundation
 enum FinanceFormatting {
     static let locale = Locale(identifier: "fr_CH")
 
-    private static let currencyFormatter: NumberFormatter = {
+    /// CLDR's fr_CH monetary pattern is suffix-style ("18 190.00 CHF"), but
+    /// the product contract requires the Swiss banking style `CHF 18'190.00`.
+    /// The pattern, grouping and decimal separators are therefore pinned
+    /// explicitly instead of trusting the locale defaults.
+    private static func makeChfFormatter(positivePrefix: String) -> NumberFormatter {
         let formatter = NumberFormatter()
         formatter.locale = locale
         formatter.numberStyle = .currency
         formatter.currencyCode = "CHF"
         formatter.currencySymbol = "CHF"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
+        formatter.groupingSeparator = "'"
+        formatter.decimalSeparator = "."
+        formatter.positiveFormat = "\(positivePrefix)¤ #,##0.00"
+        formatter.negativeFormat = "-¤ #,##0.00"
         return formatter
-    }()
+    }
 
-    private static let signedCurrencyFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.locale = locale
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "CHF"
-        formatter.currencySymbol = "CHF"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.positivePrefix = "+" + formatter.positivePrefix
-        return formatter
-    }()
+    private static let currencyFormatter = makeChfFormatter(positivePrefix: "")
+    private static let signedCurrencyFormatter = makeChfFormatter(positivePrefix: "+")
 
     private static let percentFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -64,8 +61,10 @@ enum FinanceFormatting {
         swissDateFormatter.string(from: date)
     }
 
-    /// Parses user-typed amounts, accepting Swiss conventions: apostrophe
-    /// or space grouping, comma or dot decimal separator.
+    /// Parses user-typed amounts, accepting Swiss and Anglo conventions:
+    /// apostrophe/space/dot/comma grouping, comma or dot decimal separator.
+    /// Strictly validated — malformed input returns nil instead of a
+    /// silently truncated value.
     static func parseAmount(_ text: String) -> Decimal? {
         var cleaned = text
             .replacingOccurrences(of: "'", with: "")
@@ -74,8 +73,23 @@ enum FinanceFormatting {
             .replacingOccurrences(of: "\u{202F}", with: "")
             .replacingOccurrences(of: " ", with: "")
             .replacingOccurrences(of: "CHF", with: "")
-        cleaned = cleaned.replacingOccurrences(of: ",", with: ".")
-        guard !cleaned.isEmpty else { return nil }
+
+        // When both separators appear, the rightmost one is the decimal
+        // separator and the other is grouping ("1,234.56" / "1.234,56").
+        if let lastComma = cleaned.lastIndex(of: ","), let lastDot = cleaned.lastIndex(of: ".") {
+            if lastComma > lastDot {
+                cleaned = cleaned.replacingOccurrences(of: ".", with: "")
+                cleaned = cleaned.replacingOccurrences(of: ",", with: ".")
+            } else {
+                cleaned = cleaned.replacingOccurrences(of: ",", with: "")
+            }
+        } else {
+            cleaned = cleaned.replacingOccurrences(of: ",", with: ".")
+        }
+
+        guard cleaned.range(of: "^-?[0-9]+(\\.[0-9]+)?$", options: .regularExpression) != nil else {
+            return nil
+        }
         return Decimal(string: cleaned, locale: Locale(identifier: "en_US_POSIX"))
     }
 
@@ -109,7 +123,7 @@ enum FinanceMath {
 
 extension Decimal {
     /// Exact decimal from a string literal such as `Decimal("12.35")`.
-    /// Traps in debug on invalid input; only for constants in code.
+    /// Traps (debug and release) on invalid input; only for constants in code.
     init(_ exact: String) {
         guard let value = Decimal(string: exact, locale: Locale(identifier: "en_US_POSIX")) else {
             preconditionFailure("Invalid Decimal literal: \(exact)")

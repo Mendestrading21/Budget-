@@ -16,10 +16,12 @@ final class AppContainer {
     /// with fictional data. It never touches the production store.
     var isDemoMode: Bool {
         didSet {
-            guard oldValue != isDemoMode else { return }
+            guard oldValue != isDemoMode, !isRevertingDemoToggle else { return }
             rebuildContainer()
         }
     }
+
+    private var isRevertingDemoToggle = false
 
     /// `inMemory` keeps previews and tests away from the production store.
     init(dateProvider: DateProviding = SystemDateProvider(), inMemory: Bool = false) throws {
@@ -44,11 +46,12 @@ final class AppContainer {
                 modelContainer = try PersistenceFactory.makeProductionContainer()
             }
         } catch {
-            // Opening a fresh in-memory container should not fail; if the
-            // production store fails on the way back, surface a consistent
-            // state rather than crashing: stay in demo mode.
+            // Keep the UI flag consistent with the store actually in use:
+            // revert the toggle without triggering another rebuild.
             assertionFailure("Container rebuild failed: \(error)")
-            isDemoMode = true
+            isRevertingDemoToggle = true
+            isDemoMode.toggle()
+            isRevertingDemoToggle = false
         }
     }
 }
