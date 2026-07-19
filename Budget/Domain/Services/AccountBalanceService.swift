@@ -5,11 +5,10 @@ import Foundation
 /// posted movement — planned movements never touch balances.
 struct AccountBalanceService {
     /// Signed effect of one transaction on one account, in the account's
-    /// currency. Zero when the transaction does not involve the account or
-    /// is only planned.
+    /// currency — pure direction arithmetic, regardless of status. Zero when
+    /// the transaction does not involve the account. Balance aggregation
+    /// (`balance(of:movements:)`) is where planned movements are excluded.
     func signedEffect(of transaction: BudgetTransaction, on account: Account) -> Decimal {
-        guard transaction.status == .posted else { return .zero }
-
         var effect: Decimal = .zero
 
         if transaction.account?.id == account.id {
@@ -57,6 +56,7 @@ struct AccountBalanceService {
         }
 
         return unique.values.reduce(base) { partial, movement in
+            guard movement.status == .posted else { return partial }
             if let since, movement.date <= since { return partial }
             return partial + signedEffect(of: movement, on: account)
         }
