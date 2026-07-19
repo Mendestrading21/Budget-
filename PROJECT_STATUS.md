@@ -43,7 +43,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
 - [x] CI verte sur la phase 7 (run 29702569987)
 - [x] Phase 8 : contribution requise et bords cible-zéro/date passée sûrs (tests) — CI verte (run 29702937482)
-- [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI en cours
+- [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI verte (run 29703182761)
 
 - [ ] Migration V1→V6 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
