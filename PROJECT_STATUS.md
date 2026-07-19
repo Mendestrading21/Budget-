@@ -38,15 +38,16 @@ Invocation mode: build (session Claude Code sur Linux)
 - [x] Phase 4 : toutes les valeurs du dashboard dérivent des données persistées via des tests d'invariants
 - [x] Phase 5 : planifié et réel restent séparés ; toutes les variances se réconcilient (tests) ; copie de mois sans doublons ; grille annuelle
 - [x] Build + tests des phases 0-4 validés sur Mac par l'utilisateur (« Ça fonctionne ✓ »)
-- [ ] Build + tests de la phase 5 sur Mac, y compris la MIGRATION V1→V2 sur un store existant
+- [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
+- [ ] Migration V1→V2 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
-- Build command: `xcodebuild -project Budget.xcodeproj -scheme Budget -destination 'platform=iOS Simulator,name=iPhone 16' build`
-- Result: NON EXÉCUTÉ — session sur Linux sans Xcode. Xcode 16+ requis (format de projet objectVersion 77).
-- Test command: `xcodebuild -project Budget.xcodeproj -scheme Budget -destination 'platform=iOS Simulator,name=iPhone 16' test`
-- Result: NON EXÉCUTÉ (même raison). Une passe de revue statique par agent a été effectuée à la place ; les correctifs sont dans l'historique git.
-- Simulator/device: aucun
+- CI GitHub Actions (`.github/workflows/ci.yml`, runner macos-15, simulateur iPhone 16) : build + `xcodebuild test` à chaque push.
+- **Run vert** : run 29701802089 sur le commit `5f22ec4` (phases 0-5 + correctifs) — build OK, **82 tests, 0 échec**.
+  https://github.com/Mendestrading21/Budget-/actions/runs/29701802089
+- Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
+- Reste à vérifier sur appareil : la migration V1→V2 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
 
 ## Decisions made
 
