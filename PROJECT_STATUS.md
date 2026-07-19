@@ -51,7 +51,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 - [x] Phase 13 : perf (un seul calcul de snapshot/rapport par rendu, préfiltre annuel), mode clair/mouvement réduit/a11y, checklist QA manuelle ; audit par agent → 1 bloqueur corrigé (la restauration effaçait définitivement les fichiers de documents, ADR-014) + restauration transactionnelle avec rollback, round-trip complet (ImportBatch, employmentStatus, updatedAt), voile de confidentialité dans le sélecteur d'apps, contraste carte impôts en mode clair — CI verte (runs 29705322894 puis 29705497072, ~168 tests)
 
-- [x] Phase 14 : paquet App Store préparé sans publication — icône 1024 générée (monogramme B, identité verre sombre) et câblée dans AppIcon.appiconset, écran de lancement généré (clé INFOPLIST déjà en place), APP_STORE_LISTING.md (nom/sous-titre, description fr-CH, mots-clés, nutrition de confidentialité « aucune donnée collectée », storyboard des 6 captures en mode démo, placeholders support/confidentialité, recommandation de prix CHF 6.00 à l'achat), vérification d'archive = étape Build Release ajoutée à la CI
+- [x] Phase 14 : paquet App Store préparé sans publication — icône 1024 générée (monogramme B, identité verre sombre) et câblée dans AppIcon.appiconset, écran de lancement généré (clé INFOPLIST déjà en place), APP_STORE_LISTING.md (nom/sous-titre, description fr-CH, mots-clés, nutrition de confidentialité « aucune donnée collectée », storyboard des 6 captures en mode démo, placeholders support/confidentialité, recommandation de prix CHF 6.00 à l'achat), vérification d'archive = étape Build Release ajoutée à la CI — CI verte (run 29705804198 : suite complète + build Release sans erreur)
 
 - [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 - [ ] Dérouler MANUAL_QA_CHECKLIST.md sur un appareil réel
@@ -60,7 +60,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Build and test evidence
 
 - CI GitHub Actions (`.github/workflows/ci.yml`, runner macos-15, simulateur iPhone 16) : build + `xcodebuild test` à chaque push.
-- **Derniers runs verts** : phases 5→13 (dernier : 29705497072, correctifs d'audit Phase 13) — build OK, suite complète (~168 tests) sans échec.
+- **Derniers runs verts** : phases 5→14 (dernier : 29705804198, paquet App Store) — build Debug + Release OK, suite complète (~168 tests) sans échec.
   https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
 - Reste à vérifier sur appareil : la migration V1→V8 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
