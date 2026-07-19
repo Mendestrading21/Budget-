@@ -1,5 +1,29 @@
 # Budget decision log
 
+## ADR-011 — Patrimoine : dettes positives soustraites, instantané quotidien
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+Phase 10. Les comptes de dette (carte, hypothèque tenue en compte) portent déjà un solde négatif ; il faut des dettes autonomes sans jamais double-compter, et une tendance historique.
+
+### Decision
+
+- Schéma V7 : `Asset`, `Liability` (montant TOUJOURS stocké positif, soustrait par le service — jamais de double négatif), `NetWorthSnapshot` (composantes figées).
+- `NetWorthService.breakdown` : `net = comptes inclus actifs (convention signée existante) + actifs inclus + prévoyance active − dettes incluses`. Une dette portée par un compte reste sur ce compte (le formulaire le rappelle) ; les Liability couvrent les dettes hors comptes (leasing, dette fiscale…).
+- Tendance : au plus UN instantané par jour calendaire, enregistré à l'ouverture de l'écran Patrimoine ; composantes figées pour que l'historique survive aux changements ultérieurs.
+- `MonthSnapshot.netWorth` (comptes seuls) reste inchangé : le patrimoine complet vit dans NetWorthService ; le dashboard mensuel n'affiche pas de fortune totale.
+
+### Consequences
+
+La distinction contribution/variation de valeur (spec) attendra des données réelles multi-instantanés ; V1 montre la courbe totale.
+
+### Verification
+
+`NetWorthServiceTests` : réconciliation, signes, non-double-comptage des comptes de dette, toggles, neutralité des virements sur le patrimoine complet, unicité quotidienne des instantanés, tri de tendance, round-trip V7.
+
 ## ADR-010 — Assurances/prévoyance : prime au rythme réel, projections jamais inventées
 
 Date: 2026-07-19

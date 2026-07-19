@@ -337,6 +337,48 @@ enum DemoDataFactory {
         context.insert(lppAsset)
         context.insert(thirdPillarAsset)
 
+        // Net worth: assets, one excluded to demo the toggle, a debt, and
+        // six retroactive monthly snapshots for the trend chart.
+        let car = Asset(
+            name: "Voiture familiale", kind: .vehicle,
+            currentValue: Decimal("12000.00"),
+            valuationDate: calendar.date(byAdding: .month, value: -2, to: now),
+            createdAt: now, updatedAt: now
+        )
+        let collection = Asset(
+            name: "Collection de montres", kind: .collectible,
+            currentValue: Decimal("3500.00"),
+            includeInNetWorth: false,
+            createdAt: now, updatedAt: now
+        )
+        let carLease = Liability(
+            name: "Leasing voiture", kind: .leasing,
+            outstandingAmount: Decimal("8400.00"),
+            createdAt: now, updatedAt: now
+        )
+        context.insert(car)
+        context.insert(collection)
+        context.insert(carLease)
+
+        for monthOffset in (1...6).reversed() {
+            guard let snapshotDate = calendar.date(byAdding: .month, value: -monthOffset, to: now) else { continue }
+            // Accounts grow ~1'450/month; the other components stay flat,
+            // so each snapshot reconciles: net = accounts + assets +
+            // pension − liabilities.
+            let accountsTotal = Decimal("34000.00") + Decimal((6 - monthOffset) * 1450)
+            let assetsTotal = Decimal("12000.00")
+            let pensionTotal = Decimal("95000.00")
+            let liabilitiesTotal = Decimal("8400.00")
+            context.insert(NetWorthSnapshot(
+                date: snapshotDate,
+                accountsTotal: accountsTotal,
+                assetsTotal: assetsTotal,
+                pensionTotal: pensionTotal,
+                liabilitiesTotal: liabilitiesTotal,
+                netWorth: accountsTotal + assetsTotal + pensionTotal - liabilitiesTotal
+            ))
+        }
+
         do {
             try context.save()
         } catch {
