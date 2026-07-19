@@ -7,8 +7,6 @@ struct TransactionFormView: View {
     enum Mode {
         case create(prefilledAccount: Account?)
         case edit(BudgetTransaction)
-
-        static var create: Mode { .create(prefilledAccount: nil) }
     }
 
     let mode: Mode
@@ -249,7 +247,7 @@ struct TransactionFormView: View {
 
 #Preview("Nouveau mouvement") {
     let preview = DemoDataFactory.previewAppContainer()
-    return TransactionFormView(mode: .create)
+    return TransactionFormView(mode: .create(prefilledAccount: nil))
         .environment(preview)
         .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
