@@ -41,7 +41,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 7 : tous les états fiscaux se réconcilient (estimé = payé + dû, tests) et les hypothèses sont visibles à l'écran
 - [x] Build + tests des phases 0-4 validés sur Mac par l'utilisateur (« Ça fonctionne ✓ »)
 - [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
-- [ ] CI verte sur la phase 7 (en cours — voir Actions)
+- [x] CI verte sur la phase 7 (run 29702569987)
 - [ ] Migration V1→V4 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
