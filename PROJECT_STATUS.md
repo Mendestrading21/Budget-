@@ -12,7 +12,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 ## Product state
 
-- App launches: phases 0-7 compilées et testées en CI GitHub Actions (dernier run vert : 29702569987)
+- App launches: phases 0-10 compilées et testées en CI GitHub Actions (dernier run vert : 29704249404)
 - Persistence: SwiftData, schéma versionné V7 (`BudgetSchemaV7` : + Asset/Liability/NetWorthSnapshot), migrations légères V1→…→V7 (ADR-006..011)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
@@ -29,7 +29,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - Security: non commencé (Phase 12)
 - Release readiness: non commencé
 
-## Current acceptance criteria (Phases 0-7)
+## Current acceptance criteria (Phases 0-10)
 
 - [x] Phase 0 : fondation compilable en principe (projet Xcode 16, thème, formatage fr-CH, modèles, démo, tests)
 - [x] Phase 1 : un nouvel utilisateur crée un profil local valide et retombe dans l'app au relancement (test de persistance inclus)
@@ -44,14 +44,14 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] CI verte sur la phase 7 (run 29702569987)
 - [x] Phase 8 : contribution requise et bords cible-zéro/date passée sûrs (tests) — CI verte (run 29702937482)
 - [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI verte (run 29703182761)
-- [x] Phase 10 : neutralité des virements, signes des dettes et toggles inclus/exclus corrects (tests) — CI en cours
+- [x] Phase 10 : neutralité des virements, signes des dettes et toggles inclus/exclus corrects (tests) — CI verte (run 29704249404)
 
 - [ ] Migration V1→V7 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
 - CI GitHub Actions (`.github/workflows/ci.yml`, runner macos-15, simulateur iPhone 16) : build + `xcodebuild test` à chaque push.
-- **Derniers runs verts** : phase 5 (29701802089), phase 6 (29702260574), phase 7 (29702569987) — build OK, suite complète sans échec.
+- **Derniers runs verts** : phases 5→10 (dernier : 29704249404) — build OK, suite complète (~140 tests) sans échec.
   https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
 - Reste à vérifier sur appareil : la migration V1→V7 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
