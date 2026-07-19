@@ -1,5 +1,29 @@
 # Budget decision log
 
+## ADR-009 — Objectifs : valeur courante exclusive, contributions non soustraites du disponible
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+Phase 8. La valeur courante d'un objectif peut venir d'un compte lié ou d'un suivi manuel ; et la formule « disponible » du spec mentionne « − contributions d'objectifs engagées ».
+
+### Decision
+
+- Schéma V5 : `FinancialGoal` (type, cible, date, compte lié OU montant manuel — jamais les deux, le formulaire remet le manuel à zéro quand un compte est lié ; contribution prévue, priorité, statut).
+- Projections dérivées, jamais stockées : progrès borné [0,1] (cible ≤ 0 = atteint, sans division), mois restants comptés en jours entiers (un mois entamé compte), contribution requise = restant / mois (tout dû immédiatement si échéance passée ou dernier mois), statut En bonne voie/À accélérer selon prévu vs requis, projection par division plafond.
+- Les contributions d'objectifs ne sont PAS soustraites du « vraiment disponible » : l'épargne planifiée est déjà modélisée par les récurrents (type saving/investment) — la soustraire une seconde fois via les objectifs double-compterait. Les objectifs mesurent le progrès, les récurrents engagent le cash.
+- Célébration sobre : badge « Atteint » + coche, pas d'animation tapageuse (design system).
+
+### Consequences
+
+Un objectif alimenté par un récurrent lié au même compte se met à jour tout seul ; déviation documentée de la formule du spec (composant objectifs = 0 en V1).
+
+### Verification
+
+`GoalProjectionServiceTests` : bords sûrs, mois restants, requis vs prévu, division plafond, round-trip V5.
+
 ## ADR-008 — Impôts : profil paresseux, états dérivés, schéma V4
 
 Date: 2026-07-19

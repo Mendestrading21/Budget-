@@ -244,6 +244,51 @@ enum DemoDataFactory {
         provision.profile = taxProfile
         context.insert(provision)
 
+        // Savings goals: linked, manual, and one tastefully achieved.
+        let emergencyGoal = FinancialGoal(
+            name: "Fonds d'urgence",
+            kind: .emergencyFund,
+            targetAmount: Decimal("20000.00"),
+            plannedMonthlyContribution: Decimal("600.00"),
+            priority: .high,
+            createdAt: now, updatedAt: now,
+            linkedAccount: savingsAccount
+        )
+        let holidayGoal = FinancialGoal(
+            name: "Vacances d'été",
+            kind: .travel,
+            targetAmount: Decimal("3000.00"),
+            targetDate: calendar.date(byAdding: .month, value: 8, to: now),
+            manualCurrentAmount: Decimal("1200.00"),
+            plannedMonthlyContribution: Decimal("150.00"),
+            createdAt: now, updatedAt: now
+        )
+        // Tracks this year's contributions only, so no account link — the
+        // 3a balance also contains previous years.
+        let pillarGoal = FinancialGoal(
+            name: "Pilier 3a 2026",
+            kind: .pillar3a,
+            targetAmount: Decimal("7056.00"),
+            targetDate: calendar.date(from: DateComponents(
+                year: calendar.component(.year, from: now), month: 12, day: 31
+            )),
+            manualCurrentAmount: Decimal("3522.00"),
+            plannedMonthlyContribution: Decimal("587.00"),
+            createdAt: now, updatedAt: now
+        )
+        let bikeGoal = FinancialGoal(
+            name: "Nouveau vélo",
+            kind: .custom,
+            emoji: "🚲",
+            targetAmount: Decimal("800.00"),
+            manualCurrentAmount: Decimal("800.00"),
+            status: .achieved,
+            createdAt: now, updatedAt: now
+        )
+        for goal in [emergencyGoal, holidayGoal, pillarGoal, bikeGoal] {
+            context.insert(goal)
+        }
+
         do {
             try context.save()
         } catch {

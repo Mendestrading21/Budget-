@@ -76,9 +76,30 @@ enum BudgetSchemaV4: VersionedSchema {
     }
 }
 
+/// Schema v5.0.0 — adds savings goals (FinancialGoal). Purely additive.
+enum BudgetSchemaV5: VersionedSchema {
+    static let versionIdentifier = Schema.Version(5, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            Household.self,
+            HouseholdMember.self,
+            Account.self,
+            BudgetCategory.self,
+            BudgetTransaction.self,
+            MonthlyBudget.self,
+            BudgetLine.self,
+            RecurringTransaction.self,
+            TaxProfile.self,
+            TaxProvision.self,
+            FinancialGoal.self,
+        ]
+    }
+}
+
 enum BudgetMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BudgetSchemaV1.self, BudgetSchemaV2.self, BudgetSchemaV3.self, BudgetSchemaV4.self]
+        [BudgetSchemaV1.self, BudgetSchemaV2.self, BudgetSchemaV3.self, BudgetSchemaV4.self, BudgetSchemaV5.self]
     }
 
     static var stages: [MigrationStage] {
@@ -86,6 +107,7 @@ enum BudgetMigrationPlan: SchemaMigrationPlan {
             .lightweight(fromVersion: BudgetSchemaV1.self, toVersion: BudgetSchemaV2.self),
             .lightweight(fromVersion: BudgetSchemaV2.self, toVersion: BudgetSchemaV3.self),
             .lightweight(fromVersion: BudgetSchemaV3.self, toVersion: BudgetSchemaV4.self),
+            .lightweight(fromVersion: BudgetSchemaV4.self, toVersion: BudgetSchemaV5.self),
         ]
     }
 }
@@ -95,7 +117,7 @@ enum PersistenceFactory {
     static func makeProductionContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV4.self),
+            for: Schema(versionedSchema: BudgetSchemaV5.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
@@ -105,7 +127,7 @@ enum PersistenceFactory {
     static func makeInMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV4.self),
+            for: Schema(versionedSchema: BudgetSchemaV5.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )

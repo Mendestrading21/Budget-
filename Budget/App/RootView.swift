@@ -38,12 +38,9 @@ struct MainTabView: View {
                 .tabItem { Label(AppTab.accounts.title, systemImage: AppTab.accounts.systemImage) }
                 .tag(AppTab.accounts)
 
-            ComingSoonView(
-                title: "Objectifs",
-                message: "Les objectifs d'épargne arrivent dans une prochaine étape."
-            )
-            .tabItem { Label(AppTab.goals.title, systemImage: AppTab.goals.systemImage) }
-            .tag(AppTab.goals)
+            GoalsTab()
+                .tabItem { Label(AppTab.goals.title, systemImage: AppTab.goals.systemImage) }
+                .tag(AppTab.goals)
 
             MoreTab()
                 .tabItem { Label(AppTab.more.title, systemImage: AppTab.more.systemImage) }

@@ -15,6 +15,7 @@ struct HomeTab: View {
     @Query private var budgets: [MonthlyBudget]
     @Query private var recurrings: [RecurringTransaction]
     @Query private var taxProfiles: [TaxProfile]
+    @Query private var goals: [FinancialGoal]
     @Environment(\.modelContext) private var modelContext
 
     @State private var monthAnchor: Date?
@@ -515,8 +516,29 @@ struct HomeTab: View {
             .first { $0.date.timeIntervalSince(now) < 30 * 86_400 }
     }
 
+    /// First active goal whose planned pace no longer makes its date.
+    private var lateGoal: (goal: FinancialGoal, report: GoalReport)? {
+        let service = GoalProjectionService(calendar: appContainer.calendar, balanceService: appContainer.balanceService)
+        let now = appContainer.dateProvider.now
+        return goals
+            .filter { $0.status == .active }
+            .sorted { $0.priority.sortOrder < $1.priority.sortOrder }
+            .lazy
+            .map { ($0, service.report(for: $0, now: now)) }
+            .first { $0.1.scheduleStatus == .behind || $0.1.scheduleStatus == .overdue }
+    }
+
     private var priorityActions: [PriorityAction] {
         var actions: [PriorityAction] = []
+        if let late = lateGoal {
+            actions.append(PriorityAction(
+                id: "goal",
+                title: late.report.scheduleStatus == .overdue
+                    ? "Objectif « \(late.goal.name) » : échéance dépassée"
+                    : "Objectif « \(late.goal.name) » : passez à \(FinanceFormatting.chf(late.report.requiredMonthlyContribution ?? late.report.remainingAmount)) / mois",
+                systemImage: "target"
+            ))
+        }
         if let dueDate = upcomingTaxDueDate {
             actions.append(PriorityAction(
                 id: "taxDueDate",
@@ -576,6 +598,8 @@ struct HomeTab: View {
                             RecurringListView()
                         } else if action.id == "taxDueDate" || action.id == "tax" {
                             TaxesView()
+                        } else if action.id == "goal" {
+                            GoalsListView()
                         } else {
                             TransactionsListView()
                         }

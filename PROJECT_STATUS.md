@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
-Current phase: Phases 0 à 7 terminées — prochaine : Phase 8 (Objectifs)
+Current phase: Phases 0 à 8 terminées — prochaine : Phase 9 (Assurances et prévoyance)
 Invocation mode: build (session Claude Code sur Linux, vérification via CI GitHub Actions)
 
 ## Product goal (confirmé par l'utilisateur, 2026-07-19)
@@ -13,7 +13,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 ## Product state
 
 - App launches: phases 0-7 compilées et testées en CI GitHub Actions (dernier run vert : 29702569987)
-- Persistence: SwiftData, schéma versionné V4 (`BudgetSchemaV4` : + TaxProfile/TaxProvision), migrations légères V1→…→V4 (ADR-006/007/008)
+- Persistence: SwiftData, schéma versionné V5 (`BudgetSchemaV5` : + FinancialGoal), migrations légères V1→…→V5 (ADR-006..009)
 - Demo data: `DemoDataFactory` — mode démo isolé + previews déterministes (date fixe 15.06.2026)
 - Onboarding: flux complet 5 étapes (confidentialité, ménage, canton, taux d'impôts 30 %, premier compte) + catégories suisses par défaut
 - Accounts: liste groupée, détail, formulaire, réconciliation horodatée, archivage, flags cash/patrimoine, solde dérivé
@@ -22,7 +22,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - Budget: onglet complet — lignes par catégorie (groupes essentiel/discrétionnaire/épargne/impôts), planifié vs réel avec badge de dépassement, section « Hors budget » (réconciliation totale), copie du mois précédent, grille annuelle 12 mois, graphique dashboard budget-vs-réel avec fallback 6 mois
 - Recurring/subscriptions: entité unique (charges/revenus/abonnements), occurrences par multiples d'ancre sans dérive, dédup prévision/réel par recurringID, équivalents mensuel/annualisé, échéances de résiliation (badge + action prioritaire), section « À venir ce mois » avec comptabilisation en un geste, liste + formulaire complets (ADR-007)
 - Taxes: module complet — TaxProfile (taux, source de vérité, seedé depuis Household), TaxProvision par année (réserve, arriérés, override, échéances), états dérivés toujours réconciliés (estimé = payé + dû), écran avec hypothèses visibles + disclaimer, échéances en action prioritaire du dashboard (ADR-008)
-- Goals: non commencé (Phase 8)
+- Goals: onglet complet — types suisses (fonds d'urgence, 3a, voyage…), progrès via compte lié ou montant manuel, contribution mensuelle requise vs prévue, statuts En bonne voie/À accélérer/Échéance dépassée/Atteint (célébration sobre), projection au rythme prévu, action prioritaire dashboard (ADR-009)
 - Insurance/pension: non commencé (Phase 9)
 - Net worth: somme des comptes inclus (convention signée, dettes négatives) ; entités Asset/Liability en Phase 10
 - Import/export: champ `importFingerprint` prêt ; module en Phase 11
@@ -42,7 +42,9 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Build + tests des phases 0-4 validés sur Mac par l'utilisateur (« Ça fonctionne ✓ »)
 - [x] Build + 82 tests de la phase 5 VERTS en CI GitHub Actions (run 29701802089)
 - [x] CI verte sur la phase 7 (run 29702569987)
-- [ ] Migration V1→V4 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [x] Phase 8 : contribution requise et bords cible-zéro/date passée sûrs (tests) — CI en cours
+
+- [ ] Migration V1→V5 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 
 ## Build and test evidence
 
@@ -50,17 +52,17 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - **Derniers runs verts** : phase 5 (29701802089), phase 6 (29702260574), phase 7 (29702569987) — build OK, suite complète sans échec.
   https://github.com/Mendestrading21/Budget-/actions
 - Historique : le run 29701528788 (rouge) a attrapé un vrai bug SwiftData dans les données de démo (mouvements futurs persistés via le graphe de relations), corrigé en `5f22ec4`.
-- Reste à vérifier sur appareil : la migration V1→V4 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
+- Reste à vérifier sur appareil : la migration V1→V5 par-dessus un store réel existant, et le parcours manuel complet (la CI ne couvre que build + tests unitaires).
 
 ## Decisions made
 
-Voir DECISION_LOG.md (ADR-001 à ADR-008). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
+Voir DECISION_LOG.md (ADR-001 à ADR-009). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
 
 ## Known risks or blockers
 
-- Migration V1→V4 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
+- Migration V1→V5 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
 - Filtres et rapports calculés en mémoire (volumes V1 acceptables) — indexation/#Predicate à revisiter en Phase 13 (performance).
 
 ## Next exact action
 
-1. `/budget-v1 build` → Phase 8 (objectifs d'épargne : CRUD, projections, contribution mensuelle requise, comptes liés, célébrations sobres).
+1. `/budget-v1 build` → Phase 9 (assurances et prévoyance : registre de contrats, piliers 1/2/3a/3b, échéances de résiliation, vue d'ensemble retraite).
