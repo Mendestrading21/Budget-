@@ -30,12 +30,9 @@ struct MainTabView: View {
                 .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
                 .tag(AppTab.home)
 
-            ComingSoonView(
-                title: "Budget",
-                message: "Le budget mensuel et annuel arrive dans une prochaine étape."
-            )
-            .tabItem { Label(AppTab.budget.title, systemImage: AppTab.budget.systemImage) }
-            .tag(AppTab.budget)
+            BudgetTab()
+                .tabItem { Label(AppTab.budget.title, systemImage: AppTab.budget.systemImage) }
+                .tag(AppTab.budget)
 
             AccountsTab()
                 .tabItem { Label(AppTab.accounts.title, systemImage: AppTab.accounts.systemImage) }

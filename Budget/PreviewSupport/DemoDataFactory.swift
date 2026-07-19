@@ -125,6 +125,31 @@ enum DemoDataFactory {
             ))
         }
 
+        // Monthly budgets mirroring the recurring demo movements, so the
+        // budget tab and dashboard chart have planned-vs-actual content.
+        let budgetTemplate: [(category: String, amount: Decimal)] = [
+            ("Logement", Decimal("2150.00")),
+            ("Assurance maladie", Decimal("750.00")),
+            ("Alimentation", Decimal("650.00")),
+            ("Transports", Decimal("150.00")),
+            ("Restaurants et sorties", Decimal("250.00")),
+            ("Épargne", Decimal("600.00")),
+            ("Pilier 3a", Decimal("587.00")),
+            ("Impôts", Decimal("850.00")),
+        ]
+        for monthStart in monthStarts {
+            let components = calendar.dateComponents([.year, .month], from: monthStart)
+            guard let year = components.year, let month = components.month else { continue }
+            let budget = MonthlyBudget(year: year, month: month, createdAt: monthStart, updatedAt: monthStart)
+            context.insert(budget)
+            for entry in budgetTemplate {
+                guard let matched = category(entry.category) else { continue }
+                let line = BudgetLine(plannedAmount: entry.amount, category: matched, createdAt: monthStart, updatedAt: monthStart)
+                line.budget = budget
+                context.insert(line)
+            }
+        }
+
         do {
             try context.save()
         } catch {

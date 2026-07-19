@@ -1,0 +1,319 @@
+import SwiftUI
+import SwiftData
+
+/// Budget tab: monthly planned-vs-actual per category, with a full
+/// reconciliation (out-of-budget spending is always visible).
+struct BudgetTab: View {
+    @Environment(AppContainer.self) private var appContainer
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: \BudgetTransaction.date, order: .reverse)
+    private var transactions: [BudgetTransaction]
+    @Query private var budgets: [MonthlyBudget]
+
+    @State private var monthAnchor: Date?
+    @State private var editedLine: BudgetLine?
+    @State private var isPresentingNewLine = false
+    @State private var actionErrorMessage: String?
+
+    private var currentAnchor: Date { monthAnchor ?? appContainer.dateProvider.now }
+
+    private var planningService: BudgetPlanningService {
+        BudgetPlanningService(calendar: appContainer.calendar)
+    }
+
+    private var varianceService: BudgetVarianceService {
+        BudgetVarianceService(calendar: appContainer.calendar)
+    }
+
+    private var currentBudget: MonthlyBudget? {
+        let (year, month) = planningService.yearAndMonth(of: currentAnchor)
+        return budgets.first { $0.year == year && $0.month == month }
+    }
+
+    private var report: BudgetReport {
+        varianceService.report(budget: currentBudget, monthOf: currentAnchor, transactions: transactions)
+    }
+
+    private var hasPreviousMonthLines: Bool {
+        guard let previousAnchor = appContainer.calendar.date(byAdding: .month, value: -1, to: currentAnchor) else {
+            return false
+        }
+        let (year, month) = planningService.yearAndMonth(of: previousAnchor)
+        return budgets.first { $0.year == year && $0.month == month }.map { !$0.lines.isEmpty } ?? false
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                BudgetScreenBackground()
+                ScrollView {
+                    VStack(spacing: BudgetSpacing.medium) {
+                        monthSelector
+                        if report.lineReports.isEmpty {
+                            emptyState
+                        } else {
+                            summaryCard
+                            lineSections
+                        }
+                        outOfBudgetSection
+                        if let actionErrorMessage {
+                            Label(actionErrorMessage, systemImage: "exclamationmark.circle")
+                                .foregroundStyle(BudgetColor.negative)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(BudgetSpacing.screenMargin)
+                }
+            }
+            .navigationTitle("Budget")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        isPresentingNewLine = true
+                    } label: {
+                        Label("Ajouter une ligne", systemImage: "plus")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        AnnualBudgetView(yearAnchor: currentAnchor)
+                    } label: {
+                        Label("Vue annuelle", systemImage: "calendar")
+                    }
+                }
+            }
+            .sheet(isPresented: $isPresentingNewLine) {
+                BudgetLineFormView(mode: .create, monthAnchor: currentAnchor)
+            }
+            .sheet(item: $editedLine) { line in
+                BudgetLineFormView(mode: .edit(line), monthAnchor: currentAnchor)
+            }
+        }
+    }
+
+    // MARK: - Month selector
+
+    private var monthSelector: some View {
+        HStack {
+            Button {
+                shiftMonth(by: -1)
+            } label: {
+                Image(systemName: "chevron.left")
+                    .padding(BudgetSpacing.small)
+            }
+            .accessibilityLabel("Mois précédent")
+
+            Spacer()
+            Text(FinanceFormatting.monthTitle(currentAnchor, calendar: appContainer.calendar).capitalized)
+                .font(BudgetFont.sectionTitle)
+            Spacer()
+
+            Button {
+                shiftMonth(by: 1)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .padding(BudgetSpacing.small)
+            }
+            .accessibilityLabel("Mois suivant")
+        }
+        .tint(BudgetColor.indigo)
+    }
+
+    private func shiftMonth(by value: Int) {
+        monthAnchor = appContainer.calendar.date(byAdding: .month, value: value, to: currentAnchor) ?? currentAnchor
+    }
+
+    // MARK: - Summary
+
+    private var summaryCard: some View {
+        GlassCard(style: .hero) {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Reste à dépenser (lignes budgétées)")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                Text(FinanceFormatting.chf(report.totalVariance))
+                    .font(BudgetFont.heroAmount)
+                    .foregroundStyle(report.totalVariance < 0 ? BudgetColor.negative : .primary)
+                HStack(spacing: BudgetSpacing.large) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Planifié")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                        Text(FinanceFormatting.chf(report.totalPlanned))
+                            .font(BudgetFont.amount)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Réel")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                        Text(FinanceFormatting.chf(report.totalActualInLines))
+                            .font(BudgetFont.amount)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Budget du mois : planifié \(FinanceFormatting.chf(report.totalPlanned)), réel \(FinanceFormatting.chf(report.totalActualInLines)), reste \(FinanceFormatting.chf(report.totalVariance))")
+        }
+    }
+
+    // MARK: - Lines
+
+    private var groupedReports: [(title: String, reports: [BudgetLineReport])] {
+        let expenses = report.lineReports.filter { $0.categoryKind == .expense }
+        return [
+            ("Revenus", report.lineReports.filter { $0.categoryKind == .income }),
+            ("Essentiel", expenses.filter(\.isEssential)),
+            ("Discrétionnaire", expenses.filter { !$0.isEssential }),
+            ("Épargne et investissements", report.lineReports.filter { $0.categoryKind == .saving || $0.categoryKind == .investment }),
+            ("Impôts", report.lineReports.filter { $0.categoryKind == .tax }),
+        ].filter { !$0.1.isEmpty }
+    }
+
+    private var lineSections: some View {
+        ForEach(groupedReports, id: \.title) { group in
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text(group.title)
+                    .font(BudgetFont.sectionTitle)
+                    .foregroundStyle(.secondary)
+                ForEach(group.reports) { lineReport in
+                    BudgetLineRow(report: lineReport)
+                        .onTapGesture {
+                            if let line = currentBudget?.lines.first(where: { $0.id == lineReport.id }) {
+                                editedLine = line
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    // MARK: - Out of budget
+
+    @ViewBuilder
+    private var outOfBudgetSection: some View {
+        if !report.outOfBudget.isEmpty {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Hors budget")
+                    .font(BudgetFont.sectionTitle)
+                    .foregroundStyle(.secondary)
+                Text("Mouvements du mois sans ligne budgétée — total \(FinanceFormatting.chf(report.totalOutOfBudget))")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(report.outOfBudget) { entry in
+                    GlassCard(style: .row) {
+                        HStack {
+                            Text(entry.categoryName)
+                                .font(BudgetFont.body)
+                            Spacer()
+                            Text(FinanceFormatting.chf(entry.actual))
+                                .font(BudgetFont.amount)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Hors budget : \(entry.categoryName), \(FinanceFormatting.chf(entry.actual))")
+                }
+            }
+        }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Label("Aucun budget ce mois", systemImage: "chart.pie")
+                    .font(BudgetFont.sectionTitle)
+                Text("Planifiez des enveloppes par catégorie pour comparer le prévu et le réel.")
+                    .font(BudgetFont.body)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: BudgetSpacing.small) {
+                    Button("Ajouter une ligne") {
+                        isPresentingNewLine = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(BudgetColor.indigo)
+                    if hasPreviousMonthLines {
+                        Button("Copier le mois précédent") {
+                            copyPreviousMonth()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(BudgetColor.electricBlue)
+                    }
+                }
+            }
+        }
+    }
+
+    private func copyPreviousMonth() {
+        actionErrorMessage = nil
+        do {
+            let copied = try planningService.copyPreviousMonthLines(
+                into: currentAnchor,
+                now: appContainer.dateProvider.now,
+                context: modelContext
+            )
+            if copied == 0 {
+                actionErrorMessage = "Rien à copier : le mois précédent n'a pas de lignes."
+            }
+        } catch {
+            actionErrorMessage = "La copie a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }
+    }
+}
+
+/// One budget line: category, planned vs actual, progress bar with an
+/// explicit overrun badge (never color alone).
+struct BudgetLineRow: View {
+    let report: BudgetLineReport
+
+    private var progressColor: Color {
+        if report.isOverrun { return BudgetColor.negative }
+        return report.consumedFraction > Decimal("0.85") ? BudgetColor.warning : BudgetColor.indigo
+    }
+
+    var body: some View {
+        GlassCard(style: .row) {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                HStack {
+                    Text(report.categoryName)
+                        .font(BudgetFont.body.weight(.medium))
+                    if report.isOverrun {
+                        Label("Dépassé", systemImage: "exclamationmark.triangle.fill")
+                            .font(BudgetFont.caption.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(BudgetColor.negative.opacity(0.22), in: Capsule())
+                            .foregroundStyle(BudgetColor.negative)
+                    }
+                    Spacer()
+                    Text("\(FinanceFormatting.chf(report.actual)) / \(FinanceFormatting.chf(report.planned))")
+                        .font(BudgetFont.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView(value: NSDecimalNumber(decimal: report.consumedFraction).doubleValue)
+                    .tint(progressColor)
+                HStack {
+                    Spacer()
+                    Text(report.isOverrun
+                         ? "Dépassement de \(FinanceFormatting.chf(-report.variance))"
+                         : "Reste \(FinanceFormatting.chf(report.variance))")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(report.isOverrun ? BudgetColor.negative : .secondary)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(report.categoryName) : réel \(FinanceFormatting.chf(report.actual)) sur \(FinanceFormatting.chf(report.planned)) planifiés\(report.isOverrun ? ", dépassé de \(FinanceFormatting.chf(-report.variance))" : ", reste \(FinanceFormatting.chf(report.variance))")")
+    }
+}
+
+#Preview("Budget") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return BudgetTab()
+        .environment(preview)
+        .environment(AppRouter())
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+}

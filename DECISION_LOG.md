@@ -77,6 +77,32 @@ Le spec impose une convention unique, jamais mélangée.
 
 Les invariants (neutralité des virements, patrimoine) se testent sur une seule source de vérité : `AccountBalanceService.signedEffect`.
 
+## ADR-006 — Schéma V2 : budgets mensuels, migration légère
+
+Date: 2026-07-19
+Status: accepted
+
+### Context
+
+La Phase 5 introduit `MonthlyBudget` et `BudgetLine`. Les stores V1 existants (phases 0-4) doivent migrer sans perte.
+
+### Decision
+
+`BudgetSchemaV2` (2.0.0) = modèles V1 + les deux nouveaux ; `MigrationStage.lightweight(fromVersion: V1, toVersion: V2)` car le changement est purement additif. L'unicité d'un budget par (année, mois) est garantie par `BudgetPlanningService.findOrCreate` — unique chemin de création — plutôt que par une contrainte composite SwiftData (non disponible). Le réel n'est jamais stocké sur une ligne : il dérive des transactions comptabilisées via `BudgetVarianceService`, et les montants hors budget sont exposés séparément pour que la réconciliation soit totale.
+
+### Alternatives considered
+
+- Contrainte `#Unique` composite : non supportée sur iOS 17.
+- Stocker le réel sur la ligne : violerait la séparation planifié/réel.
+
+### Consequences
+
+Migration à valider sur un appareil contenant des données V1 ; toute création de budget passe par le service.
+
+### Verification
+
+Tests `BudgetPlanningServiceTests` (unicité, round-trip V2, cascade) ; test manuel de migration sur simulateur avec store V1 existant.
+
 ## ADR-005 — Mode démo sur container in-memory séparé
 
 Date: 2026-07-19

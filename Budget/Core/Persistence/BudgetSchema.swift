@@ -17,13 +17,33 @@ enum BudgetSchemaV1: VersionedSchema {
     }
 }
 
+/// Schema v2.0.0 — adds monthly budgets (MonthlyBudget, BudgetLine).
+/// Purely additive relative to V1, hence a lightweight migration.
+enum BudgetSchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [
+            Household.self,
+            HouseholdMember.self,
+            Account.self,
+            BudgetCategory.self,
+            BudgetTransaction.self,
+            MonthlyBudget.self,
+            BudgetLine.self,
+        ]
+    }
+}
+
 enum BudgetMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BudgetSchemaV1.self]
+        [BudgetSchemaV1.self, BudgetSchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [
+            .lightweight(fromVersion: BudgetSchemaV1.self, toVersion: BudgetSchemaV2.self),
+        ]
     }
 }
 
@@ -32,7 +52,7 @@ enum PersistenceFactory {
     static func makeProductionContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV1.self),
+            for: Schema(versionedSchema: BudgetSchemaV2.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
@@ -42,7 +62,7 @@ enum PersistenceFactory {
     static func makeInMemoryContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV1.self),
+            for: Schema(versionedSchema: BudgetSchemaV2.self),
             migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )

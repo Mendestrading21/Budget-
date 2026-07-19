@@ -12,6 +12,7 @@ struct HomeTab: View {
     private var transactions: [BudgetTransaction]
     @Query private var accounts: [Account]
     @Query private var households: [Household]
+    @Query private var budgets: [MonthlyBudget]
 
     @State private var monthAnchor: Date?
 
@@ -33,6 +34,23 @@ struct HomeTab: View {
 
     private var chartData: [(monthStart: Date, income: Decimal, livingExpenses: Decimal)] {
         snapshotService.monthlyFlows(endingAt: currentAnchor, count: 6, transactions: transactions)
+    }
+
+    /// Budget-vs-actual for the displayed month's top expense lines; empty
+    /// when no budget exists (the chart then falls back to 6-month flows).
+    private var budgetChartReports: [BudgetLineReport] {
+        let planningService = BudgetPlanningService(calendar: appContainer.calendar)
+        let (year, month) = planningService.yearAndMonth(of: currentAnchor)
+        guard let budget = budgets.first(where: { $0.year == year && $0.month == month }),
+              !budget.lines.isEmpty else { return [] }
+        let report = BudgetVarianceService(calendar: appContainer.calendar)
+            .report(budget: budget, monthOf: currentAnchor, transactions: transactions)
+        return Array(
+            report.lineReports
+                .filter { $0.categoryKind == .expense }
+                .sorted { $0.planned > $1.planned }
+                .prefix(5)
+        )
     }
 
     private var uncategorizedCount: Int {
@@ -255,7 +273,70 @@ struct HomeTab: View {
         return formatter
     }
 
+    @ViewBuilder
     private var flowsChartCard: some View {
+        let budgetReports = budgetChartReports
+        if budgetReports.isEmpty {
+            sixMonthFlowsCard
+        } else {
+            budgetVsActualCard(reports: budgetReports)
+        }
+    }
+
+    private func budgetVsActualCard(reports: [BudgetLineReport]) -> some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Budget vs réel — principales dépenses")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                Chart {
+                    ForEach(reports) { report in
+                        BarMark(
+                            x: .value("CHF", NSDecimalNumber(decimal: report.planned).doubleValue),
+                            y: .value("Catégorie", report.categoryName),
+                            height: .ratio(0.32)
+                        )
+                        .position(by: .value("Série", "Planifié"))
+                        .foregroundStyle(by: .value("Série", "Planifié"))
+                        .cornerRadius(4)
+
+                        BarMark(
+                            x: .value("CHF", NSDecimalNumber(decimal: report.actual).doubleValue),
+                            y: .value("Catégorie", report.categoryName),
+                            height: .ratio(0.32)
+                        )
+                        .position(by: .value("Série", "Réel"))
+                        .foregroundStyle(by: .value("Série", "Réel"))
+                        .cornerRadius(4)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "Planifié": BudgetColor.indigo,
+                    "Réel": BudgetColor.electricBlue,
+                ])
+                .chartXAxis {
+                    AxisMarks { _ in
+                        AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                        AxisValueLabel().font(.caption2)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks { _ in
+                        AxisValueLabel().font(.caption2)
+                    }
+                }
+                .frame(height: CGFloat(reports.count) * 44 + 24)
+                .accessibilityLabel("Graphique budget contre réel des principales dépenses du mois")
+                .accessibilityValue(
+                    reports.map {
+                        "\($0.categoryName) : planifié \(FinanceFormatting.chf($0.planned)), réel \(FinanceFormatting.chf($0.actual))"
+                    }.joined(separator: ". ")
+                )
+            }
+        }
+    }
+
+    private var sixMonthFlowsCard: some View {
         let data = chartData
         let formatter = monthShortFormatter
         return GlassCard {
