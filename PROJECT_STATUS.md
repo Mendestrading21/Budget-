@@ -47,7 +47,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 - [x] Phase 9 : équivalents annuel/mensuel et totaux de prévoyance se réconcilient (tests) — CI verte (run 29703182761)
 - [x] Phase 10 : neutralité des virements, signes des dettes et toggles inclus/exclus corrects (tests) — CI verte (run 29704249404)
 - [x] Phase 11 : un ré-import ne duplique jamais ; chaque ligne rejetée est visible avec sa raison (tests) — CI verte (run 29704772603)
-- [x] Phase 12 : états de verrouillage, annulation, version de restauration et confirmations destructives corrects (tests) — CI en cours
+- [x] Phase 12 : états de verrouillage, annulation, version de restauration et confirmations destructives corrects (tests) — run 29704984445 rouge (l'API batch `context.delete(model:)` est incompatible avec les règles `.deny` de Account), corrigé par des suppressions individuelles dans `BackupService.deleteAll`
 
 - [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
 

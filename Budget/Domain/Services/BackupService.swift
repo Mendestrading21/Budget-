@@ -518,25 +518,32 @@ struct BackupService {
                 try? store.delete(document.fileReference)
             }
         }
-        // Transactions first so .deny account relationships never block.
-        try context.delete(model: BudgetTransaction.self)
-        try context.delete(model: BudgetLine.self)
-        try context.delete(model: MonthlyBudget.self)
-        try context.delete(model: RecurringTransaction.self)
-        try context.delete(model: TaxProvision.self)
-        try context.delete(model: TaxProfile.self)
-        try context.delete(model: FinancialGoal.self)
-        try context.delete(model: InsuranceContract.self)
-        try context.delete(model: PensionAsset.self)
-        try context.delete(model: Asset.self)
-        try context.delete(model: Liability.self)
-        try context.delete(model: NetWorthSnapshot.self)
-        try context.delete(model: FinancialDocument.self)
-        try context.delete(model: ImportBatch.self)
-        try context.delete(model: Account.self)
-        try context.delete(model: BudgetCategory.self)
-        try context.delete(model: HouseholdMember.self)
-        try context.delete(model: Household.self)
+        // Individual deletes, not context.delete(model:): the batch API
+        // rejects the .deny rules on Account.transactions/.incomingMovements.
+        // Transactions go first so those .deny rules never block.
+        func wipe<T: PersistentModel>(_ type: T.Type) throws {
+            for item in try context.fetch(FetchDescriptor<T>()) {
+                context.delete(item)
+            }
+        }
+        try wipe(BudgetTransaction.self)
+        try wipe(BudgetLine.self)
+        try wipe(MonthlyBudget.self)
+        try wipe(RecurringTransaction.self)
+        try wipe(TaxProvision.self)
+        try wipe(TaxProfile.self)
+        try wipe(FinancialGoal.self)
+        try wipe(InsuranceContract.self)
+        try wipe(PensionAsset.self)
+        try wipe(Asset.self)
+        try wipe(Liability.self)
+        try wipe(NetWorthSnapshot.self)
+        try wipe(FinancialDocument.self)
+        try wipe(ImportBatch.self)
+        try wipe(Account.self)
+        try wipe(BudgetCategory.self)
+        try wipe(HouseholdMember.self)
+        try wipe(Household.self)
         try context.save()
     }
 }
