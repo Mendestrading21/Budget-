@@ -13,6 +13,7 @@ struct AccountDetailView: View {
     @State private var isPresentingEdit = false
     @State private var isPresentingNewMovement = false
     @State private var isPresentingReconcile = false
+    @State private var saveErrorMessage: String?
     @State private var isConfirmingArchive = false
     @State private var isConfirmingDelete = false
     @State private var actionErrorMessage: String?
@@ -63,6 +64,15 @@ struct AccountDetailView: View {
             }
         }
         .navigationTitle(account.name)
+        .alert(
+            saveErrorMessage ?? "",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -213,7 +223,7 @@ struct AccountDetailView: View {
             set: { newValue in
                 account.includeInAvailableCash = newValue
                 account.updatedAt = appContainer.dateProvider.now
-                try? modelContext.save()
+                modelContext.saveOrRollback { saveErrorMessage = $0 }
             }
         )
     }
@@ -224,7 +234,7 @@ struct AccountDetailView: View {
             set: { newValue in
                 account.includeInNetWorth = newValue
                 account.updatedAt = appContainer.dateProvider.now
-                try? modelContext.save()
+                modelContext.saveOrRollback { saveErrorMessage = $0 }
             }
         )
     }

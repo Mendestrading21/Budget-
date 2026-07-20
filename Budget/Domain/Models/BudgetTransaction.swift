@@ -51,7 +51,10 @@ enum TransactionType: String, CaseIterable, Codable, Identifiable {
     /// Types that may route money into another owned account.
     var supportsDestinationAccount: Bool {
         switch self {
-        case .transfer, .saving, .investment: true
+        // .debtPayment: the destination is the debt account being paid
+        // down (credit card, loan, mortgage) — cash and debt move
+        // together, net worth stays untouched (ADR-016).
+        case .transfer, .saving, .investment, .debtPayment: true
         default: false
         }
     }

@@ -358,7 +358,7 @@ struct TaxesView: View {
         guard let provision else { return }
         provision.dueDates.removeAll { $0.id == dueDate.id }
         provision.updatedAt = appContainer.dateProvider.now
-        try? modelContext.save()
+        modelContext.saveOrRollback { errorMessage = $0 }
     }
 }
 

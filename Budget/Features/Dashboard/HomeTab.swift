@@ -19,6 +19,7 @@ struct HomeTab: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var monthAnchor: Date?
+    @State private var saveErrorMessage: String?
 
     private var currentAnchor: Date { monthAnchor ?? appContainer.dateProvider.now }
 
@@ -121,6 +122,15 @@ struct HomeTab: View {
                 }
             }
             .navigationTitle(greetingName.map { "Bonjour \($0) 👋" } ?? "Accueil")
+        .alert(
+            saveErrorMessage ?? "",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
         }
     }
 
@@ -353,7 +363,7 @@ struct HomeTab: View {
             now: appContainer.dateProvider.now
         )
         modelContext.insert(transaction)
-        try? modelContext.save()
+        modelContext.saveOrRollback { saveErrorMessage = $0 }
     }
 
     // MARK: - Chart

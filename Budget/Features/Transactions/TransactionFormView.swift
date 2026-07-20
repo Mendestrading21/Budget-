@@ -50,6 +50,14 @@ struct TransactionFormView: View {
         allAccounts.filter { ($0.isActive || $0.id == editedTransaction?.destinationAccount?.id) && $0.id != account?.id }
     }
 
+    private var destinationPickerLabel: String {
+        switch type {
+        case .transfer: "Vers le compte"
+        case .debtPayment: "Dette remboursée (facultatif)"
+        default: "Vers le compte (facultatif)"
+        }
+    }
+
     private var relevantCategories: [BudgetCategory] {
         let kinds: [CategoryKind] = switch type {
         case .income: [.income]
@@ -105,7 +113,7 @@ struct TransactionFormView: View {
                         }
                     }
                     if type.supportsDestinationAccount {
-                        Picker(type == .transfer ? "Vers le compte" : "Vers le compte (facultatif)", selection: $destinationAccount) {
+                        Picker(destinationPickerLabel, selection: $destinationAccount) {
                             Text(type == .transfer ? "Choisir…" : "Aucun").tag(Account?.none)
                             ForEach(selectableDestinations) { account in
                                 Text(account.name).tag(Account?.some(account))

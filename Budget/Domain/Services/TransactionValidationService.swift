@@ -114,8 +114,9 @@ struct TransactionValidationService {
             } else {
                 errors.append(.missingTransferDestination)
             }
-        case .saving, .investment:
-            // Destination optional: internal contribution when set.
+        case .saving, .investment, .debtPayment:
+            // Destination optional: internal contribution when set — for
+            // .debtPayment it is the debt account being paid down.
             if let destination = draft.destinationAccount {
                 if destination.id == draft.account?.id {
                     errors.append(.transferDestinationEqualsSource)

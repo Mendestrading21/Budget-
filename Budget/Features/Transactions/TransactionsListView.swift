@@ -16,6 +16,7 @@ struct TransactionsListView: View {
     @State private var typeFilter: TransactionType?
     @State private var accountFilter: Account?
     @State private var statusFilter: TransactionStatus?
+    @State private var saveErrorMessage: String?
     @State private var showsUncategorizedOnly = false
     @State private var editedTransaction: BudgetTransaction?
     @State private var isPresentingNew = false
@@ -80,6 +81,15 @@ struct TransactionsListView: View {
             }
         }
         .navigationTitle("Mouvements")
+        .alert(
+            saveErrorMessage ?? "",
+            isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Rechercher un mouvement")
         .toolbar {
@@ -296,13 +306,13 @@ struct TransactionsListView: View {
             member: transaction.member
         )
         modelContext.insert(copy)
-        try? modelContext.save()
+        modelContext.saveOrRollback { saveErrorMessage = $0 }
         editedTransaction = copy
     }
 
     private func delete(_ transaction: BudgetTransaction) {
         modelContext.delete(transaction)
-        try? modelContext.save()
+        modelContext.saveOrRollback { saveErrorMessage = $0 }
     }
 }
 

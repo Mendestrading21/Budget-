@@ -349,3 +349,21 @@ Le lancement sur appareil fonctionne ; la validation « migration V1→V8 sur un
 ### Verification
 
 Workflow Demo : la vraie app démarre dans le simulateur (tour complet capturé) ; suite unitaire inchangée.
+
+## ADR-016 — Remboursement de dette atomique et fin des sauvegardes silencieuses
+
+Date: 2026-07-20
+Status: accepted
+
+### Context
+
+Audit externe (skill budget-production-completion) : `.debtPayment` débitait le compte source sans jamais réduire la dette — un remboursement faisait BAISSER la fortune nette au lieu de la laisser neutre. Par ailleurs six mutations utilisateur utilisaient `try? modelContext.save()` : un échec de persistance passait inaperçu et l'écran divergeait du store.
+
+### Decision
+
+1. `.debtPayment` accepte un compte de destination : le compte de dette remboursé (carte de crédit, prêt, hypothèque — soldes négatifs par convention ADR patrimoine). `supportsDestinationAccount` et la validation le traitent comme épargne/investissement (destination facultative, ≠ source, active) ; `signedEffect` créditait déjà toute destination — cash et dette bougent ensemble, fortune inchangée. Sans destination, le remboursement reste une sortie vers un créancier externe (dette du Patrimoine mise à jour manuellement). Intérêts et frais = dépenses séparées.
+2. `ModelContext.saveOrRollback(onError:)` (Core/Persistence/SafeSave.swift) : do/catch + rollback + message français ; les six `try? save` sont remplacés, chaque vue affiche l'erreur (bannière ou alerte). Interdiction contractuelle de réintroduire `try? save` dans une mutation utilisateur.
+
+### Verification
+
+`DebtPaymentTests` (validation, effets signés, neutralité de fortune, partiel, trop-payé, sans destination) ; grep CI-able : zéro `try? modelContext.save()`.
