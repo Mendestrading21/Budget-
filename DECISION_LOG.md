@@ -367,3 +367,41 @@ Audit externe (skill budget-production-completion) : `.debtPayment` débitait le
 ### Verification
 
 `DebtPaymentTests` (validation, effets signés, neutralité de fortune, partiel, trop-payé, sans destination) ; grep CI-able : zéro `try? modelContext.save()`.
+
+## ADR-017 — V1 mono-devise : le CHF partout, garde à la restauration
+
+Date: 2026-07-20
+Status: accepted
+
+### Context
+
+`Account.currencyCode` existe dans le schéma (défaut "CHF") mais aucun service ne convertit : soldes, snapshot mensuel, budgets et fortune ADDITIONNENT les montants bruts. Un compte EUR restauré depuis une sauvegarde fausserait silencieusement tous les totaux. L'UI native n'expose nulle part le choix de devise — le seul chemin d'entrée d'un compte non-CHF est `BackupService.restore`.
+
+### Decision
+
+1. Budget V1 natif est STRICTEMENT mono-devise CHF. Aucun taux de change, aucune conversion, aucune promesse multi-devises dans l'app ni sur la fiche App Store.
+2. Garde à l'entrée : `BackupService.restore` refuse toute sauvegarde contenant un compte ou un ménage non-CHF (`BackupError.unsupportedCurrency`, message listant les devises) AVANT de toucher au store — les données existantes restent intactes.
+3. `currencyCode` reste dans le schéma comme réservation V2 ; le prototype web (multi-devises CHF/EUR/USD à taux manuels) sert de laboratoire pour la V2 native.
+
+### Verification
+
+`UnifiedTaxReserveTests.testRestoreRefusesNonCHFAccounts` : sauvegarde avec compte EUR → erreur dédiée, store intact.
+
+## ADR-018 — Une seule vérité fiscale : le snapshot mensuel lit TaxService
+
+Date: 2026-07-20
+Status: accepted
+
+### Context
+
+Audit externe : le tableau de bord calculait sa « réserve d'impôts manquante » localement (revenus du mois × taux − impôts payés du mois) en IGNORANT la réserve annuelle constituée (`TaxProvision.reservedAmount`) et les arriérés saisis dans le module Impôts. Un utilisateur ayant déjà mis de côté sa provision voyait l'accueil réclamer une réserve déjà couverte — deux écrans, deux vérités.
+
+### Decision
+
+1. `TaxService.monthReserveGap(monthIncome:monthPaid:rate:provision:)` est la formule UNIQUE : manque du mois (plancher zéro) + arriérés − réserve annuelle constituée, plancher zéro.
+2. `MonthlySnapshotService` reçoit les `TaxProvision` (année du mois affiché) et délègue le calcul — plus aucune formule fiscale locale ; `TaxProvisionSummary` transporte `reserved`, `arrears` et un `gap` figé.
+3. Même principe côté web : `taxSummary(year)` est la seule source (fait en P0.2).
+
+### Verification
+
+`UnifiedTaxReserveTests` : réserve couvrante → écart nul ; arriérés → écart augmenté ; provision d'une autre année ignorée ; accueil et module Impôts produisent le MÊME `reserveGap` sur un mois isolé.

@@ -18,7 +18,8 @@ struct MonthlySnapshotService {
         accounts: [Account],
         transactions: [BudgetTransaction],
         recurrings: [RecurringTransaction] = [],
-        taxProfile: TaxProfile? = nil
+        taxProfile: TaxProfile? = nil,
+        taxProvisions: [TaxProvision] = []
     ) -> MonthSnapshot {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let inMonth = transactions.filter { interval.contains($0.date) }
@@ -57,11 +58,22 @@ struct MonthlySnapshotService {
 
         // The tax profile is the source of truth once it exists; the
         // household field only covers pre-Phase-7 stores (ADR-008).
+        // The gap itself comes from TaxService — same truth as Impôts.
         let rate = taxProfile?.provisionRate ?? household?.taxProvisionRate ?? Decimal("0.30")
+        let provisionYear = calendar.component(.year, from: interval.start)
+        let yearProvision = taxProvisions.first { $0.year == provisionYear }
         let taxProvision = TaxProvisionSummary(
             rate: rate,
             recommended: FinanceMath.roundedToCents(totalIncome * rate),
-            paid: totalTaxPayments
+            paid: totalTaxPayments,
+            reserved: yearProvision?.reservedAmount ?? .zero,
+            arrears: yearProvision?.arrearsAmount ?? .zero,
+            gap: TaxService(calendar: calendar).monthReserveGap(
+                monthIncome: totalIncome,
+                monthPaid: totalTaxPayments,
+                rate: rate,
+                provision: yearProvision
+            )
         )
 
         let liquidBalance = accounts

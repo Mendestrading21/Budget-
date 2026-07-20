@@ -15,6 +15,7 @@ struct HomeTab: View {
     @Query private var budgets: [MonthlyBudget]
     @Query private var recurrings: [RecurringTransaction]
     @Query private var taxProfiles: [TaxProfile]
+    @Query private var taxProvisions: [TaxProvision]
     @Query private var goals: [FinancialGoal]
     @Environment(\.modelContext) private var modelContext
 
@@ -38,7 +39,8 @@ struct HomeTab: View {
             accounts: accounts,
             transactions: transactions,
             recurrings: recurrings,
-            taxProfile: taxProfiles.first
+            taxProfile: taxProfiles.first,
+            taxProvisions: taxProvisions
         )
     }
 

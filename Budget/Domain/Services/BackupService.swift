@@ -128,6 +128,7 @@ struct BackupFile: Codable {
 enum BackupError: LocalizedError, Equatable {
     case unreadable
     case newerSchema(found: Int, supported: Int)
+    case unsupportedCurrency(codes: [String])
 
     var errorDescription: String? {
         switch self {
@@ -135,6 +136,8 @@ enum BackupError: LocalizedError, Equatable {
             "Cette sauvegarde est illisible ou endommagée."
         case .newerSchema(let found, let supported):
             "Cette sauvegarde vient d'une version plus récente de Budget (schéma \(found), pris en charge : \(supported)). Mettez d'abord l'app à jour."
+        case .unsupportedCurrency(let codes):
+            "Cette sauvegarde contient des comptes en \(codes.joined(separator: ", ")). Budget V1 gère uniquement le CHF — vos données actuelles n'ont pas été modifiées."
         }
     }
 }
@@ -327,6 +330,14 @@ struct BackupService {
         }
         guard file.schemaVersion <= Self.currentSchemaVersion else {
             throw BackupError.newerSchema(found: file.schemaVersion, supported: Self.currentSchemaVersion)
+        }
+
+        // ADR-017 : V1 est mono-devise. Un compte ou ménage non-CHF
+        // fausserait tous les totaux — refus AVANT de toucher au store.
+        let foreignCodes = Set(file.accounts.map(\.currency) + file.households.map(\.currency))
+            .subtracting(["CHF"]).sorted()
+        guard foreignCodes.isEmpty else {
+            throw BackupError.unsupportedCurrency(codes: foreignCodes)
         }
 
         // Entities only — document files never travel in the JSON backup,

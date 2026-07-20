@@ -64,9 +64,10 @@ struct AvailableBreakdown: Equatable {
     }
 }
 
-/// Monthly view of the tax provision. Until the dedicated tax module
-/// (Phase 7) tracks reserved cash separately, posted tax payments are the
-/// only recognized cover.
+/// Monthly view of the tax provision. The gap is computed by
+/// TaxService.monthReserveGap — the SAME truth as the Impôts module
+/// (réserve annuelle constituée et arriérés inclus), never a local
+/// formula here.
 struct TaxProvisionSummary: Equatable {
     /// Configured household rate (fraction).
     let rate: Decimal
@@ -74,8 +75,12 @@ struct TaxProvisionSummary: Equatable {
     let recommended: Decimal
     /// Posted tax payments of the month.
     let paid: Decimal
-
-    var gap: Decimal { max(.zero, recommended - paid) }
+    /// Annual cash reserved in the Impôts module, counted as cover.
+    let reserved: Decimal
+    /// User-entered arrears from previous years, still due.
+    let arrears: Decimal
+    /// TaxService.monthReserveGap(recommended − paid + arrears − reserved, floor 0).
+    let gap: Decimal
 }
 
 struct MonthComparison: Equatable {
