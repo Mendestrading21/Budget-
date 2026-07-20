@@ -69,6 +69,19 @@ for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
   check(content > 200, `onglet ${label} vide`);
 }
 
+// ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
+currentTest = "check du mois";
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+let screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Check du mois"), "carte « Check du mois » absente");
+check(screenHTML.includes("0/1 validé"), "progression initiale 0/1 absente (salaire à valider)");
+await page.click('[data-postrec]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation du salaire");
+check(screenHTML.includes("5'500.00"), "le salaire validé doit apparaître dans les revenus");
+
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
 currentTest = "creation mouvement";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
@@ -80,7 +93,7 @@ await page.fill("#fTitle", "Test E2E dépense");
 await page.fill("#fAmount", "42.50");
 await page.click('#txForm button[type="submit"]');
 await page.waitForTimeout(200);
-let screenHTML = await page.$eval("#screen", el => el.innerHTML);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Test E2E dépense"), "dépense absente après création");
 // persistance après reload
 await page.reload();
@@ -255,4 +268,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 14 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 15 tests verts, zéro erreur console ✓");

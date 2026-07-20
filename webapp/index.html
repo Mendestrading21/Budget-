@@ -834,6 +834,12 @@ function money(n, currency, signed) {
 function baseCurrency() { return S.baseCurrency || "CHF"; }
 /* Nom historique — formate dans la DEVISE DE RÉFÉRENCE choisie. */
 function chf(n, signed) { return money(n, baseCurrency(), signed); }
+/* Compte de caisse par défaut pour les saisies en un geste. */
+function defaultCashAccount() {
+  const account = ACCOUNTS.find(a => a.cash && a.currency === baseCurrency())
+    || ACCOUNTS.find(a => a.cash) || ACCOUNTS[0];
+  return account ? account.id : null;
+}
 function accountCurrency(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
   return (account && account.currency) || baseCurrency();
@@ -954,6 +960,7 @@ function seedState() {
     lockCode: null,
     taxRate: 0.30,
     taxReserve: 2400,
+    monthChecks: {},
     lastImport: null,
     fxRates: { EUR: 0.93, USD: 0.80 },
     bills: [
@@ -993,6 +1000,7 @@ function emptyState() {
     lockCode: null,
     taxRate: 0.30,
     taxReserve: 0,
+    monthChecks: {},
     lastImport: null,
     fxRates: { EUR: 0.93, USD: 0.80 },
     bills: [], documents: [], budgets: {},
@@ -1028,6 +1036,7 @@ function loadState() {
     if (typeof s.onboarded !== "boolean") s.onboarded = true;
     if (typeof s.isDemo !== "boolean") s.isDemo = true;
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
+    if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
       target: g.target || 0, manualCurrent: g.current || 0, linked: null,
@@ -1152,6 +1161,31 @@ function snapshot(y, m) {
   return { income, living, savings, invest, taxes, plannedIncome, plannedOut,
            taxRecommended, taxGap, liquid, available, daysRemaining, daily,
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome };
+}
+
+/* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
+   mois affiché — salaire, récurrents, factures — avec l'action directe. */
+function monthCheckItems(y, m) {
+  const inThisMonth = transactions.filter(t => inMonth(t, y, m));
+  const recDone = r => inThisMonth.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title));
+  const items = [];
+  const salary = salaryRecurring();
+  for (const r of RECURRINGS) {
+    const isSalary = salary && r.id === salary.id;
+    items.push({
+      icon: r.icon || (r.type === "income" ? "💰" : "🔁"),
+      label: r.title, amount: r.amount, income: r.type === "income",
+      done: recDone(r), action: "postrec", ref: r.id,
+      cta: isSalary ? "✓ Reçu" : "✓ Fait",
+    });
+  }
+  for (const b of (S.bills || []).filter(b => b.dueY === y && b.dueM === m)) {
+    items.push({
+      icon: "🧾", label: b.name, amount: b.amount, income: false,
+      done: !!b.paidTxId, action: "paybill", ref: b.id, cta: "Payer",
+    });
+  }
+  return items;
 }
 
 function budgetLines(y, m) {
@@ -1321,6 +1355,37 @@ function renderHome() {
     </div>`;
   }).join("");
 
+  // Rituel « Boucler mon mois » — la progression du mois affiché.
+  const checks = monthCheckItems(y, m);
+  const doneCount = checks.filter(c => c.done).length;
+  const monthKey = `${y}-${m}`;
+  const monthClosed = checks.length > 0 && doneCount === checks.length;
+  if (monthClosed && !(S.monthChecks || {})[monthKey]) {
+    S.monthChecks[monthKey] = Date.now();
+    saveState();
+  }
+  const closedAt = (S.monthChecks || {})[monthKey];
+  const checkCard = checks.length === 0 ? "" : `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <p class="card-label" style="margin:0">Check du mois</p>
+        <span class="caption">${doneCount}/${checks.length} validé${doneCount > 1 ? "s" : ""}</span>
+      </div>
+      <div class="track" style="margin:10px 0 ${monthClosed ? "10px" : "4px"}">
+        <div class="fill" style="width:${(doneCount / checks.length * 100).toFixed(1)}%"></div>
+      </div>
+      ${monthClosed ? `<p style="margin:0;font-size:14px;font-weight:700;color:var(--positive)">✓ Mois bouclé${closedAt ? " le " + new Date(closedAt).toLocaleDateString("fr-CH") : ""} — tout est validé</p>`
+        : checks.filter(c => !c.done).map(c => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;align-items:center;gap:9px;min-width:0">
+          <span aria-hidden="true">${c.icon}</span>
+          <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.label)}</div>
+            <div class="caption">${c.income ? "+" : "−"}${chf(c.amount)}</div></div>
+        </div>
+        <button class="btn ${c.income ? "" : "secondary"}" data-${c.action}="${esc(c.ref)}" style="width:auto;padding:7px 12px;font-size:12px;flex:none">${c.cta}</button>
+      </div>`).join("")}
+    </div>`;
+
   return `<h2 class="screen-title">${S.profile.name ? "Bonjour " + esc(S.profile.name) + " 👋" : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
@@ -1332,6 +1397,7 @@ function renderHome() {
       <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
         <span class="caption">${s.taxGap > 0 ? "Réserve manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
+    ${checkCard}
 
     <p class="section-title">💰 Salaire et revenus</p>
     ${salary && salaryReceived.length === 0 && isCurrent ? `
@@ -1853,7 +1919,7 @@ function applyImport(analysis, fileName) {
     transactions.push({
       id: ++txSeq, y, m, d, title, amount, type,
       cat: cat || (type === "expense" ? null : null),
-      acc: "cur", dest: null,
+      acc: defaultCashAccount(), dest: null,
       status: (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted",
       importBatch: batchId,
     });
@@ -2309,6 +2375,27 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (penEl) { const p = PENSIONS.find(x => x.id === penEl.dataset.penid); if (p) openPenSheet(p); return; }
   if (e.target.closest("[data-addpen]")) { openPenSheet(null); return; }
   if (e.target.closest("[data-adjusttax]")) { openTaxSheet(); return; }
+  const postRecBtn = e.target.closest("[data-postrec]");
+  if (postRecBtn) {
+    const rec = RECURRINGS.find(r => r.id === postRecBtn.dataset.postrec);
+    if (!rec) return;
+    const { y, m } = cursor;
+    const already = transactions.some(t => inMonth(t, y, m)
+      && (t.recurringId ? t.recurringId === rec.id : t.title === rec.title));
+    if (already) return;
+    pushUndo();
+    const lastDay = new Date(y, m, 0).getDate();
+    transactions.push({
+      id: ++txSeq, y, m, d: Math.min(rec.day, lastDay),
+      title: rec.title, amount: rec.amount, type: rec.type,
+      cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
+      recurringId: rec.id,
+    });
+    saveState();
+    toast(rec.type === "income" ? `${rec.title} reçu : ${chf(rec.amount)} 🎉` : `« ${rec.title} » validé — ${chf(rec.amount)}`, true);
+    render();
+    return;
+  }
   if (e.target.closest("[data-receivesalary]")) {
     const salary = salaryRecurring();
     if (!salary) return;
@@ -2316,7 +2403,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     transactions.push({
       id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(salary.day, NOW.d),
       title: salary.title, amount: salary.amount, type: "income",
-      cat: salary.cat || "Salaire", acc: "cur", dest: null, status: "posted",
+      cat: salary.cat || "Salaire", acc: defaultCashAccount(), dest: null, status: "posted",
       recurringId: salary.id,
     });
     saveState();
@@ -2332,7 +2419,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     const tx = {
       id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
       title: bill.name, amount: bill.amount, type: "expense",
-      cat: bill.cat || null, acc: "cur", dest: null, status: "posted", billId: bill.id,
+      cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
     };
     transactions.push(tx);
     bill.paidTxId = tx.id;
@@ -3061,7 +3148,7 @@ document.getElementById("rPost").addEventListener("click", () => {
   transactions.push({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
     title: rec.title, amount: rec.amount, type: rec.type,
-    cat: rec.cat || null, acc: "cur", dest: null, status: "posted",
+    cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
     recurringId: rec.id,
   });
   saveState();
@@ -3361,7 +3448,7 @@ document.getElementById("bPay").addEventListener("click", () => {
   const tx = {
     id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
     title: bill.name, amount: bill.amount, type: "expense",
-    cat: bill.cat || null, acc: "cur", dest: null, status: "posted", billId: bill.id,
+    cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
   };
   transactions.push(tx);
   bill.paidTxId = tx.id;
