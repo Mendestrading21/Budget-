@@ -27,13 +27,22 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
   viewport complet, toasts de confirmation, FAB au-dessus de la
   safe-area, Échap ferme la feuille, retour en haut à la navigation.
 
-## Backlog W2 (prochain « Go »)
+## Corrigé en W2
 
-- CRUD comptes (groupes dynamiques, suppression refusée si mouvements — règle .deny)
-- Lignes budgétaires éditables + ajout + copie de mois (B5.3)
-- W5 : montants en centimes entiers
-- W7 : History API (bouton retour naturel)
-- W10 : rendu ciblé (focus/scroll préservés)
+- CRUD comptes : ajout/édition/suppression, groupes par nature,
+  suppression refusée si des mouvements y pointent (règle .deny),
+  destination d'épargne/investissement résolue dynamiquement,
+  garde sur les comptes disparus (solde 0, jamais de crash)
+- Budgets DANS l'état, par mois : lignes éditables (tap), ajout,
+  retrait, copie vers un mois vide isolée du mois source (B5.3)
+- W7 : History API — le bouton retour remonte l'app au lieu d'en sortir
+
+## Reporté (assumé)
+
+- W5 centimes entiers : les montants restent des flottants arrondis au
+  centime à chaque mutation ; réconciliation vérifiée à 0.001 près en
+  headless. À reprendre si des dérives apparaissent.
+- W10 rendu ciblé : le re-rendu complet reste acceptable à cette échelle.
 
 ## Backlog W3
 

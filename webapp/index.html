@@ -455,6 +455,48 @@
       <button type="button" class="btn secondary" id="fDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce mouvement</button>
     </form>
+
+    <form class="sheet" id="accForm" style="display:none">
+      <h3 id="accSheetTitle">Nouveau compte</h3>
+      <label for="aName">Nom du compte</label>
+      <input id="aName" placeholder="Compte courant UBS" autocomplete="off" />
+      <label for="aInst">Banque / institution (facultatif)</label>
+      <input id="aInst" placeholder="Banque Exemple" autocomplete="off" />
+      <label for="aKind">Nature</label>
+      <select id="aKind">
+        <option value="current">Compte courant</option>
+        <option value="savings">Compte épargne</option>
+        <option value="cash">Espèces</option>
+        <option value="pension">Prévoyance (3a, LPP)</option>
+      </select>
+      <label for="aOpening">Solde d'ouverture (CHF)</label>
+      <input id="aOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
+        <input type="checkbox" id="aCash" style="width:auto" /> Compter dans le cash disponible
+      </label>
+      <div class="error" id="aError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="aCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="aDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce compte</button>
+    </form>
+
+    <form class="sheet" id="lineForm" style="display:none">
+      <h3 id="lineSheetTitle">Nouvelle ligne budgétaire</h3>
+      <label for="lCat">Catégorie</label>
+      <select id="lCat"></select>
+      <label for="lAmount">Montant planifié (CHF / mois)</label>
+      <input id="lAmount" inputmode="decimal" placeholder="250.00" autocomplete="off" />
+      <div class="error" id="lError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="lCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="lDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Retirer cette ligne</button>
+    </form>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -493,11 +535,17 @@ const CATEGORIES = {
 };
 
 const ACCOUNTS_SEED = [
-  { id: "cur", name: "Compte ménage", inst: "Banque Exemple", type: "Compte courant", icon: "💳", opening: 4200, cash: true },
-  { id: "sav", name: "Épargne", inst: "Banque Exemple", type: "Compte épargne", icon: "🏛", opening: 12500, cash: false },
-  { id: "p3a", name: "Pilier 3a", inst: "Fondation Exemple", type: "Pilier 3a", icon: "🛡", opening: 18190, cash: false },
-  { id: "cash", name: "Espèces", inst: "", type: "Espèces", icon: "💵", opening: 150, cash: true },
+  { id: "cur", name: "Compte ménage", inst: "Banque Exemple", kind: "current", opening: 4200, cash: true },
+  { id: "sav", name: "Épargne", inst: "Banque Exemple", kind: "savings", opening: 12500, cash: false },
+  { id: "p3a", name: "Pilier 3a", inst: "Fondation Exemple", kind: "pension", opening: 18190, cash: false },
+  { id: "cash", name: "Espèces", inst: "", kind: "cash", opening: 150, cash: true },
 ];
+const ACCOUNT_KINDS = {
+  current: { label: "Compte courant", icon: "💳" },
+  savings: { label: "Compte épargne", icon: "🏛" },
+  cash: { label: "Espèces", icon: "💵" },
+  pension: { label: "Prévoyance (3a, LPP)", icon: "🛡" },
+};
 
 const BUDGET_TEMPLATE = [
   ["Logement", 2150], ["Assurance maladie", 750], ["Alimentation", 650],
@@ -560,6 +608,8 @@ function seedState() {
     version: 1,
     faceIDEnabled: false,
     taxReserve: 2400,
+    budgets: Object.fromEntries(MONTHS.map(({ y, m }) =>
+      [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))])),
     transactions: MONTHS.flatMap(({ y, m }) => monthTemplate(y, m)),
     accounts: ACCOUNTS_SEED.map(a => ({ ...a })),
     recurrings: RECURRINGS_SEED.map(r => ({ ...r })),
@@ -579,6 +629,14 @@ function loadState() {
     if (!s || s.version !== 1 || !Array.isArray(s.transactions) || !Array.isArray(s.accounts)) return null;
     for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances"]) {
       if (!Array.isArray(s[key])) s[key] = [];
+    }
+    const inferKind = { cur: "current", sav: "savings", p3a: "pension", cash: "cash" };
+    for (const account of s.accounts) {
+      if (!account.kind) account.kind = inferKind[account.id] || "current";
+    }
+    if (!s.budgets || typeof s.budgets !== "object") {
+      s.budgets = Object.fromEntries(MONTHS.map(({ y, m }) =>
+        [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))]));
     }
     return s;
   } catch (e) { return null; }
@@ -621,7 +679,9 @@ function esc(value) {
 const OUTFLOWS = new Set(["expense", "saving", "investment", "transfer", "taxPayment", "debtPayment"]);
 
 function balance(accId) {
-  let b = ACCOUNTS.find(a => a.id === accId).opening;
+  const account = ACCOUNTS.find(a => a.id === accId);
+  if (!account) return 0;
+  let b = account.opening;
   for (const t of transactions) {
     if (t.status !== "posted") continue;
     if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount : (OUTFLOWS.has(t.type) ? -t.amount : 0);
@@ -673,9 +733,13 @@ function snapshot(y, m) {
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome };
 }
 
+function budgetLines(y, m) {
+  return (S.budgets && S.budgets[`${y}-${m}`]) || [];
+}
+
 function budgetReport(y, m) {
   const monthTx = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
-  const lines = BUDGET_TEMPLATE.map(([cat, plannedAmt]) => {
+  const lines = budgetLines(y, m).map(({ cat, amount: plannedAmt }) => {
     const kind = CATEGORIES[cat];
     const types = kind === "expense" ? ["expense", "debtPayment"] : kind === "saving" ? ["saving"]
                 : kind === "investment" ? ["investment"] : kind === "tax" ? ["taxPayment"] : ["income"];
@@ -687,7 +751,7 @@ function budgetReport(y, m) {
     }
     return { cat, kind, planned: plannedAmt, actual, variance: plannedAmt - actual, over: actual > plannedAmt };
   });
-  const budgeted = new Set(BUDGET_TEMPLATE.map(([c]) => c));
+  const budgeted = new Set(budgetLines(y, m).map(l => l.cat));
   const out = {};
   for (const t of monthTx) {
     if (t.type === "transfer" || t.type === "adjustment" || t.type === "income") continue;
@@ -836,7 +900,7 @@ function renderBudget() {
     <p class="section-title">${title}</p>` + lines.map(l => {
       const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
-      return `<div class="card row">
+      return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="bar-row" style="margin:0">
           <div class="bar-head"><span>${l.cat}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
             <span class="vals">${chf(l.actual)} / ${chf(l.planned)}</span></div>
@@ -851,6 +915,19 @@ function renderBudget() {
     <div class="card row tx"><div class="meta"><div class="t">${cat}</div></div>
       <span class="amount">${chf(v)}</span></div>`).join("");
 
+  const hasLines = report.lines.length > 0;
+  const prevMonth = monthIndex > 0 ? MONTHS[monthIndex - 1] : null;
+  const prevHasLines = prevMonth ? budgetLines(prevMonth.y, prevMonth.m).length > 0 : false;
+  if (!hasLines) {
+    return `<h2 class="screen-title">Budget</h2>
+      ${monthNav()}
+      <div class="card">
+        <p class="card-label">Aucun budget pour ${MONTHS[monthIndex].label}</p>
+        <p style="font-size:13.5px;color:var(--coolgray);margin:6px 0 12px">Fixez un montant planifié par catégorie : le réel viendra s'y comparer, sans jamais s'y mélanger.</p>
+        ${prevHasLines ? `<button class="btn" data-copybudget style="margin-bottom:8px">Copier le budget de ${prevMonth.label}</button>` : ""}
+        <button class="btn secondary" data-addline>＋ Ajouter une ligne budgétaire</button>
+      </div>`;
+  }
   return `<h2 class="screen-title">Budget</h2>
     ${monthNav()}
     <div class="card hero">
@@ -859,6 +936,7 @@ function renderBudget() {
       <span class="caption">Dépenses : planifié ${chf(totalPlanned)} · réel ${chf(totalActual)} — l'épargne et les impôts sont suivis à part</span>
     </div>
     ${groups.map(lineHTML).join("")}
+    <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>
     ${outHTML}
     <p class="section-title">Année 2026</p>
     <div class="card">
@@ -885,23 +963,29 @@ function renderBudget() {
 function renderAccounts() {
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + balance(acc.id), 0);
   const groups = [
-    ["Liquidités", ACCOUNTS.filter(a => ["cur", "cash"].includes(a.id))],
-    ["Épargne et placements", ACCOUNTS.filter(a => a.id === "sav")],
-    ["Prévoyance", ACCOUNTS.filter(a => a.id === "p3a")],
-  ];
+    ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
+    ["Épargne et placements", ACCOUNTS.filter(a => a.kind === "savings")],
+    ["Prévoyance", ACCOUNTS.filter(a => a.kind === "pension")],
+  ].filter(([, accs]) => accs.length);
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
       <p class="card-label">Liquidités disponibles</p>
       <p class="hero-amount">${chf(liquid)}</p>
       <span class="caption">Somme des comptes marqués « compte dans le cash disponible »</span>
     </div>
+    ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
       <p class="section-title">${title}</p>
-      ${accs.map(a => `<div class="card row tx">
-        <div class="ico" aria-hidden="true">${a.icon}</div>
-        <div class="meta"><div class="t">${a.name}</div><div class="s">${a.inst || a.type}</div></div>
+      ${accs.map(a => {
+        const kind = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.current;
+        return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico" aria-hidden="true">${kind.icon}</div>
+        <div class="meta"><div class="t">${esc(a.name)}</div>
+          <div class="s">${esc(a.inst || kind.label)}${a.cash ? "" : " · hors cash disponible"}</div></div>
         <span class="amount acct-total">${chf(balance(a.id))}</span>
-      </div>`).join("")}`).join("")}`;
+      </div>`;
+      }).join("")}`).join("")}
+    <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
 }
 
 function renderGoals() {
@@ -1050,9 +1134,9 @@ function renderInsurance() {
       <div class="breakdown" style="margin-top:10px">
         <div><span>Projection à 65 ans (certificat)</span><span>${chf(p.projection)}</span></div>
       </div></div>`).join("")}
-    <div class="card row tx"><div class="ico" aria-hidden="true">🛡</div>
+    ${ACCOUNTS.some(a => a.id === "p3a") ? `<div class="card row tx"><div class="ico" aria-hidden="true">🛡</div>
       <div class="meta"><div class="t">Pilier 3a</div><div class="s">Fondation Exemple — aussi visible dans Comptes</div></div>
-      <span class="amount acct-total">${chf(balance("p3a"))}</span></div>`;
+      <span class="amount acct-total">${chf(balance("p3a"))}</span></div>` : ""}`;
 }
 
 /* ---------- Récurrents (Phase 6) ---------- */
@@ -1194,7 +1278,7 @@ function render() {
 document.getElementById("tabbar").addEventListener("click", (e) => {
   if (locked) return;
   const btn = e.target.closest("button[data-tab]");
-  if (btn) { activeTab = btn.dataset.tab; moreView = null; render(); scrollTop(); }
+  if (btn) { activeTab = btn.dataset.tab; moreView = null; render(); scrollTop(); pushNav(); }
 });
 
 /* Navigation de l'onglet Plus + actions (délégation d'événements). */
@@ -1205,8 +1289,29 @@ document.getElementById("screen").addEventListener("click", (e) => {
     if (tx) openTxSheet(tx);
     return;
   }
+  const accEl = e.target.closest("[data-accid]");
+  if (accEl) {
+    const account = ACCOUNTS.find(a => a.id === accEl.dataset.accid);
+    if (account) openAccSheet(account);
+    return;
+  }
+  if (e.target.closest("[data-addacc]")) { openAccSheet(null); return; }
+  const lineEl = e.target.closest("[data-linecat]");
+  if (lineEl) { openLineSheet(lineEl.dataset.linecat); return; }
+  if (e.target.closest("[data-addline]")) { openLineSheet(null); return; }
+  if (e.target.closest("[data-copybudget]")) {
+    const previous = monthIndex > 0 ? MONTHS[monthIndex - 1] : null;
+    if (!previous) return;
+    const source = budgetLines(previous.y, previous.m);
+    const { y, m } = MONTHS[monthIndex];
+    S.budgets[`${y}-${m}`] = source.map(l => ({ ...l }));
+    saveState();
+    toast("Budget copié — ajustez librement, le mois source reste intact");
+    render();
+    return;
+  }
   const entry = e.target.closest("[data-more]");
-  if (entry) { moreView = entry.dataset.more; render(); scrollTop(); return; }
+  if (entry) { moreView = entry.dataset.more; render(); scrollTop(); pushNav(); return; }
   if (e.target.closest("[data-back]")) { moreView = null; render(); scrollTop(); return; }
   if (e.target.closest("[data-togglelock]")) {
     S.faceIDEnabled = !S.faceIDEnabled;
@@ -1262,6 +1367,13 @@ function toast(message) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
+const SHEET_IDS = ["txForm", "accForm", "lineForm"];
+function openSheet(id) {
+  for (const sheetId of SHEET_IDS) {
+    document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
+  }
+  backdrop.classList.add("open");
+}
 // Épargne/investissement/virement créditent TOUJOURS un compte de
 // destination : l'argent change de poche, il ne disparaît jamais.
 const DEST_BY_TYPE = { saving: "sav", investment: "p3a", transfer: "cash" };
@@ -1306,7 +1418,7 @@ function openTxSheet(tx) {
       `${y}-${String(m).padStart(2, "0")}-${String(isCurrent ? NOW.d : 28).padStart(2, "0")}`;
   }
   document.getElementById("fError").textContent = "";
-  backdrop.classList.add("open");
+  openSheet("txForm");
   document.getElementById("fTitle").focus();
 }
 
@@ -1348,7 +1460,17 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   }
 
   const type = document.getElementById("fType").value;
-  const dest = DEST_BY_TYPE[type] || null;
+  let dest = null;
+  if (DEST_BY_TYPE[type]) {
+    const wantedKind = { saving: "savings", investment: "pension", transfer: "cash" }[type];
+    const target = ACCOUNTS.find(a => a.id === DEST_BY_TYPE[type])
+      || ACCOUNTS.find(a => a.kind === wantedKind);
+    if (!target) {
+      err.textContent = "Créez d'abord un compte de destination (Comptes → ＋) pour ce type de mouvement.";
+      return;
+    }
+    dest = target.id;
+  }
   const cat = type === "transfer" ? null : catSelect.value;
   const status = (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted";
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
@@ -1448,6 +1570,149 @@ function deleteAllData() {
   toast("Toutes les données ont été supprimées");
   render();
 }
+
+
+/* ---------- Feuille compte (W2) ---------- */
+let editingAccId = null;
+function parseAmountField(rawValue) {
+  const raw = String(rawValue).trim().replace(/["'\u2019\u00a0 ]/g, "").replace(",", ".");
+  return /^\d{1,9}(\.\d+)?$/.test(raw) ? Math.round(parseFloat(raw) * 100) / 100 : NaN;
+}
+function openAccSheet(account) {
+  editingAccId = account ? account.id : null;
+  document.getElementById("accForm").reset();
+  document.getElementById("accSheetTitle").textContent = account ? "Modifier le compte" : "Nouveau compte";
+  document.getElementById("aDelete").style.display = account ? "block" : "none";
+  if (account) {
+    document.getElementById("aName").value = account.name;
+    document.getElementById("aInst").value = account.inst || "";
+    document.getElementById("aKind").value = account.kind;
+    document.getElementById("aOpening").value = account.opening.toFixed(2);
+    document.getElementById("aCash").checked = !!account.cash;
+  } else {
+    document.getElementById("aCash").checked = true;
+  }
+  document.getElementById("aError").textContent = "";
+  openSheet("accForm");
+  document.getElementById("aName").focus();
+}
+document.getElementById("aCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("accForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("aError");
+  const name = document.getElementById("aName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom à ce compte."; return; }
+  const openingRaw = document.getElementById("aOpening").value.trim();
+  const opening = openingRaw === "" ? 0 : parseAmountField(openingRaw);
+  if (Number.isNaN(opening)) { err.textContent = "Solde d'ouverture invalide. Exemple : 1200.00"; return; }
+  const kind = document.getElementById("aKind").value;
+  const cash = document.getElementById("aCash").checked;
+  const inst = document.getElementById("aInst").value.trim();
+  const existing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
+  if (existing) {
+    Object.assign(existing, { name, inst, kind, opening, cash });
+    toast("Compte modifié");
+  } else {
+    const id = "acc-" + Date.now().toString(36);
+    ACCOUNTS.push({ id, name, inst, kind, opening, cash });
+    toast("Compte ajouté");
+  }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+function canDeleteAccount(id) {
+  // Règle .deny du natif : un compte portant des mouvements ne se
+  // supprime pas — on supprime ou réaffecte d'abord les mouvements.
+  return !transactions.some(t => t.acc === id || t.dest === id);
+}
+document.getElementById("aDelete").addEventListener("click", () => {
+  if (!editingAccId) return;
+  if (!canDeleteAccount(editingAccId)) {
+    document.getElementById("aError").textContent =
+      "Ce compte porte des mouvements — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
+    return;
+  }
+  if (!confirm("Supprimer ce compte ?")) return;
+  const index = ACCOUNTS.findIndex(a => a.id === editingAccId);
+  if (index >= 0) ACCOUNTS.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Compte supprimé");
+  render();
+});
+
+/* ---------- Feuille ligne budgétaire (W2) ---------- */
+let editingLineCat = null;
+function openLineSheet(cat) {
+  editingLineCat = cat || null;
+  const { y, m } = MONTHS[monthIndex];
+  const lines = budgetLines(y, m);
+  document.getElementById("lineForm").reset();
+  document.getElementById("lineSheetTitle").textContent = cat ? "Modifier la ligne" : "Nouvelle ligne budgétaire";
+  document.getElementById("lDelete").style.display = cat ? "block" : "none";
+  const select = document.getElementById("lCat");
+  if (cat) {
+    select.innerHTML = `<option>${esc(cat)}</option>`;
+    select.disabled = true;
+    const line = lines.find(l => l.cat === cat);
+    document.getElementById("lAmount").value = line ? line.amount.toFixed(2) : "";
+  } else {
+    const taken = new Set(lines.map(l => l.cat));
+    const available = Object.keys(CATEGORIES).filter(c => !taken.has(c) && CATEGORIES[c] !== "income");
+    if (!available.length) {
+      toast("Toutes les catégories sont déjà budgétées ce mois");
+      return;
+    }
+    select.disabled = false;
+    select.innerHTML = available.map(c => `<option>${esc(c)}</option>`).join("");
+  }
+  document.getElementById("lError").textContent = "";
+  openSheet("lineForm");
+  document.getElementById("lAmount").focus();
+}
+document.getElementById("lCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("lineForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("lError");
+  const amount = parseAmountField(document.getElementById("lAmount").value);
+  if (!(amount > 0)) { err.textContent = "Montant planifié invalide. Exemple : 250.00"; return; }
+  const { y, m } = MONTHS[monthIndex];
+  const key = `${y}-${m}`;
+  if (!S.budgets[key]) S.budgets[key] = [];
+  const cat = editingLineCat || document.getElementById("lCat").value;
+  const line = S.budgets[key].find(l => l.cat === cat);
+  if (line) { line.amount = amount; toast("Ligne modifiée"); }
+  else { S.budgets[key].push({ cat, amount }); toast("Ligne ajoutée"); }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("lDelete").addEventListener("click", () => {
+  if (!editingLineCat) return;
+  if (!confirm(`Retirer « ${editingLineCat} » du budget de ce mois ? (les mouvements restent)`)) return;
+  const { y, m } = MONTHS[monthIndex];
+  const lines = S.budgets[`${y}-${m}`] || [];
+  const index = lines.findIndex(l => l.cat === editingLineCat);
+  if (index >= 0) lines.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Ligne retirée");
+  render();
+});
+
+/* ---------- Retour naturel du navigateur (History API) ---------- */
+function pushNav() {
+  try { history.pushState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
+}
+try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
+window.addEventListener("popstate", (e) => {
+  const state = e.state || { tab: "home", more: null };
+  activeTab = state.tab || "home";
+  moreView = state.more || null;
+  render();
+  scrollTop();
+});
 
 render();
 </script>
