@@ -1252,7 +1252,17 @@ function snapshot(y, m) {
     : [];
   const recurringCharges = upcomingRecurrings.reduce((a, r) => a + (r.type === "expense" ? r.amount : 0), 0);
   const recurringIncome = upcomingRecurrings.reduce((a, r) => a + (r.type === "income" ? r.amount : 0), 0);
-  const available = liquid + plannedIncome + recurringIncome - plannedOut - recurringCharges - taxGap;
+  // Revenus irréguliers (indépendants) : sans récurrent de revenu, la
+  // prévision utilise la moyenne des 3 derniers mois comptabilisés.
+  let irregularIncome = 0;
+  if (isCurrent && !RECURRINGS.some(r => r.type === "income")) {
+    const last3 = [1, 2, 3].map(k => shiftMonth(NOW, -k));
+    const avg = last3.reduce((a, mm) => a + transactions
+      .filter(t => inMonth(t, mm.y, mm.m) && t.status === "posted" && ["income", "refund"].includes(t.type))
+      .reduce((x, t) => x + txCHF(t), 0), 0) / 3;
+    irregularIncome = Math.max(0, avg - income);
+  }
+  const available = liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGap;
   const daysInMonth = new Date(y, m, 0).getDate();
   const daysRemaining = isCurrent ? (daysInMonth - NOW.d + 1) : 0;
   const daily = (isCurrent && available > 0 && daysRemaining > 0) ? available / daysRemaining : 0;
@@ -1262,7 +1272,7 @@ function snapshot(y, m) {
 
   return { income, living, savings, invest, taxes, plannedIncome, plannedOut,
            taxRecommended, taxGap, liquid, available, daysRemaining, daily,
-           savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome };
+           savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
 }
 
 /* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
@@ -1450,6 +1460,7 @@ function renderHome() {
           <div><span>Revenus attendus</span><span>${chf(s.plannedIncome + s.recurringIncome, true)}</span></div>
           <div><span>Charges engagées (prévues)</span><span>${chf(-s.plannedOut, true)}</span></div>
           <div><span>Récurrents à venir</span><span>${chf(-s.recurringCharges, true)}</span></div>
+          ${s.irregularIncome > 0 ? `<div><span>Revenus attendus (moyenne 3 mois)</span><span>${chf(s.irregularIncome, true)}</span></div>` : ""}
           <div><span>Réserve d'impôts manquante</span><span>${chf(-s.taxGap, true)}</span></div>
         </div>
       </details>
@@ -1561,12 +1572,14 @@ function renderHome() {
     ${alertCards}
 
     <p class="section-title">💰 Salaire et revenus</p>
-    ${salary && salaryReceived.length === 0 && isCurrent ? `
+    ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
+        && !posted.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
+      .map(r => `
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div><div style="font-size:14px;font-weight:600">Salaire pas encore reçu</div>
-        <div class="caption">${chf(salary.amount)} attendu le ${salary.day}</div></div>
-      <button class="btn" data-receivesalary style="width:auto;padding:9px 14px;font-size:13px">✓ Je l'ai reçu</button>
-    </div>` : ""}
+      <div><div style="font-size:14px;font-weight:600">${esc(r.title)} pas encore reçu</div>
+        <div class="caption">${chf(r.amount)} attendu le ${r.day}</div></div>
+      <button class="btn" data-postrec="${esc(r.id)}" style="width:auto;padding:9px 14px;font-size:13px">✓ Reçu</button>
+    </div>`).join("") : ""}
     ${salaryReceived.map(txMini).join("")}
     ${otherIncome.map(txMini).join("")}
     ${!salary && !salaryReceived.length && !otherIncome.length ? `<div class="card row"><span class="caption">Configurez votre salaire dans Réglages.</span></div>` : ""}
@@ -2855,21 +2868,6 @@ document.getElementById("screen").addEventListener("click", (e) => {
     });
     saveState();
     toast(rec.type === "income" ? `${rec.title} reçu : ${chf(rec.amount)} 🎉` : `« ${rec.title} » validé — ${chf(rec.amount)}`, true);
-    render();
-    return;
-  }
-  if (e.target.closest("[data-receivesalary]")) {
-    const salary = salaryRecurring();
-    if (!salary) return;
-    pushUndo();
-    transactions.push({
-      id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(salary.day, NOW.d),
-      title: salary.title, amount: salary.amount, type: "income",
-      cat: salary.cat || "Salaire", acc: defaultCashAccount(), dest: null, status: "posted",
-      recurringId: salary.id,
-    });
-    saveState();
-    toast(`Salaire reçu : ${chf(salary.amount)} 🎉`, true);
     render();
     return;
   }
