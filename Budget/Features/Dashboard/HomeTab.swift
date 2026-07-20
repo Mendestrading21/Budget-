@@ -21,6 +21,8 @@ struct HomeTab: View {
 
     @State private var monthAnchor: Date?
     @State private var saveErrorMessage: String?
+    /// Priority action → prefilled movement form (production-completion P2).
+    @State private var prefilledCreateType: TransactionType?
 
     private var currentAnchor: Date { monthAnchor ?? appContainer.dateProvider.now }
 
@@ -132,6 +134,9 @@ struct HomeTab: View {
             )
         ) {
             Button("OK", role: .cancel) {}
+        }
+        .sheet(item: $prefilledCreateType) { type in
+            TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: type)
         }
         }
     }
@@ -608,29 +613,44 @@ struct HomeTab: View {
                     .font(BudgetFont.sectionTitle)
                     .foregroundStyle(.secondary)
                 ForEach(actions) { action in
-                    NavigationLink {
-                        if action.id == "cancellation" {
-                            RecurringListView()
-                        } else if action.id == "taxDueDate" || action.id == "tax" {
-                            TaxesView()
-                        } else if action.id == "goal" {
-                            GoalsListView()
-                        } else {
-                            TransactionsListView()
+                    if action.id == "income" || action.id == "savings" {
+                        // « Ajoutez vos revenus » / « Planifiez une épargne »
+                        // ouvrent directement le formulaire prérempli.
+                        Button {
+                            prefilledCreateType = action.id == "income" ? .income : .saving
+                        } label: {
+                            priorityActionRow(action)
                         }
-                    } label: {
-                        GlassCard(style: .row) {
-                            HStack {
-                                Label(action.title, systemImage: action.systemImage)
-                                    .font(BudgetFont.body)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(.secondary)
+                        .buttonStyle(.plain)
+                    } else {
+                        NavigationLink {
+                            if action.id == "cancellation" {
+                                RecurringListView()
+                            } else if action.id == "taxDueDate" || action.id == "tax" {
+                                TaxesView()
+                            } else if action.id == "goal" {
+                                GoalsListView()
+                            } else {
+                                TransactionsListView()
                             }
+                        } label: {
+                            priorityActionRow(action)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+            }
+        }
+    }
+
+    private func priorityActionRow(_ action: PriorityAction) -> some View {
+        GlassCard(style: .row) {
+            HStack {
+                Label(action.title, systemImage: action.systemImage)
+                    .font(BudgetFont.body)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
             }
         }
     }

@@ -27,22 +27,23 @@ final class DemoTourUITests: XCTestCase {
         }
         snap(app, "01-accueil")
 
+        openTab(app, "Mouvements")
+        snap(app, "02-mouvements")
+
         openTab(app, "Budget")
-        snap(app, "02-budget")
+        snap(app, "03-budget")
 
         openTab(app, "Comptes")
-        snap(app, "03-comptes")
-
-        openTab(app, "Objectifs")
-        snap(app, "04-objectifs")
+        snap(app, "04-comptes")
 
         openTab(app, "Plus")
         snap(app, "05-plus")
 
-        visitMoreEntry(app, label: "Impôts", shot: "06-impots")
-        visitMoreEntry(app, label: "Patrimoine", shot: "07-patrimoine")
-        visitMoreEntry(app, label: "Récurrents et abonnements", shot: "08-recurrents")
-        visitMoreEntry(app, label: "Réglages", shot: "09-reglages")
+        visitMoreEntry(app, label: "Objectifs", shot: "06-objectifs")
+        visitMoreEntry(app, label: "Impôts", shot: "07-impots")
+        visitMoreEntry(app, label: "Patrimoine", shot: "08-patrimoine")
+        visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents")
+        visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
     }
 
     @MainActor

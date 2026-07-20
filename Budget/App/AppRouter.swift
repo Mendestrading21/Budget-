@@ -3,9 +3,9 @@ import Observation
 
 enum AppTab: String, CaseIterable, Identifiable {
     case home
+    case transactions
     case budget
     case accounts
-    case goals
     case more
 
     var id: String { rawValue }
@@ -13,9 +13,9 @@ enum AppTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .home: "Accueil"
+        case .transactions: "Mouvements"
         case .budget: "Budget"
         case .accounts: "Comptes"
-        case .goals: "Objectifs"
         case .more: "Plus"
         }
     }
@@ -23,9 +23,9 @@ enum AppTab: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .home: "house"
+        case .transactions: "list.bullet.rectangle"
         case .budget: "chart.pie"
         case .accounts: "creditcard"
-        case .goals: "target"
         case .more: "ellipsis.circle"
         }
     }

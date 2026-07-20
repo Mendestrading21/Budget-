@@ -7,9 +7,9 @@ struct MoreTab: View {
             List {
                 Section {
                     NavigationLink {
-                        TransactionsListView()
+                        GoalsListView()
                     } label: {
-                        Label("Mouvements", systemImage: "list.bullet.rectangle")
+                        Label("Objectifs", systemImage: "target")
                     }
                     NavigationLink {
                         RecurringListView()
