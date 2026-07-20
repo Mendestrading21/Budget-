@@ -177,6 +177,18 @@ currentTest = "cumuls";
 screenHTML = await page.$eval("#screen", el => el.innerHTML); // toujours sur Comptes
 check(screenHTML.includes("Versé cette année : CHF 100.00"), "cumul annuel absent sur le compte Épargne");
 check(screenHTML.includes("total : CHF 100.00"), "cumul total absent sur le compte Épargne");
+// Fiche de compte : historique, courbe, cumuls, retour
+await page.click('#screen [data-accid]:has-text("Épargne")');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Historique"), "fiche de compte : historique absent");
+check(screenHTML.includes("Solde — 12 derniers mois"), "fiche de compte : courbe absente");
+check(screenHTML.includes("Épargne E2E"), "fiche de compte : le versement doit apparaître dans l'historique");
+check(!screenHTML.includes("NaN"), "NaN dans la fiche de compte");
+await page.click("[data-accback]");
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Liquidités disponibles"), "retour à la liste des comptes cassé");
 
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";

@@ -1330,6 +1330,7 @@ function budgetReport(y, m) {
 /* ---------- État UI ---------- */
 let cursor = { y: NOW.y, m: NOW.m }; // mois affiché, navigation libre
 let activeTab = "home";
+let accountView = null; // fiche de compte ouverte dans l'onglet Comptes
 let moreView = null;          // null | taxes | networth | insurance | recurring | importcsv | settings
 let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si activé
 let lockMessage = "";
@@ -1727,7 +1728,49 @@ function renderBudget() {
     </div>`;
 }
 
+function renderAccountDetail(a) {
+  const bal = balance(a.id);
+  const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
+  const c = isPlacement ? contributions(a.id) : null;
+  const perf = (a.kind === "brokerage" && c) ? bal - a.opening - (c.total - c.withdrawn) : null;
+  const history = transactions
+    .filter(t => t.acc === a.id || t.dest === a.id)
+    .sort((x, z) => z.y - x.y || z.m - x.m || z.d - x.d || z.id - x.id)
+    .slice(0, 25);
+  // Courbe du solde sur 12 mois
+  const MONTHS12 = Array.from({ length: 12 }, (_, i) => shiftMonth(NOW, i - 11));
+  const series = MONTHS12.map(mm => balanceAt(a.id, mm.y, mm.m));
+  const mn = Math.min(...series) * 0.995, mx = Math.max(...series) * 1.005;
+  const rg = Math.max(mx - mn, 1);
+  const px = series.map((v, i) => `${(i / 11 * 300).toFixed(1)},${(90 - (v - mn) / rg * 80).toFixed(1)}`).join(" ");
+  return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
+      <button class="btn secondary" data-accback style="width:auto;padding:8px 14px;font-size:13px">‹ Comptes</button>
+      <h2 class="screen-title" style="margin:0;font-size:24px">${esc(a.name)}</h2>
+    </div>
+    <div class="card hero">
+      <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}</p>
+      <p class="hero-amount ${bal < 0 ? "neg" : ""}">${money(bal, a.currency || baseCurrency())}</p>
+      ${c ? `<span class="caption">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
+      ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
+      <span class="caption">Valeur − versements nets — tenez le solde à jour via « Réconcilier »</span>` : ""}
+    </div>
+    <div class="card">
+      <p class="card-label">Solde — 12 derniers mois</p>
+      <svg viewBox="0 0 300 100" style="width:100%;height:96px" role="img" aria-label="Courbe du solde sur douze mois">
+        <polyline points="${px}" fill="none" stroke="#5AA7FF" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <button class="btn secondary" data-editacc="${esc(a.id)}">Modifier ou réconcilier</button>
+    <p class="section-title">Historique</p>
+    ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucun mouvement sur ce compte.</span></div>`}`;
+}
+
 function renderAccounts() {
+  if (accountView) {
+    const account = ACCOUNTS.find(a => a.id === accountView);
+    if (account) return renderAccountDetail(account);
+    accountView = null;
+  }
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
   const groups = [
@@ -2723,7 +2766,7 @@ function animateHeroAmount() {
 document.getElementById("tabbar").addEventListener("click", (e) => {
   if (locked) return;
   const btn = e.target.closest("button[data-tab]");
-  if (btn) { activeTab = btn.dataset.tab; moreView = null; render(); scrollTop(); pushNav(); }
+  if (btn) { activeTab = btn.dataset.tab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); }
 });
 
 /* Navigation de l'onglet Plus + actions (délégation d'événements). */
@@ -2736,7 +2779,15 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   const accEl = e.target.closest("[data-accid]");
   if (accEl) {
-    const account = ACCOUNTS.find(a => a.id === accEl.dataset.accid);
+    accountView = accEl.dataset.accid;
+    activeTab = "accounts";
+    render(); scrollTop(); pushNav();
+    return;
+  }
+  if (e.target.closest("[data-accback]")) { accountView = null; render(); scrollTop(); return; }
+  const editAccBtn = e.target.closest("[data-editacc]");
+  if (editAccBtn) {
+    const account = ACCOUNTS.find(a => a.id === editAccBtn.dataset.editacc);
     if (account) openAccSheet(account);
     return;
   }
@@ -2842,7 +2893,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-quickexp]")) { openTxSheet(null, "expense"); return; }
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
   const gotoTab = e.target.closest("[data-gototab]");
-  if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; render(); scrollTop(); pushNav(); return; }
+  if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); return; }
   if (e.target.closest("[data-editname]")) {
     document.getElementById("nName").value = S.profile.name || "";
     openSheet("nameForm");
@@ -3446,13 +3497,14 @@ document.getElementById("lDelete").addEventListener("click", () => {
 
 /* ---------- Retour naturel du navigateur (History API) ---------- */
 function pushNav() {
-  try { history.pushState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
+  try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (e) {}
 }
 try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
 window.addEventListener("popstate", (e) => {
   const state = e.state || { tab: "home", more: null };
   activeTab = state.tab || "home";
   moreView = state.more || null;
+  accountView = state.acc || null;
   render();
   scrollTop();
 });
