@@ -1,0 +1,112 @@
+name: TestFlight
+
+# Construit, signe et téléverse Budget vers TestFlight — sans Mac.
+# Se lance à la main : GitHub → Actions → TestFlight → Run workflow.
+# Prérequis : les 4 secrets décrits dans TESTFLIGHT_SETUP.md.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    name: Archive signée + upload TestFlight
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Vérifier les secrets
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          missing=""
+          [ -z "$APPLE_TEAM_ID" ] && missing="$missing APPLE_TEAM_ID"
+          [ -z "$ASC_KEY_ID" ] && missing="$missing ASC_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && missing="$missing ASC_ISSUER_ID"
+          [ -z "$ASC_API_KEY_P8" ] && missing="$missing ASC_API_KEY_P8"
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets manquants :$missing — suivez TESTFLIGHT_SETUP.md (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Installer la clé API App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_API_KEY_P8" | base64 -d > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          echo "Clé installée : AuthKey_$ASC_KEY_ID.p8"
+
+      - name: Archive Release (signature cloud automatique)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Budget.xcarchive \
+            archive \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -authenticationKeyPath ~/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+
+      - name: Options d'export (App Store Connect)
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          cat > build/ExportOptions.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export + upload vers TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/Budget.xcarchive \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "✅ Build ${{ github.run_number }} téléversé — il apparaîtra dans TestFlight après le traitement d'Apple (10-30 min)."
+
+      - name: Journaux d'export en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: export-logs
+          path: |
+            build/export
+            ~/Library/Logs/gym
+          if-no-files-found: ignore
