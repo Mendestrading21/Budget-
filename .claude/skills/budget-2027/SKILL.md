@@ -92,13 +92,13 @@ tap, 5 écrans, barre de progression) ;
 
 Tenir cette liste à jour à chaque lot terminé (✅ + commit) :
 
-- [ ] 0 skill installé
-- [ ] 1 · [ ] 2 · [ ] 3 (A)
-- [ ] 4 · [ ] 5 · [ ] 6 (B)
-- [ ] 7 · [ ] 8 · [ ] 9 · [ ] 10 (C)
-- [ ] 11 · [ ] 12 · [ ] 13 (D)
-- [ ] 14 · [ ] 15 · [ ] 16 (E)
-- [ ] 17 · [ ] 18 · [ ] 19 · [ ] 20 (F)
+- [x] 0 skill installé (87be812)
+- [x] 1 (ea57ae3) · [x] 2 (4ab9365) · [x] 3 (568687a) — A ✅
+- [x] 4 (114d551) · [x] 5 (dc7bc10) · [x] 6 (43498da) — B ✅
+- [x] 7 (190e46b) · [x] 8 (6abe551) · [x] 9 (e02d7fa) · [x] 10 (a4b18fb) — C ✅
+- [x] 11 (a9a4108) · [x] 12 (2b4c7a9) · [x] 13 (c0d9683) — D ✅
+- [x] 14 (5aca7ef) · [x] 15 (c45d1b8) · [x] 16 (338cec9) — E ✅
+- [x] 17 (367ab21) · [ ] 18 audit final en cours · [x] 19 (79f662f) · [ ] 20 bilan final — F
 
 ## Reprise de contexte
 
