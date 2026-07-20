@@ -370,11 +370,14 @@ struct HomeTab: View {
         let check = scheduleService.monthCheck(
             recurrings: recurrings, in: interval, transactions: transactions
         )
+        let streak = scheduleService.closedStreak(
+            endingAt: appContainer.dateProvider.now, recurrings: recurrings, transactions: transactions
+        )
         if check.total > 0 {
             GlassCard {
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                     HStack {
-                        Text("Check du mois")
+                        Text(streak >= 2 ? "Check du mois · 🔥 ×\(streak)" : "Check du mois")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
                         Spacer()

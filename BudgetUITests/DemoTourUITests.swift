@@ -44,6 +44,7 @@ final class DemoTourUITests: XCTestCase {
         visitMoreEntry(app, label: "Patrimoine", shot: "08-patrimoine")
         visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents")
         visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
+        visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
     }
 
     @MainActor

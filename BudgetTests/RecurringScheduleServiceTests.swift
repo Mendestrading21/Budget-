@@ -391,3 +391,40 @@ extension RecurringScheduleServiceTests {
         XCTAssertEqual(check.done, 0)
     }
 }
+
+// MARK: - Streak de mois bouclés (🔥)
+
+extension RecurringScheduleServiceTests {
+    func testStreakCountsConsecutiveClosedMonths() {
+        let (_, rent) = makeCheckFixtures()
+        // Loyer comptabilisé en avril, mai et juin — juin inclus dans la série.
+        let posted = [4, 5, 6].map { month in
+            service.makeTransaction(
+                from: rent,
+                on: calendar.date(from: DateComponents(year: 2026, month: month, day: 5, hour: 9))!,
+                now: now
+            )
+        }
+        // On ne garde que le loyer comme récurrent dû (le salaire casserait la série).
+        let streak = service.closedStreak(endingAt: now, recurrings: [rent], transactions: posted)
+        XCTAssertEqual(streak, 3)
+    }
+
+    func testStreakSkipsOpenCurrentMonthAndBreaksOnGap() {
+        let (_, rent) = makeCheckFixtures()
+        // Mai comptabilisé, juin (courant) ouvert → série = 1 (mai).
+        let may = service.makeTransaction(
+            from: rent,
+            on: calendar.date(from: DateComponents(year: 2026, month: 5, day: 5, hour: 9))!,
+            now: now
+        )
+        XCTAssertEqual(service.closedStreak(endingAt: now, recurrings: [rent], transactions: [may]), 1)
+        // Avril seul (trou en mai) → la série s'arrête à zéro.
+        let april = service.makeTransaction(
+            from: rent,
+            on: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 9))!,
+            now: now
+        )
+        XCTAssertEqual(service.closedStreak(endingAt: now, recurrings: [rent], transactions: [april]), 0)
+    }
+}

@@ -14,10 +14,20 @@ struct NetWorthView: View {
     @Query(sort: \Liability.createdAt) private var liabilities: [Liability]
     @Query(sort: \NetWorthSnapshot.date) private var snapshots: [NetWorthSnapshot]
 
+    @Query private var transactions: [BudgetTransaction]
+
     @State private var editedAsset: Asset?
     @State private var editedLiability: Liability?
     @State private var isPresentingNewAsset = false
     @State private var isPresentingNewLiability = false
+
+    /// Profil d'hypothèses du « chemin » — un réglage d'affichage, pas
+    /// une donnée financière : UserDefaults suffit.
+    @AppStorage("projectionProfile") private var projectionProfileRaw = WealthProjectionService.Profile.balanced.rawValue
+
+    private var projectionProfile: WealthProjectionService.Profile {
+        WealthProjectionService.Profile(rawValue: projectionProfileRaw) ?? .balanced
+    }
 
     private var service: NetWorthService {
         NetWorthService(calendar: appContainer.calendar, balanceService: appContainer.balanceService)
@@ -27,12 +37,76 @@ struct NetWorthView: View {
         service.breakdown(accounts: accounts, assets: assets, pensions: pensions, liabilities: liabilities)
     }
 
+    /// « Le chemin » : patrimoine projeté à 5/10/20 ans — soldes actuels
+    /// + rythme réel des versements de l'année, capitalisés par classe
+    /// selon le profil choisi. Une simulation, jamais une promesse.
+    private var projectionCard: some View {
+        let projectionService = WealthProjectionService()
+        let contributionService = ContributionService(calendar: appContainer.calendar)
+        let now = appContainer.dateProvider.now
+        let monthsElapsed = max(1, appContainer.calendar.component(.month, from: now))
+        let classes: [(kinds: [AccountType], rate: Decimal)] = [
+            ([.savings], projectionProfile.savingsRate),
+            ([.broker], projectionProfile.brokerRate),
+            ([.pillar3a, .pillar3b, .occupationalPension], projectionProfile.pensionRate),
+        ]
+        func projected(years: Int) -> Decimal {
+            var total: Decimal = .zero
+            var projectedClasses: Decimal = .zero
+            for cls in classes {
+                let members = accounts.filter { $0.isActive && cls.kinds.contains($0.type) }
+                let balance = members.reduce(Decimal.zero) { $0 + appContainer.balanceService.balance(of: $1) }
+                let yearContribution = members.reduce(Decimal.zero) {
+                    $0 + contributionService.summary(of: $1, movements: transactions, now: now).currentYear
+                }
+                projectedClasses += balance
+                total += projectionService.futureValue(
+                    balance: balance,
+                    monthlyContribution: yearContribution / Decimal(monthsElapsed),
+                    annualRate: cls.rate,
+                    years: years
+                )
+            }
+            // Le reste du patrimoine (liquidités, actifs, prévoyance
+            // manuelle, dettes) reste constant — honnête et affiché.
+            return total + breakdown.netWorth - projectedClasses
+        }
+        return GlassCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Le chemin — patrimoine projeté")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                Picker("Profil d'hypothèses", selection: $projectionProfileRaw) {
+                    Text("Prudent").tag(WealthProjectionService.Profile.prudent.rawValue)
+                    Text("Équilibré").tag(WealthProjectionService.Profile.balanced.rawValue)
+                    Text("Ambitieux").tag(WealthProjectionService.Profile.ambitious.rawValue)
+                }
+                .pickerStyle(.segmented)
+                ForEach([5, 10, 20], id: \.self) { years in
+                    HStack {
+                        Text("Dans \(years) ans")
+                            .font(BudgetFont.body)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(FinanceFormatting.chf(projected(years: years)))
+                            .font(BudgetFont.body.weight(.bold).monospacedDigit())
+                    }
+                }
+                Text("Au rythme de vos versements de l'année, hypothèses annualisées par classe — une simulation, jamais une promesse.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     var body: some View {
         ZStack {
             BudgetScreenBackground()
             ScrollView {
                 VStack(spacing: BudgetSpacing.medium) {
                     heroCard
+                    projectionCard
                     trendCard
                     assetsSection
                     liabilitiesSection

@@ -5,6 +5,7 @@ import SwiftData
 struct AccountsTab: View {
     @Environment(AppContainer.self) private var appContainer
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query private var transactions: [BudgetTransaction]
 
     @State private var isPresentingNewAccount = false
     @State private var showsArchived = false
@@ -91,7 +92,11 @@ struct AccountsTab: View {
                             .foregroundStyle(.secondary)
                         ForEach(group.accounts) { account in
                             NavigationLink(value: account) {
-                                AccountRow(account: account, balance: balance(of: account))
+                                AccountRow(
+                                    account: account,
+                                    balance: balance(of: account),
+                                    contribution: contributionSummary(of: account)
+                                )
                             }
                             .buttonStyle(.plain)
                         }
@@ -119,6 +124,13 @@ struct AccountsTab: View {
         }
     }
 
+    /// Cumuls façon Finary sur les comptes de placement uniquement.
+    private func contributionSummary(of account: Account) -> ContributionSummary? {
+        guard ContributionService.tracksContributions(account.type) else { return nil }
+        return ContributionService(calendar: appContainer.calendar)
+            .summary(of: account, movements: transactions, now: appContainer.dateProvider.now)
+    }
+
     private var emptyState: some View {
         VStack(spacing: BudgetSpacing.medium) {
             GlassCard {
@@ -143,6 +155,7 @@ struct AccountsTab: View {
 struct AccountRow: View {
     let account: Account
     let balance: Decimal
+    var contribution: ContributionSummary? = nil
 
     var body: some View {
         GlassCard(style: .row) {
@@ -157,6 +170,11 @@ struct AccountRow: View {
                     Text(account.institutionName.isEmpty ? account.type.displayName : account.institutionName)
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
+                    if let contribution, contribution.total > 0 {
+                        Text("Versé cette année : \(FinanceFormatting.chf(contribution.currentYear)) · total : \(FinanceFormatting.chf(contribution.total))")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(BudgetColor.informative)
+                    }
                 }
                 Spacer(minLength: BudgetSpacing.small)
                 VStack(alignment: .trailing, spacing: 2) {

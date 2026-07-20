@@ -37,6 +37,11 @@ struct MoreTab: View {
                         Label("Patrimoine", systemImage: "chart.bar")
                     }
                     NavigationLink {
+                        YearReviewView()
+                    } label: {
+                        Label("Année en revue", systemImage: "calendar")
+                    }
+                    NavigationLink {
                         DocumentsListView()
                     } label: {
                         Label("Documents", systemImage: "folder")

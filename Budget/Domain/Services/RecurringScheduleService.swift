@@ -120,6 +120,36 @@ struct RecurringScheduleService {
         return (due.filter { !pendingIDs.contains($0.id) }.count, due.count)
     }
 
+    /// Série de mois bouclés consécutifs (🔥) : en remontant depuis le
+    /// mois de `anchor` (inclus seulement s'il est bouclé), compte les
+    /// mois où TOUT ce qui était dû a été comptabilisé. Un mois sans
+    /// récurrent dû casse la série — il n'y avait rien à boucler.
+    func closedStreak(
+        endingAt anchor: Date,
+        recurrings: [RecurringTransaction],
+        transactions: [BudgetTransaction],
+        horizonMonths: Int = 24
+    ) -> Int {
+        func isClosed(_ date: Date) -> Bool {
+            let interval = MonthInterval(containing: date, calendar: calendar)
+            let check = monthCheck(recurrings: recurrings, in: interval, transactions: transactions)
+            return check.total > 0 && check.done == check.total
+        }
+        var cursor = anchor
+        if !isClosed(cursor) {
+            guard let previous = calendar.date(byAdding: .month, value: -1, to: cursor) else { return 0 }
+            cursor = previous
+        }
+        var count = 0
+        for _ in 0..<max(1, horizonMonths) {
+            guard isClosed(cursor) else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .month, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
+    }
+
     // MARK: - Normalized costs
 
     /// Cost per month: annual/12, quarterly/3, weekly ×52/12…
