@@ -358,6 +358,60 @@ check(screenHTML.includes("Bonjour Eva"), "prénom absent après un départ en e
 check(screenHTML.includes("€ 1'000.00"), "le solde de départ doit s'afficher en euros");
 check(!screenHTML.includes("CHF "), "plus aucun total en CHF quand la référence est l'euro");
 
+// ---------- Test 14 : Réglages essentiels — guide, pays, devise ----------
+currentTest = "reglages";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Comment ça marche"), "guide « Comment ça marche » absent");
+check(screenHTML.includes("Un envoi n'est pas une dépense"), "règle d'or absente du guide");
+check(screenHTML.includes("Mon pays") && screenHTML.includes("France"), "réglage pays absent ou faux");
+check(screenHTML.includes("Devise de référence") && screenHTML.includes("EUR"), "devise de référence absente");
+
+// ---------- Test 15 : profil de projection persisté ----------
+currentTest = "projection persistée";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(150);
+await page.click('[data-projprofile="prudent"]');
+await page.waitForTimeout(150);
+await page.reload();
+await page.waitForSelector("#tabbar button");
+const storedProfile = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-app-state-v1")).projectionProfile);
+check(storedProfile === "prudent", "le profil de projection doit survivre au rechargement");
+
+// ---------- Test 16 : activation au clavier (Entrée) ----------
+currentTest = "clavier";
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(150);
+await page.focus('#screen [data-accid]');
+await page.keyboard.press("Enter");
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Historique"), "Entrée doit ouvrir la fiche de compte");
+await page.click("[data-accback]");
+await page.waitForTimeout(150);
+
+// ---------- Test 17 : démo localisée France ----------
+currentTest = "démo pays";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-resetdemo]"); // confirm auto-accepté → reload
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+const demoBanner = await page.$eval(".demo-banner", el => el.style.display !== "none");
+check(demoBanner, "bannière démo absente après chargement de la démonstration");
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="insurance"]');
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Mutuelle santé"), "la démo française doit parler de mutuelle, pas de LAMal");
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Retraite (PER)") && screenHTML.includes("€"), "la démo française doit être en euros avec un PER");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -367,4 +421,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 18 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 22 parcours verts, zéro erreur console ✓");
