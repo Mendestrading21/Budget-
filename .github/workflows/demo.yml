@@ -59,6 +59,19 @@ jobs:
             -only-testing:BudgetUITests \
             test-without-building
 
+      - name: Rapports de crash + journal de l'app
+        if: always()
+        run: |
+          echo "=== Rapports de crash (hôte) ==="
+          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || echo "aucun"
+          for f in ~/Library/Logs/DiagnosticReports/*; do
+            echo "--- $f"; head -c 6000 "$f" 2>/dev/null; echo
+          done || true
+          echo "=== Journal du process Budget (10 dernières minutes) ==="
+          xcrun simctl spawn "$UDID" log show --last 10m \
+            --predicate 'processImagePath CONTAINS "Budget"' \
+            --style compact 2>/dev/null | tail -200 || true
+
       - name: Arrêter la vidéo
         if: always()
         run: |
