@@ -758,6 +758,21 @@
       </div>
     </form>
 
+    <form class="sheet" id="countryForm" style="display:none">
+      <h3>Mon pays</h3>
+      <p class="caption" style="margin:0 0 6px">Ajuste le vocabulaire et les valeurs par défaut — vos données ne bougent pas.</p>
+      <label for="cCountry">Pays</label>
+      <select id="cCountry">
+        <option value="CH">🇨🇭 Suisse</option>
+        <option value="FR">🇫🇷 France</option>
+        <option value="BE">🇧🇪 Belgique</option>
+      </select>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="cCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
+
     <form class="sheet" id="baseForm" style="display:none">
       <h3>Devise de référence</h3>
       <p class="caption" style="margin:0 0 6px">Tous les totaux s'affichent dans cette devise. Les montants déjà saisis (budgets, salaire, factures) sont relus tels quels dans la nouvelle devise — ils ne sont pas convertis. Les taux manuels repartent des valeurs par défaut.</p>
@@ -833,6 +848,14 @@
 /* ---------- Formatage fr-CH : CHF 18'190.00 ---------- */
 const CURRENCY_PREFIX = { CHF: "CHF ", EUR: "€ ", USD: "$ " };
 const CURRENCIES = ["CHF", "EUR", "USD"];
+const COUNTRIES = {
+  CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0.30,
+        taxHint: "Impôts payés séparément — une réserve est recommandée." },
+  FR: { flag: "🇫🇷", name: "France", currency: "EUR", taxRate: 0,
+        taxHint: "Impôt prélevé à la source — réserve facultative." },
+  BE: { flag: "🇧🇪", name: "Belgique", currency: "EUR", taxRate: 0,
+        taxHint: "Précompte retenu à la source — réserve facultative." },
+};
 const CURRENCY_NAMES = { CHF: "Franc suisse", EUR: "Euro", USD: "Dollar américain" };
 const CURRENCY_SYMBOL = { CHF: "CHF", EUR: "€", USD: "$" };
 /* Taux manuels par défaut : « 1 unité étrangère = X en devise de référence ». */
@@ -972,6 +995,7 @@ function seedState() {
   return {
     version: 1,
     profile: { name: "Alex" },
+    country: "CH",
     onboarded: true,
     isDemo: true,
     baseCurrency: "CHF",
@@ -1012,6 +1036,7 @@ function emptyState() {
   return {
     version: 1,
     profile: { name: null },
+    country: "CH",
     onboarded: false,
     isDemo: false,
     baseCurrency: "CHF",
@@ -1054,6 +1079,7 @@ function loadState() {
     if (typeof s.onboarded !== "boolean") s.onboarded = true;
     if (typeof s.isDemo !== "boolean") s.isDemo = true;
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
+    if (!COUNTRIES[s.country]) s.country = "CH";
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
@@ -2172,6 +2198,12 @@ function renderSettings() {
         <div class="s">${salary ? `Chaque mois le ${salary.day}` : "Pas encore défini — tapez pour le configurer"}</div></div>
       <span class="amount pos">${salary ? "+" + chf(salary.amount) : "—"}</span>
     </div>
+    <div class="card row tx" data-editcountry role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${COUNTRIES[S.country || "CH"].flag}</div>
+      <div class="meta"><div class="t">Mon pays</div>
+        <div class="s">${COUNTRIES[S.country || "CH"].name}</div></div>
+      <span style="color:var(--coolgray)">›</span>
+    </div>
     <div class="card row tx" data-editbase role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🌐</div>
       <div class="meta"><div class="t">Devise de référence</div>
@@ -2261,6 +2293,7 @@ function renderMoreTxList() {
 /* ---------- Écran de bienvenue : première ouverture ---------- */
 let obStep = 1;
 let obName = "";
+let obCountry = "CH";
 let obBase = "CHF";
 let obSalary = null;
 let obSalaryDay = 25;
@@ -2280,16 +2313,27 @@ function renderOnboarding() {
     </form>`);
   if (obStep === 2) return shell(`
     <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:44px" aria-hidden="true">🌍</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">Où vivez-vous ?</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Devise, impôts et vocabulaire s'adaptent à votre pays.</p>
+    </div>
+    ${Object.entries(COUNTRIES).map(([code, c]) => `
+    <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
+      <span><strong>${c.name}</strong></span>
+      <span style="font-size:18px">${c.flag}</span>
+    </button>`).join("")}`);
+  if (obStep === 3) return shell(`
+    <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">💱</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Votre devise de référence</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Tous les totaux s'affichent dans cette devise. Les comptes en autres devises restent possibles, convertis avec vos taux manuels.</p>
     </div>
     ${CURRENCIES.map(c => `
-    <button type="button" class="btn secondary" data-obcur="${c}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
-      <span><strong>${c}</strong> — ${CURRENCY_NAMES[c]}</span>
+    <button type="button" class="btn ${c === obBase ? "" : "secondary"}" data-obcur="${c}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
+      <span><strong>${c}</strong> — ${CURRENCY_NAMES[c]}${c === obBase ? " · conseillé" : ""}</span>
       <span style="font-size:18px">${c === "CHF" ? "🇨🇭" : c === "EUR" ? "🇪🇺" : "🇺🇸"}</span>
     </button>`).join("")}`);
-  if (obStep === 3) return shell(`
+  if (obStep === 4) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">💼</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Votre salaire, ${esc(obName)} ?</h2>
@@ -2329,9 +2373,14 @@ function bindOnboarding() {
     obName = name.slice(0, 30);
     obStep = 2; render(); scrollTop();
   });
+  document.querySelectorAll("[data-obcountry]").forEach(btn => btn.addEventListener("click", () => {
+    obCountry = btn.dataset.obcountry;
+    obBase = COUNTRIES[obCountry].currency;
+    obStep = 3; render(); scrollTop();
+  }));
   document.querySelectorAll("[data-obcur]").forEach(btn => btn.addEventListener("click", () => {
     obBase = btn.dataset.obcur;
-    obStep = 3; render(); scrollTop();
+    obStep = 4; render(); scrollTop();
   }));
   const form2 = document.getElementById("obForm2");
   if (form2) {
@@ -2340,10 +2389,10 @@ function bindOnboarding() {
       const amount = parseAmountField(document.getElementById("obSalary").value);
       obSalary = amount > 0 ? amount : null;
       obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
-      obStep = 4; render(); scrollTop();
+      obStep = 5; render(); scrollTop();
     });
     form2.querySelector("[data-obskip]").addEventListener("click", () => {
-      obSalary = null; obStep = 4; render(); scrollTop();
+      obSalary = null; obStep = 5; render(); scrollTop();
     });
   }
   const form3 = document.getElementById("obForm3");
@@ -2356,6 +2405,7 @@ function bindOnboarding() {
       // La démo complète, avec le prénom déjà saisi.
       const seeded = seedState();
       seeded.profile = { name: obName || "Alex" };
+      seeded.country = "CH"; // la démo est un ménage suisse
       try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); } catch (err) {}
       location.reload();
     });
@@ -2366,6 +2416,8 @@ function finishOnboarding() {
   const accName = (document.getElementById("obAccName").value.trim() || "Compte courant").slice(0, 40);
   const opening = parseAmountField(document.getElementById("obOpening").value) || 0;
   S.profile.name = obName;
+  S.country = obCountry;
+  S.taxRate = COUNTRIES[obCountry].taxRate;
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
   ACCOUNTS.push(
@@ -2598,6 +2650,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("sAmount").focus();
     return;
   }
+  if (e.target.closest("[data-editcountry]")) {
+    document.getElementById("cCountry").value = S.country || "CH";
+    openSheet("countryForm");
+    return;
+  }
   if (e.target.closest("[data-editbase]")) {
     document.getElementById("bCurrency").value = baseCurrency();
     openSheet("baseForm");
@@ -2763,7 +2820,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -3710,6 +3767,19 @@ document.getElementById("nameForm").addEventListener("submit", (e) => {
   saveState();
   backdrop.classList.remove("open");
   toast(`Enchanté, ${name} 👋`);
+  render();
+});
+
+/* ---------- Mon pays ---------- */
+document.getElementById("cCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("countryForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const chosen = document.getElementById("cCountry").value;
+  if (!COUNTRIES[chosen]) return;
+  S.country = chosen;
+  saveState();
+  backdrop.classList.remove("open");
+  toast(`${COUNTRIES[chosen].flag} ${COUNTRIES[chosen].name}`);
   render();
 });
 
