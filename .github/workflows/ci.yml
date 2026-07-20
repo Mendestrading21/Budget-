@@ -10,6 +10,31 @@ on:
   workflow_dispatch:
 
 jobs:
+  web-tests:
+    name: Web (e2e navigateur réel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Dépendances (Playwright + Chromium)
+        working-directory: webapp/tests
+        run: |
+          npm install playwright@1.61.1
+          npx playwright install --with-deps chromium
+
+      - name: Suite e2e (Chromium réel, zéro erreur console tolérée)
+        working-directory: webapp/tests
+        run: |
+          BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
+          node e2e.test.mjs
+
   build-and-test:
     name: Build + tests (simulateur iOS)
     runs-on: macos-15
