@@ -434,7 +434,9 @@
       <label for="fAmount">Montant (CHF)</label>
       <input id="fAmount" inputmode="decimal" placeholder="45.50" autocomplete="off" />
       <label for="fDate">Date</label>
-      <input id="fDate" type="date" min="2026-04-01" max="2026-06-30" />
+      <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
+      <label for="fAccount">Compte</label>
+      <select id="fAccount"></select>
       <label for="fType">Type</label>
       <select id="fType">
         <option value="expense">Dépense</option>
@@ -471,7 +473,13 @@
         <option value="cash">Espèces</option>
         <option value="pension">Prévoyance (3a, LPP)</option>
       </select>
-      <label for="aOpening">Solde d'ouverture (CHF)</label>
+      <label for="aCurrency">Devise</label>
+      <select id="aCurrency">
+        <option value="CHF">CHF — franc suisse</option>
+        <option value="EUR">EUR — euro</option>
+        <option value="USD">USD — dollar américain</option>
+      </select>
+      <label for="aOpening">Solde d'ouverture (dans la devise du compte)</label>
       <input id="aOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="aCash" style="width:auto" /> Compter dans le cash disponible
@@ -515,7 +523,7 @@
       <label for="gMonthly">Contribution prévue (CHF / mois)</label>
       <input id="gMonthly" inputmode="decimal" placeholder="200.00" autocomplete="off" />
       <label for="gDue">Échéance</label>
-      <input id="gDue" type="month" min="2026-06" />
+      <input id="gDue" type="month" />
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="gPriority" style="width:auto" /> Prioritaire
       </label>
@@ -650,7 +658,7 @@
       <label for="bAmount">Montant (CHF)</label>
       <input id="bAmount" inputmode="decimal" placeholder="184.30" autocomplete="off" />
       <label for="bDue">Échéance</label>
-      <input id="bDue" type="date" min="2026-04-01" max="2026-12-31" />
+      <input id="bDue" type="date" min="2000-01-01" max="2100-12-31" />
       <label for="bCat">Catégorie</label>
       <select id="bCat"></select>
       <div class="error" id="bError" role="alert"></div>
@@ -678,6 +686,34 @@
       </div>
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
     </div>
+
+    <form class="sheet" id="salaryForm" style="display:none">
+      <h3>Mon salaire</h3>
+      <p class="caption" style="margin:0 0 6px">Le salaire est un revenu récurrent : il nourrit les prévisions du mois et le « Vraiment disponible », sans jamais compter double une fois reçu.</p>
+      <label for="sAmount">Montant mensuel net (CHF)</label>
+      <input id="sAmount" inputmode="decimal" placeholder="8450.00" autocomplete="off" />
+      <label for="sDay">Jour de réception (1-28)</label>
+      <input id="sDay" inputmode="numeric" placeholder="25" autocomplete="off" />
+      <div class="error" id="sError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="sCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
+
+    <form class="sheet" id="fxForm" style="display:none">
+      <h3>Taux de change manuels</h3>
+      <p class="caption" style="margin:0 0 6px">Utilisés pour convertir vos comptes EUR/USD en CHF dans les totaux. Vous les mettez à jour vous-même — l'app ne se connecte jamais à internet.</p>
+      <label for="fxEUR">1 EUR en CHF</label>
+      <input id="fxEUR" inputmode="decimal" placeholder="0.93" autocomplete="off" />
+      <label for="fxUSD">1 USD en CHF</label>
+      <input id="fxUSD" inputmode="decimal" placeholder="0.80" autocomplete="off" />
+      <div class="error" id="fxError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="fxCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
 
     <form class="sheet" id="docForm" style="display:none">
       <h3>Nouveau document</h3>
@@ -709,23 +745,40 @@
 "use strict";
 
 /* ---------- Formatage fr-CH : CHF 18'190.00 ---------- */
-function chf(n, signed) {
+const CURRENCY_PREFIX = { CHF: "CHF ", EUR: "€ ", USD: "$ " };
+function money(n, currency, signed) {
   const neg = n < 0;
   const abs = Math.abs(n);
   const [int, dec] = abs.toFixed(2).split(".");
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
   const sign = neg ? "-" : (signed ? "+" : "");
-  return sign + "CHF " + grouped + "." + dec;
+  return sign + (CURRENCY_PREFIX[currency] || currency + " ") + grouped + "." + dec;
 }
+function chf(n, signed) { return money(n, "CHF", signed); }
+function accountCurrency(accId) {
+  const account = ACCOUNTS.find(a => a.id === accId);
+  return (account && account.currency) || "CHF";
+}
+/* Conversion en CHF via les taux MANUELS de l'utilisateur (aucun réseau). */
+function toCHF(amount, currency) {
+  if (!currency || currency === "CHF") return amount;
+  const rate = (S.fxRates || {})[currency];
+  return amount * (rate > 0 ? rate : 1);
+}
+function txCHF(t) { return toCHF(t.amount, accountCurrency(t.acc)); }
 function pct(f) { return (f * 100).toFixed(f * 100 % 1 ? 1 : 0).replace(".", ",") + " %"; }
 
 /* ---------- Données de démonstration (miroir de DemoDataFactory) ---------- */
-const NOW = { y: 2026, m: 6, d: 15 };
-const MONTHS = [
-  { y: 2026, m: 4, label: "avril 2026" },
-  { y: 2026, m: 5, label: "mai 2026" },
-  { y: 2026, m: 6, label: "juin 2026" },
-];
+const TODAY_REAL = new Date();
+const NOW = { y: TODAY_REAL.getFullYear(), m: TODAY_REAL.getMonth() + 1, d: TODAY_REAL.getDate() };
+const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+function shiftMonth(base, delta) {
+  const d = new Date(base.y, base.m - 1 + delta, 1);
+  return { y: d.getFullYear(), m: d.getMonth() + 1 };
+}
+function monthLabel(cur) { return `${MONTH_NAMES[cur.m - 1]} ${cur.y}`; }
+/* Trois mois d'historique de démonstration, ancrés sur AUJOURD'HUI. */
+function seedMonths() { return [-2, -1, 0].map(k => shiftMonth(NOW, k)); }
 
 const CATEGORIES = {
   Salaire: "income", Logement: "expense", "Assurance maladie": "expense",
@@ -734,10 +787,10 @@ const CATEGORIES = {
 };
 
 const ACCOUNTS_SEED = [
-  { id: "cur", name: "Compte ménage", inst: "Banque Exemple", kind: "current", opening: 4200, cash: true },
-  { id: "sav", name: "Épargne", inst: "Banque Exemple", kind: "savings", opening: 12500, cash: false },
-  { id: "p3a", name: "Pilier 3a", inst: "Fondation Exemple", kind: "pension", opening: 18190, cash: false },
-  { id: "cash", name: "Espèces", inst: "", kind: "cash", opening: 150, cash: true },
+  { id: "cur", name: "Compte ménage", inst: "Banque Exemple", kind: "current", opening: 4200, cash: true, currency: "CHF" },
+  { id: "sav", name: "Épargne", inst: "Banque Exemple", kind: "savings", opening: 12500, cash: false, currency: "CHF" },
+  { id: "p3a", name: "Pilier 3a", inst: "Fondation Exemple", kind: "pension", opening: 18190, cash: false, currency: "CHF" },
+  { id: "cash", name: "Espèces", inst: "", kind: "cash", opening: 150, cash: true, currency: "CHF" },
 ];
 const ACCOUNT_KINDS = {
   current: { label: "Compte courant", icon: "💳" },
@@ -783,9 +836,9 @@ const RECURRINGS_SEED = [
 /* Objectifs (Phase 8) — contribution requise = (cible − actuel) ÷ mois restants. */
 const GOALS_SEED = [
   { id: "g-urgence", name: "Fonds d'urgence", emoji: "🛟", target: 20000, manualCurrent: 0,
-    linked: "sav", monthly: 600, dueY: 2026, dueM: 12, priority: true, achieved: false },
-  { id: "g-vacances", name: "Vacances été 2027", emoji: "🏖", target: 3000, manualCurrent: 1200,
-    linked: null, monthly: 150, dueY: 2027, dueM: 8, priority: false, achieved: false },
+    linked: "sav", monthly: 600, dueY: NOW.y, dueM: 12, priority: true, achieved: false },
+  { id: "g-vacances", name: "Prochaines vacances", emoji: "🏖", target: 3000, manualCurrent: 1200,
+    linked: null, monthly: 150, ...(() => { const d = shiftMonth(NOW, 14); return { dueY: d.y, dueM: d.m }; })(), priority: false, achieved: false },
 ];
 
 /* Patrimoine hors comptes (Phase 10) et prévoyance (Phase 9). */
@@ -809,6 +862,8 @@ const LEGACY_TX_KEY = "budget-proto-mouvements";
 
 function seedState() {
   txSeq = 0;
+  const months = seedMonths();
+  const previous = shiftMonth(NOW, -1);
   return {
     version: 1,
     faceIDEnabled: false,
@@ -816,19 +871,20 @@ function seedState() {
     taxRate: 0.30,
     taxReserve: 2400,
     lastImport: null,
+    fxRates: { EUR: 0.93, USD: 0.80 },
     bills: [
-      { id: "bill-elec", name: "Électricité T2", amount: 184.30, dueY: 2026, dueM: 6, dueD: 20,
+      { id: "bill-elec", name: "Électricité (trimestre)", amount: 184.30, dueY: NOW.y, dueM: NOW.m, dueD: 20,
         cat: "Logement", paidTxId: null, note: "" },
-      { id: "bill-serafe", name: "SERAFE (redevance)", amount: 335.00, dueY: 2026, dueM: 5, dueD: 10,
-        cat: "Logement", paidTxId: -1, note: "payée en mai" },
+      { id: "bill-serafe", name: "SERAFE (redevance)", amount: 335.00, dueY: previous.y, dueM: previous.m, dueD: 10,
+        cat: "Logement", paidTxId: -1, note: "payée le mois dernier" },
     ],
     documents: [
-      { id: "doc-lpp", name: "Certificat LPP 2026", kind: "Prévoyance" },
+      { id: "doc-lpp", name: "Certificat LPP", kind: "Prévoyance" },
       { id: "doc-rc", name: "Police RC ménage", kind: "Assurance" },
     ],
-    budgets: Object.fromEntries(MONTHS.map(({ y, m }) =>
+    budgets: Object.fromEntries(months.map(({ y, m }) =>
       [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))])),
-    transactions: MONTHS.flatMap(({ y, m }) => monthTemplate(y, m)),
+    transactions: months.flatMap(({ y, m }) => monthTemplate(y, m)),
     accounts: ACCOUNTS_SEED.map(a => ({ ...a })),
     recurrings: RECURRINGS_SEED.map(r => ({ ...r })),
     goals: GOALS_SEED.map(g => ({ ...g })),
@@ -858,7 +914,9 @@ function loadState() {
     const inferKind = { cur: "current", sav: "savings", p3a: "pension", cash: "cash" };
     for (const account of s.accounts) {
       if (!account.kind) account.kind = inferKind[account.id] || "current";
+      if (!account.currency) account.currency = "CHF";
     }
+    if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { EUR: 0.93, USD: 0.80 };
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
       target: g.target || 0, manualCurrent: g.current || 0, linked: null,
@@ -870,7 +928,7 @@ function loadState() {
     s.assets = s.assets.map((a, i) => a.id ? a : { id: "as-migre-" + i, include: true, ...a });
     s.liabilities = s.liabilities.map((l, i) => l.id ? l : { id: "li-migre-" + i, include: true, ...l });
     if (!s.budgets || typeof s.budgets !== "object") {
-      s.budgets = Object.fromEntries(MONTHS.map(({ y, m }) =>
+      s.budgets = Object.fromEntries(seedMonths().map(({ y, m }) =>
         [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))]));
     }
     return s;
@@ -930,7 +988,7 @@ function inMonth(t, y, m) { return t.y === y && t.m === m; }
 function snapshot(y, m) {
   const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
   const planned = transactions.filter(t => inMonth(t, y, m) && t.status === "planned");
-  const sum = (list, type) => list.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
+  const sum = (list, type) => list.filter(t => t.type === type).reduce((a, t) => a + txCHF(t), 0);
 
   const income = sum(posted, "income");
   const living = sum(posted, "expense") - sum(posted, "refund");
@@ -948,7 +1006,7 @@ function snapshot(y, m) {
   const taxRecommended = Math.round(income * (S.taxRate ?? 0.30) * 100) / 100;
   const taxGap = Math.max(0, taxRecommended - taxes);
 
-  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + balance(acc.id), 0);
+  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const isCurrent = (y === NOW.y && m === NOW.m);
   // Occurrences récurrentes encore à venir ce mois, dédupliquées contre
   // les mouvements déjà saisis/planifiés (même titre, même mois) — la
@@ -985,8 +1043,8 @@ function budgetReport(y, m) {
     let actual = 0;
     for (const t of monthTx) {
       if (t.cat !== cat) continue;
-      if (types.includes(t.type)) actual += t.amount;
-      else if (kind === "expense" && t.type === "refund") actual -= t.amount;
+      if (types.includes(t.type)) actual += txCHF(t);
+      else if (kind === "expense" && t.type === "refund") actual -= txCHF(t);
     }
     return { cat, kind, planned: plannedAmt, actual, variance: plannedAmt - actual, over: actual > plannedAmt };
   });
@@ -996,13 +1054,13 @@ function budgetReport(y, m) {
     if (t.type === "transfer" || t.type === "adjustment" || t.type === "income") continue;
     if (t.cat && budgeted.has(t.cat)) continue;
     const key = t.cat || "Sans catégorie";
-    out[key] = (out[key] || 0) + (t.type === "refund" ? -t.amount : t.amount);
+    out[key] = (out[key] || 0) + (t.type === "refund" ? -txCHF(t) : txCHF(t));
   }
   return { lines, outOfBudget: Object.entries(out).filter(([, v]) => v !== 0) };
 }
 
 /* ---------- État UI ---------- */
-let monthIndex = 2;           // juin 2026
+let cursor = { y: NOW.y, m: NOW.m }; // mois affiché, navigation libre
 let activeTab = "home";
 let moreView = null;          // null | taxes | networth | insurance | recurring | importcsv | settings
 let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si activé
@@ -1031,11 +1089,11 @@ const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", 
 
 /* ---------- Rendus ---------- */
 function monthNav() {
-  const { label } = MONTHS[monthIndex];
+  const isCurrent = cursor.y === NOW.y && cursor.m === NOW.m;
   return `<div class="month-nav">
-    <button id="prevM" ${monthIndex === 0 ? "disabled" : ""} aria-label="Mois précédent">‹</button>
-    <span class="label">${label}</span>
-    <button id="nextM" ${monthIndex === MONTHS.length - 1 ? "disabled" : ""} aria-label="Mois suivant">›</button>
+    <button id="prevM" aria-label="Mois précédent">‹</button>
+    <span class="label">${monthLabel(cursor)}${isCurrent ? "" : ' <button id="backToNow" style="background:none;border:none;color:var(--electric);font-size:11px;cursor:pointer;font-family:inherit">aujourd\'hui</button>'}</span>
+    <button id="nextM" aria-label="Mois suivant">›</button>
   </div>`;
 }
 
@@ -1053,12 +1111,12 @@ function txRow(t) {
       <div class="t">${esc(t.title)}${plannedBadge}</div>
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${destName}</div>
     </div>
-    <span class="amount ${cls}">${sign}${chf(t.amount)}</span>
+    <span class="amount ${cls}">${sign}${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
 }
 
 function renderHome() {
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const s = snapshot(y, m);
   const report = budgetReport(y, m);
   const recent = transactions.filter(t => inMonth(t, y, m))
@@ -1136,7 +1194,7 @@ function renderHome() {
 }
 
 function renderBudget() {
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const report = budgetReport(y, m);
   // Les lignes d'épargne/impôts ne gonflent pas le « reste à dépenser »
   // (règle Phase 5 : le planifié de dépense seul compte ici).
@@ -1172,15 +1230,15 @@ function renderBudget() {
       <span class="amount">${chf(v)}</span></div>`).join("");
 
   const hasLines = report.lines.length > 0;
-  const prevMonth = monthIndex > 0 ? MONTHS[monthIndex - 1] : null;
-  const prevHasLines = prevMonth ? budgetLines(prevMonth.y, prevMonth.m).length > 0 : false;
+  const prevMonth = shiftMonth(cursor, -1);
+  const prevHasLines = budgetLines(prevMonth.y, prevMonth.m).length > 0;
   if (!hasLines) {
     return `<h2 class="screen-title">Budget</h2>
       ${monthNav()}
       <div class="card">
-        <p class="card-label">Aucun budget pour ${MONTHS[monthIndex].label}</p>
+        <p class="card-label">Aucun budget pour ${monthLabel(cursor)}</p>
         <p style="font-size:13.5px;color:var(--coolgray);margin:6px 0 12px">Fixez un montant planifié par catégorie : le réel viendra s'y comparer, sans jamais s'y mélanger.</p>
-        ${prevHasLines ? `<button class="btn" data-copybudget style="margin-bottom:8px">Copier le budget de ${prevMonth.label}</button>` : ""}
+        ${prevHasLines ? `<button class="btn" data-copybudget style="margin-bottom:8px">Copier le budget de ${monthLabel(prevMonth)}</button>` : ""}
         <button class="btn secondary" data-addline>＋ Ajouter une ligne budgétaire</button>
       </div>`;
   }
@@ -1194,21 +1252,24 @@ function renderBudget() {
     ${groups.map(lineHTML).join("")}
     <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>
     ${outHTML}
-    <p class="section-title">Année 2026</p>
+    <p class="section-title">Année ${cursor.y}</p>
     <div class="card">
       <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;text-align:center">
         ${["jan","fév","mar","avr","mai","juin","juil","août","sep","oct","nov","déc"].map((lbl, i) => {
-          const monthEntry = MONTHS.find(mm => mm.m === i + 1 && mm.y === 2026);
+          const cellMonth = i + 1;
+          const hasBudget = budgetLines(cursor.y, cellMonth).length > 0;
+          const hasTx = transactions.some(t => t.y === cursor.y && t.m === cellMonth);
           let consumed = null;
-          if (monthEntry) {
-            const cellSpending = budgetReport(monthEntry.y, monthEntry.m).lines.filter(l => l.kind === "expense");
+          if (hasBudget) {
+            const cellSpending = budgetReport(cursor.y, cellMonth).lines.filter(l => l.kind === "expense");
             const cellPlanned = cellSpending.reduce((a, l) => a + l.planned, 0);
             consumed = cellPlanned > 0
               ? Math.round(cellSpending.reduce((a, l) => a + l.actual, 0) / cellPlanned * 100) : 0;
           }
-          return `<div style="padding:8px 2px;border-radius:10px;background:${monthEntry ? "rgba(75,92,255,0.16)" : "rgba(255,255,255,0.04)"}">
+          const active = hasBudget || hasTx;
+          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "rgba(75,92,255,0.16)" : "rgba(255,255,255,0.04)"}">
             <div style="font-size:10px;color:var(--coolgray);text-transform:uppercase">${lbl}</div>
-            <div style="font-size:12px;font-weight:700;margin-top:2px">${monthEntry ? consumed + " %" : "—"}</div>
+            <div style="font-size:12px;font-weight:700;margin-top:2px">${hasBudget ? consumed + " %" : (hasTx ? "·" : "—")}</div>
           </div>`;
         }).join("")}
       </div>
@@ -1217,7 +1278,8 @@ function renderBudget() {
 }
 
 function renderAccounts() {
-  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + balance(acc.id), 0);
+  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== "CHF");
   const groups = [
     ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
     ["Épargne et placements", ACCOUNTS.filter(a => a.kind === "savings")],
@@ -1227,7 +1289,7 @@ function renderAccounts() {
     <div class="card hero">
       <p class="card-label">Liquidités disponibles</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Somme des comptes marqués « compte dans le cash disponible »</span>
+      <span class="caption">Somme des comptes marqués « compte dans le cash disponible »${hasForeign ? " — comptes étrangers convertis en CHF (taux manuels)" : ""}</span>
     </div>
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
@@ -1237,21 +1299,19 @@ function renderAccounts() {
         return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kind.label)}${a.cash ? "" : " · hors cash disponible"}</div></div>
-        <span class="amount acct-total">${chf(balance(a.id))}</span>
+          <div class="s">${esc(a.inst || kind.label)}${a.currency && a.currency !== "CHF" ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div></div>
+        <span class="amount acct-total">${money(balance(a.id), a.currency || "CHF")}</span>
       </div>`;
       }).join("")}`).join("")}
     <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
 }
 
 function goalCurrent(g) {
-  return g.linked ? balance(g.linked) : (g.manualCurrent || 0);
+  return g.linked ? toCHF(balance(g.linked), accountCurrency(g.linked)) : (g.manualCurrent || 0);
 }
 function goalMonthsLeft(g) {
   return Math.max(0, (g.dueY - NOW.y) * 12 + (g.dueM - NOW.m));
 }
-const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-
 function renderGoals() {
   const active = GOALS.filter(g => !g.achieved);
   const achieved = GOALS.filter(g => g.achieved);
@@ -1305,19 +1365,19 @@ function backBar(title) {
    Tout est DÉRIVÉ des mouvements réels — aucune constante magique. */
 function renderTaxes() {
   // Revenu mensuel moyen observé (mouvements + salaire prévu), annualisé.
-  const monthlyIncomes = MONTHS.map(({ y, m }) =>
-    transactions.filter(t => inMonth(t, y, m) && t.type === "income")
-      .reduce((a, t) => a + t.amount, 0));
+  const monthlyIncomes = Array.from({ length: 12 }, (_, i) =>
+    transactions.filter(t => inMonth(t, cursor.y, i + 1) && t.type === "income")
+      .reduce((a, t) => a + txCHF(t), 0));
   const observed = monthlyIncomes.filter(v => v > 0);
   const monthlyAverage = observed.length ? observed.reduce((a, b) => a + b, 0) / observed.length : 0;
   const estimated = Math.round(monthlyAverage * 12 * (S.taxRate ?? 0.30) * 100) / 100;
   const paid = transactions
     .filter(t => t.type === "taxPayment" && t.status === "posted")
-    .reduce((a, t) => a + t.amount, 0);
+    .reduce((a, t) => a + txCHF(t), 0);
   const due = Math.max(0, estimated - paid);
   const reserved = S.taxReserve ?? 2400;
   const reserveGap = Math.max(0, due - reserved);
-  return backBar("Impôts 2026") + `
+  return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
       <p class="card-label">Encore dû (arriérés compris)</p>
       <p class="hero-amount warn">${chf(due)}</p>
@@ -1334,10 +1394,10 @@ function renderTaxes() {
     </div>
     <p class="section-title">Échéances</p>
     <div class="card row tx"><div class="ico" aria-hidden="true">🗓</div>
-      <div class="meta"><div class="t">Acompte cantonal</div><div class="s">30.09.2026</div></div>
+      <div class="meta"><div class="t">Acompte cantonal</div><div class="s">30.09.${cursor.y}</div></div>
       <span class="amount">${chf(850)}</span></div>
     <div class="card row tx"><div class="ico" aria-hidden="true">🗓</div>
-      <div class="meta"><div class="t">Décompte final estimé</div><div class="s">31.03.2027</div></div>
+      <div class="meta"><div class="t">Décompte final estimé</div><div class="s">31.03.${cursor.y + 1}</div></div>
       <span class="amount">${chf(Math.max(0, due - 850))}</span></div>
     <button class="btn secondary" data-adjusttax style="margin-top:4px">Ajuster le taux et la réserve</button>
     <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal. Estimé = payé + encore dû, toujours. Taux actuel : ${pct(S.taxRate ?? 0.30)}.</p>`;
@@ -1358,16 +1418,18 @@ function balanceAt(accId, y, m) {
 }
 
 function renderNetWorth() {
-  const accountsTotal = ACCOUNTS.reduce((a, acc) => a + balance(acc.id), 0);
+  const accountsTotal = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
   const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
   // Courbe DÉRIVÉE des soldes réels de fin de mois (actifs/prévoyance/
   // dettes sans historique de valorisation : constants).
-  const points = MONTHS.map(({ y, m }) =>
-    ACCOUNTS.reduce((a, acc) => a + balanceAt(acc.id, y, m), 0)
-    + assetsTotal + pensionTotal - liabTotal);
+  const points = [-5, -4, -3, -2, -1, 0].map(k => {
+    const mm = shiftMonth(NOW, k);
+    return ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
+      + assetsTotal + pensionTotal - liabTotal;
+  });
   const min = Math.min(...points) * 0.995, max = Math.max(...points) * 1.005;
   const px = points.map((v, i) => `${(i / (points.length - 1) * 300).toFixed(1)},${(90 - (v - min) / (max - min) * 80).toFixed(1)}`);
   return backBar("Patrimoine") + `
@@ -1522,8 +1584,9 @@ function analyzeCSV(textContent) {
     const evaluate = () => {
       const date = parseSwissDate(fields[columns.date] || "");
       if (!date) return { state: "invalid", reason: "date illisible" };
-      const inRange = MONTHS.some(mm => mm.y === date.y && mm.m === date.m);
-      if (!inRange) return { state: "invalid", reason: "hors période (démo : avril-juin 2026)" };
+      if (date.y < 2000 || date.y > 2100 || date.m < 1 || date.m > 12 || date.d < 1 || date.d > 31) {
+        return { state: "invalid", reason: "date hors limites" };
+      }
       const amountRaw = (fields[columns.amount] || "").trim();
       const negative = /^-/.test(amountRaw) || /^\(.*\)$/.test(amountRaw);
       const amount = parseAmountField(amountRaw.replace(/^[-(]|[)]$/g, ""));
@@ -1673,8 +1736,28 @@ const METHODOLOGY = [
   "Provision d'impôts = revenus × votre taux configuré. Estimé = payé + encore dû, toujours.",
   "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas comptabilisé.",
 ];
+function salaryRecurring() {
+  return RECURRINGS.find(r => r.id === "r-salaire")
+    || RECURRINGS.find(r => r.type === "income" && fold(r.title).includes("salaire"));
+}
+
 function renderSettings() {
+  const salary = salaryRecurring();
+  const fx = S.fxRates || {};
   return backBar("Réglages") + `
+    <p class="section-title">Mon ménage</p>
+    <div class="card row tx" data-editsalary role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">💰</div>
+      <div class="meta"><div class="t">Mon salaire</div>
+        <div class="s">${salary ? `Chaque mois le ${salary.day}` : "Pas encore défini — tapez pour le configurer"}</div></div>
+      <span class="amount pos">${salary ? "+" + chf(salary.amount) : "—"}</span>
+    </div>
+    <div class="card row tx" data-editfx role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">💱</div>
+      <div class="meta"><div class="t">Taux de change manuels</div>
+        <div class="s">1 € = ${(fx.EUR || 0.93).toFixed(2)} CHF · 1 $ = ${(fx.USD || 0.80).toFixed(2)} CHF — aucune connexion réseau</div></div>
+      <span style="color:var(--coolgray)">›</span>
+    </div>
     <p class="section-title">Sécurité</p>
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:14px;font-weight:600">Verrouillage par code</div>
@@ -1718,7 +1801,7 @@ function renderMore() {
       <span style="color:var(--coolgray)">›</span>
     </div>`).join("")}
     ${monthNav()}
-    <p class="section-title">Mouvements — ${MONTHS[monthIndex].label}</p>
+    <p class="section-title">Mouvements — ${monthLabel(cursor)}</p>
     <input id="moreSearchInput" type="search" placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
       aria-label="Rechercher un mouvement" autocomplete="off"
       style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.12);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
@@ -1731,7 +1814,7 @@ function renderMore() {
 }
 
 function renderMoreTxList() {
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const FILTER_TYPES = {
     expense: ["expense", "taxPayment"], income: ["income", "refund"],
     saving: ["saving", "investment"], transfer: ["transfer"],
@@ -1771,8 +1854,10 @@ function render() {
   ).join("");
   const prev = document.getElementById("prevM");
   const next = document.getElementById("nextM");
-  if (prev) prev.onclick = () => { monthIndex--; render(); };
-  if (next) next.onclick = () => { monthIndex++; render(); };
+  if (prev) prev.onclick = () => { cursor = shiftMonth(cursor, -1); render(); };
+  if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); render(); };
+  const backToNow = document.getElementById("backToNow");
+  if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; render(); };
   document.getElementById("fab").style.display = locked ? "none" : "grid";
 }
 
@@ -1817,10 +1902,9 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (lineEl) { openLineSheet(lineEl.dataset.linecat); return; }
   if (e.target.closest("[data-addline]")) { openLineSheet(null); return; }
   if (e.target.closest("[data-copybudget]")) {
-    const previous = monthIndex > 0 ? MONTHS[monthIndex - 1] : null;
-    if (!previous) return;
+    const previous = shiftMonth(cursor, -1);
     const source = budgetLines(previous.y, previous.m);
-    const { y, m } = MONTHS[monthIndex];
+    const { y, m } = cursor;
     S.budgets[`${y}-${m}`] = source.map(l => ({ ...l }));
     saveState();
     toast("Budget copié — ajustez librement, le mois source reste intact");
@@ -1842,6 +1926,27 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (penEl) { const p = PENSIONS.find(x => x.id === penEl.dataset.penid); if (p) openPenSheet(p); return; }
   if (e.target.closest("[data-addpen]")) { openPenSheet(null); return; }
   if (e.target.closest("[data-adjusttax]")) { openTaxSheet(); return; }
+  if (e.target.closest("[data-editsalary]")) {
+    const salary = salaryRecurring();
+    document.getElementById("salaryForm").reset();
+    if (salary) {
+      document.getElementById("sAmount").value = salary.amount.toFixed(2);
+      document.getElementById("sDay").value = salary.day;
+    }
+    document.getElementById("sError").textContent = "";
+    openSheet("salaryForm");
+    document.getElementById("sAmount").focus();
+    return;
+  }
+  if (e.target.closest("[data-editfx]")) {
+    const fx = S.fxRates || {};
+    document.getElementById("fxForm").reset();
+    document.getElementById("fxEUR").value = (fx.EUR || 0.93).toFixed(2);
+    document.getElementById("fxUSD").value = (fx.USD || 0.80).toFixed(2);
+    document.getElementById("fxError").textContent = "";
+    openSheet("fxForm");
+    return;
+  }
   if (e.target.closest("[data-importpick]")) { document.getElementById("importFile").click(); return; }
   if (e.target.closest("[data-importpaste]")) {
     const paste = document.getElementById("importPaste");
@@ -1969,7 +2074,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -1998,9 +2103,17 @@ function refreshCatOptions() {
 }
 document.getElementById("fType").addEventListener("change", refreshCatOptions);
 
+function refreshAccountOptions(selectedId) {
+  const select = document.getElementById("fAccount");
+  select.innerHTML = ACCOUNTS.map(a =>
+    `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== "CHF" ? " (" + a.currency + ")" : ""}</option>`).join("");
+  if (selectedId && ACCOUNTS.some(a => a.id === selectedId)) select.value = selectedId;
+}
+
 function openTxSheet(tx) {
   editingTxId = tx ? tx.id : null;
   document.getElementById("txForm").reset();
+  refreshAccountOptions(tx ? tx.acc : (ACCOUNTS.some(a => a.id === "cur") ? "cur" : (ACCOUNTS[0] || {}).id));
   document.getElementById("sheetTitle").textContent = tx ? "Modifier le mouvement" : "Nouveau mouvement";
   document.getElementById("fDelete").style.display = tx ? "block" : "none";
   document.getElementById("fDuplicate").style.display = tx ? "block" : "none";
@@ -2015,10 +2128,9 @@ function openTxSheet(tx) {
       `${tx.y}-${String(tx.m).padStart(2, "0")}-${String(tx.d).padStart(2, "0")}`;
   } else {
     refreshCatOptions();
-    const { y, m } = MONTHS[monthIndex];
-    const isCurrent = (y === NOW.y && m === NOW.m);
+    const isCurrent = (cursor.y === NOW.y && cursor.m === NOW.m);
     document.getElementById("fDate").value =
-      `${y}-${String(m).padStart(2, "0")}-${String(isCurrent ? NOW.d : 28).padStart(2, "0")}`;
+      `${cursor.y}-${String(cursor.m).padStart(2, "0")}-${String(isCurrent ? NOW.d : 28).padStart(2, "0")}`;
   }
   document.getElementById("fError").textContent = "";
   openSheet("txForm");
@@ -2057,20 +2169,21 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("fDate").value);
   if (!dateMatch) { err.textContent = "Choisissez une date."; return; }
   const y = Number(dateMatch[1]), m = Number(dateMatch[2]), d = Number(dateMatch[3]);
-  const targetMonthIndex = MONTHS.findIndex(mm => mm.y === y && mm.m === m);
-  if (targetMonthIndex < 0) {
-    err.textContent = "La démo couvre avril à juin 2026 — choisissez une date dans cette période.";
-    return;
-  }
+  if (y < 2000 || y > 2100) { err.textContent = "Année entre 2000 et 2100."; return; }
 
   const type = document.getElementById("fType").value;
+  const sourceId = document.getElementById("fAccount").value;
+  if (!ACCOUNTS.some(a => a.id === sourceId)) { err.textContent = "Choisissez un compte."; return; }
+  const sourceCurrency = accountCurrency(sourceId);
   let dest = null;
   if (DEST_BY_TYPE[type]) {
     const wantedKind = { saving: "savings", investment: "pension", transfer: "cash" }[type];
-    const target = ACCOUNTS.find(a => a.id === DEST_BY_TYPE[type])
-      || ACCOUNTS.find(a => a.kind === wantedKind);
+    const target = ACCOUNTS.find(a => a.id === DEST_BY_TYPE[type] && accountCurrency(a.id) === sourceCurrency)
+      || ACCOUNTS.find(a => a.kind === wantedKind && accountCurrency(a.id) === sourceCurrency);
     if (!target) {
-      err.textContent = "Créez d'abord un compte de destination (Comptes → ＋) pour ce type de mouvement.";
+      err.textContent = sourceCurrency === "CHF"
+        ? "Créez d'abord un compte de destination (Comptes → ＋) pour ce type de mouvement."
+        : `Ce type de mouvement exige un compte de destination en ${sourceCurrency} — les virements entre devises viendront plus tard.`;
       return;
     }
     dest = target.id;
@@ -2081,19 +2194,19 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   if (existing) {
     Object.assign(existing, {
       title, amount: Math.round(amount * 100) / 100,
-      y, m, d, status, type, cat, dest, acc: existing.acc || "cur",
+      y, m, d, status, type, cat, dest, acc: sourceId,
     });
     toast("Mouvement modifié");
   } else {
     transactions.push({
       id: ++txSeq, y, m, d,
       title, amount: Math.round(amount * 100) / 100,
-      type, cat, acc: "cur", dest, status,
+      type, cat, acc: sourceId, dest, status,
     });
     toast(status === "planned" ? "Mouvement planifié" : "Mouvement ajouté");
   }
   saveState();
-  monthIndex = targetMonthIndex;
+  cursor = { y, m };
   backdrop.classList.remove("open");
   render();
 });
@@ -2124,7 +2237,7 @@ function exportCSV() {
     const dest = t.dest ? ACCOUNTS.find(a => a.id === t.dest) : null;
     lines.push([
       `${t.y}-${String(t.m).padStart(2, "0")}-${String(t.d).padStart(2, "0")}`,
-      t.type, t.status, t.amount.toFixed(2), "CHF",
+      t.type, t.status, t.amount.toFixed(2), accountCurrency(t.acc),
       csvEscape(account ? account.name : ""), csvEscape(dest ? dest.name : ""),
       csvEscape(t.cat || ""), csvEscape(t.title),
     ].join(";"));
@@ -2195,6 +2308,7 @@ function openAccSheet(account) {
     document.getElementById("aName").value = account.name;
     document.getElementById("aInst").value = account.inst || "";
     document.getElementById("aKind").value = account.kind;
+    document.getElementById("aCurrency").value = account.currency || "CHF";
     document.getElementById("aOpening").value = account.opening.toFixed(2);
     document.getElementById("aCash").checked = !!account.cash;
   } else {
@@ -2216,13 +2330,14 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const kind = document.getElementById("aKind").value;
   const cash = document.getElementById("aCash").checked;
   const inst = document.getElementById("aInst").value.trim();
+  const currency = document.getElementById("aCurrency").value;
   const existing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
   if (existing) {
-    Object.assign(existing, { name, inst, kind, opening, cash });
+    Object.assign(existing, { name, inst, kind, opening, cash, currency });
     toast("Compte modifié");
   } else {
     const id = "acc-" + Date.now().toString(36);
-    ACCOUNTS.push({ id, name, inst, kind, opening, cash });
+    ACCOUNTS.push({ id, name, inst, kind, opening, cash, currency });
     toast("Compte ajouté");
   }
   saveState();
@@ -2255,7 +2370,7 @@ document.getElementById("aDelete").addEventListener("click", () => {
 let editingLineCat = null;
 function openLineSheet(cat) {
   editingLineCat = cat || null;
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const lines = budgetLines(y, m);
   document.getElementById("lineForm").reset();
   document.getElementById("lineSheetTitle").textContent = cat ? "Modifier la ligne" : "Nouvelle ligne budgétaire";
@@ -2286,7 +2401,7 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
   const err = document.getElementById("lError");
   const amount = parseAmountField(document.getElementById("lAmount").value);
   if (!(amount > 0)) { err.textContent = "Montant planifié invalide. Exemple : 250.00"; return; }
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const key = `${y}-${m}`;
   if (!S.budgets[key]) S.budgets[key] = [];
   const cat = editingLineCat || document.getElementById("lCat").value;
@@ -2301,7 +2416,7 @@ document.getElementById("lDelete").addEventListener("click", () => {
   if (!editingLineCat) return;
   if (!confirm(`Retirer « ${editingLineCat} » du budget de ce mois ? (les mouvements restent)`)) return;
   pushUndo();
-  const { y, m } = MONTHS[monthIndex];
+  const { y, m } = cursor;
   const lines = S.budgets[`${y}-${m}`] || [];
   const index = lines.findIndex(l => l.cat === editingLineCat);
   if (index >= 0) lines.splice(index, 1);
@@ -2819,6 +2934,42 @@ document.getElementById("fDuplicate").addEventListener("click", () => {
   document.getElementById("fDate").value =
     `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
   toast("Copie prête — ajustez puis enregistrez");
+});
+
+
+/* ---------- Mon salaire (W6) ---------- */
+document.getElementById("sCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("salaryForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("sError");
+  const amount = parseAmountField(document.getElementById("sAmount").value);
+  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 8450.00"; return; }
+  const day = Number(document.getElementById("sDay").value);
+  if (!Number.isInteger(day) || day < 1 || day > 28) { err.textContent = "Jour entre 1 et 28."; return; }
+  const existing = salaryRecurring();
+  if (existing) Object.assign(existing, { amount, day });
+  else RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount, type: "income", cat: "Salaire", day, icon: "💰" });
+  saveState();
+  backdrop.classList.remove("open");
+  toast(`Salaire enregistré : ${chf(amount)} le ${day} de chaque mois`);
+  render();
+});
+
+/* ---------- Taux de change manuels (W6) ---------- */
+document.getElementById("fxCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("fxForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("fxError");
+  const eur = parseAmountField(document.getElementById("fxEUR").value);
+  const usd = parseAmountField(document.getElementById("fxUSD").value);
+  if (!(eur > 0.05 && eur < 20) || !(usd > 0.05 && usd < 20)) {
+    err.textContent = "Taux entre 0.05 et 20. Exemple : 0.93"; return;
+  }
+  S.fxRates = { EUR: eur, USD: usd };
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Taux de change mis à jour");
+  render();
 });
 
 render();

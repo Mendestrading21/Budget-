@@ -103,3 +103,28 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
 - **Recherche + filtres** dans Mouvements : insensible aux accents,
   puces Dépenses/Revenus/Épargne/Virements, compteur et net du mois,
   liste rafraîchie sans perdre le focus de saisie.
+
+## W6 — Vraie plateforme (demande utilisateur post-W5)
+
+- **Temps réel** : NOW est la vraie date du jour ; la démo s'ancre sur
+  le mois courant (3 mois d'historique générés relativement) ; plus
+  aucune date codée en dur.
+- **Navigation libre** : le curseur de mois va où l'on veut (passé et
+  futur sans bornes) avec un raccourci « aujourd'hui » ; la grille
+  annuelle suit l'année affichée (cellule active si budget ou
+  mouvements) ; la courbe de patrimoine couvre les 6 derniers mois
+  réels ; l'écran Impôts moyenne les revenus de l'année affichée ;
+  dates libres dans tous les formulaires et l'import CSV.
+- **Multi-devises** : chaque compte a sa devise (CHF/EUR/USD), soldes
+  et mouvements affichés dans la devise du compte (€ 1'234.50),
+  totaux ménage convertis en CHF via des TAUX MANUELS éditables dans
+  Réglages (aucune connexion réseau, mention explicite) ; destinations
+  d'épargne/investissement exigées dans la même devise (message clair).
+- **Choix du compte par mouvement** : sélecteur de compte dans la
+  feuille mouvement (le mouvement porte la devise de son compte).
+- **Mon salaire** : carte dédiée en tête des Réglages (montant + jour),
+  branchée sur le récurrent Salaire (créé s'il manque) — prévisions et
+  « Vraiment disponible » suivent immédiatement.
+- Migrations : comptes sans devise → CHF, fxRates par défaut, budgets
+  re-seedés sur les mois relatifs si absents, anciens mouvements 2026
+  conservés et accessibles par la navigation.
