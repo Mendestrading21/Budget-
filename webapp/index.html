@@ -2252,7 +2252,29 @@ function refreshCatOptions() {
     .filter(([, k]) => kinds.includes(k))
     .map(([c]) => `<option>${esc(c)}</option>`).join("");
 }
-document.getElementById("fType").addEventListener("change", refreshCatOptions);
+const PREFERRED_DEST_KIND = { saving: "savings", investment: "brokerage", transfer: "cash" };
+function refreshDestOptions(preselect) {
+  const type = document.getElementById("fType").value;
+  const wrap = document.getElementById("destWrap");
+  if (!["saving", "investment", "transfer"].includes(type)) {
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "";
+  const sourceId = document.getElementById("fAccount").value;
+  const sourceCurrency = accountCurrency(sourceId);
+  const preferred = PREFERRED_DEST_KIND[type];
+  const candidates = ACCOUNTS
+    .filter(a => a.id !== sourceId && accountCurrency(a.id) === sourceCurrency)
+    .sort((a, b) => (b.kind === preferred ? 1 : 0) - (a.kind === preferred ? 1 : 0));
+  const select = document.getElementById("fDest");
+  select.innerHTML = candidates.length
+    ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${(ACCOUNT_KINDS[a.kind] || {}).label || a.kind}${a.currency && a.currency !== "CHF" ? ", " + a.currency : ""})</option>`).join("")
+    : `<option value="">— aucun compte en ${sourceCurrency} disponible —</option>`;
+  if (preselect && candidates.some(a => a.id === preselect)) select.value = preselect;
+}
+document.getElementById("fType").addEventListener("change", () => { refreshCatOptions(); refreshDestOptions(); });
+document.getElementById("fAccount").addEventListener("change", () => refreshDestOptions());
 
 function refreshAccountOptions(selectedId) {
   const select = document.getElementById("fAccount");
@@ -2261,7 +2283,7 @@ function refreshAccountOptions(selectedId) {
   if (selectedId && ACCOUNTS.some(a => a.id === selectedId)) select.value = selectedId;
 }
 
-function openTxSheet(tx) {
+function openTxSheet(tx, presetType) {
   editingTxId = tx ? tx.id : null;
   document.getElementById("txForm").reset();
   refreshAccountOptions(tx ? tx.acc : (ACCOUNTS.some(a => a.id === "cur") ? "cur" : (ACCOUNTS[0] || {}).id));
