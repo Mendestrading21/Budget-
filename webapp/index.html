@@ -37,12 +37,16 @@
   /* Le prototype assume l'identité canonique sombre de l'app,
      quel que soit le thème du viewer. */
   html, body { background: #07090e; overscroll-behavior: none; }
+  html { height: 100%; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
     color: var(--offwhite);
     margin: 0;
-    height: 100dvh;
+    /* PWA iOS : 100dvh sous-estime l'écran en mode standalone —
+       position:fixed inset:0 épouse le viewport visuel réel. */
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -85,6 +89,8 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    padding-top: env(safe-area-inset-top);
+    box-sizing: border-box;
   }
   @media (min-width: 561px) {
     .phone {
@@ -107,7 +113,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: calc(8px + env(safe-area-inset-top)) 18px 0;
+    margin: 8px 18px 0;
     padding: 7px 12px;
     border-radius: 10px;
     background: rgba(75, 92, 255, 0.22);
