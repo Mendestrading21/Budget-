@@ -39,6 +39,8 @@ let tabbarHidden = await page.$eval("#tabbar", el => el.style.display === "none"
 check(tabbarHidden, "la barre d'onglets doit être cachée pendant la bienvenue");
 await page.fill("#obName", "Elio");
 await page.click('#obForm1 button[type="submit"]');
+await page.waitForSelector('[data-obcur="CHF"]', { state: "visible" });
+await page.click('[data-obcur="CHF"]');
 await page.waitForSelector("#obSalary", { state: "visible" });
 await page.fill("#obSalary", "5500");
 await page.click('#obForm2 button[type="submit"]');
@@ -227,6 +229,23 @@ check(wiped === null, "réinitialisation complète : le stockage doit être vid�
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Commencer"), "l'écran de bienvenue doit réapparaître après la réinitialisation");
 
+// ---------- Test 13 : devise de référence EUR de bout en bout ----------
+currentTest = "devise de référence";
+await page.fill("#obName", "Eva");
+await page.click('#obForm1 button[type="submit"]');
+await page.waitForSelector('[data-obcur="EUR"]', { state: "visible" });
+await page.click('[data-obcur="EUR"]');
+await page.waitForSelector("[data-obskip]", { state: "visible" });
+await page.click("[data-obskip]");
+await page.waitForSelector("#obOpening", { state: "visible" });
+await page.fill("#obOpening", "1000");
+await page.click('#obForm3 button[type="submit"]');
+await page.waitForSelector("#tabbar button");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Bonjour Eva"), "prénom absent après un départ en euros");
+check(screenHTML.includes("€ 1'000.00"), "le solde de départ doit s'afficher en euros");
+check(!screenHTML.includes("CHF "), "plus aucun total en CHF quand la référence est l'euro");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -236,4 +255,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 13 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 14 tests verts, zéro erreur console ✓");
