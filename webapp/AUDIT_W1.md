@@ -180,3 +180,29 @@ parcours, zéro erreur console tolérée — job CI `web-tests`).
   disponible », salaire 1-geste, factures payables, dépenses vs envois,
   budget vs réel, portefeuille global) ; onglet « Mouvements » dédié
   (recherche + filtres) ; vocabulaire simplifié (« Mis de côté »).
+
+## Rituel mensuel & cumuls Finary (2026-07-20, demande utilisateur)
+
+Vision produit confirmée : un SUIVI mensuel (façon Notion), pas une app
+de dépenses — et un patrimoine où chaque versement s'additionne (façon
+Finary).
+
+- **« Check du mois »** (Accueil) : carte de progression listant tout
+  ce que le mois attend — salaire, récurrents (3a, assurance vie,
+  abonnements), factures — chacun validable d'un geste (✓ Reçu,
+  ✓ Fait, Payer). Tout validé → « ✓ Mois bouclé le … », enregistré
+  (S.monthChecks). Fonctionne sur les mois passés (rattrapage).
+- **Cumuls de versements** : contributions(compte) additionne tout ce
+  qui a été versé (total, année, retraits). Affiché sur l'onglet
+  Comptes (épargne/bourse/prévoyance) et dans le portefeuille global ;
+  comptes titres : performance = solde − ouverture − versements nets
+  (solde tenu à jour via « Réconcilier le solde »).
+- **Évolution 12 mois par classe** (Patrimoine) : fortune nette +
+  liquidités, épargne, bourse, prévoyance — soldes réels de fin de
+  mois, légende avec montants actuels.
+- **Bug corrigé** : cinq saisies en un geste créditaient le compte démo
+  « cur » codé en dur (inexistant après l'écran de bienvenue) → compte
+  de caisse par défaut.
+- Hors périmètre (valeurs manuelles) : positions LPP et assurances ne
+  cumulent pas de versements automatiques — leurs primes/valeurs
+  restent saisies à la main.

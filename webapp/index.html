@@ -1755,16 +1755,27 @@ function renderNetWorth() {
   const pensionTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
   const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
-  // Courbe DÉRIVÉE des soldes réels de fin de mois (actifs/prévoyance/
-  // dettes sans historique de valorisation : constants).
-  const points = [-5, -4, -3, -2, -1, 0].map(k => {
-    const mm = shiftMonth(NOW, k);
-    return ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
-      + assetsTotal + pensionTotal - liabTotal;
-  });
-  const min = Math.min(...points) * 0.995, max = Math.max(...points) * 1.005;
+  // Courbes DÉRIVÉES des soldes réels de fin de mois, sur 12 mois, par
+  // classe (actifs/prévoyance manuelle/dettes sans historique : constants).
+  const MONTHS12 = Array.from({ length: 12 }, (_, i) => shiftMonth(NOW, i - 11));
+  const classSeries = kinds => MONTHS12.map(mm =>
+    ACCOUNTS.filter(a => kinds.includes(a.kind))
+      .reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0));
+  const points = MONTHS12.map(mm =>
+    ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
+      + assetsTotal + pensionTotal - liabTotal);
+  const CLASS_LINES = [
+    { label: "Liquidités", color: "#FFB24D", series: classSeries(["current", "cash"]) },
+    { label: "Épargne", color: "#39D98A", series: classSeries(["savings"]) },
+    { label: "Bourse", color: "#8B5CF6", series: classSeries(["brokerage"]) },
+    { label: "Prévoyance", color: "#FF667A", series: classSeries(["pension"]).map(v => v + pensionTotal) },
+  ].filter(l => l.series.some(v => Math.abs(v) >= 0.005));
+  const allValues = points.concat(...CLASS_LINES.map(l => l.series));
+  const min = Math.min(...allValues) * 0.995, max = Math.max(...allValues) * 1.005;
   const range = Math.max(max - min, 1); // série constante ou nulle : ligne plate, jamais NaN
-  const px = points.map((v, i) => `${(i / (points.length - 1) * 300).toFixed(1)},${(90 - (v - min) / range * 80).toFixed(1)}`);
+  const toPx = series => series.map((v, i) =>
+    `${(i / (series.length - 1) * 300).toFixed(1)},${(90 - (v - min) / range * 80).toFixed(1)}`).join(" ");
+  const px = toPx(points).split(" ");
   return backBar("Patrimoine") + `
     <div class="card hero">
       <p class="card-label">Fortune nette</p>
@@ -1777,15 +1788,20 @@ function renderNetWorth() {
       </div>
     </div>
     <div class="card">
-      <p class="card-label">Évolution — soldes réels de fin de mois</p>
+      <p class="card-label">Évolution sur 12 mois — soldes réels de fin de mois, par classe</p>
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
            aria-label="Courbe de la fortune nette, de ${chf(points[0])} à ${chf(net)}">
         <defs><linearGradient id="nw" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="rgba(75,92,255,0.35)"/><stop offset="1" stop-color="rgba(75,92,255,0)"/>
         </linearGradient></defs>
         <polygon points="0,100 ${px.join(" ")} 300,100" fill="url(#nw)"/>
+        ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>`).join("")}
         <polyline points="${px.join(" ")}" fill="none" stroke="#5AA7FF" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">
+        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:#5AA7FF;display:inline-block"></span>Fortune nette ${chf(net)}</span>
+        ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:${l.color};display:inline-block"></span>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
+      </div>
     </div>
     <p class="section-title">Actifs hors comptes</p>
     ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun actif hors comptes.</span></div>` : ""}
