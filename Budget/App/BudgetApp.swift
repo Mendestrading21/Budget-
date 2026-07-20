@@ -37,7 +37,14 @@ struct BudgetApp: App {
                 Color.clear
                     .task {
                         do {
-                            appContainer = try AppContainer()
+                            let container = try AppContainer()
+                            // Tour automatisé (workflow Demo) : démarre
+                            // directement en mode démo — store in-memory,
+                            // jamais les vraies données.
+                            if ProcessInfo.processInfo.arguments.contains("-demoTour") {
+                                container.isDemoMode = true
+                            }
+                            appContainer = container
                         } catch {
                             startupError = error
                         }

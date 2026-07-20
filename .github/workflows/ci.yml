@@ -43,6 +43,7 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath TestResults.xcresult \
+            -skip-testing:BudgetUITests \
             test
 
       # Vérification d'archive (Phase 14) : le build Release doit passer

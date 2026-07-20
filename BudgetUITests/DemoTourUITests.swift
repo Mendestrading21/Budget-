@@ -1,0 +1,79 @@
+import XCTest
+
+/// Automated tour of the demo-mode app for the "Demo" workflow: visits
+/// every tab plus the main "Plus" sub-screens and attaches a screenshot
+/// at each stop. The workflow exports the attachments as a downloadable
+/// artifact, so the app can be SEEN running without any Apple account.
+final class DemoTourUITests: XCTestCase {
+
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    @MainActor
+    func testDemoTourCapturesEveryMainScreen() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-demoTour"]
+        app.launch()
+
+        // Demo mode boots straight into the dashboard (a household exists).
+        XCTAssertTrue(
+            app.tabBars.buttons["Accueil"].waitForExistence(timeout: 30),
+            "Le dashboard doit apparaître en mode démo, sans onboarding"
+        )
+        snap(app, "01-accueil")
+
+        openTab(app, "Budget")
+        snap(app, "02-budget")
+
+        openTab(app, "Comptes")
+        snap(app, "03-comptes")
+
+        openTab(app, "Objectifs")
+        snap(app, "04-objectifs")
+
+        openTab(app, "Plus")
+        snap(app, "05-plus")
+
+        visitMoreEntry(app, label: "Impôts", shot: "06-impots")
+        visitMoreEntry(app, label: "Patrimoine", shot: "07-patrimoine")
+        visitMoreEntry(app, label: "Récurrents et abonnements", shot: "08-recurrents")
+        visitMoreEntry(app, label: "Réglages", shot: "09-reglages")
+    }
+
+    @MainActor
+    private func openTab(_ app: XCUIApplication, _ label: String) {
+        let tab = app.tabBars.buttons[label]
+        XCTAssertTrue(tab.waitForExistence(timeout: 10), "Onglet \(label) introuvable")
+        tab.tap()
+        // Let the screen settle before the screenshot.
+        _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
+    }
+
+    /// Opens one entry of the "Plus" list if present, captures it, and
+    /// returns to the list. Missing entries fail the test — the tour must
+    /// cover what the app claims to ship.
+    @MainActor
+    private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String) {
+        openTab(app, "Plus")
+        var entry = app.buttons[label].firstMatch
+        if !entry.waitForExistence(timeout: 5) {
+            entry = app.staticTexts[label].firstMatch
+        }
+        if !entry.exists || !entry.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Entrée « \(label) » introuvable dans Plus")
+        entry.tap()
+        _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
+        snap(app, shot)
+    }
+
+    @MainActor
+    private func snap(_ app: XCUIApplication, _ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}

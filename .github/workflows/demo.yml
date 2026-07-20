@@ -1,0 +1,111 @@
+name: Demo
+
+# Fait tourner la VRAIE app native dans le simulateur iPhone et livre
+# un artefact téléchargeable : captures d'écran de chaque écran, vidéo
+# du tour complet, et archive .ipa non signée. Aucun secret requis —
+# utilisable pendant le développement, sans compte Apple.
+#
+# GitHub → Actions → Demo → Run workflow, puis ouvrir le run terminé et
+# télécharger l'artefact « budget-demo » (lisible depuis l'app Fichiers
+# de l'iPhone).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  demo:
+    name: Tour simulateur (captures + vidéo + ipa)
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing
+
+      - name: Démarrer le simulateur + enregistrement vidéo
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devices in data['devices'].items():
+              for d in devices:
+                  if d['name'] == 'iPhone 16':
+                      print(d['udid']); sys.exit()
+          ")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID"
+          mkdir -p demo-output
+          (xcrun simctl io "$UDID" recordVideo --codec h264 demo-output/tour-complet.mp4 & echo $! > video.pid)
+
+      - name: Tour de l'app (tests UI)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath DemoResults.xcresult \
+            -only-testing:BudgetUITests \
+            test-without-building
+
+      - name: Arrêter la vidéo
+        if: always()
+        run: |
+          if [ -f video.pid ]; then
+            kill -INT "$(cat video.pid)" || true
+            sleep 5
+          fi
+          ls -la demo-output || true
+
+      - name: Exporter les captures d'écran
+        if: always()
+        run: |
+          if [ -d DemoResults.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path DemoResults.xcresult \
+              --output-path demo-output/captures || true
+            ls -R demo-output/captures || true
+          fi
+
+      - name: Archive .ipa non signée (pour plus tard)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Budget.xcodeproj \
+            -scheme Budget \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Budget.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+          mkdir -p Payload
+          cp -R build/Budget.xcarchive/Products/Applications/Budget.app Payload/
+          zip -qry demo-output/Budget-non-signee.ipa Payload
+          echo "ipa: $(du -h demo-output/Budget-non-signee.ipa | cut -f1)"
+
+      - name: Publier l'artefact budget-demo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: budget-demo
+          path: demo-output
+          if-no-files-found: error
+
+      - name: Résultats de test en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DemoResults
+          path: DemoResults.xcresult
+          if-no-files-found: ignore

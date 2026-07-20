@@ -39,6 +39,16 @@
                ReferencedContainer = "container:Budget.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "BD6E7000000000000000001C"
+               BuildableName = "BudgetUITests.xctest"
+               BlueprintName = "BudgetUITests"
+               ReferencedContainer = "container:Budget.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
