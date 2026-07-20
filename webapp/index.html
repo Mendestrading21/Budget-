@@ -29,7 +29,7 @@
 
   /* Le prototype assume l'identité canonique sombre de l'app,
      quel que soit le thème du viewer. */
-  html, body { background: #07090e; }
+  html, body { background: #07090e; overscroll-behavior: none; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
@@ -386,6 +386,19 @@
     border-radius: 11px;
   }
   .sheet input:focus, .sheet select:focus { outline: 2px solid var(--indigo); }
+  .ob-form label { display: block; font-size: 11px; font-weight: 600; color: var(--coolgray); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .ob-form input, .ob-form select {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(11, 14, 20, 0.8);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--offwhite);
+    font-family: inherit;
+    font-size: 16px;
+    padding: 12px;
+    border-radius: 11px;
+  }
+  .ob-form input:focus, .ob-form select:focus { outline: 2px solid var(--indigo); }
   .sheet .error { color: var(--negative); font-size: 12px; margin-top: 8px; min-height: 15px; }
   .sheet .actions { display: flex; gap: 10px; margin-top: 16px; }
 
@@ -716,6 +729,17 @@
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
     </div>
 
+    <form class="sheet" id="nameForm" style="display:none">
+      <h3>Mon prénom</h3>
+      <p class="caption" style="margin:0 0 6px">Affiché sur l'écran d'accueil — rien d'autre, et il reste sur cet appareil.</p>
+      <label for="nName">Prénom</label>
+      <input id="nName" autocomplete="given-name" />
+      <div class="actions">
+        <button type="button" class="btn secondary" id="nCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
+
     <form class="sheet" id="salaryForm" style="display:none">
       <h3>Mon salaire</h3>
       <p class="caption" style="margin:0 0 6px">Le salaire est un revenu récurrent : il nourrit les prévisions du mois et le « Vraiment disponible », sans jamais compter double une fois reçu.</p>
@@ -896,6 +920,9 @@ function seedState() {
   const previous = shiftMonth(NOW, -1);
   return {
     version: 1,
+    profile: { name: "Alex" },
+    onboarded: true,
+    isDemo: true,
     faceIDEnabled: false,
     lockCode: null,
     taxRate: 0.30,
@@ -925,6 +952,27 @@ function seedState() {
   };
 }
 
+/* État vierge : première ouverture (ou réinitialisation complète).
+   L'app affiche alors l'écran de bienvenue — comme une app fraîchement
+   téléchargée — et ne charge la démo QUE si l'utilisateur la demande. */
+function emptyState() {
+  return {
+    version: 1,
+    profile: { name: null },
+    onboarded: false,
+    isDemo: false,
+    faceIDEnabled: false,
+    lockCode: null,
+    taxRate: 0.30,
+    taxReserve: 0,
+    lastImport: null,
+    fxRates: { EUR: 0.93, USD: 0.80 },
+    bills: [], documents: [], budgets: {},
+    transactions: [], accounts: [], recurrings: [], goals: [],
+    assets: [], liabilities: [], pensions: [], insurances: [],
+  };
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(APP_STATE_KEY);
@@ -947,6 +995,10 @@ function loadState() {
       if (!account.currency) account.currency = "CHF";
     }
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { EUR: 0.93, USD: 0.80 };
+    // États d'avant l'écran de bienvenue : profil démo, déjà « onboardés ».
+    if (!s.profile || typeof s.profile !== "object") s.profile = { name: "Alex" };
+    if (typeof s.onboarded !== "boolean") s.onboarded = true;
+    if (typeof s.isDemo !== "boolean") s.isDemo = true;
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
       target: g.target || 0, manualCurrent: g.current || 0, linked: null,
@@ -967,12 +1019,18 @@ function loadState() {
 
 let S = loadState();
 if (!S) {
-  S = seedState();
-  // Reprendre les mouvements ajoutés avec l'ancienne version de la page.
-  try {
-    for (const t of JSON.parse(localStorage.getItem(LEGACY_TX_KEY) || "[]")) S.transactions.push(t);
-    localStorage.removeItem(LEGACY_TX_KEY);
-  } catch (e) { /* stockage indisponible : l'app reste utilisable */ }
+  let legacyTx = [];
+  try { legacyTx = JSON.parse(localStorage.getItem(LEGACY_TX_KEY) || "[]"); } catch (e) {}
+  if (legacyTx.length) {
+    // Ancien utilisateur de la toute première version : on reprend la
+    // démo enrichie de ses mouvements, sans écran de bienvenue.
+    S = seedState();
+    for (const t of legacyTx) S.transactions.push(t);
+    try { localStorage.removeItem(LEGACY_TX_KEY); } catch (e) {}
+  } else {
+    // Première ouverture : app vierge + écran de bienvenue.
+    S = emptyState();
+  }
 }
 txSeq = S.transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
 
@@ -1234,7 +1292,7 @@ function renderHome() {
     </div>`;
   }).join("");
 
-  return `<h2 class="screen-title">Bonjour Alex 👋</h2>
+  return `<h2 class="screen-title">${S.profile.name ? "Bonjour " + esc(S.profile.name) + " 👋" : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
     <div class="stat-grid">
@@ -1896,6 +1954,12 @@ function renderSettings() {
   const fx = S.fxRates || {};
   return backBar("Réglages") + `
     <p class="section-title">Mon ménage</p>
+    <div class="card row tx" data-editname role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">👋</div>
+      <div class="meta"><div class="t">Mon prénom</div>
+        <div class="s">${S.profile.name ? esc(S.profile.name) : "Pas encore défini"}</div></div>
+      <span style="color:var(--coolgray)">›</span>
+    </div>
     <div class="card row tx" data-editsalary role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">💰</div>
       <div class="meta"><div class="t">Mon salaire</div>
@@ -1923,7 +1987,7 @@ function renderSettings() {
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" aria-hidden="true" />
     <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Effacer les opérations…</button>
     <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
-    <button class="btn secondary" data-resetdemo style="margin-top:8px">Réinitialiser la démo…</button>
+    <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
     <p class="section-title">Transparence</p>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Confidentialité</summary>
       ${PRIVACY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
@@ -1977,6 +2041,113 @@ function renderMoreTxList() {
     : `<div class="card row"><span class="caption">${moreSearch || moreFilter !== "all" ? "Aucun résultat pour cette recherche." : "Aucun mouvement ce mois-ci."}</span></div>`);
 }
 
+/* ---------- Écran de bienvenue : première ouverture ---------- */
+let obStep = 1;
+let obName = "";
+let obSalary = null;
+let obSalaryDay = 25;
+
+function renderOnboarding() {
+  const shell = inner => `<div style="display:flex;flex-direction:column;justify-content:center;min-height:100%;max-width:340px;margin:0 auto;gap:6px">${inner}</div>`;
+  if (obStep === 1) return shell(`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:56px" aria-hidden="true">💰</div>
+      <h1 style="margin:10px 0 6px;font-size:30px;letter-spacing:-0.5px">Budget</h1>
+      <p class="caption" style="max-width:280px;margin:0 auto">Vos finances de ménage, sur votre téléphone. Aucune donnée ne quitte cet appareil.</p>
+    </div>
+    <form id="obForm1" class="ob-form">
+      <label for="obName">Comment vous appelez-vous ?</label>
+      <input id="obName" placeholder="Votre prénom" autocomplete="given-name" value="${esc(obName)}" />
+      <button class="btn" type="submit" style="margin-top:12px">Commencer</button>
+    </form>`);
+  if (obStep === 2) return shell(`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:44px" aria-hidden="true">💼</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">Votre salaire, ${esc(obName)} ?</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Chaque mois, l'app vous le rappellera — un geste pour le comptabiliser. Modifiable à tout moment dans Réglages.</p>
+    </div>
+    <form id="obForm2" class="ob-form">
+      <label for="obSalary">Salaire mensuel net (CHF)</label>
+      <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" />
+      <label for="obSalaryDay">Jour de versement</label>
+      <select id="obSalaryDay">${Array.from({ length: 28 }, (_, i) =>
+        `<option value="${i + 1}" ${i + 1 === 25 ? "selected" : ""}>Le ${i + 1} du mois</option>`).join("")}</select>
+      <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
+      <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer cette étape</button>
+    </form>`);
+  return shell(`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:44px" aria-hidden="true">💳</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">Votre compte principal</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Le solde actuel de votre compte courant — point de départ de tous les calculs. Un compte épargne vide est créé avec.</p>
+    </div>
+    <form id="obForm3" class="ob-form">
+      <label for="obAccName">Nom du compte</label>
+      <input id="obAccName" value="Compte courant" autocomplete="off" />
+      <label for="obOpening">Solde actuel (CHF)</label>
+      <input id="obOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <button class="btn" type="submit" style="margin-top:12px">C'est parti 🎉</button>
+      <button class="btn secondary" type="button" data-obdemo style="margin-top:8px">Explorer d'abord avec des données d'exemple</button>
+    </form>`);
+}
+
+function bindOnboarding() {
+  const form1 = document.getElementById("obForm1");
+  if (form1) form1.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("obName").value.trim();
+    if (!name) { document.getElementById("obName").focus(); return; }
+    obName = name.slice(0, 30);
+    obStep = 2; render(); scrollTop();
+  });
+  const form2 = document.getElementById("obForm2");
+  if (form2) {
+    form2.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const amount = parseAmountField(document.getElementById("obSalary").value);
+      obSalary = amount > 0 ? amount : null;
+      obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
+      obStep = 3; render(); scrollTop();
+    });
+    form2.querySelector("[data-obskip]").addEventListener("click", () => {
+      obSalary = null; obStep = 3; render(); scrollTop();
+    });
+  }
+  const form3 = document.getElementById("obForm3");
+  if (form3) {
+    form3.addEventListener("submit", (e) => {
+      e.preventDefault();
+      finishOnboarding();
+    });
+    form3.querySelector("[data-obdemo]").addEventListener("click", () => {
+      // La démo complète, avec le prénom déjà saisi.
+      const seeded = seedState();
+      seeded.profile = { name: obName || "Alex" };
+      try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); } catch (err) {}
+      location.reload();
+    });
+  }
+}
+
+function finishOnboarding() {
+  const accName = (document.getElementById("obAccName").value.trim() || "Compte courant").slice(0, 40);
+  const opening = parseAmountField(document.getElementById("obOpening").value) || 0;
+  S.profile.name = obName;
+  ACCOUNTS.push(
+    { id: "acc-" + txSeq++, name: accName, inst: "", kind: "current", opening, cash: true, currency: "CHF" },
+    { id: "acc-" + txSeq++, name: "Épargne", inst: "", kind: "savings", opening: 0, cash: false, currency: "CHF" }
+  );
+  if (obSalary) {
+    RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount: obSalary, type: "income",
+                      cat: "Salaire", day: obSalaryDay, icon: "💰" });
+  }
+  S.onboarded = true;
+  S.isDemo = false;
+  saveState();
+  render();
+  toast(`Bienvenue, ${obName} — tout est prêt`);
+}
+
 /* ---------- Écran verrouillé (Phase 12) ---------- */
 function renderLockScreen() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:14px">
@@ -1995,6 +2166,16 @@ const RENDERERS = { home: renderHome, movements: renderMovements, budget: render
 function render() {
   if (!RENDERERS[activeTab]) activeTab = "home"; // ancien onglet « month » (historique) ou état inconnu
   const screen = document.getElementById("screen");
+  const banner = document.querySelector(".demo-banner");
+  const onboarding = !locked && !S.onboarded;
+  banner.style.display = (!locked && !onboarding && S.isDemo) ? "flex" : "none";
+  document.getElementById("tabbar").style.display = onboarding ? "none" : "";
+  if (onboarding) {
+    screen.innerHTML = renderOnboarding();
+    document.getElementById("fab").style.display = "none";
+    bindOnboarding();
+    return;
+  }
   screen.innerHTML = locked ? renderLockScreen() : RENDERERS[activeTab]();
   document.getElementById("tabbar").innerHTML = TABS.map(([id, label]) =>
     `<button class="${id === activeTab ? "active" : ""}" data-tab="${id}" aria-label="${label}" ${locked ? "disabled" : ""}>${ICONS[id]}<span>${label}</span></button>`
@@ -2109,6 +2290,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
   const gotoTab = e.target.closest("[data-gototab]");
   if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; render(); scrollTop(); pushNav(); return; }
+  if (e.target.closest("[data-editname]")) {
+    document.getElementById("nName").value = S.profile.name || "";
+    openSheet("nameForm");
+    return;
+  }
   if (e.target.closest("[data-editsalary]")) {
     const salary = salaryRecurring();
     document.getElementById("salaryForm").reset();
@@ -2168,24 +2354,21 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-restorepick]")) { document.getElementById("restoreFile").click(); return; }
   if (e.target.closest("[data-deleteall]")) { deleteAllData(); return; }
   if (e.target.closest("[data-fullreset]")) {
-    if (!confirm("Réinitialiser COMPLÈTEMENT : comptes, mouvements, budgets, taux, code de verrouillage, réglages — tout est effacé de ce navigateur. Continuer ?")) return;
+    if (!confirm("Réinitialiser COMPLÈTEMENT : comptes, mouvements, budgets, taux, prénom, code de verrouillage — tout est effacé de ce navigateur et l'app revient à l'écran de bienvenue. Continuer ?")) return;
     if (!confirm("Dernière confirmation : cette action est définitive et non annulable.")) return;
     try {
-      const empty = seedState();
-      empty.transactions = []; empty.accounts = []; empty.recurrings = [];
-      empty.goals = []; empty.assets = []; empty.liabilities = [];
-      empty.pensions = []; empty.insurances = []; empty.bills = [];
-      empty.documents = []; empty.budgets = {}; empty.taxReserve = 0;
-      empty.lastImport = null; empty.lockCode = null; empty.faceIDEnabled = false;
-      localStorage.setItem(APP_STATE_KEY, JSON.stringify(empty));
+      localStorage.removeItem(APP_STATE_KEY);
+      localStorage.removeItem(LEGACY_TX_KEY);
     } catch (err) {}
     location.reload();
     return;
   }
   if (e.target.closest("[data-resetdemo]")) {
-    if (!confirm("Revenir aux données de démonstration ? Vos ajouts et modifications seront effacés.")) return;
+    if (!confirm("Remplacer vos données actuelles par la démonstration complète ? Votre prénom est conservé, tout le reste est écrasé.")) return;
     try {
-      localStorage.removeItem(APP_STATE_KEY);
+      const seeded = seedState();
+      seeded.profile = { name: S.profile.name || "Alex" };
+      localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded));
       localStorage.removeItem(LEGACY_TX_KEY);
     } catch (err) {}
     location.reload();
@@ -2252,6 +2435,9 @@ function undoLast() {
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
+  if (restored.profile && typeof restored.profile === "object") S.profile = restored.profile;
+  S.isDemo = restored.isDemo === true;
+  S.onboarded = true;
   txSeq = transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
   saveState();
   return true;
@@ -2272,7 +2458,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -2505,6 +2691,7 @@ function deleteAllData() {
   S.documents.length = 0;
   S.lastImport = null;
   S.bills.length = 0;
+  S.isDemo = false; // ce qui reste est désormais à l'utilisateur
   saveState();
   moreView = null;
   toast("Opérations effacées — comptes, budgets et réglages conservés", true);
@@ -3183,6 +3370,19 @@ document.getElementById("salaryForm").addEventListener("submit", (e) => {
   saveState();
   backdrop.classList.remove("open");
   toast(`Salaire enregistré : ${chf(amount)} le ${day} de chaque mois`);
+  render();
+});
+
+/* ---------- Mon prénom ---------- */
+document.getElementById("nCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("nameForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const name = document.getElementById("nName").value.trim().slice(0, 30);
+  if (!name) { document.getElementById("nName").focus(); return; }
+  S.profile.name = name;
+  saveState();
+  backdrop.classList.remove("open");
+  toast(`Enchanté, ${name} 👋`);
   render();
 });
 
