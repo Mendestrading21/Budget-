@@ -1267,6 +1267,14 @@ function snapshot(y, m) {
 
 /* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
    mois affiché — salaire, récurrents, factures — avec l'action directe. */
+function closedStreak(y, m) {
+  let cur = { y, m };
+  if (!(S.monthChecks || {})[`${cur.y}-${cur.m}`]) cur = shiftMonth(cur, -1);
+  let count = 0;
+  while ((S.monthChecks || {})[`${cur.y}-${cur.m}`]) { count++; cur = shiftMonth(cur, -1); }
+  return count;
+}
+
 function monthCheckItems(y, m) {
   const inThisMonth = transactions.filter(t => inMonth(t, y, m));
   const recDone = r => inThisMonth.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title));
@@ -1469,6 +1477,8 @@ function renderHome() {
   if (monthClosed && !(S.monthChecks || {})[monthKey]) {
     S.monthChecks[monthKey] = Date.now();
     saveState();
+    const streak = closedStreak(y, m);
+    toast(streak >= 2 ? `Mois bouclé ✓ · 🔥 ×${streak}` : "Mois bouclé ✓");
   } else if (!monthClosed && (S.monthChecks || {})[monthKey]) {
     delete S.monthChecks[monthKey]; // un élément s'est rouvert : le mois ne l'est plus
     saveState();
@@ -1477,7 +1487,7 @@ function renderHome() {
   const checkCard = checks.length === 0 ? "" : `
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <p class="card-label" style="margin:0">Check du mois</p>
+        <p class="card-label" style="margin:0">Check du mois${(() => { const st = closedStreak(y, m); return st >= 2 ? ` · 🔥 ×${st}` : ""; })()}</p>
         <span class="caption">${doneCount}/${checks.length} validé${doneCount > 1 ? "s" : ""}</span>
       </div>
       <div class="track" style="margin:10px 0 ${monthClosed ? "10px" : "4px"}">
@@ -1534,6 +1544,19 @@ function renderHome() {
         <span class="caption">${s.taxGap > 0 ? "Réserve du mois manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
     ${checkCard}
+    ${(() => {
+      const prev = shiftMonth({ y, m }, -1);
+      if ((S.monthChecks || {})[`${prev.y}-${prev.m}`]) return "";
+      const prevChecks = monthCheckItems(prev.y, prev.m);
+      const prevPending = prevChecks.filter(c => !c.done).length;
+      if (!prevPending) return "";
+      return `<div class="card row tx" data-gotomonth="${prev.y}-${prev.m}" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico" aria-hidden="true">⏪</div>
+        <div class="meta"><div class="t">${MONTH_NAMES[prev.m - 1]} n'est pas bouclé</div>
+          <div class="s">${prevPending} élément${prevPending > 1 ? "s" : ""} à rattraper</div></div>
+        <span style="color:var(--electric);font-weight:700">›</span>
+      </div>`;
+    })()}
     ${alertCards}
 
     <p class="section-title">💰 Salaire et revenus</p>
@@ -2835,6 +2858,12 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("sError").textContent = "";
     openSheet("salaryForm");
     document.getElementById("sAmount").focus();
+    return;
+  }
+  const gotoMonth = e.target.closest("[data-gotomonth]");
+  if (gotoMonth) {
+    const [gy, gm] = gotoMonth.dataset.gotomonth.split("-").map(Number);
+    if (gy && gm) { cursor = { y: gy, m: gm }; render(); scrollTop(); }
     return;
   }
   const projBtn = e.target.closest("[data-projprofile]");

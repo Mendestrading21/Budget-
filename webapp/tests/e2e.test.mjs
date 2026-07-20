@@ -93,6 +93,13 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation des deux salaires");
 check(screenHTML.includes("Mois bouclés récents"), "pastilles d'historique des mois absentes");
+check(screenHTML.includes("à rattraper"), "l'invitation à rattraper le mois précédent doit apparaître");
+await page.click('[data-gotomonth]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("0/2 validé"), "le rattrapage doit ouvrir le mois précédent avec ses éléments");
+await page.click("#backToNow");
+await page.waitForTimeout(150);
 check(screenHTML.includes("9'700.00") || screenHTML.includes("5'500.00"), "les salaires validés doivent nourrir les revenus");
 
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
