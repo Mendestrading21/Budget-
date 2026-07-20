@@ -162,6 +162,12 @@
     border-radius: var(--row-radius);
     padding: 12px 14px;
     margin-bottom: 8px;
+    transition: transform 0.12s ease;
+  }
+  .card.row:active { transform: scale(0.985); }
+  @media (prefers-reduced-motion: reduce) {
+    .card.row { transition: none; }
+    .card.row:active { transform: none; }
   }
 
   .card-label {
@@ -1456,10 +1462,10 @@ function renderHome() {
     </div>` : ""}
     ${salaryReceived.map(txMini).join("")}
     ${otherIncome.map(txMini).join("")}
-    ${!salary && !salaryReceived.length && !otherIncome.length ? `<div class="card row"><span class="caption">Aucun revenu ce mois. Configurez « Mon salaire » dans Réglages.</span></div>` : ""}
+    ${!salary && !salaryReceived.length && !otherIncome.length ? `<div class="card row"><span class="caption">Configurez votre salaire dans Réglages.</span></div>` : ""}
 
     <p class="section-title">🧾 Factures du mois</p>
-    ${monthBills.length === 0 ? `<div class="card row"><span class="caption">Aucune facture ce mois. Le ＋ en ajoute une.</span></div>` : ""}
+    ${monthBills.length === 0 ? `<div class="card row"><span class="caption">Aucune facture ce mois.</span></div>` : ""}
     ${monthBills.map(b => `<div class="card row tx">
       <div class="ico" aria-hidden="true">🧾</div>
       <div class="meta" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
@@ -1470,14 +1476,14 @@ function renderHome() {
 
     <p class="section-title">💸 Dépenses du mois — ${chf(spentTotal)}</p>
     ${expenses.slice(-3).reverse().map(txMini).join("")}
-    ${expenses.length === 0 ? `<div class="card row"><span class="caption">Aucune dépense saisie ce mois.</span></div>` : ""}
-    <button class="btn secondary" data-quickexp style="margin-top:4px">＋ Ajouter une dépense</button>
+    ${expenses.length === 0 ? `<div class="card row"><span class="caption">Aucune dépense ce mois.</span></div>` : ""}
+    <button class="btn secondary" data-quickexp style="margin-top:4px">＋ Dépense</button>
 
     <p class="section-title">📤 Envois vers mes comptes — ${chf(sentTotal)} mis de côté</p>
-    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Un envoi vers la bourse ou l'épargne n'est jamais une dépense : l'argent change de poche, il reste à vous.</p>
+    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">L'argent change de poche — il reste à vous.</p>
     ${sends.slice(-3).reverse().map(txMini).join("")}
-    ${sends.length === 0 ? `<div class="card row"><span class="caption">Aucun envoi ce mois (épargne, bourse, 3a, virements).</span></div>` : ""}
-    <button class="btn secondary" data-quicksend style="margin-top:4px">＋ Envoyer vers un compte</button>
+    ${sends.length === 0 ? `<div class="card row"><span class="caption">Aucun envoi ce mois.</span></div>` : ""}
+    <button class="btn secondary" data-quicksend style="margin-top:4px">＋ Envoi</button>
 
     <div class="card" style="margin-top:14px">
       <p class="card-label">Budget vs réel — principales dépenses</p>
@@ -1627,7 +1633,7 @@ function renderAccounts() {
     <div class="card hero">
       <p class="card-label">Liquidités disponibles</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Somme des comptes marqués « compte dans le cash disponible »${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
+      <span class="caption">Comptes comptés dans le cash${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
     </div>
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
@@ -1848,7 +1854,7 @@ function renderNetWorth() {
         <div class="breakdown">
           ${rows.map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)} · total ${chf(agg.total)}</span></div>`).join("")}
         </div>
-        <p class="caption" style="margin:8px 0 0">Chaque versement s'additionne — l'argent envoyé vers vos placements, jamais compté comme une dépense.</p>
+        <p class="caption" style="margin:8px 0 0">Chaque versement s'additionne.</p>
       </div>`;
     })()}
     <div class="card">
@@ -2417,6 +2423,39 @@ function render() {
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; render(); };
   document.getElementById("fab").style.display = locked ? "none" : "grid";
+  animateHeroAmount();
+}
+
+/* Compteur discret : le montant héros de l'Accueil glisse vers sa
+   nouvelle valeur quand elle change — jamais au premier affichage,
+   jamais si l'utilisateur préfère réduire les animations. */
+let heroPrev = null;
+let heroAnimToken = 0;
+function animateHeroAmount() {
+  if (activeTab !== "home" || locked || !S.onboarded) { heroPrev = null; return; }
+  const el = document.querySelector("#screen .hero-amount");
+  if (!el) { heroPrev = null; return; }
+  const finalText = el.textContent;
+  const target = parseFloat(finalText.replace(/[^0-9.\-]/g, ""));
+  if (!isFinite(target)) { heroPrev = null; return; }
+  const from = heroPrev;
+  heroPrev = target;
+  if (from === null || from === target) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const prefix = finalText.replace(/[-−]/g, "").match(/^[^0-9]*/)[0];
+  const token = ++heroAnimToken;
+  const startedAt = performance.now();
+  const DURATION = 420;
+  const format = v => (v < 0 ? "−" : "") + prefix +
+    Math.abs(v).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+  const step = nowTs => {
+    if (token !== heroAnimToken) return;
+    const t = Math.min(1, (nowTs - startedAt) / DURATION);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = t >= 1 ? finalText : format(from + (target - from) * eased);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 document.getElementById("tabbar").addEventListener("click", (e) => {
