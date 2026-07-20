@@ -211,6 +211,9 @@ await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
 const svgOK = await page.$eval("#screen", el => !el.innerHTML.includes("NaN"));
 check(svgOK, "NaN dans la courbe de patrimoine");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Versé cette année"), "bilan annuel des versements absent du Patrimoine");
+check(screenHTML.includes("Évolution sur 12 mois"), "courbe 12 mois par classe absente");
 
 // ---------- Test 11 : onglet Mouvements — recherche et filtres ----------
 currentTest = "mouvements";

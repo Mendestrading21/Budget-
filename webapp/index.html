@@ -500,6 +500,7 @@
         <option value="brokerage">Bourse / titres</option>
         <option value="cash">Espèces</option>
         <option value="pension">Prévoyance (3a, LPP)</option>
+        <option value="lifeinsurance">Assurance vie (3b)</option>
       </select>
       <label for="aCurrency">Devise</label>
       <select id="aCurrency">
@@ -640,6 +641,9 @@
         <option value="month">Par mois</option>
         <option value="year">Par an</option>
       </select>
+      <label for="insDue">Échéance annuelle du contrat (facultatif)</label>
+      <input id="insDue" type="date" aria-describedby="insDueHint" />
+      <p class="caption" id="insDueHint" style="margin:4px 0 0">Jour et mois du renouvellement — pour penser à comparer ou résilier à temps.</p>
       <div class="error" id="insError" role="alert"></div>
       <div class="actions">
         <button type="button" class="btn secondary" id="insCancel">Annuler</button>
@@ -883,6 +887,7 @@ const ACCOUNT_KINDS = {
   brokerage: { label: "Bourse / titres", icon: "📈" },
   cash: { label: "Espèces", icon: "💵" },
   pension: { label: "Prévoyance (3a, LPP)", icon: "🛡" },
+  lifeinsurance: { label: "Assurance vie (3b)", icon: "📜" },
 };
 
 const BUDGET_TEMPLATE = [
@@ -1301,7 +1306,7 @@ function renderHome() {
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const savingsTotal = ACCOUNTS.filter(a => a.kind === "savings").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const brokerageTotal = ACCOUNTS.filter(a => a.kind === "brokerage").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const pensionAccounts = ACCOUNTS.filter(a => a.kind === "pension").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const pensionAccounts = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const pensionPositions = PENSIONS.reduce((a, p) => a + p.value, 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
@@ -1317,18 +1322,13 @@ function renderHome() {
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
     <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (t.type === "transfer" ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
-  const contribFor = kinds => ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((agg, a) => {
-    const c = contributions(a.id);
-    agg.total += toCHF(c.total, a.currency); agg.year += toCHF(c.year, a.currency);
-    return agg;
-  }, { total: 0, year: 0 });
   const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et liquidités" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
     <div class="ico" aria-hidden="true">${icon}</div>
     <div class="meta"><div class="t">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>
     <span class="amount">${chf(amount)}</span>
   </div>`;
   const contribSub = kinds => {
-    const agg = contribFor(kinds);
+    const agg = contributionsFor(kinds);
     return agg.total > 0 ? `Versé cette année : ${chf(agg.year)} · total : ${chf(agg.total)}` : "";
   };
 
@@ -1462,7 +1462,7 @@ function renderHome() {
     ${portfolioRow("Comptes et liquidités", liquid, null, "💳")}
     ${portfolioRow("Épargne", savingsTotal, null, "🏛", contribSub(["savings"]))}
     ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
-    ${portfolioRow("Prévoyance (3a, LPP)", pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension"]))}
+    ${portfolioRow("Prévoyance et assurance vie", pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension", "lifeinsurance"]))}
     ${portfolioRow("Actifs (voiture, biens…)", assetsTotal, "networth", "🏷")}
     ${liabTotal ? portfolioRow("Dettes", -liabTotal, "networth", "📄") : ""}
     <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
@@ -1582,7 +1582,7 @@ function renderAccounts() {
   const groups = [
     ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
     ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
-    ["Prévoyance", ACCOUNTS.filter(a => a.kind === "pension")],
+    ["Prévoyance et assurance vie", ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
   ].filter(([, accs]) => accs.length);
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
@@ -1595,7 +1595,7 @@ function renderAccounts() {
       <p class="section-title">${title}</p>
       ${accs.map(a => {
         const kind = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.current;
-        const isPlacement = ["savings", "brokerage", "pension"].includes(a.kind);
+        const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
         const c = isPlacement ? contributions(a.id) : null;
         const perf = (a.kind === "brokerage" && c)
           ? balance(a.id) - a.opening - (c.total - c.withdrawn) : null;
@@ -1734,6 +1734,15 @@ function contributions(accId) {
   return { total, year, withdrawn };
 }
 
+/* Cumuls agrégés par nature de compte, en devise de référence. */
+function contributionsFor(kinds) {
+  return ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((agg, a) => {
+    const c = contributions(a.id);
+    agg.total += toCHF(c.total, a.currency); agg.year += toCHF(c.year, a.currency);
+    return agg;
+  }, { total: 0, year: 0 });
+}
+
 function balanceAt(accId, y, m) {
   const account = ACCOUNTS.find(a => a.id === accId);
   if (!account) return 0;
@@ -1768,7 +1777,7 @@ function renderNetWorth() {
     { label: "Liquidités", color: "#FFB24D", series: classSeries(["current", "cash"]) },
     { label: "Épargne", color: "#39D98A", series: classSeries(["savings"]) },
     { label: "Bourse", color: "#8B5CF6", series: classSeries(["brokerage"]) },
-    { label: "Prévoyance", color: "#FF667A", series: classSeries(["pension"]).map(v => v + pensionTotal) },
+    { label: "Prévoyance", color: "#FF667A", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
   ].filter(l => l.series.some(v => Math.abs(v) >= 0.005));
   const allValues = points.concat(...CLASS_LINES.map(l => l.series));
   const min = Math.min(...allValues) * 0.995, max = Math.max(...allValues) * 1.005;
@@ -1787,6 +1796,22 @@ function renderNetWorth() {
         <div><span>Dettes</span><span class="neg">${chf(-liabTotal, true)}</span></div>
       </div>
     </div>
+    ${(() => {
+      const rows = [
+        ["🏛 Épargne", contributionsFor(["savings"])],
+        ["📈 Bourse / titres", contributionsFor(["brokerage"])],
+        ["🛡 Prévoyance et assurance vie", contributionsFor(["pension", "lifeinsurance"])],
+      ].filter(([, agg]) => agg.total > 0);
+      if (!rows.length) return "";
+      const yearSum = rows.reduce((a, [, agg]) => a + agg.year, 0);
+      return `<div class="card">
+        <p class="card-label">Versé cette année (${NOW.y}) — ${chf(yearSum)}</p>
+        <div class="breakdown">
+          ${rows.map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)} · total ${chf(agg.total)}</span></div>`).join("")}
+        </div>
+        <p class="caption" style="margin:8px 0 0">Chaque versement s'additionne — l'argent envoyé vers vos placements, jamais compté comme une dépense.</p>
+      </div>`;
+    })()}
     <div class="card">
       <p class="card-label">Évolution sur 12 mois — soldes réels de fin de mois, par classe</p>
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
@@ -1826,11 +1851,11 @@ function renderInsurance() {
     <div class="card hero">
       <p class="card-label">Primes — équivalent mensuel</p>
       <p class="hero-amount">${chf(monthlyTotal)}</p>
-      <span class="caption">Toutes les primes ramenées au mois, quelle que soit leur périodicité réelle</span>
+      <span class="caption">Soit ${chf(monthlyTotal * 12)} par an — toutes les primes ramenées au mois, quelle que soit leur périodicité réelle</span>
     </div>
     ${INSURANCES.length === 0 ? `<div class="card row"><span class="caption">Aucun contrat d'assurance enregistré.</span></div>` : ""}
     ${INSURANCES.map(i => `<div class="card row tx" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
-      <div class="meta"><div class="t">${esc(i.name)}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : ""}</div></div>
+      <div class="meta"><div class="t">${esc(i.name)}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : ""}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`).join("")}
     <button class="btn secondary" data-addins style="margin-top:4px">＋ Ajouter une assurance</button>
     <p class="section-title">Prévoyance</p>
@@ -3293,6 +3318,10 @@ function openInsSheet(contract) {
     document.getElementById("insInsurer").value = contract.insurer || "";
     document.getElementById("insPremium").value = (contract.premium ?? contract.monthly ?? 0).toFixed(2);
     document.getElementById("insUnit").value = contract.unit === "year" ? "year" : "month";
+    if (contract.dueM && contract.dueD) {
+      document.getElementById("insDue").value =
+        `${NOW.y}-${String(contract.dueM).padStart(2, "0")}-${String(contract.dueD).padStart(2, "0")}`;
+    }
   }
   document.getElementById("insError").textContent = "";
   openSheet("insForm");
@@ -3306,8 +3335,12 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
   if (!name) { err.textContent = "Donnez un nom au contrat."; return; }
   const premium = parseAmountField(document.getElementById("insPremium").value);
   if (!(premium > 0)) { err.textContent = "Prime invalide. Exemple : 745.60"; return; }
+  const dueRaw = document.getElementById("insDue").value;
+  const due = /^\d{4}-\d{2}-\d{2}$/.test(dueRaw)
+    ? { dueM: Number(dueRaw.slice(5, 7)), dueD: Number(dueRaw.slice(8, 10)) }
+    : { dueM: null, dueD: null };
   const data = { name, insurer: document.getElementById("insInsurer").value.trim(),
-                 premium, unit: document.getElementById("insUnit").value };
+                 premium, unit: document.getElementById("insUnit").value, ...due };
   const existing = editingInsId ? INSURANCES.find(i => i.id === editingInsId) : null;
   if (existing) { delete existing.monthly; Object.assign(existing, data); toast("Assurance modifiée"); }
   else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Assurance ajoutée"); }
