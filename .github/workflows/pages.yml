@@ -1,0 +1,57 @@
+name: Pages
+
+# Publie l'app web Budget sur GitHub Pages :
+# https://mendestrading21.github.io/Budget-/
+# Ouvrable dans Safari puis « Sur l'écran d'accueil » → l'app s'installe
+# comme une vraie app (icône, plein écran, données sur l'appareil).
+# Aucun secret requis — le GITHUB_TOKEN du workflow suffit.
+
+on:
+  push:
+    branches:
+      - claude/execute-tbkhsd
+    paths:
+      - "webapp/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Déployer l'app web
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assembler le site (index + icônes + manifest)
+        run: |
+          mkdir site
+          cp webapp/index.html site/
+          cp webapp/manifest.webmanifest webapp/*.png site/
+
+      - name: Configurer Pages (activation automatique)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Empaqueter le site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Déployer
+        id: deployment
+        uses: actions/deploy-pages@v4
