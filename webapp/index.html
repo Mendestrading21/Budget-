@@ -1093,6 +1093,8 @@ function loadState() {
     }
     // États d'avant l'écran de bienvenue : profil démo, déjà « onboardés ».
     if (!s.profile || typeof s.profile !== "object") s.profile = { name: "Alex" };
+    if (typeof s.profile.partner !== "string") s.profile.partner = null;
+    if (!["solo", "couple", "family"].includes(s.profile.householdType)) s.profile.householdType = "solo";
     if (typeof s.onboarded !== "boolean") s.onboarded = true;
     if (typeof s.isDemo !== "boolean") s.isDemo = true;
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
@@ -1482,7 +1484,9 @@ function renderHome() {
       <span style="color:var(--amber);font-weight:700">›</span>
     </div>`).join("");
 
-  return `<h2 class="screen-title">${S.profile.name ? "Bonjour " + esc(S.profile.name) + " 👋" : "Bonjour 👋"}</h2>
+  return `<h2 class="screen-title">${S.profile.name
+    ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
+    : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
     <div class="stat-grid">
@@ -2313,6 +2317,10 @@ let obStep = 1;
 let obName = "";
 let obCountry = "CH";
 let obBase = "CHF";
+let obHousehold = "solo";
+let obPartner = "";
+let obSalary2 = null;
+let obSalaryPhase = 1;
 let obSalary = null;
 let obSalaryDay = 25;
 
@@ -2351,14 +2359,36 @@ function renderOnboarding() {
       <span><strong>${c}</strong> — ${CURRENCY_NAMES[c]}${c === obBase ? " · conseillé" : ""}</span>
       <span style="font-size:18px">${c === "CHF" ? "🇨🇭" : c === "EUR" ? "🇪🇺" : "🇺🇸"}</span>
     </button>`).join("")}`);
-  if (obStep === 4) return shell(`
+  if (obStep === 4) {
+    if (obHousehold !== "solo") return shell(`
+      <div style="text-align:center;margin-bottom:10px">
+        <div style="font-size:44px" aria-hidden="true">${obHousehold === "couple" ? "💑" : "👨‍👩‍👧"}</div>
+        <h2 style="margin:10px 0 6px;font-size:22px">Et avec vous ?</h2>
+        <p class="caption" style="max-width:290px;margin:0 auto">Chacun son salaire — le Check du mois suivra les deux.</p>
+      </div>
+      <form id="obFormP" class="ob-form">
+        <label for="obPartner">Prénom de votre ${obHousehold === "couple" ? "moitié" : "co-parent"}</label>
+        <input id="obPartner" autocomplete="off" value="${esc(obPartner)}" />
+        <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
+        <button class="btn secondary" type="button" data-obsolo style="margin-top:8px">Finalement, juste moi</button>
+      </form>`);
+    return shell(`
+      <div style="text-align:center;margin-bottom:10px">
+        <div style="font-size:44px" aria-hidden="true">🏠</div>
+        <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
+      </div>
+      <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
+      <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
+      <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>`);
+  }
+  if (obStep === 5) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">💼</div>
-      <h2 style="margin:10px 0 6px;font-size:22px">Votre salaire, ${esc(obName)} ?</h2>
+      <h2 style="margin:10px 0 6px;font-size:22px">${obSalaryPhase === 2 ? `Le salaire de ${esc(obPartner)} ?` : `Votre salaire, ${esc(obName)} ?`}</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Chaque mois, l'app vous le rappellera — un geste pour le comptabiliser. Modifiable à tout moment dans Réglages.</p>
     </div>
     <form id="obForm2" class="ob-form">
-      <label for="obSalary">Salaire mensuel net (${obBase})</label>
+      <label for="obSalary">Salaire mensuel net (${obBase})</label><!-- phase ${obSalaryPhase} -->
       <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" />
       <label for="obSalaryDay">Jour de versement</label>
       <select id="obSalaryDay">${Array.from({ length: 28 }, (_, i) =>
@@ -2400,17 +2430,43 @@ function bindOnboarding() {
     obBase = btn.dataset.obcur;
     obStep = 4; render(); scrollTop();
   }));
+  document.querySelectorAll("[data-obhh]").forEach(btn => btn.addEventListener("click", () => {
+    obHousehold = btn.dataset.obhh;
+    if (obHousehold === "solo") { obPartner = ""; obStep = 5; }
+    render(); scrollTop();
+  }));
+  const formP = document.getElementById("obFormP");
+  if (formP) {
+    formP.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const partner = document.getElementById("obPartner").value.trim().slice(0, 30);
+      if (!partner) { document.getElementById("obPartner").focus(); return; }
+      obPartner = partner; obStep = 5; render(); scrollTop();
+    });
+    formP.querySelector("[data-obsolo]").addEventListener("click", () => {
+      obHousehold = "solo"; obPartner = ""; obStep = 5; render(); scrollTop();
+    });
+  }
   const form2 = document.getElementById("obForm2");
   if (form2) {
     form2.addEventListener("submit", (e) => {
       e.preventDefault();
       const amount = parseAmountField(document.getElementById("obSalary").value);
-      obSalary = amount > 0 ? amount : null;
-      obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
-      obStep = 5; render(); scrollTop();
+      if (obSalaryPhase === 2) {
+        obSalary2 = amount > 0 ? amount : null;
+        obStep = 6;
+      } else {
+        obSalary = amount > 0 ? amount : null;
+        obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
+        if (obPartner) { obSalaryPhase = 2; } else { obStep = 6; }
+      }
+      render(); scrollTop();
     });
     form2.querySelector("[data-obskip]").addEventListener("click", () => {
-      obSalary = null; obStep = 5; render(); scrollTop();
+      if (obSalaryPhase === 2) { obSalary2 = null; obStep = 6; }
+      else if (obPartner) { obSalary = null; obSalaryPhase = 2; }
+      else { obSalary = null; obStep = 6; }
+      render(); scrollTop();
     });
   }
   const form3 = document.getElementById("obForm3");
@@ -2433,7 +2489,7 @@ function bindOnboarding() {
 function finishOnboarding() {
   const accName = (document.getElementById("obAccName").value.trim() || "Compte courant").slice(0, 40);
   const opening = parseAmountField(document.getElementById("obOpening").value) || 0;
-  S.profile.name = obName;
+  S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
   S.taxRate = COUNTRIES[obCountry].taxRate;
   S.baseCurrency = obBase;
@@ -2443,8 +2499,12 @@ function finishOnboarding() {
     { id: "acc-" + txSeq++, name: "Épargne", inst: "", kind: "savings", opening: 0, cash: false, currency: obBase }
   );
   if (obSalary) {
-    RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount: obSalary, type: "income",
-                      cat: "Salaire", day: obSalaryDay, icon: "💰" });
+    RECURRINGS.push({ id: "r-salaire", title: obPartner ? `Salaire ${obName}` : "Salaire",
+                      amount: obSalary, type: "income", cat: "Salaire", day: obSalaryDay, icon: "💰" });
+  }
+  if (obSalary2 && obPartner) {
+    RECURRINGS.push({ id: "r-salaire-2", title: `Salaire ${obPartner}`, amount: obSalary2,
+                      type: "income", cat: "Salaire", day: obSalaryDay, icon: "💰" });
   }
   S.onboarded = true;
   S.isDemo = false;

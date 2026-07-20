@@ -43,15 +43,23 @@ await page.waitForSelector('[data-obcountry="CH"]', { state: "visible" });
 await page.click('[data-obcountry="CH"]');
 await page.waitForSelector('[data-obcur="CHF"]', { state: "visible" });
 await page.click('[data-obcur="CHF"]');
+await page.waitForSelector('[data-obhh="couple"]', { state: "visible" });
+await page.click('[data-obhh="couple"]');
+await page.waitForSelector("#obPartner", { state: "visible" });
+await page.fill("#obPartner", "Sara");
+await page.click('#obFormP button[type="submit"]');
 await page.waitForSelector("#obSalary", { state: "visible" });
 await page.fill("#obSalary", "5500");
+await page.click('#obForm2 button[type="submit"]');
+await page.waitForTimeout(150); // phase 2 : salaire de Sara
+await page.fill("#obSalary", "4200");
 await page.click('#obForm2 button[type="submit"]');
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "2000");
 await page.click('#obForm3 button[type="submit"]');
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
 let homeHTML = await page.$eval("#screen", el => el.innerHTML);
-check(homeHTML.includes("Bonjour Elio"), "le prénom saisi doit apparaître sur l'accueil");
+check(homeHTML.includes("Bonjour Elio &amp; Sara") || homeHTML.includes("Bonjour Elio & Sara"), "le couple doit être salué à deux prénoms");
 check(homeHTML.includes("Salaire"), "le salaire configuré doit nourrir l'accueil");
 const bannerHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(bannerHidden, "pas de bannière « données fictives » après un vrai départ");
@@ -59,7 +67,7 @@ check(bannerHidden, "pas de bannière « données fictives » après un vrai dé
 await page.reload();
 await page.waitForSelector("#tabbar button");
 homeHTML = await page.$eval("#screen", el => el.innerHTML);
-check(homeHTML.includes("Bonjour Elio"), "prénom perdu après rechargement");
+check(homeHTML.includes("Elio") && homeHTML.includes("Sara"), "prénoms perdus après rechargement");
 
 // ---------- Test 1 : chaque onglet s'ouvre ----------
 currentTest = "onglets";
@@ -77,13 +85,15 @@ await page.click(`#tabbar button[aria-label="Accueil"]`);
 await page.waitForTimeout(150);
 let screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Check du mois"), "carte « Check du mois » absente");
-check(screenHTML.includes("0/1 validé"), "progression initiale 0/1 absente (salaire à valider)");
+check(screenHTML.includes("0/2 validé"), "progression initiale 0/2 absente (deux salaires à valider)");
 await page.click('[data-postrec]');
 await page.waitForTimeout(200);
+await page.click('[data-postrec]'); // le second salaire
+await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation du salaire");
+check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation des deux salaires");
 check(screenHTML.includes("Mois bouclés récents"), "pastilles d'historique des mois absentes");
-check(screenHTML.includes("5'500.00"), "le salaire validé doit apparaître dans les revenus");
+check(screenHTML.includes("9'700.00") || screenHTML.includes("5'500.00"), "les salaires validés doivent nourrir les revenus");
 
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
 currentTest = "creation mouvement";
@@ -283,6 +293,8 @@ await page.waitForSelector('[data-obcur="EUR"]', { state: "visible" });
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Euro · conseillé"), "la France doit conseiller l'euro");
 await page.click('[data-obcur="EUR"]');
+await page.waitForSelector('[data-obhh="solo"]', { state: "visible" });
+await page.click('[data-obhh="solo"]');
 await page.waitForSelector("[data-obskip]", { state: "visible" });
 await page.click("[data-obskip]");
 await page.waitForSelector("#obOpening", { state: "visible" });
