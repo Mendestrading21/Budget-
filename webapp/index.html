@@ -1009,8 +1009,12 @@ function snapshot(y, m) {
   const plannedOut = ["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
     + openBillsDue;
 
+  // Même vérité que l'écran Impôts : la réserve annuelle constituée
+  // couvre d'abord le manque du mois (jamais deux formules).
   const taxRecommended = Math.round(income * (S.taxRate ?? 0.30) * 100) / 100;
-  const taxGap = Math.max(0, taxRecommended - taxes);
+  const monthShortfall = Math.max(0, taxRecommended - taxes);
+  const annualCover = Math.max(0, (S.taxReserve ?? 0));
+  const taxGap = Math.max(0, monthShortfall - annualCover);
 
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const isCurrent = (y === NOW.y && m === NOW.m);
@@ -1476,22 +1480,32 @@ function backBar(title) {
   </div>`;
 }
 
-/* ---------- Impôts (Phase 7) : estimé = payé + encore dû, toujours ----------
-   Tout est DÉRIVÉ des mouvements réels — aucune constante magique. */
-function renderTaxes() {
-  // Revenu mensuel moyen observé (mouvements + salaire prévu), annualisé.
+/* ---------- Impôts : UNE seule vérité (posted + année) ----------
+   Utilisée par l'écran Impôts ET par le dashboard — jamais deux formules. */
+function taxSummary(year) {
+  const rate = S.taxRate ?? 0.30;
+  // Revenus COMPTABILISÉS de l'année, mois par mois — jamais les prévus.
   const monthlyIncomes = Array.from({ length: 12 }, (_, i) =>
-    transactions.filter(t => inMonth(t, cursor.y, i + 1) && t.type === "income")
+    transactions.filter(t => inMonth(t, year, i + 1) && t.type === "income" && t.status === "posted")
       .reduce((a, t) => a + txCHF(t), 0));
   const observed = monthlyIncomes.filter(v => v > 0);
   const monthlyAverage = observed.length ? observed.reduce((a, b) => a + b, 0) / observed.length : 0;
-  const estimated = Math.round(monthlyAverage * 12 * (S.taxRate ?? 0.30) * 100) / 100;
+  const estimated = Math.round(monthlyAverage * 12 * rate * 100) / 100;
+  // Payés COMPTABILISÉS de la même année uniquement.
   const paid = transactions
-    .filter(t => t.type === "taxPayment" && t.status === "posted")
+    .filter(t => t.type === "taxPayment" && t.status === "posted" && t.y === year)
     .reduce((a, t) => a + txCHF(t), 0);
   const due = Math.max(0, estimated - paid);
-  const reserved = S.taxReserve ?? 2400;
+  const reserved = S.taxReserve ?? 0;
   const reserveGap = Math.max(0, due - reserved);
+  // Échéances réelles : les factures de catégorie Impôts encore ouvertes.
+  const taxBills = (S.bills || []).filter(b => !b.paidTxId && b.cat === "Impôts" && b.dueY === year);
+  return { rate, estimated, paid, due, reserved, reserveGap, observedMonths: observed.length, taxBills };
+}
+
+function renderTaxes() {
+  const summary = taxSummary(cursor.y);
+  const { rate, estimated, paid, due, reserved, reserveGap, observedMonths, taxBills } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
       <p class="card-label">Encore dû (arriérés compris)</p>
@@ -1500,22 +1514,21 @@ function renderTaxes() {
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Revenus × ${pct(S.taxRate ?? 0.30)}</span></div>
-      <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span>
-        <span class="caption">Mouvements « Paiement d'impôts »</span></div>
-      <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span></div>
-      <div class="stat"><span class="card-label">Arriérés</span><span class="amount">${chf(0)}</span>
-        <span class="caption">Années précédentes</span></div>
+        <span class="caption">Moyenne des ${observedMonths || 0} mois de revenus comptabilisés × 12 × ${pct(rate)}</span></div>
+      <div class="stat"><span class="card-label">Déjà payé en ${cursor.y}</span><span class="amount pos">${chf(paid)}</span>
+        <span class="caption">Mouvements « Paiement d'impôts » comptabilisés</span></div>
+      <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span>
+        <span class="caption">Saisie par vous — bouton Ajuster</span></div>
+      <div class="stat"><span class="card-label">Reste après réserve</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
     </div>
-    <p class="section-title">Échéances</p>
-    <div class="card row tx"><div class="ico" aria-hidden="true">🗓</div>
-      <div class="meta"><div class="t">Acompte cantonal</div><div class="s">30.09.${cursor.y}</div></div>
-      <span class="amount">${chf(850)}</span></div>
-    <div class="card row tx"><div class="ico" aria-hidden="true">🗓</div>
-      <div class="meta"><div class="t">Décompte final estimé</div><div class="s">31.03.${cursor.y + 1}</div></div>
-      <span class="amount">${chf(Math.max(0, due - 850))}</span></div>
-    <button class="btn secondary" data-adjusttax style="margin-top:4px">Ajuster le taux et la réserve</button>
-    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal. Estimé = payé + encore dû, toujours. Taux actuel : ${pct(S.taxRate ?? 0.30)}.</p>`;
+    <p class="section-title">Échéances (vos factures « Impôts »)</p>
+    ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">🗓</div>
+      <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">Échéance ${billDueLabel(b)}</div></div>
+      <span class="amount">${chf(b.amount)}</span></div>`).join("")
+      : `<div class="card row"><span class="caption">Aucune échéance saisie. Ajoutez vos acomptes comme FACTURES en catégorie « Impôts » (＋ → Facture) : elles apparaîtront ici et dans le mois.</span></div>`}
+    <button class="btn secondary" data-adjusttax style="margin-top:8px">Ajuster le taux et la réserve</button>
+    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal — seuls vos mouvements comptabilisés de ${cursor.y} comptent. Estimé = payé + encore dû, toujours.</p>`;
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
