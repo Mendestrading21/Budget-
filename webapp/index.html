@@ -1045,11 +1045,11 @@ function insuranceMonthly(i) {
 const APP_STATE_KEY = "budget-app-state-v1";
 const LEGACY_TX_KEY = "budget-proto-mouvements";
 
-function seedState() {
+function seedState(country = "CH") {
   txSeq = 0;
   const months = seedMonths();
   const previous = shiftMonth(NOW, -1);
-  return {
+  const s = {
     version: 1,
     profile: { name: "Alex" },
     country: "CH",
@@ -1084,6 +1084,21 @@ function seedState() {
     pensions: PENSIONS_SEED.map(p => ({ ...p })),
     insurances: INSURANCES_SEED.map(i => ({ ...i })),
   };
+  if (COUNTRIES[country] && country !== "CH") {
+    // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
+    s.country = country;
+    s.baseCurrency = COUNTRIES[country].currency;
+    s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
+    s.taxRate = COUNTRIES[country].taxRate;
+    for (const account of s.accounts) {
+      account.currency = s.baseCurrency;
+      if (account.kind === "pension") account.name = LABELS.pensionKind[country];
+    }
+    for (const contract of s.insurances) {
+      if (contract.id === "ins-lamal") contract.name = LABELS.healthExample[country];
+    }
+  }
+  return s;
 }
 
 /* État vierge : première ouverture (ou réinitialisation complète).
@@ -2675,10 +2690,9 @@ function bindOnboarding() {
     });
     form3.querySelector("[data-obdemo]").addEventListener("click", () => {
       // La démo complète, avec le prénom déjà saisi si l'on est passé par là.
-      const seeded = seedState();
+      const seeded = seedState(obCountry);
       seeded.profile = { name: obName || "Alex", partner: obPartner || null,
                          householdType: obPartner ? obHousehold : "solo" };
-      seeded.country = "CH"; // la démo est un ménage suisse
       try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); } catch (err) {}
       location.reload();
     });
@@ -3009,7 +3023,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-resetdemo]")) {
     if (!confirm("Remplacer vos données actuelles par la démonstration complète ? Votre prénom est conservé, tout le reste est écrasé.")) return;
     try {
-      const seeded = seedState();
+      const seeded = seedState(S.country || "CH");
       seeded.profile = { name: S.profile.name || "Alex" };
       localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded));
       localStorage.removeItem(LEGACY_TX_KEY);
