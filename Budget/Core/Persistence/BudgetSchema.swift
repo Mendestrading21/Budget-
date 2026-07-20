@@ -178,35 +178,22 @@ enum BudgetSchemaV8: VersionedSchema {
     }
 }
 
-enum BudgetMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] {
-        [
-            BudgetSchemaV1.self, BudgetSchemaV2.self, BudgetSchemaV3.self,
-            BudgetSchemaV4.self, BudgetSchemaV5.self, BudgetSchemaV6.self,
-            BudgetSchemaV7.self, BudgetSchemaV8.self,
-        ]
-    }
-
-    static var stages: [MigrationStage] {
-        [
-            .lightweight(fromVersion: BudgetSchemaV1.self, toVersion: BudgetSchemaV2.self),
-            .lightweight(fromVersion: BudgetSchemaV2.self, toVersion: BudgetSchemaV3.self),
-            .lightweight(fromVersion: BudgetSchemaV3.self, toVersion: BudgetSchemaV4.self),
-            .lightweight(fromVersion: BudgetSchemaV4.self, toVersion: BudgetSchemaV5.self),
-            .lightweight(fromVersion: BudgetSchemaV5.self, toVersion: BudgetSchemaV6.self),
-            .lightweight(fromVersion: BudgetSchemaV6.self, toVersion: BudgetSchemaV7.self),
-            .lightweight(fromVersion: BudgetSchemaV7.self, toVersion: BudgetSchemaV8.self),
-        ]
-    }
-}
-
+// V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
+// change from V1 to V8 was strictly additive (ADR-015). A staged
+// SchemaMigrationPlan is deliberately absent — because the versioned
+// schema enums above all reference the SAME live @Model classes, every
+// stage would carry an identical model checksum and
+// NSStagedMigrationManager aborts at launch trying to tell them apart
+// (SIGABRT caught by the Demo tour on a fresh on-disk store; in-memory
+// stores never enter that code path, which is why unit tests stayed
+// green). A real staged plan requires frozen per-version model
+// snapshots — planned for the first post-release breaking change.
 enum PersistenceFactory {
     /// On-disk store for real user data. Demo and preview data never use it.
     static func makeProductionContainer() throws -> ModelContainer {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
         return try ModelContainer(
             for: Schema(versionedSchema: BudgetSchemaV8.self),
-            migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
     }
@@ -216,7 +203,6 @@ enum PersistenceFactory {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         return try ModelContainer(
             for: Schema(versionedSchema: BudgetSchemaV8.self),
-            migrationPlan: BudgetMigrationPlan.self,
             configurations: [configuration]
         )
     }

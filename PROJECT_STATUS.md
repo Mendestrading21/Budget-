@@ -53,7 +53,7 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 - [x] Phase 14 : paquet App Store préparé sans publication — icône 1024 générée (monogramme B, identité verre sombre) et câblée dans AppIcon.appiconset, écran de lancement généré (clé INFOPLIST déjà en place), APP_STORE_LISTING.md (nom/sous-titre, description fr-CH, mots-clés, nutrition de confidentialité « aucune donnée collectée », storyboard des 6 captures en mode démo, placeholders support/confidentialité, recommandation de prix CHF 6.00 à l'achat), vérification d'archive = étape Build Release ajoutée à la CI — CI verte (run 29705804198 : suite complète + build Release sans erreur)
 
-- [ ] Migration V1→V8 à valider sur un appareil contenant un store existant (non couvrable en CI unitaire)
+- [x] Le tour simulateur a attrapé un crash au premier lancement sur store disque (plan de migration étagé avec empreintes identiques → SIGABRT) — plan retiré, migration légère automatique (ADR-015)
 - [ ] Dérouler MANUAL_QA_CHECKLIST.md sur un appareil réel
 - [ ] Décision de prix à valider par l'utilisateur (recommandation : CHF 6.00 à l'achat, sans IAP — APP_STORE_LISTING.md)
 

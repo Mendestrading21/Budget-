@@ -326,3 +326,26 @@ Restaurer sur un appareil contenant des documents est sans danger ; l'historique
 ### Verification
 
 `testRestoreNeverDeletesDocumentFiles`, round-trip étendu aux lots d'import (`BackupServiceTests`).
+
+## ADR-015 — Migration V1 : légère automatique, plan étagé retiré
+
+Date: 2026-07-20
+Status: accepted
+
+### Context
+
+Le tour simulateur (workflow Demo) a fait planter l'app au premier lancement sur un store disque neuf : `NSStagedMigrationManager` abandonne (SIGABRT) dans `makeProductionContainer`. Cause : les huit `VersionedSchema` (V1→V8) référencent les MÊMES classes @Model vivantes — chaque étape du plan porte donc une empreinte de modèle identique et le gestionnaire de migration ne peut pas déterminer l'étape courante. Les tests unitaires n'ont jamais vu le crash : le conteneur in-memory n'entre pas dans ce chemin de code. L'app aurait planté au premier lancement sur n'importe quel iPhone.
+
+### Decision
+
+1. Retirer le `SchemaMigrationPlan` des deux fabriques de conteneur : chaque changement V1→V8 étant strictement additif, la migration légère AUTOMATIQUE de SwiftData couvre tous les stores existants (aucun n'a d'ailleurs été distribué).
+2. Conserver les enums `BudgetSchemaV1…V8` comme documentation de l'historique du schéma.
+3. Un vrai plan étagé (avec instantanés de modèles gelés par version) ne sera introduit qu'au premier changement RUPTEUR après la mise en production.
+
+### Consequences
+
+Le lancement sur appareil fonctionne ; la validation « migration V1→V8 sur un appareil » se réduit à la migration légère automatique d'Apple, couverte par leur runtime.
+
+### Verification
+
+Workflow Demo : la vraie app démarre dans le simulateur (tour complet capturé) ; suite unitaire inchangée.
