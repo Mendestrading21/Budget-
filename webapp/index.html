@@ -893,6 +893,41 @@ function defaultCashAccount() {
     || ACCOUNTS.find(a => a.cash) || ACCOUNTS[0];
   return account ? account.id : null;
 }
+/* Le chemin : projection du patrimoine à long terme. Hypothèses de
+   rendement ANNUEL par classe, choisies par l'utilisateur — jamais une
+   promesse, la méthode est affichée à côté du résultat. */
+const PROJECTION_PROFILES = {
+  prudent:   { label: "Prudent",   savings: 0.005, brokerage: 0.02, pension: 0.01 },
+  balanced:  { label: "Équilibré", savings: 0.01,  brokerage: 0.05, pension: 0.02 },
+  ambitious: { label: "Ambitieux", savings: 0.015, brokerage: 0.08, pension: 0.03 },
+};
+function projectWealth(years) {
+  const prof = PROJECTION_PROFILES[S.projectionProfile || "balanced"];
+  const months = years * 12;
+  const monthsElapsed = Math.max(1, NOW.m);
+  const classes = [
+    { kinds: ["savings"], rate: prof.savings },
+    { kinds: ["brokerage"], rate: prof.brokerage },
+    { kinds: ["pension", "lifeinsurance"], rate: prof.pension },
+  ];
+  let projected = 0;
+  for (const cls of classes) {
+    const balance0 = ACCOUNTS.filter(a => cls.kinds.includes(a.kind))
+      .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+    const monthly = contributionsFor(cls.kinds).year / monthsElapsed;
+    const i = cls.rate / 12;
+    const growth = Math.pow(1 + i, months);
+    projected += balance0 * growth + (i > 0 ? monthly * (growth - 1) / i : monthly * months);
+  }
+  // Liquidités, actifs, prévoyance manuelle et dettes : constants (honnête).
+  const liquid = ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))
+    .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  const pensionManual = PENSIONS.reduce((a, p) => a + p.value, 0);
+  const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  return projected + liquid + assetsTotal + pensionManual - liabTotal;
+}
+
 function kindLabel(kind) {
   if (kind === "pension") return L("pensionKind");
   if (kind === "lifeinsurance") return L("lifeKind");
@@ -1099,6 +1134,7 @@ function loadState() {
     if (typeof s.isDemo !== "boolean") s.isDemo = true;
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
     if (!COUNTRIES[s.country]) s.country = "CH";
+    if (!PROJECTION_PROFILES[s.projectionProfile]) s.projectionProfile = "balanced";
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
@@ -1905,6 +1941,18 @@ function renderNetWorth() {
         <p class="caption" style="margin:8px 0 0">Chaque versement s'additionne.</p>
       </div>`;
     })()}
+    <div class="card">
+      <p class="card-label">Le chemin — votre patrimoine projeté</p>
+      <div style="display:flex;gap:6px;margin:8px 0 12px">
+        ${Object.entries(PROJECTION_PROFILES).map(([id, p]) => `
+        <button type="button" class="btn secondary" data-projprofile="${id}"
+          style="width:auto;flex:1;padding:8px 6px;font-size:12px;${(S.projectionProfile || "balanced") === id ? "background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;border:none" : ""}">${p.label}</button>`).join("")}
+      </div>
+      <div class="breakdown">
+        ${[5, 10, 20].map(yrs => `<div><span>Dans ${yrs} ans</span><span style="font-weight:700">${chf(projectWealth(yrs))}</span></div>`).join("")}
+      </div>
+      <p class="caption" style="margin:8px 0 0">Au rythme de vos versements de ${NOW.y}, avec des hypothèses de rendement annualisées par classe — une simulation, jamais une promesse.</p>
+    </div>
     <div class="card">
       <p class="card-label">Évolution sur 12 mois — soldes réels de fin de mois, par classe</p>
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
@@ -2726,6 +2774,13 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("sError").textContent = "";
     openSheet("salaryForm");
     document.getElementById("sAmount").focus();
+    return;
+  }
+  const projBtn = e.target.closest("[data-projprofile]");
+  if (projBtn) {
+    S.projectionProfile = projBtn.dataset.projprofile;
+    saveState();
+    render();
     return;
   }
   if (e.target.closest("[data-editcountry]")) {

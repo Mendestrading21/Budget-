@@ -246,6 +246,11 @@ check(svgOK, "NaN dans la courbe de patrimoine");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Versé cette année"), "bilan annuel des versements absent du Patrimoine");
 check(screenHTML.includes("Évolution sur 12 mois"), "courbe 12 mois par classe absente");
+check(screenHTML.includes("Le chemin") && screenHTML.includes("Dans 10 ans"), "projection du patrimoine absente");
+await page.click('[data-projprofile="ambitious"]');
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(!screenHTML.includes("NaN") && screenHTML.includes("Dans 20 ans"), "profil ambitieux : projection cassée");
 
 // ---------- Test 11 : onglet Mouvements — recherche et filtres ----------
 currentTest = "mouvements";
