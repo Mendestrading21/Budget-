@@ -20,6 +20,12 @@ Cocher chaque point ; noter tout écart dans PROJECT_STATUS.md.
 - [ ] Ajouter un paiement d'impôts ; l'écran Impôts montre estimé = payé + encore dû.
 - [ ] Créer un objectif avec échéance ; la contribution requise est plausible ; le passer « atteint ».
 - [ ] Patrimoine : ajouter un actif et une dette, basculer les toggles d'inclusion, vérifier le total.
+- [ ] Remboursement de dette (ADR-016) : créer un compte carte de crédit à solde négatif, saisir un remboursement avec ce compte en destination — le cash baisse, la dette remonte vers zéro, la fortune nette ne bouge pas ; un trop-payé laisse un solde positif visible.
+- [ ] ＋ universel : depuis chaque onglet, le bouton flottant ouvre le formulaire prérempli (dépense, revenu, épargne, investissement, virement).
+- [ ] Onglet « Mouvements » : recherche, filtres et navigation de mois ; « Objectifs » accessible via Plus.
+- [ ] Actions prioritaires « Ajoutez vos revenus » / « Planifiez une épargne » : le formulaire s'ouvre prérempli du bon type.
+- [ ] Réserve d'impôts unifiée (ADR-018) : saisir une réserve annuelle dans Impôts — la « réserve manquante » de l'accueil baisse d'autant ; les deux écrans affichent le même manque.
+- [ ] Restauration d'une sauvegarde contenant un compte non-CHF : refus avec message listant la devise, données intactes (ADR-017).
 
 ## Import / export / sauvegarde
 

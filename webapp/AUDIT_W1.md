@@ -150,3 +150,33 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
   comptes de même devise, tri intelligent (bourse d'abord pour un
   investissement), refus clair si aucun compte compatible.
 - Objectifs déplacés dans « Plus » (l'onglet libéré accueille Mois).
+
+## Audit externe (2026-07-20) — skill budget-production-completion
+
+Un audit tiers a été confronté au code réel : l'essentiel confirmé,
+tout corrigé, chaque correctif dans un commit dédié et couvert par la
+suite navigateur `webapp/tests/e2e.test.mjs` (Chromium réel, 12
+parcours, zéro erreur console tolérée — job CI `web-tests`).
+
+- **P0 confirmé et corrigé** : `openTxSheet` avait perdu son paramètre
+  `presetType` (remplacement W7 partiellement appliqué) → TOUTE création
+  de mouvement levait une ReferenceError. Leçon appliquée : plus aucun
+  remplacement par script sans grep de vérification + test qui APPELLE
+  la fonction ; la suite navigateur exerce désormais le chemin complet.
+- **P0 impôts** : `taxSummary(year)` = vérité unique (revenus et
+  paiements POSTÉS de l'année seulement) ; échéances codées en dur
+  (850/30.09) remplacées par les factures « Impôts » réelles ; méthode
+  d'estimation affichée ; le cockpit lit le même `taxGap`.
+- **P1** : récurrents dédupliqués par `recurringId` (repli titre pour
+  l'existant) ; solde d'ouverture verrouillé dès qu'un compte a un
+  historique + « Réconcilier le solde » (mouvement d'ajustement
+  traçable) ; textes Confidentialité honnêtes (localStorage, verrouillage
+  d'affichage ≠ chiffrement, documents = métadonnées, pas de Face ID) ;
+  courbe patrimoine sans NaN sur série constante ; suppression scindée :
+  « Effacer les opérations » (comptes/budgets/réglages conservés,
+  annulable) vs « Réinitialiser complètement » (état vierge, double
+  confirmation).
+- **P2** : Accueil et Mois fusionnés en un seul cockpit (hero « Argent
+  disponible », salaire 1-geste, factures payables, dépenses vs envois,
+  budget vs réel, portefeuille global) ; onglet « Mouvements » dédié
+  (recherche + filtres) ; vocabulaire simplifié (« Mis de côté »).

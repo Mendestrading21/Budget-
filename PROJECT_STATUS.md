@@ -68,7 +68,29 @@ Invocation mode: build (session Claude Code sur Linux, vérification via CI GitH
 
 ## Decisions made
 
-Voir DECISION_LOG.md (ADR-001 à ADR-013). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
+Voir DECISION_LOG.md (ADR-001 à ADR-018). Convention patrimoine : soldes signés, un compte de dette (carte, prêt, hypothèque) porte un solde négatif.
+
+## Audit externe soldé (2026-07-20, skill budget-production-completion)
+
+Un audit tiers a été vérifié contre le code puis corrigé en P0→P2,
+un commit par correctif, CI verte à chaque étape :
+
+- **Natif** : `.debtPayment` transfer-like — cash et dette bougent
+  ensemble, fortune neutre (ADR-016, `DebtPaymentTests`) ; plus aucun
+  `try? modelContext.save()` — `saveOrRollback` + alerte utilisateur ;
+  réserve d'impôts UNIFIÉE accueil↔module via
+  `TaxService.monthReserveGap` (ADR-018, `UnifiedTaxReserveTests`) ;
+  V1 mono-devise CHF avec garde à la restauration (ADR-017) ;
+  ＋ universel flottant, onglet « Mouvements » dans la barre (Objectifs
+  → Plus), actions prioritaires → formulaires préremplis.
+- **Web** : `openTxSheet` réparé (P0 bloquant), impôts par année/statut,
+  suppression scindée (opérations vs réinitialisation complète),
+  confidentialité honnête, cockpit unique Accueil, onglet Mouvements —
+  détail dans `webapp/AUDIT_W1.md`.
+- **Tests** : suite navigateur réelle `webapp/tests/e2e.test.mjs`
+  (Chromium, 12 parcours, zéro erreur console) exécutée par le nouveau
+  job CI `web-tests` ; suite native enrichie (dette, réserve unifiée,
+  garde devise).
 
 ## Known risks or blockers
 
