@@ -34,20 +34,16 @@ async function goHome() {
 // ---------- Test 0 : première ouverture = écran de bienvenue ----------
 currentTest = "bienvenue";
 await page.goto(APP_URL);
-await page.waitForSelector("#obName", { timeout: 10000 }); // pas de démo imposée
+await page.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 }); // pas de démo imposée
 let tabbarHidden = await page.$eval("#tabbar", el => el.style.display === "none");
 check(tabbarHidden, "la barre d'onglets doit être cachée pendant la bienvenue");
-await page.fill("#obName", "Elio");
-await page.click('#obForm1 button[type="submit"]');
-await page.waitForSelector('[data-obcountry="CH"]', { state: "visible" });
 await page.click('[data-obcountry="CH"]');
-await page.waitForSelector('[data-obcur="CHF"]', { state: "visible" });
-await page.click('[data-obcur="CHF"]');
 await page.waitForSelector('[data-obhh="couple"]', { state: "visible" });
 await page.click('[data-obhh="couple"]');
-await page.waitForSelector("#obPartner", { state: "visible" });
+await page.waitForSelector("#obName", { state: "visible" });
+await page.fill("#obName", "Elio");
 await page.fill("#obPartner", "Sara");
-await page.click('#obFormP button[type="submit"]');
+await page.click('#obForm1 button[type="submit"]');
 await page.waitForSelector("#obSalary", { state: "visible" });
 await page.fill("#obSalary", "5500");
 await page.click('#obForm2 button[type="submit"]');
@@ -335,25 +331,23 @@ check(Object.keys(stored.budgets || {}).length === budgetsBefore, "les budgets d
 await page.click('#screen [data-more="settings"]'); // deleteAllData ramène à la racine de Plus
 await page.waitForTimeout(150);
 await page.click("[data-fullreset]");
-await page.waitForSelector("#obName", { timeout: 10000 }); // reload → écran de bienvenue
+await page.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 }); // reload → bienvenue
 const wiped = await page.evaluate(() => localStorage.getItem("budget-app-state-v1"));
 check(wiped === null, "réinitialisation complète : le stockage doit être vidé");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Commencer"), "l'écran de bienvenue doit réapparaître après la réinitialisation");
+check(screenHTML.includes("Suisse") && screenHTML.includes("Belgique"), "le choix du pays doit rouvrir la bienvenue");
 
 // ---------- Test 13 : devise de référence EUR de bout en bout ----------
 currentTest = "devise de référence";
-await page.fill("#obName", "Eva");
-await page.click('#obForm1 button[type="submit"]');
-await page.waitForSelector('[data-obcountry="FR"]', { state: "visible" });
 await page.click('[data-obcountry="FR"]');
-await page.waitForSelector('[data-obcur="EUR"]', { state: "visible" });
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Euro · conseillé"), "la France doit conseiller l'euro");
-await page.click('[data-obcur="EUR"]');
 await page.waitForSelector('[data-obhh="solo"]', { state: "visible" });
 await page.click('[data-obhh="solo"]');
+await page.waitForSelector("#obName", { state: "visible" });
+await page.fill("#obName", "Eva");
+await page.click('#obForm1 button[type="submit"]');
 await page.waitForSelector("[data-obskip]", { state: "visible" });
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("(EUR)"), "la France doit passer l'app en euros");
 await page.click("[data-obskip]");
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "1000");

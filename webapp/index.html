@@ -2527,140 +2527,120 @@ function renderMoreTxList() {
 }
 
 /* ---------- Écran de bienvenue : première ouverture ---------- */
+// Bienvenue 2027 : 5 écrans quasi sans texte — pays → profil →
+// prénom(s) → salaire(s) → comptes usuels en un tap. La devise suit le
+// pays (modifiable ensuite dans Réglages).
 let obStep = 1;
-let obName = "";
 let obCountry = "CH";
 let obBase = "CHF";
 let obHousehold = "solo";
+let obName = "";
 let obPartner = "";
-let obSalary2 = null;
-let obSalaryPhase = 1;
 let obSalary = null;
+let obSalary2 = null;
 let obSalaryDay = 25;
+let obSalaryPhase = 1;
+let obAccounts = { savings: true, pension: false, brokerage: false };
+
+function obProgress() {
+  return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:18px" aria-label="Étape ${obStep} sur 5">
+    ${[1, 2, 3, 4, 5].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "rgba(255,255,255,0.12)"};transition:width .2s"></span>`).join("")}
+  </div>`;
+}
 
 function renderOnboarding() {
-  const shell = inner => `<div style="display:flex;flex-direction:column;justify-content:center;min-height:100%;max-width:340px;margin:0 auto;gap:6px">${inner}</div>`;
+  const shell = inner => `<div style="display:flex;flex-direction:column;justify-content:center;min-height:100%;max-width:340px;margin:0 auto;gap:6px">${obProgress()}${inner}</div>`;
   if (obStep === 1) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:56px" aria-hidden="true">💰</div>
       <h1 style="margin:10px 0 6px;font-size:30px;letter-spacing:-0.5px">Budget</h1>
-      <p class="caption" style="max-width:280px;margin:0 auto">Vos finances de ménage, sur votre téléphone. Aucune donnée ne quitte cet appareil.</p>
-    </div>
-    <form id="obForm1" class="ob-form">
-      <label for="obName">Comment vous appelez-vous ?</label>
-      <input id="obName" placeholder="Votre prénom" autocomplete="given-name" value="${esc(obName)}" />
-      <button class="btn" type="submit" style="margin-top:12px">Commencer</button>
-    </form>`);
-  if (obStep === 2) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
-      <div style="font-size:44px" aria-hidden="true">🌍</div>
-      <h2 style="margin:10px 0 6px;font-size:22px">Où vivez-vous ?</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Devise, impôts et vocabulaire s'adaptent à votre pays.</p>
+      <p class="caption" style="max-width:280px;margin:0 auto">Vos finances, chez vous. Rien ne quitte cet appareil.</p>
     </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
     <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
       <span style="font-size:18px">${c.flag}</span>
     </button>`).join("")}`);
+  if (obStep === 2) return shell(`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:44px" aria-hidden="true">🏠</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
+    </div>
+    <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
+    <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
+    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>`);
   if (obStep === 3) return shell(`
     <div style="text-align:center;margin-bottom:10px">
-      <div style="font-size:44px" aria-hidden="true">💱</div>
-      <h2 style="margin:10px 0 6px;font-size:22px">Votre devise de référence</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Tous les totaux s'affichent dans cette devise. Les comptes en autres devises restent possibles, convertis avec vos taux manuels.</p>
+      <div style="font-size:44px" aria-hidden="true">👋</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">${obHousehold === "solo" ? "Votre prénom" : "Vos prénoms"}</h2>
     </div>
-    ${CURRENCIES.map(c => `
-    <button type="button" class="btn ${c === obBase ? "" : "secondary"}" data-obcur="${c}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
-      <span><strong>${c}</strong> — ${CURRENCY_NAMES[c]}${c === obBase ? " · conseillé" : ""}</span>
-      <span style="font-size:18px">${c === "CHF" ? "🇨🇭" : c === "EUR" ? "🇪🇺" : "🇺🇸"}</span>
-    </button>`).join("")}`);
-  if (obStep === 4) {
-    if (obHousehold !== "solo") return shell(`
-      <div style="text-align:center;margin-bottom:10px">
-        <div style="font-size:44px" aria-hidden="true">${obHousehold === "couple" ? "💑" : "👨‍👩‍👧"}</div>
-        <h2 style="margin:10px 0 6px;font-size:22px">Et avec vous ?</h2>
-        <p class="caption" style="max-width:290px;margin:0 auto">Chacun son salaire — le Check du mois suivra les deux.</p>
-      </div>
-      <form id="obFormP" class="ob-form">
-        <label for="obPartner">Prénom de votre ${obHousehold === "couple" ? "moitié" : "co-parent"}</label>
-        <input id="obPartner" autocomplete="off" value="${esc(obPartner)}" />
-        <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
-        <button class="btn secondary" type="button" data-obsolo style="margin-top:8px">Finalement, juste moi</button>
-      </form>`);
-    return shell(`
-      <div style="text-align:center;margin-bottom:10px">
-        <div style="font-size:44px" aria-hidden="true">🏠</div>
-        <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
-      </div>
-      <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
-      <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
-      <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>`);
-  }
-  if (obStep === 5) return shell(`
+    <form id="obForm1" class="ob-form">
+      <label for="obName">Prénom</label>
+      <input id="obName" autocomplete="given-name" value="${esc(obName)}" />
+      ${obHousehold !== "solo" ? `
+      <label for="obPartner">${obHousehold === "couple" ? "Prénom de votre moitié" : "Prénom de l'autre parent"}</label>
+      <input id="obPartner" autocomplete="off" value="${esc(obPartner)}" />` : ""}
+      <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
+    </form>`);
+  if (obStep === 4) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">💼</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obSalaryPhase === 2 ? `Le salaire de ${esc(obPartner)} ?` : `Votre salaire, ${esc(obName)} ?`}</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Chaque mois, l'app vous le rappellera — un geste pour le comptabiliser. Modifiable à tout moment dans Réglages.</p>
+      <p class="caption" style="max-width:290px;margin:0 auto">Un rappel chaque mois, un geste pour le valider.</p>
     </div>
     <form id="obForm2" class="ob-form">
-      <label for="obSalary">Salaire mensuel net (${obBase})</label><!-- phase ${obSalaryPhase} -->
+      <label for="obSalary">Salaire mensuel net (${obBase})</label>
       <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" />
       <label for="obSalaryDay">Jour de versement</label>
       <select id="obSalaryDay">${Array.from({ length: 28 }, (_, i) =>
-        `<option value="${i + 1}" ${i + 1 === 25 ? "selected" : ""}>Le ${i + 1} du mois</option>`).join("")}</select>
+        `<option value="${i + 1}" ${i + 1 === obSalaryDay ? "selected" : ""}>Le ${i + 1} du mois</option>`).join("")}</select>
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
-      <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer cette étape</button>
+      <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer</button>
     </form>`);
+  const accToggle = (key, label, icon) => `
+    <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
+      style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:13px 16px">
+      <span>${icon} ${label}</span><span>${obAccounts[key] ? "✓" : "＋"}</span>
+    </button>`;
   return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">💳</div>
-      <h2 style="margin:10px 0 6px;font-size:22px">Votre compte principal</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Le solde actuel de votre compte courant — point de départ de tous les calculs. Un compte épargne vide est créé avec.</p>
+      <h2 style="margin:10px 0 6px;font-size:22px">Vos comptes</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Le compte courant est le point de départ — ajoutez le reste d'un tap.</p>
     </div>
     <form id="obForm3" class="ob-form">
-      <label for="obAccName">Nom du compte</label>
-      <input id="obAccName" value="Compte courant" autocomplete="off" />
-      <label for="obOpening">Solde actuel (${obBase})</label>
+      <label for="obOpening">Solde actuel du compte courant (${obBase})</label>
       <input id="obOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
-      <button class="btn" type="submit" style="margin-top:12px">C'est parti 🎉</button>
-      <button class="btn secondary" type="button" data-obdemo style="margin-top:8px">Explorer d'abord avec des données d'exemple</button>
+      ${accToggle("savings", "Épargne", "🏛")}
+      ${accToggle("pension", L("pensionKind"), "🛡")}
+      ${accToggle("brokerage", "Bourse / titres", "📈")}
+      <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
+      <button class="btn secondary" type="button" data-obdemo style="margin-top:8px">Explorer avec des données d'exemple</button>
     </form>`);
 }
 
 function bindOnboarding() {
-  const form1 = document.getElementById("obForm1");
-  if (form1) form1.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const name = document.getElementById("obName").value.trim();
-    if (!name) { document.getElementById("obName").focus(); return; }
-    obName = name.slice(0, 30);
-    obStep = 2; render(); scrollTop();
-  });
   document.querySelectorAll("[data-obcountry]").forEach(btn => btn.addEventListener("click", () => {
     obCountry = btn.dataset.obcountry;
     obBase = COUNTRIES[obCountry].currency;
-    obStep = 3; render(); scrollTop();
-  }));
-  document.querySelectorAll("[data-obcur]").forEach(btn => btn.addEventListener("click", () => {
-    obBase = btn.dataset.obcur;
-    obStep = 4; render(); scrollTop();
+    obStep = 2; render(); scrollTop();
   }));
   document.querySelectorAll("[data-obhh]").forEach(btn => btn.addEventListener("click", () => {
     obHousehold = btn.dataset.obhh;
-    if (obHousehold === "solo") { obPartner = ""; obStep = 5; }
-    render(); scrollTop();
+    if (obHousehold === "solo") obPartner = "";
+    obStep = 3; render(); scrollTop();
   }));
-  const formP = document.getElementById("obFormP");
-  if (formP) {
-    formP.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const partner = document.getElementById("obPartner").value.trim().slice(0, 30);
-      if (!partner) { document.getElementById("obPartner").focus(); return; }
-      obPartner = partner; obStep = 5; render(); scrollTop();
-    });
-    formP.querySelector("[data-obsolo]").addEventListener("click", () => {
-      obHousehold = "solo"; obPartner = ""; obStep = 5; render(); scrollTop();
-    });
-  }
+  const form1 = document.getElementById("obForm1");
+  if (form1) form1.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("obName").value.trim().slice(0, 30);
+    if (!name) { document.getElementById("obName").focus(); return; }
+    obName = name;
+    const partnerInput = document.getElementById("obPartner");
+    obPartner = partnerInput ? partnerInput.value.trim().slice(0, 30) : "";
+    if (obHousehold !== "solo" && !obPartner) { partnerInput.focus(); return; }
+    obStep = 4; render(); scrollTop();
+  });
   const form2 = document.getElementById("obForm2");
   if (form2) {
     form2.addEventListener("submit", (e) => {
@@ -2668,21 +2648,25 @@ function bindOnboarding() {
       const amount = parseAmountField(document.getElementById("obSalary").value);
       if (obSalaryPhase === 2) {
         obSalary2 = amount > 0 ? amount : null;
-        obStep = 6;
+        obStep = 5;
       } else {
         obSalary = amount > 0 ? amount : null;
         obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
-        if (obPartner) { obSalaryPhase = 2; } else { obStep = 6; }
+        if (obPartner) { obSalaryPhase = 2; } else { obStep = 5; }
       }
       render(); scrollTop();
     });
     form2.querySelector("[data-obskip]").addEventListener("click", () => {
-      if (obSalaryPhase === 2) { obSalary2 = null; obStep = 6; }
+      if (obSalaryPhase === 2) { obSalary2 = null; obStep = 5; }
       else if (obPartner) { obSalary = null; obSalaryPhase = 2; }
-      else { obSalary = null; obStep = 6; }
+      else { obSalary = null; obStep = 5; }
       render(); scrollTop();
     });
   }
+  document.querySelectorAll("[data-obacc]").forEach(btn => btn.addEventListener("click", () => {
+    obAccounts[btn.dataset.obacc] = !obAccounts[btn.dataset.obacc];
+    render(); scrollTop();
+  }));
   const form3 = document.getElementById("obForm3");
   if (form3) {
     form3.addEventListener("submit", (e) => {
@@ -2690,9 +2674,10 @@ function bindOnboarding() {
       finishOnboarding();
     });
     form3.querySelector("[data-obdemo]").addEventListener("click", () => {
-      // La démo complète, avec le prénom déjà saisi.
+      // La démo complète, avec le prénom déjà saisi si l'on est passé par là.
       const seeded = seedState();
-      seeded.profile = { name: obName || "Alex" };
+      seeded.profile = { name: obName || "Alex", partner: obPartner || null,
+                         householdType: obPartner ? obHousehold : "solo" };
       seeded.country = "CH"; // la démo est un ménage suisse
       try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); } catch (err) {}
       location.reload();
@@ -2701,17 +2686,20 @@ function bindOnboarding() {
 }
 
 function finishOnboarding() {
-  const accName = (document.getElementById("obAccName").value.trim() || "Compte courant").slice(0, 40);
   const opening = parseAmountField(document.getElementById("obOpening").value) || 0;
   S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
   S.taxRate = COUNTRIES[obCountry].taxRate;
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
-  ACCOUNTS.push(
-    { id: "acc-" + txSeq++, name: accName, inst: "", kind: "current", opening, cash: true, currency: obBase },
-    { id: "acc-" + txSeq++, name: "Épargne", inst: "", kind: "savings", opening: 0, cash: false, currency: obBase }
-  );
+  ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: "", kind: "current",
+                  opening, cash: true, currency: obBase });
+  if (obAccounts.savings) ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Épargne", inst: "",
+    kind: "savings", opening: 0, cash: false, currency: obBase });
+  if (obAccounts.pension) ACCOUNTS.push({ id: "acc-" + txSeq++, name: L("pensionKind"), inst: "",
+    kind: "pension", opening: 0, cash: false, currency: obBase });
+  if (obAccounts.brokerage) ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Bourse", inst: "",
+    kind: "brokerage", opening: 0, cash: false, currency: obBase });
   if (obSalary) {
     RECURRINGS.push({ id: "r-salaire", title: obPartner ? `Salaire ${obName}` : "Salaire",
                       amount: obSalary, type: "income", cat: "Salaire", day: obSalaryDay, icon: "💰" });
@@ -2724,7 +2712,7 @@ function finishOnboarding() {
   S.isDemo = false;
   saveState();
   render();
-  toast(`Bienvenue, ${obName} — tout est prêt`);
+  toast(`Bienvenue${obName ? ", " + obName : ""}${obPartner ? " & " + obPartner : ""} — tout est prêt`);
 }
 
 /* ---------- Écran verrouillé (Phase 12) ---------- */
