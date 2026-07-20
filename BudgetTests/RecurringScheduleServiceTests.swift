@@ -322,7 +322,6 @@ final class RecurringScheduleServiceTests: XCTestCase {
 extension RecurringScheduleServiceTests {
     private func makeCheckFixtures() -> (salary: RecurringTransaction, rent: RecurringTransaction) {
         // Un salaire (le 25) et un loyer (le 5), tous deux dus en juin.
-        let account = Account(name: "Compte check", type: .current)
         let salary = RecurringTransaction(
             title: "Salaire", amount: Decimal("8450.00"), type: .income,
             firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 1, day: 25, hour: 9))!,
@@ -333,6 +332,8 @@ extension RecurringScheduleServiceTests {
             firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 1, day: 5, hour: 9))!,
             account: account
         )
+        context.insert(salary)
+        context.insert(rent)
         return (salary, rent)
     }
 
@@ -381,6 +382,7 @@ extension RecurringScheduleServiceTests {
             firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 9, day: 1, hour: 9))!,
             account: account
         )
+        context.insert(futureOnly)
         let interval = MonthInterval(containing: now, calendar: calendar)
         let check = service.monthCheck(
             recurrings: [rent, futureOnly], in: interval, transactions: []
