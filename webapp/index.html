@@ -1898,6 +1898,54 @@ function balanceAt(accId, y, m) {
   return b;
 }
 
+function yearStats(y) {
+  const posted = transactions.filter(t => t.y === y && t.status === "posted");
+  const sum = types => posted.filter(t => types.includes(t.type)).reduce((a, t) => a + txCHF(t), 0);
+  const income = sum(["income", "refund"]);
+  const living = sum(["expense"]) - sum(["refund"]);
+  const saved = sum(["saving", "investment"]);
+  const taxes = sum(["taxPayment"]);
+  return {
+    income, living, saved, taxes,
+    rate: income > 0 ? saved / income : 0,
+    closedMonths: Object.keys(S.monthChecks || {}).filter(k => k.startsWith(y + "-")).length,
+  };
+}
+
+function renderYearReview() {
+  const y = NOW.y;
+  const now = yearStats(y);
+  const prev = yearStats(y - 1);
+  const delta = (a, b) => b > 0 ? ` <span class="caption">(${a >= b ? "+" : ""}${chf(a - b, true).replace("+", "+ ").replace("−", "− ")} vs ${y - 1})</span>` : "";
+  return backBar(`Année ${y}`) + `
+    <div class="card hero">
+      <p class="card-label">Mis de côté en ${y}</p>
+      <p class="hero-amount pos">${chf(now.saved)}</p>
+      <span class="caption">${now.income > 0 ? `Taux d'épargne : ${pct(now.rate)}` : "Aucun revenu comptabilisé cette année"}${prev.saved > 0 ? ` · ${y - 1} : ${chf(prev.saved)}` : ""}</span>
+    </div>
+    <div class="stat-grid">
+      <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(now.income)}</span>
+        ${prev.income > 0 ? `<span class="caption">${y - 1} : ${chf(prev.income)}</span>` : ""}</div>
+      <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(now.living)}</span>
+        ${prev.living > 0 ? `<span class="caption">${y - 1} : ${chf(prev.living)}</span>` : ""}</div>
+      <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(now.taxes)}</span></div>
+      <div class="stat"><span class="card-label">Mois bouclés</span><span class="amount info">${now.closedMonths}/12</span>
+        <span class="caption">${now.closedMonths >= 6 ? "Belle régularité ✓" : "Le rituel paie — continuez"}</span></div>
+    </div>
+    <div class="card">
+      <p class="card-label">Versé par classe en ${y}</p>
+      <div class="breakdown">
+        ${[["🏛 Épargne", contributionsFor(["savings"])],
+           ["📈 Bourse / titres", contributionsFor(["brokerage"])],
+           [`🛡 ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])]]
+          .filter(([, agg]) => agg.year > 0)
+          .map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)}</span></div>`).join("")
+          || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
+      </div>
+    </div>
+    <p class="caption" style="padding:0 4px">Mouvements comptabilisés de l'année, convertis dans votre devise de référence.</p>`;
+}
+
 function renderNetWorth() {
   const accountsTotal = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
@@ -2326,13 +2374,15 @@ const MORE_MENU = [
   ["bills", "🧾", "Factures", "À payer, en retard, payées"],
   ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
   ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
+  ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
   ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ["recurring", "🔁", "Récurrents", "Charges et revenus répétés"],
   ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
   ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
-                         recurring: renderRecurring, importcsv: renderImport, settings: renderSettings };
+                         recurring: renderRecurring, importcsv: renderImport, settings: renderSettings,
+                         year: renderYearReview };
 
 function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
