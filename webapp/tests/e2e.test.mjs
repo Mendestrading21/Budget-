@@ -80,6 +80,7 @@ await page.click('[data-postrec]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation du salaire");
+check(screenHTML.includes("Mois bouclés récents"), "pastilles d'historique des mois absentes");
 check(screenHTML.includes("5'500.00"), "le salaire validé doit apparaître dans les revenus");
 
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
@@ -168,6 +169,25 @@ if (payButton) {
   screenHTML = await page.$eval("#screen", el => el.innerHTML);
   check(!(await page.$("[data-paybill]")) || screenHTML.includes("payée"), "facture non payée après clic");
 }
+
+// ---------- Test 7b : échéance de contrat proche → alerte sur l'Accueil ----------
+currentTest = "echeance contrat";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="insurance"]');
+await page.waitForTimeout(150);
+await page.click("[data-addins]");
+await page.waitForSelector("#insForm", { state: "visible" });
+await page.fill("#insName", "RC ménage E2E");
+await page.fill("#insPremium", "390");
+const dueSoon = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+await page.fill("#insDue", dueSoon);
+await page.click('#insForm button[type="submit"]');
+await page.waitForTimeout(200);
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("RC ménage E2E") && screenHTML.includes("arrive à échéance"),
+  "l'échéance de contrat à 10 jours doit alerter sur l'Accueil");
 
 // ---------- Test 8 : navigation retour navigateur ----------
 currentTest = "retour navigateur";
@@ -277,4 +297,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 16 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 18 tests verts, zéro erreur console ✓");

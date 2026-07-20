@@ -10,6 +10,12 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<script>
+  // Hors ligne : réseau d'abord, cache en secours (voir sw.js).
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+</script>
 <style>
   :root {
     --graphite: #0B0E14;
@@ -1383,6 +1389,16 @@ function renderHome() {
       <div class="track" style="margin:10px 0 ${monthClosed ? "10px" : "4px"}">
         <div class="fill" style="width:${(doneCount / checks.length * 100).toFixed(1)}%"></div>
       </div>
+      ${(() => {
+        const history = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5)).map(mm => ({
+          short: MONTH_NAMES[mm.m - 1].slice(0, 3),
+          closed: !!(S.monthChecks || {})[`${mm.y}-${mm.m}`],
+          current: mm.y === y && mm.m === m,
+        }));
+        return `<div style="display:flex;gap:6px;margin:2px 0 8px" aria-label="Mois bouclés récents">
+          ${history.map(h => `<span class="caption" style="flex:1;text-align:center;padding:4px 0;border-radius:8px;${h.current ? "border:1px solid rgba(255,255,255,0.18);" : ""}${h.closed ? "color:var(--positive);font-weight:700" : ""}">${h.short}${h.closed ? " ✓" : ""}</span>`).join("")}
+        </div>`;
+      })()}
       ${monthClosed ? `<p style="margin:0;font-size:14px;font-weight:700;color:var(--positive)">✓ Mois bouclé${closedAt ? " le " + new Date(closedAt).toLocaleDateString("fr-CH") : ""} — tout est validé</p>`
         : checks.filter(c => !c.done).map(c => `
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.06)">
@@ -1394,6 +1410,21 @@ function renderHome() {
         <button class="btn ${c.income ? "" : "secondary"}" data-${c.action}="${esc(c.ref)}" style="width:auto;padding:7px 12px;font-size:12px;flex:none">${c.cta}</button>
       </div>`).join("")}
     </div>`;
+
+  // Contrats d'assurance dont l'échéance annuelle approche (≤ 45 jours).
+  const contractAlerts = INSURANCES.filter(i => i.dueM && i.dueD).map(i => {
+    const today = new Date(NOW.y, NOW.m - 1, NOW.d);
+    let due = new Date(NOW.y, i.dueM - 1, i.dueD);
+    if (due < today) due = new Date(NOW.y + 1, i.dueM - 1, i.dueD);
+    return { i, due, days: Math.round((due - today) / 86400000) };
+  }).filter(x => x.days <= 45).sort((a, b) => a.days - b.days);
+  const alertCards = contractAlerts.map(({ i, due, days }) => `
+    <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">📅</div>
+      <div class="meta"><div class="t">« ${esc(i.name)} » arrive à échéance</div>
+        <div class="s">Le ${String(due.getDate()).padStart(2, "0")}.${String(due.getMonth() + 1).padStart(2, "0")} — ${days <= 0 ? "aujourd'hui" : days + " jour" + (days > 1 ? "s" : "")} pour comparer ou résilier</div></div>
+      <span style="color:var(--amber);font-weight:700">›</span>
+    </div>`).join("");
 
   return `<h2 class="screen-title">${S.profile.name ? "Bonjour " + esc(S.profile.name) + " 👋" : "Bonjour 👋"}</h2>
     ${monthNav()}
@@ -1407,6 +1438,7 @@ function renderHome() {
         <span class="caption">${s.taxGap > 0 ? "Réserve manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
     ${checkCard}
+    ${alertCards}
 
     <p class="section-title">💰 Salaire et revenus</p>
     ${salary && salaryReceived.length === 0 && isCurrent ? `

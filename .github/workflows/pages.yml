@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir site
           cp webapp/index.html site/
-          cp webapp/manifest.webmanifest webapp/*.png site/
+          cp webapp/manifest.webmanifest webapp/sw.js webapp/*.png site/
 
       - name: Configurer Pages (activation automatique)
         uses: actions/configure-pages@v5
