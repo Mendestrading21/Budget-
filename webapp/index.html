@@ -497,6 +497,83 @@
       <button type="button" class="btn secondary" id="lDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Retirer cette ligne</button>
     </form>
+
+    <form class="sheet" id="goalForm" style="display:none">
+      <h3 id="goalSheetTitle">Nouvel objectif</h3>
+      <label for="gName">Nom</label>
+      <input id="gName" placeholder="Fonds d'urgence" autocomplete="off" />
+      <label for="gEmoji">Emoji (facultatif)</label>
+      <input id="gEmoji" placeholder="🎯" maxlength="4" autocomplete="off" />
+      <label for="gTarget">Montant cible (CHF)</label>
+      <input id="gTarget" inputmode="decimal" placeholder="10000.00" autocomplete="off" />
+      <label for="gLinked">Suivre le solde d'un compte</label>
+      <select id="gLinked"></select>
+      <label for="gCurrent">Déjà atteint (CHF, si non lié)</label>
+      <input id="gCurrent" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <label for="gMonthly">Contribution prévue (CHF / mois)</label>
+      <input id="gMonthly" inputmode="decimal" placeholder="200.00" autocomplete="off" />
+      <label for="gDue">Échéance</label>
+      <input id="gDue" type="month" min="2026-06" />
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
+        <input type="checkbox" id="gPriority" style="width:auto" /> Prioritaire
+      </label>
+      <div class="error" id="gError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="gCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="gAchieve" style="display:none;margin-top:10px"></button>
+      <button type="button" class="btn secondary" id="gDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cet objectif</button>
+    </form>
+
+    <form class="sheet" id="recForm" style="display:none">
+      <h3 id="recSheetTitle">Nouveau récurrent</h3>
+      <label for="rTitle">Intitulé</label>
+      <input id="rTitle" placeholder="Loyer" autocomplete="off" />
+      <label for="rAmount">Montant (CHF)</label>
+      <input id="rAmount" inputmode="decimal" placeholder="2150.00" autocomplete="off" />
+      <label for="rType">Type</label>
+      <select id="rType">
+        <option value="expense">Dépense</option>
+        <option value="income">Revenu</option>
+      </select>
+      <label for="rCat">Catégorie</label>
+      <select id="rCat"></select>
+      <label for="rDay">Jour du mois (1-28)</label>
+      <input id="rDay" inputmode="numeric" placeholder="1" autocomplete="off" />
+      <div class="error" id="rError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="rCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Comptabiliser ce mois</button>
+      <button type="button" class="btn secondary" id="rDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce récurrent</button>
+    </form>
+
+    <form class="sheet" id="itemForm" style="display:none">
+      <h3 id="itemSheetTitle">Nouvel actif ou dette</h3>
+      <label for="iKind">Nature</label>
+      <select id="iKind">
+        <option value="asset">Actif (voiture, immobilier, collection…)</option>
+        <option value="liability">Dette (leasing, prêt, impôt dû…)</option>
+      </select>
+      <label for="iName">Nom</label>
+      <input id="iName" placeholder="Voiture familiale" autocomplete="off" />
+      <label for="iAmount">Valeur / montant dû (CHF)</label>
+      <input id="iAmount" inputmode="decimal" placeholder="12000.00" autocomplete="off" />
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
+        <input type="checkbox" id="iInclude" style="width:auto" checked /> Compter dans la fortune nette
+      </label>
+      <div class="error" id="iError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="iCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="iDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer</button>
+    </form>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -583,13 +660,15 @@ const RECURRINGS_SEED = [
 
 /* Objectifs (Phase 8) — contribution requise = (cible − actuel) ÷ mois restants. */
 const GOALS_SEED = [
-  { name: "Fonds d'urgence", emoji: "🛟", target: 10000, current: 6500, monthly: 600, due: "décembre 2026", monthsLeft: 6, priority: "Prioritaire" },
-  { name: "Vacances été 2027", emoji: "🏖", target: 3500, current: 950, monthly: 200, due: "juillet 2027", monthsLeft: 13, priority: "Normal" },
+  { id: "g-urgence", name: "Fonds d'urgence", emoji: "🛟", target: 20000, manualCurrent: 0,
+    linked: "sav", monthly: 600, dueY: 2026, dueM: 12, priority: true, achieved: false },
+  { id: "g-vacances", name: "Vacances été 2027", emoji: "🏖", target: 3000, manualCurrent: 1200,
+    linked: null, monthly: 150, dueY: 2027, dueM: 8, priority: false, achieved: false },
 ];
 
 /* Patrimoine hors comptes (Phase 10) et prévoyance (Phase 9). */
-const ASSETS_SEED = [{ name: "Voiture", icon: "🚗", value: 8500 }];
-const LIABILITIES_SEED = [{ name: "Leasing voiture", icon: "📄", value: 6200 }];
+const ASSETS_SEED = [{ id: "as-voiture", name: "Voiture", icon: "🚗", value: 8500, include: true }];
+const LIABILITIES_SEED = [{ id: "li-leasing", name: "Leasing voiture", icon: "📄", value: 6200, include: true }];
 const PENSIONS_SEED = [{ name: "Caisse LPP (2e pilier)", icon: "🛡", value: 42300, projection: 245000 }];
 const INSURANCES_SEED = [
   { name: "Caisse maladie (LAMal)", insurer: "Assureur Exemple", monthly: 745.60, icon: "🩺" },
@@ -634,6 +713,16 @@ function loadState() {
     for (const account of s.accounts) {
       if (!account.kind) account.kind = inferKind[account.id] || "current";
     }
+    s.goals = s.goals.map((g, i) => g.id ? g : {
+      id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
+      target: g.target || 0, manualCurrent: g.current || 0, linked: null,
+      monthly: g.monthly || 0,
+      dueY: NOW.y + Math.floor((NOW.m + (g.monthsLeft || 12) - 1) / 12),
+      dueM: ((NOW.m + (g.monthsLeft || 12) - 1) % 12) + 1,
+      priority: g.priority === "Prioritaire", achieved: false,
+    });
+    s.assets = s.assets.map((a, i) => a.id ? a : { id: "as-migre-" + i, include: true, ...a });
+    s.liabilities = s.liabilities.map((l, i) => l.id ? l : { id: "li-migre-" + i, include: true, ...l });
     if (!s.budgets || typeof s.budgets !== "object") {
       s.budgets = Object.fromEntries(MONTHS.map(({ y, m }) =>
         [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))]));
@@ -988,36 +1077,54 @@ function renderAccounts() {
     <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
 }
 
+function goalCurrent(g) {
+  return g.linked ? balance(g.linked) : (g.manualCurrent || 0);
+}
+function goalMonthsLeft(g) {
+  return Math.max(0, (g.dueY - NOW.y) * 12 + (g.dueM - NOW.m));
+}
+const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+
 function renderGoals() {
-  const totalTarget = GOALS.reduce((a, g) => a + g.target, 0);
-  const totalCurrent = GOALS.reduce((a, g) => a + g.current, 0);
+  const active = GOALS.filter(g => !g.achieved);
+  const achieved = GOALS.filter(g => g.achieved);
+  const totalTarget = active.reduce((a, g) => a + g.target, 0);
+  const totalCurrent = active.reduce((a, g) => a + Math.min(goalCurrent(g), g.target), 0);
+  const goalCard = g => {
+    const current = goalCurrent(g);
+    const fr = g.target > 0 ? Math.min(1, current / g.target) : 0;
+    const monthsLeft = goalMonthsLeft(g);
+    const remaining = Math.max(0, g.target - current);
+    const required = g.achieved ? 0 : (monthsLeft > 0 ? remaining / monthsLeft : remaining);
+    const onTrack = g.monthly >= required;
+    return `<div class="card" data-goalid="${esc(g.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="bar-head" style="margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700">${esc(g.emoji || "🎯")} ${esc(g.name)}
+          ${g.achieved ? '<span class="badge" style="background:rgba(57,217,138,0.2);color:var(--positive)">Atteint ✓</span>'
+            : g.priority ? '<span class="badge planned">Prioritaire</span>' : ""}</span>
+        <span class="vals">${pct(fr)}</span>
+      </div>
+      <div class="track" role="progressbar" aria-valuenow="${Math.round(fr * 100)}" aria-valuemin="0" aria-valuemax="100"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
+      <div class="breakdown" style="margin-top:10px">
+        <div><span>${g.linked ? "Atteint (solde du compte lié)" : "Atteint"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
+        <div><span>Échéance</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠ passée" : ""}</span></div>
+        ${g.achieved ? "" : `
+        <div><span>Contribution requise</span><span>${chf(required)} / mois</span></div>
+        <div><span>Contribution prévue</span><span class="${onTrack ? "pos" : "warn"}">${chf(g.monthly)} / mois ${onTrack ? "✓ en bonne voie" : "⚠ insuffisante"}</span></div>`}
+      </div>
+    </div>`;
+  };
   return `<h2 class="screen-title">Objectifs</h2>
     <div class="card hero">
-      <p class="card-label">Progression globale</p>
+      <p class="card-label">Progression globale (objectifs actifs)</p>
       <p class="hero-amount">${chf(totalCurrent)}</p>
       <span class="caption">sur ${chf(totalTarget)} d'objectifs actifs</span>
     </div>
-    ${GOALS.length === 0 ? `<div class="card"><span class="caption">Aucun objectif. Fonds d'urgence, vacances, 3e pilier… (création d'objectifs : phase W3).</span></div>` : ""}
-    ${GOALS.map(g => {
-      const fr = Math.min(1, g.current / g.target);
-      const required = Math.max(0, (g.target - g.current) / g.monthsLeft);
-      const onTrack = g.monthly >= required;
-      return `<div class="card">
-        <div class="bar-head" style="margin-bottom:8px">
-          <span style="font-size:15px;font-weight:700">${g.emoji} ${g.name}
-            ${g.priority === "Prioritaire" ? '<span class="badge planned">Prioritaire</span>' : ""}</span>
-          <span class="vals">${pct(fr)}</span>
-        </div>
-        <div class="track"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
-        <div class="breakdown" style="margin-top:10px">
-          <div><span>Atteint</span><span>${chf(g.current)} / ${chf(g.target)}</span></div>
-          <div><span>Échéance</span><span>${g.due}</span></div>
-          <div><span>Contribution requise</span><span>${chf(required)} / mois</span></div>
-          <div><span>Contribution prévue</span><span class="${onTrack ? "pos" : "warn"}">${chf(g.monthly)} / mois ${onTrack ? "✓ en bonne voie" : "⚠ insuffisante"}</span></div>
-        </div>
-      </div>`;
-    }).join("")}
-    <p class="caption" style="padding:0 4px">La contribution requise est recalculée chaque mois : (cible − atteint) ÷ mois restants jusqu'à l'échéance.</p>`;
+    ${active.length === 0 && achieved.length === 0 ? `<div class="card"><span class="caption">Aucun objectif. Fonds d'urgence, vacances, 3e pilier… Le bouton ci-dessous en crée un.</span></div>` : ""}
+    ${active.map(goalCard).join("")}
+    ${achieved.length ? `<p class="section-title">Atteints</p>` + achieved.map(goalCard).join("") : ""}
+    <button class="btn secondary" data-addgoal style="margin-top:8px">＋ Ajouter un objectif</button>
+    <p class="caption" style="padding:6px 4px 0">Contribution requise = (cible − atteint) ÷ mois restants. Un objectif lié à un compte suit son solde réel.</p>`;
 }
 
 function backBar(title) {
@@ -1069,13 +1176,30 @@ function renderTaxes() {
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
+function balanceAt(accId, y, m) {
+  const account = ACCOUNTS.find(a => a.id === accId);
+  if (!account) return 0;
+  let b = account.opening;
+  for (const t of transactions) {
+    if (t.status !== "posted") continue;
+    if (t.y > y || (t.y === y && t.m > m)) continue;
+    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount : (OUTFLOWS.has(t.type) ? -t.amount : 0);
+    if (t.dest === accId) b += t.amount;
+  }
+  return b;
+}
+
 function renderNetWorth() {
   const accountsTotal = ACCOUNTS.reduce((a, acc) => a + balance(acc.id), 0);
-  const assetsTotal = ASSETS.reduce((a, x) => a + x.value, 0);
+  const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
-  const liabTotal = LIABILITIES.reduce((a, x) => a + x.value, 0);
+  const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
-  const points = [0.955, 0.964, 0.972, 0.981, 0.99, 1].map(f => net * f);
+  // Courbe DÉRIVÉE des soldes réels de fin de mois (actifs/prévoyance/
+  // dettes sans historique de valorisation : constants).
+  const points = MONTHS.map(({ y, m }) =>
+    ACCOUNTS.reduce((a, acc) => a + balanceAt(acc.id, y, m), 0)
+    + assetsTotal + pensionTotal - liabTotal);
   const min = Math.min(...points) * 0.995, max = Math.max(...points) * 1.005;
   const px = points.map((v, i) => `${(i / (points.length - 1) * 300).toFixed(1)},${(90 - (v - min) / (max - min) * 80).toFixed(1)}`);
   return backBar("Patrimoine") + `
@@ -1090,7 +1214,7 @@ function renderNetWorth() {
       </div>
     </div>
     <div class="card">
-      <p class="card-label">Évolution — 6 derniers mois</p>
+      <p class="card-label">Évolution — soldes réels de fin de mois</p>
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
            aria-label="Courbe de la fortune nette, de ${chf(points[0])} à ${chf(net)}">
         <defs><linearGradient id="nw" x1="0" y1="0" x2="0" y2="1">
@@ -1102,14 +1226,17 @@ function renderNetWorth() {
     </div>
     <p class="section-title">Actifs hors comptes</p>
     ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun actif hors comptes.</span></div>` : ""}
-    ${ASSETS.map(a => `<div class="card row tx"><div class="ico" aria-hidden="true">${a.icon}</div>
-      <div class="meta"><div class="t">${a.name}</div><div class="s">Estimation personnelle</div></div>
-      <span class="amount pos">${chf(a.value)}</span></div>`).join("")}
+    ${ASSETS.map(a => `<div class="card row tx" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${a.icon || "🏷"}</div>
+      <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Estimation personnelle${a.include === false ? " · exclu du patrimoine" : ""}</div></div>
+      <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
     <p class="section-title">Dettes</p>
     ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Aucune dette enregistrée.</span></div>` : ""}
-    ${LIABILITIES.map(l => `<div class="card row tx"><div class="ico" aria-hidden="true">${l.icon}</div>
-      <div class="meta"><div class="t">${l.name}</div></div>
-      <span class="amount neg">−${chf(l.value)}</span></div>`).join("")}
+    ${LIABILITIES.map(l => `<div class="card row tx" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${l.icon || "📄"}</div>
+      <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Exclue du patrimoine" : "Dette"}</div></div>
+      <span class="amount ${l.include === false ? "" : "neg"}">−${chf(l.value)}</span></div>`).join("")}
+    <button class="btn secondary" data-additem style="margin-top:8px">＋ Ajouter un actif ou une dette</button>
     <p class="caption" style="padding:0 4px">Les virements internes ne changent jamais la fortune : déplacer CHF 600.00 vers l'épargne laisse ce total intact.</p>`;
 }
 
@@ -1146,13 +1273,15 @@ function renderRecurring() {
     const materialized = transactions.some(t => inMonth(t, NOW.y, NOW.m) && t.title === r.title);
     const status = materialized ? "déjà saisi ce mois"
       : `prochaine occurrence : ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
-    return `<div class="card row tx"><div class="ico" aria-hidden="true">${r.icon}</div>
+    return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
       <div class="meta"><div class="t">${esc(r.title)}</div>
         <div class="s">Mensuel, le ${r.day} · ${status}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(r.amount)}</span></div>`;
   }).join("") : `<div class="card row"><span class="caption">Aucun récurrent. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
   return backBar("Récurrents") + rows + `
-    <p class="caption" style="padding:0 4px">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir la retire des prévisions, sans doublon.</p>`;
+    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un récurrent</button>
+    <p class="caption" style="padding:6px 4px 0">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir (ou « Comptabiliser ») la retire des prévisions, sans doublon.</p>`;
 }
 
 /* ---------- Import CSV & documents (Phase 11) ---------- */
@@ -1296,6 +1425,17 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-addacc]")) { openAccSheet(null); return; }
+  const goalEl = e.target.closest("[data-goalid]");
+  if (goalEl) { const g = GOALS.find(x => x.id === goalEl.dataset.goalid); if (g) openGoalSheet(g); return; }
+  if (e.target.closest("[data-addgoal]")) { openGoalSheet(null); return; }
+  const recEl = e.target.closest("[data-recid]");
+  if (recEl) { const r = RECURRINGS.find(x => x.id === recEl.dataset.recid); if (r) openRecSheet(r); return; }
+  if (e.target.closest("[data-addrec]")) { openRecSheet(null); return; }
+  const assetEl = e.target.closest("[data-assetid]");
+  if (assetEl) { openItemSheet("asset", assetEl.dataset.assetid); return; }
+  const liabEl = e.target.closest("[data-liabid]");
+  if (liabEl) { openItemSheet("liability", liabEl.dataset.liabid); return; }
+  if (e.target.closest("[data-additem]")) { openItemSheet("asset", null); return; }
   const lineEl = e.target.closest("[data-linecat]");
   if (lineEl) { openLineSheet(lineEl.dataset.linecat); return; }
   if (e.target.closest("[data-addline]")) { openLineSheet(null); return; }
@@ -1367,7 +1507,7 @@ function toast(message) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -1712,6 +1852,218 @@ window.addEventListener("popstate", (e) => {
   moreView = state.more || null;
   render();
   scrollTop();
+});
+
+
+/* ---------- Feuille objectif (W3) ---------- */
+let editingGoalId = null;
+function openGoalSheet(goal) {
+  editingGoalId = goal ? goal.id : null;
+  document.getElementById("goalForm").reset();
+  document.getElementById("goalSheetTitle").textContent = goal ? "Modifier l'objectif" : "Nouvel objectif";
+  document.getElementById("gDelete").style.display = goal ? "block" : "none";
+  const achieveBtn = document.getElementById("gAchieve");
+  achieveBtn.style.display = goal ? "block" : "none";
+  if (goal) achieveBtn.textContent = goal.achieved ? "Réactiver cet objectif" : "Marquer comme atteint 🎉";
+  const linkedSelect = document.getElementById("gLinked");
+  const linkable = ACCOUNTS.filter(a => ["savings", "pension"].includes(a.kind));
+  linkedSelect.innerHTML = '<option value="">— (saisie manuelle)</option>'
+    + linkable.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
+  if (goal) {
+    document.getElementById("gName").value = goal.name;
+    document.getElementById("gEmoji").value = goal.emoji || "";
+    document.getElementById("gTarget").value = goal.target.toFixed(2);
+    linkedSelect.value = goal.linked || "";
+    document.getElementById("gCurrent").value = (goal.manualCurrent || 0).toFixed(2);
+    document.getElementById("gMonthly").value = (goal.monthly || 0).toFixed(2);
+    document.getElementById("gDue").value = `${goal.dueY}-${String(goal.dueM).padStart(2, "0")}`;
+    document.getElementById("gPriority").checked = !!goal.priority;
+  }
+  document.getElementById("gError").textContent = "";
+  openSheet("goalForm");
+  document.getElementById("gName").focus();
+}
+document.getElementById("gCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("goalForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("gError");
+  const name = document.getElementById("gName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom à cet objectif."; return; }
+  const target = parseAmountField(document.getElementById("gTarget").value);
+  if (!(target > 0)) { err.textContent = "Montant cible invalide. Exemple : 10000.00"; return; }
+  const currentRaw = document.getElementById("gCurrent").value.trim();
+  const manualCurrent = currentRaw === "" ? 0 : parseAmountField(currentRaw);
+  if (Number.isNaN(manualCurrent)) { err.textContent = "Montant « déjà atteint » invalide."; return; }
+  const monthlyRaw = document.getElementById("gMonthly").value.trim();
+  const monthly = monthlyRaw === "" ? 0 : parseAmountField(monthlyRaw);
+  if (Number.isNaN(monthly)) { err.textContent = "Contribution mensuelle invalide."; return; }
+  const dueMatch = /^(\d{4})-(\d{2})$/.exec(document.getElementById("gDue").value);
+  if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  const data = {
+    name, emoji: document.getElementById("gEmoji").value.trim() || "🎯",
+    target, manualCurrent, monthly,
+    linked: document.getElementById("gLinked").value || null,
+    dueY: Number(dueMatch[1]), dueM: Number(dueMatch[2]),
+    priority: document.getElementById("gPriority").checked,
+  };
+  const existing = editingGoalId ? GOALS.find(g => g.id === editingGoalId) : null;
+  if (existing) { Object.assign(existing, data); toast("Objectif modifié"); }
+  else { GOALS.push({ id: "g-" + Date.now().toString(36), achieved: false, ...data }); toast("Objectif ajouté"); }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("gAchieve").addEventListener("click", () => {
+  const goal = editingGoalId ? GOALS.find(g => g.id === editingGoalId) : null;
+  if (!goal) return;
+  goal.achieved = !goal.achieved;
+  saveState();
+  backdrop.classList.remove("open");
+  toast(goal.achieved ? "Objectif atteint 🎉" : "Objectif réactivé");
+  render();
+});
+document.getElementById("gDelete").addEventListener("click", () => {
+  if (!editingGoalId || !confirm("Supprimer cet objectif ?")) return;
+  const index = GOALS.findIndex(g => g.id === editingGoalId);
+  if (index >= 0) GOALS.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Objectif supprimé");
+  render();
+});
+
+/* ---------- Feuille récurrent (W3) ---------- */
+let editingRecId = null;
+function refreshRecCatOptions() {
+  const kind = document.getElementById("rType").value === "income" ? "income" : "expense";
+  document.getElementById("rCat").innerHTML = Object.entries(CATEGORIES)
+    .filter(([, k]) => k === kind)
+    .map(([c]) => `<option>${esc(c)}</option>`).join("");
+}
+document.getElementById("rType").addEventListener("change", refreshRecCatOptions);
+function openRecSheet(rec) {
+  editingRecId = rec ? rec.id : null;
+  document.getElementById("recForm").reset();
+  document.getElementById("recSheetTitle").textContent = rec ? "Modifier le récurrent" : "Nouveau récurrent";
+  document.getElementById("rDelete").style.display = rec ? "block" : "none";
+  const postBtn = document.getElementById("rPost");
+  const alreadyThisMonth = rec && transactions.some(t => inMonth(t, NOW.y, NOW.m) && t.title === rec.title);
+  postBtn.style.display = rec && !alreadyThisMonth ? "block" : "none";
+  if (rec) {
+    document.getElementById("rTitle").value = rec.title;
+    document.getElementById("rAmount").value = rec.amount.toFixed(2);
+    document.getElementById("rType").value = rec.type === "income" ? "income" : "expense";
+    refreshRecCatOptions();
+    if (rec.cat) document.getElementById("rCat").value = rec.cat;
+    document.getElementById("rDay").value = rec.day;
+  } else {
+    refreshRecCatOptions();
+  }
+  document.getElementById("rError").textContent = "";
+  openSheet("recForm");
+  document.getElementById("rTitle").focus();
+}
+document.getElementById("rCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("recForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("rError");
+  const title = document.getElementById("rTitle").value.trim();
+  if (!title) { err.textContent = "Donnez un intitulé."; return; }
+  const amount = parseAmountField(document.getElementById("rAmount").value);
+  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 89.00"; return; }
+  const day = Number(document.getElementById("rDay").value);
+  if (!Number.isInteger(day) || day < 1 || day > 28) {
+    err.textContent = "Jour entre 1 et 28 (les mois courts sont ainsi toujours couverts)."; return;
+  }
+  const data = {
+    title, amount, day,
+    type: document.getElementById("rType").value,
+    cat: document.getElementById("rCat").value,
+  };
+  const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
+  if (existing) { Object.assign(existing, data); toast("Récurrent modifié"); }
+  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Récurrent ajouté"); }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("rPost").addEventListener("click", () => {
+  const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
+  if (!rec) return;
+  transactions.push({
+    id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
+    title: rec.title, amount: rec.amount, type: rec.type,
+    cat: rec.cat || null, acc: "cur", dest: null, status: "posted",
+  });
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Occurrence comptabilisée — retirée des prévisions");
+  render();
+});
+document.getElementById("rDelete").addEventListener("click", () => {
+  if (!editingRecId || !confirm("Supprimer ce récurrent ? (les mouvements déjà saisis restent)")) return;
+  const index = RECURRINGS.findIndex(r => r.id === editingRecId);
+  if (index >= 0) RECURRINGS.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Récurrent supprimé");
+  render();
+});
+
+/* ---------- Feuille actif / dette (W3) ---------- */
+let editingItem = null; // { kind: "asset"|"liability", id }
+function openItemSheet(kind, id) {
+  editingItem = id ? { kind, id } : null;
+  const list = kind === "liability" ? LIABILITIES : ASSETS;
+  const item = id ? list.find(x => x.id === id) : null;
+  document.getElementById("itemForm").reset();
+  document.getElementById("itemSheetTitle").textContent = item ? (kind === "liability" ? "Modifier la dette" : "Modifier l'actif") : "Nouvel actif ou dette";
+  document.getElementById("iDelete").style.display = item ? "block" : "none";
+  const kindSelect = document.getElementById("iKind");
+  kindSelect.value = kind === "liability" ? "liability" : "asset";
+  kindSelect.disabled = !!item;
+  if (item) {
+    document.getElementById("iName").value = item.name;
+    document.getElementById("iAmount").value = item.value.toFixed(2);
+    document.getElementById("iInclude").checked = item.include !== false;
+  } else {
+    document.getElementById("iInclude").checked = true;
+  }
+  document.getElementById("iError").textContent = "";
+  openSheet("itemForm");
+  document.getElementById("iName").focus();
+}
+document.getElementById("iCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("itemForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("iError");
+  const name = document.getElementById("iName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom."; return; }
+  const value = parseAmountField(document.getElementById("iAmount").value);
+  if (!(value > 0)) { err.textContent = "Montant invalide. Exemple : 12000.00"; return; }
+  const include = document.getElementById("iInclude").checked;
+  const kind = document.getElementById("iKind").value;
+  const list = kind === "liability" ? LIABILITIES : ASSETS;
+  const item = editingItem ? list.find(x => x.id === editingItem.id) : null;
+  if (item) { Object.assign(item, { name, value, include }); toast(kind === "liability" ? "Dette modifiée" : "Actif modifié"); }
+  else {
+    list.push({ id: (kind === "liability" ? "li-" : "as-") + Date.now().toString(36),
+                name, value, include, icon: kind === "liability" ? "📄" : "🏷" });
+    toast(kind === "liability" ? "Dette ajoutée" : "Actif ajouté");
+  }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("iDelete").addEventListener("click", () => {
+  if (!editingItem || !confirm("Supprimer cet élément du patrimoine ?")) return;
+  const list = editingItem.kind === "liability" ? LIABILITIES : ASSETS;
+  const index = list.findIndex(x => x.id === editingItem.id);
+  if (index >= 0) list.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Élément supprimé");
+  render();
 });
 
 render();

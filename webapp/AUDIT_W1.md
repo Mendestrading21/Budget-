@@ -44,12 +44,22 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
   headless. À reprendre si des dérives apparaissent.
 - W10 rendu ciblé : le re-rendu complet reste acceptable à cette échelle.
 
-## Backlog W3
+## Corrigé en W3
 
-- CRUD objectifs + contributions liées aux virements d'épargne (W13, B5.4)
-- CRUD récurrents + « comptabiliser » une occurrence (B5.12)
-- CRUD actifs/dettes/prévoyance/assurances (B5.6)
-- Courbe de patrimoine dérivée des soldes réels (W3)
+- CRUD objectifs : ajout/édition/suppression, emoji, priorité, échéance
+  (champ mois), « Marquer atteint »/réactiver, et OBJECTIF LIÉ À UN
+  COMPTE : la progression suit le solde réel (W13) ; contribution
+  requise = (cible − atteint) ÷ mois restants, échéance passée signalée
+- CRUD récurrents : ajout/édition/suppression + « Comptabiliser ce
+  mois » (crée le mouvement, retire la prévision sans doublon — B5.12)
+- CRUD actifs/dettes avec toggle « compter dans la fortune » (B5.6
+  partiel) ; migration douce des anciennes formes stockées
+- Courbe de patrimoine DÉRIVÉE des soldes réels de fin de mois (W3)
+- Progressbars avec aria (N2 partiel)
+
+## Reste pour W4
+
+- CRUD prévoyance/assurances (reste de B5.6)
 
 ## Backlog W4
 
