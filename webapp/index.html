@@ -2482,6 +2482,14 @@ function renderSettings() {
     <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Effacer les opérations…</button>
     <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
+    <p class="section-title">Comment ça marche</p>
+    ${[["🔁", "Chaque mois : validez, bouclez.", "Salaire, factures, versements — un ✓ chacun, et le mois est bouclé."],
+       ["📤", "Un envoi n'est pas une dépense.", "L'argent envoyé vers l'épargne ou la bourse reste à vous — il s'additionne."],
+       ["📈", "Votre chemin se dessine.", "Cumuls à vie, patrimoine sur 12 mois, projection à 20 ans."]]
+      .map(([icon, title, sub]) => `<div class="card row tx">
+      <div class="ico" aria-hidden="true">${icon}</div>
+      <div class="meta"><div class="t">${title}</div><div class="s">${sub}</div></div>
+    </div>`).join("")}
     <p class="section-title">Transparence</p>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Confidentialité</summary>
       ${PRIVACY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
