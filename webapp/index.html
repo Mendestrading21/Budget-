@@ -494,8 +494,22 @@
         <button type="button" class="btn secondary" id="aCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
+      <button type="button" class="btn secondary" id="aReconcile"
+              style="display:none;margin-top:10px">Réconcilier le solde…</button>
       <button type="button" class="btn secondary" id="aDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce compte</button>
+    </form>
+
+    <form class="sheet" id="reconForm" style="display:none">
+      <h3>Réconcilier le solde</h3>
+      <p class="caption" style="margin:0 0 6px">Indiquez le solde RÉEL constaté aujourd'hui (relevé bancaire). L'app crée un mouvement d'ajustement daté d'aujourd'hui — l'historique n'est jamais réécrit, et l'ajustement ne compte ni comme revenu ni comme dépense.</p>
+      <label for="reconAmount">Solde réel constaté</label>
+      <input id="reconAmount" inputmode="decimal" placeholder="4200.00" autocomplete="off" />
+      <div class="error" id="reconError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="reconCancel">Annuler</button>
+        <button type="submit" class="btn">Réconcilier</button>
+      </div>
     </form>
 
     <form class="sheet" id="lineForm" style="display:none">
@@ -983,7 +997,9 @@ function balance(accId) {
   let b = account.opening;
   for (const t of transactions) {
     if (t.status !== "posted") continue;
-    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount : (OUTFLOWS.has(t.type) ? -t.amount : 0);
+    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount
+      : (t.type === "adjustment" ? (t.up ? t.amount : -t.amount)
+      : (OUTFLOWS.has(t.type) ? -t.amount : 0));
     if (t.dest === accId) b += t.amount;
   }
   return b;
@@ -1023,7 +1039,8 @@ function snapshot(y, m) {
   // règle native : chaque charge apparaît exactement une fois.
   const upcomingRecurrings = isCurrent
     ? RECURRINGS.filter(r => r.day > NOW.d
-        && !transactions.some(t => inMonth(t, y, m) && t.title === r.title))
+        && !transactions.some(t => inMonth(t, y, m)
+            && (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
     : [];
   const recurringCharges = upcomingRecurrings.reduce((a, r) => a + (r.type === "expense" ? r.amount : 0), 0);
   const recurringIncome = upcomingRecurrings.reduce((a, r) => a + (r.type === "income" ? r.amount : 0), 0);
@@ -1094,9 +1111,10 @@ const TABS = [
   ["home", "Accueil"], ["month", "Mois"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
 ];
 
-const TYPE_ICON = { income: "⬇", expense: "⬆", saving: "🏛", investment: "📈", transfer: "⇄", taxPayment: "🧾", refund: "↩" };
+const TYPE_ICON = { income: "⬇", expense: "⬆", saving: "🏛", investment: "📈", transfer: "⇄", taxPayment: "🧾", refund: "↩", adjustment: "⚖" };
 const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", investment: "Investissement",
-                     transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement" };
+                     transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement",
+                     adjustment: "Ajustement de solde" };
 
 /* ---------- Rendus ---------- */
 function monthNav() {
@@ -1213,7 +1231,7 @@ function renderMonth() {
 
   // Salaire : reçu ce mois ?
   const salary = salaryRecurring();
-  const salaryReceived = posted.filter(t => t.type === "income" && salary && t.title === salary.title);
+  const salaryReceived = posted.filter(t => t.type === "income" && salary && (t.recurringId ? t.recurringId === salary.id : t.title === salary.title));
   const otherIncome = posted.filter(t => t.type === "income" && (!salary || t.title !== salary.title));
 
   // Factures dues ce mois
@@ -1539,7 +1557,9 @@ function balanceAt(accId, y, m) {
   for (const t of transactions) {
     if (t.status !== "posted") continue;
     if (t.y > y || (t.y === y && t.m > m)) continue;
-    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount : (OUTFLOWS.has(t.type) ? -t.amount : 0);
+    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount
+      : (t.type === "adjustment" ? (t.up ? t.amount : -t.amount)
+      : (OUTFLOWS.has(t.type) ? -t.amount : 0));
     if (t.dest === accId) b += t.amount;
   }
   return b;
@@ -1559,7 +1579,8 @@ function renderNetWorth() {
       + assetsTotal + pensionTotal - liabTotal;
   });
   const min = Math.min(...points) * 0.995, max = Math.max(...points) * 1.005;
-  const px = points.map((v, i) => `${(i / (points.length - 1) * 300).toFixed(1)},${(90 - (v - min) / (max - min) * 80).toFixed(1)}`);
+  const range = Math.max(max - min, 1); // série constante ou nulle : ligne plate, jamais NaN
+  const px = points.map((v, i) => `${(i / (points.length - 1) * 300).toFixed(1)},${(90 - (v - min) / range * 80).toFixed(1)}`);
   return backBar("Patrimoine") + `
     <div class="card hero">
       <p class="card-label">Fortune nette</p>
@@ -1630,7 +1651,7 @@ function renderInsurance() {
 function renderRecurring() {
   const rows = RECURRINGS.length ? RECURRINGS.map(r => {
     const isIncome = r.type === "income";
-    const materialized = transactions.some(t => inMonth(t, NOW.y, NOW.m) && t.title === r.title);
+    const materialized = transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === r.id : t.title === r.title));
     const status = materialized ? "déjà saisi ce mois"
       : `prochaine occurrence : ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
     return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
@@ -1851,12 +1872,13 @@ function renderBills() {
 
 /* ---------- Réglages (Phase 12) ---------- */
 const PRIVACY = [
-  "Vos données restent sur cet appareil. Budget n'a pas de serveur, pas de compte en ligne, et n'établit aucune connexion réseau.",
+  "Vos données restent dans CE navigateur (localStorage de l'appareil). Cette version web n'a pas de serveur et n'établit aucune connexion réseau.",
   "Aucune connexion bancaire : vous saisissez ou importez vos données vous-même.",
-  "Les documents ajoutés sont chiffrés par iOS (protection complète des fichiers).",
+  "Le verrouillage par code protège l'AFFICHAGE sur cet appareil — ce n'est pas un chiffrement. L'app iOS native, elle, s'appuie sur Face ID et le chiffrement iOS.",
+  "Les documents sont des métadonnées uniquement (nom et type) : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
-  "La suppression complète efface les données et les documents de l'app sur cet appareil.",
-];
+  "« Tout supprimer » efface vos mouvements, objectifs, récurrents, patrimoine, factures et documents ; les comptes, budgets et réglages restent. « Réinitialiser la démo » remet tout à zéro.",
+]
 const METHODOLOGY = [
   "Vraiment disponible = liquidités incluses + revenus attendus (prévus et récurrents) − charges engagées (prévues et récurrentes) − réserve d'impôts manquante.",
   "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
@@ -1916,7 +1938,7 @@ const MORE_MENU = [
   ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ["recurring", "🔁", "Récurrents", "Charges et revenus répétés"],
   ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
-  ["settings", "⚙️", "Réglages", "Face ID, export, sauvegarde"],
+  ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings };
@@ -2063,6 +2085,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
       id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(salary.day, NOW.d),
       title: salary.title, amount: salary.amount, type: "income",
       cat: salary.cat || "Salaire", acc: "cur", dest: null, status: "posted",
+      recurringId: salary.id,
     });
     saveState();
     toast(`Salaire reçu : ${chf(salary.amount)} 🎉`, true);
@@ -2238,7 +2261,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -2495,8 +2518,15 @@ function openAccSheet(account) {
     document.getElementById("aKind").value = account.kind;
     document.getElementById("aCurrency").value = account.currency || "CHF";
     document.getElementById("aOpening").value = account.opening.toFixed(2);
+    // L'historique ne se réécrit pas : solde d'ouverture verrouillé dès
+    // qu'un mouvement existe — passer par « Réconcilier » (ajustement daté).
+    const hasHistory = transactions.some(t => t.acc === account.id || t.dest === account.id);
+    document.getElementById("aOpening").disabled = hasHistory;
+    document.getElementById("aReconcile").style.display = hasHistory ? "block" : "none";
     document.getElementById("aCash").checked = !!account.cash;
   } else {
+    document.getElementById("aOpening").disabled = false;
+    document.getElementById("aReconcile").style.display = "none";
     document.getElementById("aCash").checked = true;
   }
   document.getElementById("aError").textContent = "";
@@ -2510,7 +2540,11 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const name = document.getElementById("aName").value.trim();
   if (!name) { err.textContent = "Donnez un nom à ce compte."; return; }
   const openingRaw = document.getElementById("aOpening").value.trim();
-  const opening = openingRaw === "" ? 0 : parseAmountField(openingRaw);
+  const openingLocked = document.getElementById("aOpening").disabled;
+  const existingForOpening = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
+  const opening = openingLocked && existingForOpening
+    ? existingForOpening.opening
+    : (openingRaw === "" ? 0 : parseAmountField(openingRaw));
   if (Number.isNaN(opening)) { err.textContent = "Solde d'ouverture invalide. Exemple : 1200.00"; return; }
   const kind = document.getElementById("aKind").value;
   const cash = document.getElementById("aCash").checked;
@@ -2718,7 +2752,7 @@ function openRecSheet(rec) {
   document.getElementById("recSheetTitle").textContent = rec ? "Modifier le récurrent" : "Nouveau récurrent";
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
-  const alreadyThisMonth = rec && transactions.some(t => inMonth(t, NOW.y, NOW.m) && t.title === rec.title);
+  const alreadyThisMonth = rec && transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === rec.id : t.title === rec.title));
   postBtn.style.display = rec && !alreadyThisMonth ? "block" : "none";
   if (rec) {
     document.getElementById("rTitle").value = rec.title;
@@ -2765,6 +2799,7 @@ document.getElementById("rPost").addEventListener("click", () => {
     id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
     title: rec.title, amount: rec.amount, type: rec.type,
     cat: rec.cat || null, acc: "cur", dest: null, status: "posted",
+    recurringId: rec.id,
   });
   saveState();
   backdrop.classList.remove("open");
@@ -3154,6 +3189,43 @@ document.getElementById("fxForm").addEventListener("submit", (e) => {
   saveState();
   backdrop.classList.remove("open");
   toast("Taux de change mis à jour");
+  render();
+});
+
+
+/* ---------- Réconciliation de solde (P1) ---------- */
+document.getElementById("aReconcile").addEventListener("click", () => {
+  if (!editingAccId) return;
+  document.getElementById("reconForm").reset();
+  const account = ACCOUNTS.find(a => a.id === editingAccId);
+  if (account) document.getElementById("reconAmount").value = balance(account.id).toFixed(2);
+  document.getElementById("reconError").textContent = "";
+  openSheet("reconForm");
+  document.getElementById("reconAmount").focus();
+});
+document.getElementById("reconCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("reconForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("reconError");
+  const account = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
+  if (!account) return;
+  const target = parseAmountField(document.getElementById("reconAmount").value.replace(/^-/, ""));
+  const negative = document.getElementById("reconAmount").value.trim().startsWith("-");
+  if (Number.isNaN(target)) { err.textContent = "Solde invalide. Exemple : 4200.00"; return; }
+  const wanted = negative ? -target : target;
+  const current = balance(account.id);
+  const difference = Math.round((wanted - current) * 100) / 100;
+  if (difference === 0) { err.textContent = "Le solde est déjà exact — rien à ajuster."; return; }
+  pushUndo();
+  transactions.push({
+    id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
+    title: "Réconciliation du solde", amount: Math.abs(difference),
+    type: "adjustment", up: difference > 0,
+    cat: null, acc: account.id, dest: null, status: "posted",
+  });
+  saveState();
+  backdrop.classList.remove("open");
+  toast(`Solde réconcilié à ${money(wanted, account.currency || "CHF")}`, true);
   render();
 });
 
