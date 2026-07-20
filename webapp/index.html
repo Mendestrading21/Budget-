@@ -848,6 +848,18 @@
 /* ---------- Formatage fr-CH : CHF 18'190.00 ---------- */
 const CURRENCY_PREFIX = { CHF: "CHF ", EUR: "€ ", USD: "$ " };
 const CURRENCIES = ["CHF", "EUR", "USD"];
+/* Vocabulaire par pays : mêmes concepts, mots locaux. */
+const LABELS = {
+  pensionKind: { CH: "Prévoyance (3a, LPP)", FR: "Retraite (PER)", BE: "Épargne-pension" },
+  lifeKind: { CH: "Assurance vie (3b)", FR: "Assurance vie", BE: "Assurance vie (21/23)" },
+  pensionGroup: { CH: "Prévoyance et assurance vie", FR: "Retraite et assurance vie", BE: "Épargne-pension et assurance vie" },
+  healthExample: { CH: "Caisse maladie (LAMal)", FR: "Mutuelle santé", BE: "Mutuelle santé" },
+};
+function L(key) {
+  const entry = LABELS[key] || {};
+  return entry[S.country || "CH"] || entry.CH || key;
+}
+
 const COUNTRIES = {
   CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0.30,
         taxHint: "Impôts payés séparément — une réserve est recommandée." },
@@ -880,6 +892,11 @@ function defaultCashAccount() {
   const account = ACCOUNTS.find(a => a.cash && a.currency === baseCurrency())
     || ACCOUNTS.find(a => a.cash) || ACCOUNTS[0];
   return account ? account.id : null;
+}
+function kindLabel(kind) {
+  if (kind === "pension") return L("pensionKind");
+  if (kind === "lifeinsurance") return L("lifeKind");
+  return (ACCOUNT_KINDS[kind] || ACCOUNT_KINDS.current).label;
 }
 function accountCurrency(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
@@ -1533,7 +1550,7 @@ function renderHome() {
     ${portfolioRow("Comptes et liquidités", liquid, null, "💳")}
     ${portfolioRow("Épargne", savingsTotal, null, "🏛", contribSub(["savings"]))}
     ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
-    ${portfolioRow("Prévoyance et assurance vie", pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension", "lifeinsurance"]))}
+    ${portfolioRow(L("pensionGroup"), pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension", "lifeinsurance"]))}
     ${portfolioRow("Actifs (voiture, biens…)", assetsTotal, "networth", "🏷")}
     ${liabTotal ? portfolioRow("Dettes", -liabTotal, "networth", "📄") : ""}
     <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
@@ -1653,7 +1670,7 @@ function renderAccounts() {
   const groups = [
     ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
     ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
-    ["Prévoyance et assurance vie", ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
+    [L("pensionGroup"), ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
   ].filter(([, accs]) => accs.length);
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
@@ -1677,7 +1694,7 @@ function renderAccounts() {
         return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kind.label)}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div>${contribLine}</div>
+          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
@@ -1770,6 +1787,7 @@ function renderTaxes() {
       <p class="card-label">Encore dû (arriérés compris)</p>
       <p class="hero-amount warn">${chf(due)}</p>
       <span class="caption warn">⚠ Réserve manquante : ${chf(reserveGap)}</span>
+      <span class="caption" style="display:block;margin-top:4px">${COUNTRIES[S.country || "CH"].flag} ${COUNTRIES[S.country || "CH"].taxHint}</span>
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
@@ -1871,7 +1889,7 @@ function renderNetWorth() {
       const rows = [
         ["🏛 Épargne", contributionsFor(["savings"])],
         ["📈 Bourse / titres", contributionsFor(["brokerage"])],
-        ["🛡 Prévoyance et assurance vie", contributionsFor(["pension", "lifeinsurance"])],
+        [`🛡 ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])],
       ].filter(([, agg]) => agg.total > 0);
       if (!rows.length) return "";
       const yearSum = rows.reduce((a, [, agg]) => a + agg.year, 0);
@@ -2863,7 +2881,7 @@ function refreshDestOptions(preselect) {
     .sort((a, b) => (b.kind === preferred ? 1 : 0) - (a.kind === preferred ? 1 : 0));
   const select = document.getElementById("fDest");
   select.innerHTML = candidates.length
-    ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${(ACCOUNT_KINDS[a.kind] || {}).label || a.kind}${a.currency && a.currency !== baseCurrency() ? ", " + a.currency : ""})</option>`).join("")
+    ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${kindLabel(a.kind)}${a.currency && a.currency !== baseCurrency() ? ", " + a.currency : ""})</option>`).join("")
     : `<option value="">— aucun compte en ${sourceCurrency} disponible —</option>`;
   if (preselect && candidates.some(a => a.id === preselect)) select.value = preselect;
 }
@@ -3082,6 +3100,9 @@ function parseAmountField(rawValue) {
 function openAccSheet(account) {
   editingAccId = account ? account.id : null;
   document.getElementById("accForm").reset();
+  const kindSel = document.getElementById("aKind");
+  kindSel.querySelector('option[value="pension"]').textContent = L("pensionKind");
+  kindSel.querySelector('option[value="lifeinsurance"]').textContent = L("lifeKind");
   document.getElementById("accSheetTitle").textContent = account ? "Modifier le compte" : "Nouveau compte";
   document.getElementById("aDelete").style.display = account ? "block" : "none";
   if (account) {
