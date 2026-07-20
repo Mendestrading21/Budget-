@@ -52,6 +52,7 @@ struct AccountDetailView: View {
                 VStack(spacing: BudgetSpacing.medium) {
                     balanceCard
                     monthFlowCard
+                    contributionCard
                     optionsCard
                     historySection
                     if let actionErrorMessage {
@@ -153,6 +154,48 @@ struct AccountDetailView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Solde actuel : \(FinanceFormatting.chf(currentBalance))")
+        }
+    }
+
+    /// Cumuls « façon Finary » — visibles uniquement sur les comptes de
+    /// placement : chaque versement s'additionne, la performance d'un
+    /// compte titres affiche sa méthode.
+    @ViewBuilder
+    private var contributionCard: some View {
+        if ContributionService.tracksContributions(account.type) {
+            let service = ContributionService(calendar: appContainer.calendar)
+            let summary = service.summary(
+                of: account, movements: movements, now: appContainer.dateProvider.now
+            )
+            GlassCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
+                    Text("Versements cumulés")
+                        .font(BudgetFont.cardLabel)
+                        .foregroundStyle(.secondary)
+                    Text("Cette année : \(FinanceFormatting.chf(summary.currentYear)) · au total : \(FinanceFormatting.chf(summary.total))")
+                        .font(BudgetFont.body.weight(.semibold))
+                    if summary.withdrawn > 0 {
+                        Text("Retraits : \(FinanceFormatting.chf(summary.withdrawn))")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if account.type == .broker {
+                        let perf = service.performance(
+                            balance: currentBalance,
+                            openingBalance: account.openingBalance,
+                            summary: summary
+                        )
+                        Text("Performance : \(FinanceFormatting.chf(perf))")
+                            .font(BudgetFont.body.weight(.semibold))
+                            .foregroundStyle(perf >= 0 ? BudgetColor.positive : BudgetColor.negative)
+                        Text("Valeur actuelle − versements nets. Fiable si le solde est tenu à jour (réconciliation).")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Versements cumulés : \(FinanceFormatting.chf(summary.currentYear)) cette année, \(FinanceFormatting.chf(summary.total)) au total")
         }
     }
 
