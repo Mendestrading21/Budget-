@@ -79,6 +79,8 @@ Voir DECISION_LOG.md (ADR-001 à ADR-013). Convention patrimoine : soldes signé
 
 Le code V1 est terminé (phases 0-14) et le pipeline TestFlight est prêt : `.github/workflows/testflight.yml` (déclenchement manuel, signature cloud via clé API App Store Connect, aucun Mac requis) + guide `TESTFLIGHT_SETUP.md` (100 % faisable depuis l'iPhone). Exemption de chiffrement déclarée (`ITSAppUsesNonExemptEncryption = NO`). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
 
+**App web (skill /budget-web)** : W1-W4 livrées sur l'artifact unique — état persistant complet (localStorage), CRUD intégral (mouvements, comptes, budget par mois avec copie, objectifs liés aux comptes, récurrents avec « Comptabiliser », actifs/dettes, assurances, prévoyance, documents), import CSV réel avec empreintes et rollback, export CSV/JSON + restauration, impôts réglables, verrouillage par code, History API. Audit initial (5 BLOCKER dont un XSS et une perte de fortune sur l'épargne) intégralement soldé — webapp/AUDIT_W1.md. Source : webapp/index.html, vérifiée par suite headless Node à chaque phase.
+
 En attendant le compte Apple, le workflow **Demo** (Actions → Demo → Run workflow, aucun secret) fait tourner la vraie app dans le simulateur iPhone via `BudgetUITests/DemoTourUITests` (argument de lancement `-demoTour` → mode démo in-memory) et livre l'artefact « budget-demo » : captures de chaque écran, vidéo du tour, .ipa non signée. La CI ordinaire saute les tests UI (`-skip-testing:BudgetUITests`).
 
 1. Suivre TESTFLIGHT_SETUP.md : adhésion Apple Developer, App ID `ch.budgetapp.Budget`, fiche App Store Connect, clé API, 4 secrets GitHub, puis « Run workflow ».

@@ -574,6 +574,91 @@
       <button type="button" class="btn secondary" id="iDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer</button>
     </form>
+
+    <form class="sheet" id="insForm" style="display:none">
+      <h3 id="insSheetTitle">Nouvelle assurance</h3>
+      <label for="insName">Nom du contrat</label>
+      <input id="insName" placeholder="Caisse maladie (LAMal)" autocomplete="off" />
+      <label for="insInsurer">Assureur (facultatif)</label>
+      <input id="insInsurer" placeholder="Assureur Exemple" autocomplete="off" />
+      <label for="insPremium">Prime (CHF)</label>
+      <input id="insPremium" inputmode="decimal" placeholder="745.60" autocomplete="off" />
+      <label for="insUnit">Périodicité</label>
+      <select id="insUnit">
+        <option value="month">Par mois</option>
+        <option value="year">Par an</option>
+      </select>
+      <div class="error" id="insError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="insCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="insDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce contrat</button>
+    </form>
+
+    <form class="sheet" id="penForm" style="display:none">
+      <h3 id="penSheetTitle">Nouvelle position de prévoyance</h3>
+      <label for="penName">Institution / position</label>
+      <input id="penName" placeholder="Caisse LPP (2e pilier)" autocomplete="off" />
+      <label for="penValue">Valeur actuelle (CHF)</label>
+      <input id="penValue" inputmode="decimal" placeholder="85000.00" autocomplete="off" />
+      <label for="penProjection">Projection à la retraite (CHF, selon certificat, facultatif)</label>
+      <input id="penProjection" inputmode="decimal" placeholder="420000.00" autocomplete="off" />
+      <div class="error" id="penError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="penCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="penDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette position</button>
+    </form>
+
+    <form class="sheet" id="taxForm" style="display:none">
+      <h3>Profil d'impôts</h3>
+      <label for="txRate">Taux de provision (% des revenus)</label>
+      <input id="txRate" inputmode="decimal" placeholder="30" autocomplete="off" />
+      <label for="txReserve">Réserve déjà constituée (CHF)</label>
+      <input id="txReserve" inputmode="decimal" placeholder="2400.00" autocomplete="off" />
+      <div class="error" id="txError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="txCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
+
+    <form class="sheet" id="codeForm" style="display:none">
+      <h3 id="codeSheetTitle">Définir un code</h3>
+      <p class="caption" id="codeCaption" style="margin:0 0 6px"></p>
+      <label for="code1">Code (4 à 6 chiffres)</label>
+      <input id="code1" type="password" inputmode="numeric" maxlength="6" autocomplete="off" />
+      <label for="code2" id="code2Label">Confirmer le code</label>
+      <input id="code2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" />
+      <div class="error" id="codeError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="codeCancel">Annuler</button>
+        <button type="submit" class="btn">Valider</button>
+      </div>
+    </form>
+
+    <form class="sheet" id="docForm" style="display:none">
+      <h3>Nouveau document</h3>
+      <label for="dName">Nom</label>
+      <input id="dName" placeholder="Certificat LPP 2026" autocomplete="off" />
+      <label for="dKind">Type</label>
+      <select id="dKind">
+        <option>Prévoyance</option>
+        <option>Assurance</option>
+        <option>Impôts</option>
+        <option>Salaire</option>
+        <option>Autre</option>
+      </select>
+      <div class="error" id="dError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="dCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+    </form>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -603,7 +688,6 @@ const MONTHS = [
   { y: 2026, m: 5, label: "mai 2026" },
   { y: 2026, m: 6, label: "juin 2026" },
 ];
-const TAX_RATE = 0.30;
 
 const CATEGORIES = {
   Salaire: "income", Logement: "expense", "Assurance maladie": "expense",
@@ -669,11 +753,15 @@ const GOALS_SEED = [
 /* Patrimoine hors comptes (Phase 10) et prévoyance (Phase 9). */
 const ASSETS_SEED = [{ id: "as-voiture", name: "Voiture", icon: "🚗", value: 8500, include: true }];
 const LIABILITIES_SEED = [{ id: "li-leasing", name: "Leasing voiture", icon: "📄", value: 6200, include: true }];
-const PENSIONS_SEED = [{ name: "Caisse LPP (2e pilier)", icon: "🛡", value: 42300, projection: 245000 }];
+const PENSIONS_SEED = [{ id: "pen-lpp", name: "Caisse LPP (2e pilier)", icon: "🛡", value: 42300, projection: 245000 }];
 const INSURANCES_SEED = [
-  { name: "Caisse maladie (LAMal)", insurer: "Assureur Exemple", monthly: 745.60, icon: "🩺" },
-  { name: "RC + ménage", insurer: "Assureur Exemple", monthly: 32.50, note: "CHF 390.00 par an", icon: "🏠" },
+  { id: "ins-lamal", name: "Caisse maladie (LAMal)", insurer: "Assureur Exemple", premium: 745.60, unit: "month", icon: "🩺" },
+  { id: "ins-rc", name: "RC + ménage", insurer: "Assureur Exemple", premium: 390.00, unit: "year", icon: "🏠" },
 ];
+function insuranceMonthly(i) {
+  if (typeof i.premium === "number") return i.unit === "year" ? i.premium / 12 : i.premium;
+  return i.monthly || 0; // ancienne forme stockée
+}
 
 /* ---------- État persistant unique (localStorage de CET appareil) ----------
    TOUT l'état de l'app vit dans `S`, sauvegardé après chaque mutation.
@@ -686,7 +774,14 @@ function seedState() {
   return {
     version: 1,
     faceIDEnabled: false,
+    lockCode: null,
+    taxRate: 0.30,
     taxReserve: 2400,
+    lastImport: null,
+    documents: [
+      { id: "doc-lpp", name: "Certificat LPP 2026", kind: "Prévoyance" },
+      { id: "doc-rc", name: "Police RC ménage", kind: "Assurance" },
+    ],
     budgets: Object.fromEntries(MONTHS.map(({ y, m }) =>
       [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))])),
     transactions: MONTHS.flatMap(({ y, m }) => monthTemplate(y, m)),
@@ -709,6 +804,12 @@ function loadState() {
     for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances"]) {
       if (!Array.isArray(s[key])) s[key] = [];
     }
+    if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0.30;
+    if (typeof s.taxReserve !== "number") s.taxReserve = 2400;
+    if (!Array.isArray(s.documents)) s.documents = [];
+    if (s.lastImport && typeof s.lastImport !== "object") s.lastImport = null;
+    // L'ancien « Face ID » simulé n'avait pas de code : on repart propre.
+    if (s.faceIDEnabled && !s.lockCode) s.faceIDEnabled = false;
     const inferKind = { cur: "current", sav: "savings", p3a: "pension", cash: "cash" };
     for (const account of s.accounts) {
       if (!account.kind) account.kind = inferKind[account.id] || "current";
@@ -795,7 +896,7 @@ function snapshot(y, m) {
   const plannedIncome = sum(planned, "income");
   const plannedOut = ["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0);
 
-  const taxRecommended = Math.round(income * TAX_RATE * 100) / 100;
+  const taxRecommended = Math.round(income * (S.taxRate ?? 0.30) * 100) / 100;
   const taxGap = Math.max(0, taxRecommended - taxes);
 
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + balance(acc.id), 0);
@@ -1143,7 +1244,7 @@ function renderTaxes() {
       .reduce((a, t) => a + t.amount, 0));
   const observed = monthlyIncomes.filter(v => v > 0);
   const monthlyAverage = observed.length ? observed.reduce((a, b) => a + b, 0) / observed.length : 0;
-  const estimated = Math.round(monthlyAverage * 12 * TAX_RATE * 100) / 100;
+  const estimated = Math.round(monthlyAverage * 12 * (S.taxRate ?? 0.30) * 100) / 100;
   const paid = transactions
     .filter(t => t.type === "taxPayment" && t.status === "posted")
     .reduce((a, t) => a + t.amount, 0);
@@ -1158,7 +1259,7 @@ function renderTaxes() {
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Revenus × ${pct(TAX_RATE)}</span></div>
+        <span class="caption">Revenus × ${pct(S.taxRate ?? 0.30)}</span></div>
       <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span>
         <span class="caption">Mouvements « Paiement d'impôts »</span></div>
       <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span></div>
@@ -1172,7 +1273,8 @@ function renderTaxes() {
     <div class="card row tx"><div class="ico" aria-hidden="true">🗓</div>
       <div class="meta"><div class="t">Décompte final estimé</div><div class="s">31.03.2027</div></div>
       <span class="amount">${chf(Math.max(0, due - 850))}</span></div>
-    <p class="caption" style="padding:0 4px">Estimation d'organisation personnelle, pas un conseil fiscal. Estimé = payé + encore dû, toujours — le taux (30 %) se corrige dans le profil.</p>`;
+    <button class="btn secondary" data-adjusttax style="margin-top:4px">Ajuster le taux et la réserve</button>
+    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal. Estimé = payé + encore dû, toujours. Taux actuel : ${pct(S.taxRate ?? 0.30)}.</p>`;
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
@@ -1242,7 +1344,7 @@ function renderNetWorth() {
 
 /* ---------- Assurances & prévoyance (Phase 9) ---------- */
 function renderInsurance() {
-  const monthlyTotal = INSURANCES.reduce((a, i) => a + i.monthly, 0);
+  const monthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
   return backBar("Assurances & prévoyance") + `
     <div class="card hero">
       <p class="card-label">Primes — équivalent mensuel</p>
@@ -1250,17 +1352,19 @@ function renderInsurance() {
       <span class="caption">Toutes les primes ramenées au mois, quelle que soit leur périodicité réelle</span>
     </div>
     ${INSURANCES.length === 0 ? `<div class="card row"><span class="caption">Aucun contrat d'assurance enregistré.</span></div>` : ""}
-    ${INSURANCES.map(i => `<div class="card row tx"><div class="ico" aria-hidden="true">${i.icon}</div>
-      <div class="meta"><div class="t">${i.name}</div><div class="s">${i.insurer}${i.note ? " · " + i.note : ""}</div></div>
-      <span class="amount">${chf(i.monthly)}/mois</span></div>`).join("")}
+    ${INSURANCES.map(i => `<div class="card row tx" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
+      <div class="meta"><div class="t">${esc(i.name)}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : ""}</div></div>
+      <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`).join("")}
+    <button class="btn secondary" data-addins style="margin-top:4px">＋ Ajouter une assurance</button>
     <p class="section-title">Prévoyance</p>
     ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Aucune position de prévoyance enregistrée.</span></div>` : ""}
-    ${PENSIONS.map(p => `<div class="card"><div class="tx"><div class="ico" aria-hidden="true">${p.icon}</div>
-      <div class="meta"><div class="t">${p.name}</div><div class="s">Selon certificat — jamais un calcul de l'app</div></div>
+    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
+      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Selon certificat — jamais un calcul de l'app</div></div>
       <span class="amount acct-total">${chf(p.value)}</span></div>
-      <div class="breakdown" style="margin-top:10px">
+      ${p.projection ? `<div class="breakdown" style="margin-top:10px">
         <div><span>Projection à 65 ans (certificat)</span><span>${chf(p.projection)}</span></div>
-      </div></div>`).join("")}
+      </div>` : ""}</div>`).join("")}
+    <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une position de prévoyance</button>
     ${ACCOUNTS.some(a => a.id === "p3a") ? `<div class="card row tx"><div class="ico" aria-hidden="true">🛡</div>
       <div class="meta"><div class="t">Pilier 3a</div><div class="s">Fondation Exemple — aussi visible dans Comptes</div></div>
       <span class="amount acct-total">${chf(balance("p3a"))}</span></div>` : ""}`;
@@ -1284,31 +1388,174 @@ function renderRecurring() {
     <p class="caption" style="padding:6px 4px 0">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir (ou « Comptabiliser ») la retire des prévisions, sans doublon.</p>`;
 }
 
-/* ---------- Import CSV & documents (Phase 11) ---------- */
+/* ---------- Import CSV réel (Phase 11 / W4) ---------- */
+
+/* Parseur pur : délimiteur auto (; , tab), guillemets, en-têtes. */
+function detectDelimiter(sample) {
+  const candidates = [";", ",", "\t"];
+  let best = ";", bestCount = -1;
+  for (const d of candidates) {
+    const count = sample.split("\n").slice(0, 5)
+      .reduce((a, line) => a + line.split(d).length - 1, 0);
+    if (count > bestCount) { best = d; bestCount = count; }
+  }
+  return best;
+}
+function splitCSVLine(line, delimiter) {
+  const fields = [];
+  let current = "", inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else current += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === delimiter) { fields.push(current); current = ""; }
+    else current += ch;
+  }
+  fields.push(current);
+  return fields.map(f => f.trim());
+}
+function parseSwissDate(raw) {
+  let match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (match) return { y: +match[1], m: +match[2], d: +match[3] };
+  match = /^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})$/.exec(raw);
+  if (match) return { y: +match[3], m: +match[2], d: +match[1] };
+  return null;
+}
+/* Empreinte d'idempotence : même date + montant + intitulé = doublon. */
+function importFingerprint(y, m, d, amount, title) {
+  return `${y}-${m}-${d}|${amount.toFixed(2)}|${title.toLowerCase()}`;
+}
+function existingFingerprints() {
+  return new Set(transactions.map(t => importFingerprint(t.y, t.m, t.d, t.amount, t.title)));
+}
+/* Analyse complète d'un texte CSV → lignes évaluées, sans rien écrire. */
+function analyzeCSV(textContent) {
+  const rawLines = textContent.split(/\r?\n/).filter(l => l.trim() !== "");
+  if (!rawLines.length) return { rows: [], header: null };
+  const delimiter = detectDelimiter(rawLines.slice(0, 5).join("\n"));
+  const first = splitCSVLine(rawLines[0], delimiter).map(f => f.toLowerCase());
+  const headerScore = first.filter(f => /date|montant|amount|intitul|libell|titre|description|cat/.test(f)).length;
+  const hasHeader = headerScore >= 2 || (headerScore >= 1 && !parseSwissDate(first[0]));
+  const columns = { date: 0, amount: 1, title: 2, cat: -1 };
+  if (hasHeader) {
+    first.forEach((name, index) => {
+      if (/date/.test(name)) columns.date = index;
+      else if (/montant|amount/.test(name)) columns.amount = index;
+      else if (/intitul|libell|titre|description|nom/.test(name)) columns.title = index;
+      else if (/cat/.test(name)) columns.cat = index;
+    });
+  }
+  const seen = existingFingerprints();
+  const rows = [];
+  for (let i = hasHeader ? 1 : 0; i < rawLines.length; i++) {
+    const raw = rawLines[i];
+    const fields = splitCSVLine(raw, delimiter);
+    const evaluate = () => {
+      const date = parseSwissDate(fields[columns.date] || "");
+      if (!date) return { state: "invalid", reason: "date illisible" };
+      const inRange = MONTHS.some(mm => mm.y === date.y && mm.m === date.m);
+      if (!inRange) return { state: "invalid", reason: "hors période (démo : avril-juin 2026)" };
+      const amountRaw = (fields[columns.amount] || "").trim();
+      const negative = /^-/.test(amountRaw) || /^\(.*\)$/.test(amountRaw);
+      const amount = parseAmountField(amountRaw.replace(/^[-(]|[)]$/g, ""));
+      if (!(amount > 0)) return { state: "invalid", reason: "montant illisible" };
+      const title = (fields[columns.title] || "").trim();
+      if (!title) return { state: "invalid", reason: "intitulé manquant" };
+      const fingerprint = importFingerprint(date.y, date.m, date.d, amount, title);
+      if (seen.has(fingerprint)) return { state: "duplicate" };
+      seen.add(fingerprint);
+      const cat = columns.cat >= 0 ? (fields[columns.cat] || "").trim() : "";
+      return {
+        state: "ready",
+        // Convention des exports suisses : négatif = dépense, positif = revenu.
+        tx: { ...date, amount, title, type: negative ? "expense" : "income",
+              cat: CATEGORIES[cat] ? cat : null },
+      };
+    };
+    rows.push({ line: i + 1, raw, ...evaluate() });
+  }
+  return { rows, delimiter, hasHeader };
+}
+function applyImport(analysis, fileName) {
+  const batchId = "batch-" + Date.now().toString(36);
+  let imported = 0;
+  for (const row of analysis.rows) {
+    if (row.state !== "ready") continue;
+    const { y, m, d, amount, title, type, cat } = row.tx;
+    transactions.push({
+      id: ++txSeq, y, m, d, title, amount, type,
+      cat: cat || (type === "expense" ? null : null),
+      acc: "cur", dest: null,
+      status: (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted",
+      importBatch: batchId,
+    });
+    imported++;
+  }
+  S.lastImport = {
+    fileName: fileName || "collage",
+    batchId,
+    total: analysis.rows.length,
+    imported,
+    duplicates: analysis.rows.filter(r => r.state === "duplicate").length,
+    invalids: analysis.rows.filter(r => r.state === "invalid")
+      .map(r => ({ line: r.line, raw: r.raw.slice(0, 120), reason: r.reason })),
+  };
+  saveState();
+  return S.lastImport;
+}
+function rollbackLastImport() {
+  if (!S.lastImport) return;
+  const batchId = S.lastImport.batchId;
+  for (let i = transactions.length - 1; i >= 0; i--) {
+    if (transactions[i].importBatch === batchId) transactions.splice(i, 1);
+  }
+  S.lastImport = null;
+  saveState();
+}
+
 function renderImport() {
+  const report = S.lastImport;
+  const batchStillPresent = report && transactions.some(t => t.importBatch === report.batchId);
   return backBar("Import CSV & documents") + `
     <div class="card">
-      <p class="card-label">Dernier import — notion-export.csv</p>
+      <p class="card-label">Importer des mouvements</p>
+      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un collage. Colonnes reconnues : date, montant (négatif = dépense), intitulé, catégorie. Rien n'est écrit avant votre confirmation implicite d'import.</p>
+      <button type="button" class="btn secondary" data-importpick>Choisir un fichier CSV…</button>
+      <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
+      <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
+      <textarea id="importPaste" rows="4" placeholder="date;montant;intitulé&#10;05.06.2026;-45.50;Courses"
+        style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.12);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
+      <button type="button" class="btn" data-importpaste style="margin-top:10px">Analyser et importer le collage</button>
+    </div>
+    ${report ? `
+    <div class="card">
+      <p class="card-label">Dernier import — ${esc(report.fileName)}</p>
       <div class="breakdown" style="margin-top:6px">
-        <div><span>Lignes lues</span><span>42</span></div>
-        <div><span class="pos">Importées</span><span>38</span></div>
-        <div><span class="info">Doublons ignorés (empreinte)</span><span>3</span></div>
-        <div><span class="neg">Invalides</span><span>1</span></div>
+        <div><span>Lignes lues</span><span>${report.total}</span></div>
+        <div><span class="pos">Importées</span><span>${report.imported}</span></div>
+        <div><span class="info">Doublons ignorés (empreinte)</span><span>${report.duplicates}</span></div>
+        <div><span class="neg">Invalides</span><span>${report.invalids.length}</span></div>
       </div>
-      <p class="caption" style="margin:10px 0 0">Ré-importer le même fichier ne crée jamais de doublon : chaque ligne porte une empreinte SHA-256.</p>
+      ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} mouvements)</button>` : ""}
     </div>
+    ${report.invalids.length ? `
     <p class="section-title">File de réparation</p>
-    <div class="card row">
-      <div style="font-size:12.5px"><span class="neg">Ligne 17 — montant illisible</span><br>
-        <code style="font-size:11px;color:var(--coolgray)">17;Restaurant;abc.50;2026-05-12</code></div>
-    </div>
-    <button class="btn secondary" style="margin-top:6px" disabled>Annuler ce lot (rollback) — démo</button>
-    <p class="section-title">Documents</p>
-    <div class="card row tx"><div class="ico" aria-hidden="true">📄</div>
-      <div class="meta"><div class="t">Certificat LPP 2025</div><div class="s">Prévoyance · PDF · 240 Ko</div></div></div>
-    <div class="card row tx"><div class="ico" aria-hidden="true">📄</div>
-      <div class="meta"><div class="t">Police RC ménage 2026</div><div class="s">Assurance · PDF · 512 Ko</div></div></div>
-    <p class="caption" style="padding:0 4px">Les fichiers sont copiés dans le conteneur chiffré de l'app ; seules les métadonnées vivent en base.</p>`;
+    ${report.invalids.map(inv => `<div class="card row">
+      <div style="font-size:12.5px"><span class="neg">Ligne ${inv.line} — ${esc(inv.reason)}</span><br>
+        <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
+    </div>`).join("")}` : ""}` : ""}
+    <p class="section-title">Documents (métadonnées)</p>
+    ${S.documents.length === 0 ? `<div class="card row"><span class="caption">Aucun document. Certificats, polices, décomptes — les fichiers eux-mêmes restent dans l'app native.</span></div>` : ""}
+    ${S.documents.map(doc => `<div class="card row tx">
+      <div class="ico" aria-hidden="true">📄</div>
+      <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)}</div></div>
+      <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
+    </div>`).join("")}
+    <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
+    <p class="caption" style="padding:6px 4px 0">Ré-importer le même fichier ne crée jamais de doublon : chaque ligne porte une empreinte (date + montant + intitulé).</p>`;
 }
 
 /* ---------- Réglages (Phase 12) ---------- */
@@ -1330,8 +1577,8 @@ function renderSettings() {
   return backBar("Réglages") + `
     <p class="section-title">Sécurité</p>
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center">
-      <div><div style="font-size:14px;font-weight:600">Verrouillage Face ID</div>
-        <div class="caption">Activer comme désactiver exige une authentification</div></div>
+      <div><div style="font-size:14px;font-weight:600">Verrouillage par code</div>
+        <div class="caption">Protège l'affichage sur cet appareil (pas un chiffrement). Activer comme désactiver exige le code.</div></div>
       <button class="btn secondary" data-togglelock style="width:auto;padding:8px 14px;font-size:13px">
         ${S.faceIDEnabled ? "Activé ✓" : "Désactivé"}</button>
     </div>
@@ -1381,10 +1628,11 @@ function renderLockScreen() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:14px">
     <div style="font-size:44px">🔒</div>
     <div style="font-size:19px;font-weight:700">Budget est verrouillé</div>
-    <div class="caption" style="max-width:240px">Vos données financières sont protégées. Authentifiez-vous pour continuer.</div>
-    ${lockMessage ? `<div class="caption neg">${lockMessage}</div>` : ""}
-    <button class="btn" data-unlock style="width:auto;padding:12px 26px">Déverrouiller avec Face ID</button>
-    <button class="btn secondary" data-unlockcancel style="width:auto;padding:10px 22px">Annuler</button>
+    <div class="caption" style="max-width:250px">Saisissez votre code pour continuer.</div>
+    <input id="lockInput" type="password" inputmode="numeric" maxlength="6" aria-label="Code de déverrouillage"
+      style="width:140px;text-align:center;font-size:22px;letter-spacing:6px;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.15);color:var(--offwhite);padding:10px;border-radius:12px" />
+    ${lockMessage ? `<div class="caption neg" role="alert">${lockMessage}</div>` : ""}
+    <button class="btn" data-unlock style="width:auto;padding:12px 26px">Déverrouiller</button>
   </div>`;
 }
 
@@ -1454,11 +1702,46 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (entry) { moreView = entry.dataset.more; render(); scrollTop(); pushNav(); return; }
   if (e.target.closest("[data-back]")) { moreView = null; render(); scrollTop(); return; }
   if (e.target.closest("[data-togglelock]")) {
-    S.faceIDEnabled = !S.faceIDEnabled;
-    if (!S.faceIDEnabled) locked = false;
-    saveState();
-    toast(S.faceIDEnabled ? "Verrouillage activé" : "Verrouillage désactivé");
-    render(); return;
+    // Activer = définir un code ; désactiver = saisir le code (règle Phase 12).
+    openCodeSheet(S.faceIDEnabled ? "disable" : "set");
+    return;
+  }
+  const insEl = e.target.closest("[data-insid]");
+  if (insEl) { const c = INSURANCES.find(x => x.id === insEl.dataset.insid); if (c) openInsSheet(c); return; }
+  if (e.target.closest("[data-addins]")) { openInsSheet(null); return; }
+  const penEl = e.target.closest("[data-penid]");
+  if (penEl) { const p = PENSIONS.find(x => x.id === penEl.dataset.penid); if (p) openPenSheet(p); return; }
+  if (e.target.closest("[data-addpen]")) { openPenSheet(null); return; }
+  if (e.target.closest("[data-adjusttax]")) { openTaxSheet(); return; }
+  if (e.target.closest("[data-importpick]")) { document.getElementById("importFile").click(); return; }
+  if (e.target.closest("[data-importpaste]")) {
+    const paste = document.getElementById("importPaste");
+    if (!paste || !paste.value.trim()) { toast("Collez d'abord du contenu CSV"); return; }
+    runImport(paste.value, "collage");
+    return;
+  }
+  if (e.target.closest("[data-rollbackimport]")) {
+    if (!S.lastImport) return;
+    if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} mouvements) ? Le reste survit.`)) return;
+    rollbackLastImport();
+    toast("Lot annulé — les autres mouvements sont intacts");
+    render();
+    return;
+  }
+  const delDoc = e.target.closest("[data-deldoc]");
+  if (delDoc) {
+    if (!confirm("Supprimer ce document ?")) return;
+    const index = S.documents.findIndex(d => d.id === delDoc.dataset.deldoc);
+    if (index >= 0) S.documents.splice(index, 1);
+    saveState(); toast("Document supprimé"); render();
+    return;
+  }
+  if (e.target.closest("[data-adddoc]")) {
+    document.getElementById("docForm").reset();
+    document.getElementById("dError").textContent = "";
+    openSheet("docForm");
+    document.getElementById("dName").focus();
+    return;
   }
   if (e.target.closest("[data-locknow]")) { locked = true; lockMessage = ""; render(); return; }
   if (e.target.closest("[data-exportcsv]")) { exportCSV(); return; }
@@ -1474,16 +1757,30 @@ document.getElementById("screen").addEventListener("click", (e) => {
     location.reload();
     return;
   }
-  if (e.target.closest("[data-unlock]")) { locked = false; lockMessage = ""; render(); return; }
-  if (e.target.closest("[data-unlockcancel]")) {
-    // Annuler garde l'app verrouillée, sans message d'erreur (règle Phase 12).
-    lockMessage = "Authentification annulée — l'app reste verrouillée.";
+  if (e.target.closest("[data-unlock]")) {
+    const input = document.getElementById("lockInput");
+    const code = input ? input.value.trim() : "";
+    if (S.lockCode && codeHash(code) === S.lockCode) {
+      locked = false; lockMessage = ""; lockAttempts = 0;
+    } else {
+      lockAttempts++;
+      lockMessage = lockAttempts >= 3
+        ? "Code incorrect (3 essais). L'app reste verrouillée — réessayez calmement."
+        : "Code incorrect — l'app reste verrouillée.";
+    }
     render(); return;
   }
 });
 document.getElementById("screen").addEventListener("change", (e) => {
   if (e.target && e.target.id === "restoreFile" && e.target.files && e.target.files[0]) {
     restoreFromFile(e.target.files[0]);
+    e.target.value = "";
+  }
+  if (e.target && e.target.id === "importFile" && e.target.files && e.target.files[0]) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = () => runImport(String(reader.result || ""), file.name);
+    reader.readAsText(file);
     e.target.value = "";
   }
 });
@@ -1507,7 +1804,7 @@ function toast(message) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -1705,6 +2002,8 @@ function deleteAllData() {
   LIABILITIES.length = 0;
   PENSIONS.length = 0;
   INSURANCES.length = 0;
+  S.documents.length = 0;
+  S.lastImport = null;
   saveState();
   moreView = null;
   toast("Toutes les données ont été supprimées");
@@ -2064,6 +2363,177 @@ document.getElementById("iDelete").addEventListener("click", () => {
   backdrop.classList.remove("open");
   toast("Élément supprimé");
   render();
+});
+
+
+/* ---------- Import CSV : fichier / collage / rollback (W4) ---------- */
+function runImport(content, fileName) {
+  const analysis = analyzeCSV(content);
+  if (!analysis.rows.length) { toast("Rien à importer dans ce contenu"); return; }
+  const report = applyImport(analysis, fileName);
+  toast(`Import : ${report.imported} importées, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
+  render();
+}
+
+/* ---------- Feuille assurance (W4) ---------- */
+let editingInsId = null;
+function openInsSheet(contract) {
+  editingInsId = contract ? contract.id : null;
+  document.getElementById("insForm").reset();
+  document.getElementById("insSheetTitle").textContent = contract ? "Modifier l'assurance" : "Nouvelle assurance";
+  document.getElementById("insDelete").style.display = contract ? "block" : "none";
+  if (contract) {
+    document.getElementById("insName").value = contract.name;
+    document.getElementById("insInsurer").value = contract.insurer || "";
+    document.getElementById("insPremium").value = (contract.premium ?? contract.monthly ?? 0).toFixed(2);
+    document.getElementById("insUnit").value = contract.unit === "year" ? "year" : "month";
+  }
+  document.getElementById("insError").textContent = "";
+  openSheet("insForm");
+  document.getElementById("insName").focus();
+}
+document.getElementById("insCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("insForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("insError");
+  const name = document.getElementById("insName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom au contrat."; return; }
+  const premium = parseAmountField(document.getElementById("insPremium").value);
+  if (!(premium > 0)) { err.textContent = "Prime invalide. Exemple : 745.60"; return; }
+  const data = { name, insurer: document.getElementById("insInsurer").value.trim(),
+                 premium, unit: document.getElementById("insUnit").value };
+  const existing = editingInsId ? INSURANCES.find(i => i.id === editingInsId) : null;
+  if (existing) { delete existing.monthly; Object.assign(existing, data); toast("Assurance modifiée"); }
+  else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Assurance ajoutée"); }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("insDelete").addEventListener("click", () => {
+  if (!editingInsId || !confirm("Supprimer ce contrat d'assurance ?")) return;
+  const index = INSURANCES.findIndex(i => i.id === editingInsId);
+  if (index >= 0) INSURANCES.splice(index, 1);
+  saveState(); backdrop.classList.remove("open"); toast("Assurance supprimée"); render();
+});
+
+/* ---------- Feuille prévoyance (W4) ---------- */
+let editingPenId = null;
+function openPenSheet(position) {
+  editingPenId = position ? position.id : null;
+  document.getElementById("penForm").reset();
+  document.getElementById("penSheetTitle").textContent = position ? "Modifier la position" : "Nouvelle position de prévoyance";
+  document.getElementById("penDelete").style.display = position ? "block" : "none";
+  if (position) {
+    document.getElementById("penName").value = position.name;
+    document.getElementById("penValue").value = position.value.toFixed(2);
+    document.getElementById("penProjection").value = position.projection ? position.projection.toFixed(2) : "";
+  }
+  document.getElementById("penError").textContent = "";
+  openSheet("penForm");
+  document.getElementById("penName").focus();
+}
+document.getElementById("penCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("penForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("penError");
+  const name = document.getElementById("penName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom à la position."; return; }
+  const value = parseAmountField(document.getElementById("penValue").value);
+  if (!(value > 0)) { err.textContent = "Valeur invalide. Exemple : 85000.00"; return; }
+  const projectionRaw = document.getElementById("penProjection").value.trim();
+  const projection = projectionRaw === "" ? null : parseAmountField(projectionRaw);
+  if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Projection invalide."; return; }
+  const data = { name, value, projection };
+  const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
+  if (existing) { Object.assign(existing, data); toast("Position modifiée"); }
+  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Position ajoutée"); }
+  saveState(); backdrop.classList.remove("open"); render();
+});
+document.getElementById("penDelete").addEventListener("click", () => {
+  if (!editingPenId || !confirm("Supprimer cette position de prévoyance ?")) return;
+  const index = PENSIONS.findIndex(p => p.id === editingPenId);
+  if (index >= 0) PENSIONS.splice(index, 1);
+  saveState(); backdrop.classList.remove("open"); toast("Position supprimée"); render();
+});
+
+/* ---------- Feuille impôts (W4) ---------- */
+function openTaxSheet() {
+  document.getElementById("taxForm").reset();
+  document.getElementById("txRate").value = ((S.taxRate ?? 0.30) * 100).toFixed(0);
+  document.getElementById("txReserve").value = (S.taxReserve ?? 0).toFixed(2);
+  document.getElementById("txError").textContent = "";
+  openSheet("taxForm");
+  document.getElementById("txRate").focus();
+}
+document.getElementById("txCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("taxForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("txError");
+  const rate = parseAmountField(document.getElementById("txRate").value);
+  if (!(rate >= 0 && rate <= 60)) { err.textContent = "Taux entre 0 et 60 %. Exemple : 30"; return; }
+  const reserveRaw = document.getElementById("txReserve").value.trim();
+  const reserve = reserveRaw === "" ? 0 : parseAmountField(reserveRaw);
+  if (Number.isNaN(reserve)) { err.textContent = "Réserve invalide. Exemple : 2400.00"; return; }
+  S.taxRate = Math.round(rate) / 100;
+  S.taxReserve = reserve;
+  saveState(); backdrop.classList.remove("open");
+  toast(`Profil d'impôts mis à jour (taux ${Math.round(rate)} %)`);
+  render();
+});
+
+/* ---------- Verrouillage par code (W4) ---------- */
+function codeHash(code) {
+  let h = 5381;
+  for (const ch of String(code)) h = ((h * 33) + ch.charCodeAt(0)) | 0;
+  return String(h);
+}
+let codeMode = "set"; // "set" | "disable"
+let lockAttempts = 0;
+function openCodeSheet(mode) {
+  codeMode = mode;
+  document.getElementById("codeForm").reset();
+  document.getElementById("codeSheetTitle").textContent = mode === "set" ? "Définir un code" : "Désactiver le verrouillage";
+  document.getElementById("codeCaption").textContent = mode === "set"
+    ? "Le code protège l'affichage de Budget sur cet appareil. Ne l'oubliez pas : il n'y a pas de récupération."
+    : "Saisissez votre code actuel pour désactiver le verrouillage.";
+  document.getElementById("code2").style.display = mode === "set" ? "" : "none";
+  document.getElementById("code2Label").style.display = mode === "set" ? "" : "none";
+  document.getElementById("codeError").textContent = "";
+  openSheet("codeForm");
+  document.getElementById("code1").focus();
+}
+document.getElementById("codeCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("codeForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("codeError");
+  const code = document.getElementById("code1").value.trim();
+  if (!/^\d{4,6}$/.test(code)) { err.textContent = "Code de 4 à 6 chiffres."; return; }
+  if (codeMode === "set") {
+    if (code !== document.getElementById("code2").value.trim()) {
+      err.textContent = "Les deux saisies ne correspondent pas."; return;
+    }
+    S.lockCode = codeHash(code);
+    S.faceIDEnabled = true;
+    toast("Verrouillage activé");
+  } else {
+    if (codeHash(code) !== S.lockCode) { err.textContent = "Code incorrect — le verrouillage reste actif."; return; }
+    S.lockCode = null;
+    S.faceIDEnabled = false;
+    locked = false;
+    toast("Verrouillage désactivé");
+  }
+  saveState(); backdrop.classList.remove("open"); render();
+});
+
+/* ---------- Feuille document (W4) ---------- */
+document.getElementById("dCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("docForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("dError");
+  const name = document.getElementById("dName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom au document."; return; }
+  S.documents.push({ id: "doc-" + Date.now().toString(36), name, kind: document.getElementById("dKind").value });
+  saveState(); backdrop.classList.remove("open"); toast("Document ajouté"); render();
 });
 
 render();

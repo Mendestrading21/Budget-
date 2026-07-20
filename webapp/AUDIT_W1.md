@@ -57,14 +57,31 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
 - Courbe de patrimoine DÉRIVÉE des soldes réels de fin de mois (W3)
 - Progressbars avec aria (N2 partiel)
 
-## Reste pour W4
+## Corrigé en W4 — l'audit est soldé
 
-- CRUD prévoyance/assurances (reste de B5.6)
+- Import CSV RÉEL (B5.7) : fichier ou collage, délimiteur auto
+  (; , tab), guillemets, dates suisses (31.12.2026, 31/12/2026, ISO),
+  montants signés (négatif = dépense), mappage des colonnes par
+  en-têtes, empreinte date+montant+intitulé → ré-import = 0 doublon,
+  rapport persistant (importées/doublons/invalides avec raison et texte
+  brut), « Annuler ce lot » chirurgical (le reste survit)
+- Taux et réserve d'impôts éditables (feuille « Ajuster ») ; le taux
+  vit dans l'état et alimente snapshot ET écran Impôts
+- Verrouillage par CODE réel (B5.10) : définir (2 saisies), vérifier
+  pour désactiver, écran verrouillé avec compteur d'échecs ; copie
+  honnête (protège l'affichage, pas un chiffrement) ; l'ancien
+  simulacre Face ID est migré proprement
+- CRUD assurances (primes mois/an → équivalent mensuel) et prévoyance
+  (valeur + projection du certificat) — fin de B5.6
+- Documents : liste de métadonnées ajout/suppression — plus une seule
+  ligne inerte dans l'app
 
-## Backlog W4
+## Assumé en l'état (documenté)
 
-- Import CSV réel : fichier, délimiteur, doublons par empreinte,
-  rapport, rollback (B5.7)
-- Taux/réserve d'impôts éditables, provision sur revenus attendus (W1)
-- Verrouillage par code + WebAuthn si disponible (B5.10)
-- NIT restants : progressbars aria, focus-trap de la feuille, libellés.
+- Provision d'impôts sur revenus comptabilisés uniquement (parité avec
+  l'app native — décision produit commune aux deux plateformes)
+- Flottants arrondis au centime à chaque mutation (W5) ; centimes
+  entiers si des dérives apparaissent
+- Période de démo avril-juin 2026 (les imports hors période sont
+  refusés avec une raison claire) — les mois dynamiques viendront avec
+  la synchronisation des données réelles
