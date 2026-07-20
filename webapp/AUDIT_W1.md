@@ -239,3 +239,21 @@ bouton mort dans les deux sens. Constats corrigés dans la foulée :
 - **Nettoyage** : openBillsSoon, DEST_BY_TYPE, RENDERERS.goals retirés ;
   service worker ne met plus en cache les réponses en erreur ;
   « Dépenses du mois » aligné sur « Coût de la vie » (impôts à part).
+
+
+## Audit final du programme BUDGET 2027 (2026-07-20)
+
+Troisième audit par agent, après les 17 lots fonctionnels. Verdict
+boutons : 61 attributs data-* rendus ↔ 61 handlers, zéro orphelin dans
+les deux sens. Constats corrigés (commit b0eaac2) : undo d'une
+suppression de dette qui perdait la mensualité liée ; catégorie
+hors-budget non échappée (vecteur sauvegarde forgée) ; double comptage
+moyenne-3-mois/revenu planifié ; undo sans pays/profil de projection ;
+quatre libellés CHF figés ; libellés suisses résiduels ; fallbacks
+devise ; paiement de facture d'un mois passé daté dans le bon mois ;
+« ✓ Reçu » pour tout revenu ; jour du second salaire ; code mort ;
+formatage d'une dette soldée ; « montant initial » expliqué.
+Constat documenté sans correctif : dupliquer une « Mensualité » crée un
+mouvement sans lien de dette (pas de double décrément — comportement
+voulu) ; catégorie budgétaire « Pilier 3a » de la démo conservée telle
+quelle (référentiel V1).

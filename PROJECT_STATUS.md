@@ -126,6 +126,36 @@ l'iPhone de l'utilisateur :
   ↔ 51 handlers). Suite navigateur : 18 parcours Chromium en CI (job
   `web-tests`) + suite native ~190 tests.
 
+## Programme BUDGET 2027 (2026-07-20, soirée) — 20 lots livrés
+
+Skill `.claude/skills/budget-2027/SKILL.md` exécuté de bout en bout,
+un commit par lot, CI + Pages verts à chaque étape :
+
+- **A. Marque** : logo original « le chemin du patrimoine » (SVG +
+  icônes 1024/512/192/180), palette AA mesurée, épure (compteur animé,
+  retour tactile, libellés raccourcis).
+- **B. Public** : pays 🇨🇭🇫🇷🇧🇪 à la bienvenue (devise/impôts/
+  vocabulaire), moteur de labels L() (3a ↔ PER ↔ épargne-pension),
+  profils seul/couple/famille avec deux prénoms et deux salaires.
+- **C. Chemin** : projection 5/10/20 ans (profils prudent/équilibré/
+  ambitieux, Decimal itératif côté natif), objectifs projetés
+  (« Atteint vers… », « ＋X/mois »), Année en revue, streak 🔥 +
+  rattrapage des mois ouverts.
+- **D. Comptes** : fiche de compte (courbe 12 mois, cumuls, historique),
+  multi-revenus + moyenne 3 mois pour l'irrégulier, dettes vivantes
+  (mensualité → décrément dérivé, fin projetée).
+- **E. Simplicité** : bienvenue 5 écrans avec comptes en un tap, démo
+  localisée par pays, guide « Comment ça marche » en 3 cartes.
+- **F. Qualité** : suite navigateur à 22 parcours, audit agent final
+  (zéro bouton mort sur 61 hooks ; 3 majeurs + 7 mineurs corrigés —
+  commit b0eaac2), WealthProjectionService natif testé, ce bilan.
+
+Validations humaines restantes : usage réel sur iPhone (seul juge du
+produit), compte Apple Developer pour TestFlight/App Store, choix du
+prix, et — avant tout lancement public FR/BE — une revue réglementaire
+humaine des textes (l'app ne donne aucun conseil financier, mais la
+formulation doit être validée par pays).
+
 ## Next exact action
 
 Le code V1 est terminé (phases 0-14) et le pipeline TestFlight est prêt : `.github/workflows/testflight.yml` (déclenchement manuel, signature cloud via clé API App Store Connect, aucun Mac requis) + guide `TESTFLIGHT_SETUP.md` (100 % faisable depuis l'iPhone). Exemption de chiffrement déclarée (`ITSAppUsesNonExemptEncryption = NO`). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
