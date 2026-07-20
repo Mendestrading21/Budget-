@@ -97,6 +97,35 @@ un commit par correctif, CI verte à chaque étape :
 - Migration V1→V8 : à valider sur un simulateur/appareil contenant déjà des données réelles (aucune perte attendue, changements additifs).
 - Filtres et rapports calculés en mémoire (volumes V1 acceptables) — indexation/#Predicate à revisiter en Phase 13 (performance).
 
+## Vague produit post-audit (2026-07-20, après-midi)
+
+L'app web est devenue LE produit utilisable aujourd'hui, installée sur
+l'iPhone de l'utilisateur :
+
+- **Distribution** : PWA sur GitHub Pages
+  (https://mendestrading21.github.io/Budget-/) — workflow `pages.yml`
+  auto-déployé à chaque évolution de `webapp/` ; icône d'app, plein
+  écran, service worker hors-ligne (réseau d'abord, cache en secours).
+- **Première ouverture** : écran de bienvenue 4 étapes (prénom, devise
+  de référence CHF/EUR/USD, salaire facultatif, compte principal) — la
+  démo est un choix, plus jamais imposée ; « Réinitialiser
+  complètement » ramène à la bienvenue.
+- **Rituel « Check du mois »** : carte de progression (salaire,
+  récurrents, factures validables d'un geste), « Mois bouclé »
+  persistant et réversible, frise des 6 derniers mois. Porté en natif
+  (RecurringScheduleService.monthCheck + carte HomeTab, dérivé pur).
+- **Cumuls façon Finary** : contributions par compte de placement
+  (versé année/total, retraits, perf. des comptes titres) — web ET
+  natif (ContributionService + carte sur la fiche de compte) ;
+  assurance vie (3b) suivie comme placement ; bilan « Versé cette
+  année » et évolution 12 mois par classe dans Patrimoine ; échéances
+  de contrats d'assurance avec alertes ≤ 45 jours sur l'Accueil.
+- **Qualité** : second audit par agent → 23 correctifs (XSS échappé,
+  ajustements cohérents, devise de référence partout, clavier complet,
+  restauration d'état exhaustive) — zéro bouton mort vérifié (51 hooks
+  ↔ 51 handlers). Suite navigateur : 18 parcours Chromium en CI (job
+  `web-tests`) + suite native ~190 tests.
+
 ## Next exact action
 
 Le code V1 est terminé (phases 0-14) et le pipeline TestFlight est prêt : `.github/workflows/testflight.yml` (déclenchement manuel, signature cloud via clé API App Store Connect, aucun Mac requis) + guide `TESTFLIGHT_SETUP.md` (100 % faisable depuis l'iPhone). Exemption de chiffrement déclarée (`ITSAppUsesNonExemptEncryption = NO`). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
