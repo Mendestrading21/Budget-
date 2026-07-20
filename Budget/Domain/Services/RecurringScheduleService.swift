@@ -102,6 +102,24 @@ struct RecurringScheduleService {
             .sorted { $0.date < $1.date }
     }
 
+    /// Rituel « Check du mois » : combien de récurrents dus dans le mois
+    /// sont déjà comptabilisés. `total` = récurrents actifs avec au moins
+    /// une occurrence dans l'intervalle ; `done` = ceux qui n'ont plus
+    /// d'occurrence en attente (couverts par un mouvement lié).
+    func monthCheck(
+        recurrings: [RecurringTransaction],
+        in interval: MonthInterval,
+        transactions: [BudgetTransaction]
+    ) -> (done: Int, total: Int) {
+        let due = recurrings.filter { $0.isActive && !occurrenceDates(of: $0, in: interval).isEmpty }
+        guard !due.isEmpty else { return (0, 0) }
+        let pendingIDs = Set(
+            monthForecast(recurrings: recurrings, in: interval, transactions: transactions)
+                .map(\.recurringID)
+        )
+        return (due.filter { !pendingIDs.contains($0.id) }.count, due.count)
+    }
+
     // MARK: - Normalized costs
 
     /// Cost per month: annual/12, quarterly/3, weekly ×52/12…

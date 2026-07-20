@@ -117,6 +117,7 @@ struct HomeTab: View {
                             monthRecapCard(snapshot)
                         }
                         statGrid(snapshot)
+                        monthCheckCard(forecast: forecast, interval: snapshot.interval)
                         forecastSection(forecast: forecast)
                         flowsChartCard
                         priorityActionsSection(actions: actions)
@@ -362,12 +363,53 @@ struct HomeTab: View {
         }
     }
 
+    /// Rituel « Check du mois » — la progression des validations du mois
+    /// affiché (parité web). Purement dérivée : rien n'est persisté.
+    @ViewBuilder
+    private func monthCheckCard(forecast: [ForecastOccurrence], interval: MonthInterval) -> some View {
+        let check = scheduleService.monthCheck(
+            recurrings: recurrings, in: interval, transactions: transactions
+        )
+        if check.total > 0 {
+            GlassCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    HStack {
+                        Text("Check du mois")
+                            .font(BudgetFont.cardLabel)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(check.done)/\(check.total) validé\(check.done > 1 ? "s" : "")")
+                            .font(BudgetFont.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: Double(check.done), total: Double(check.total))
+                        .tint(check.done == check.total ? BudgetColor.positive : BudgetColor.indigo)
+                    if check.done == check.total {
+                        Label("Mois bouclé — tout est validé", systemImage: "checkmark.seal.fill")
+                            .font(BudgetFont.body.weight(.semibold))
+                            .foregroundStyle(BudgetColor.positive)
+                    } else {
+                        Text("Validez chaque élément « À venir » d'un ✓ — salaire, abonnements, versements.")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Check du mois : \(check.done) sur \(check.total) validés")
+        }
+    }
+
     private func post(_ occurrence: ForecastOccurrence) {
         guard let recurring = recurrings.first(where: { $0.id == occurrence.recurringID }) else { return }
+        // Jamais un mouvement COMPTABILISÉ daté dans le futur : une
+        // occurrence validée en avance est datée d'aujourd'hui (règle
+        // planifié/réel, même correctif que le prototype web).
+        let now = appContainer.dateProvider.now
         let transaction = scheduleService.makeTransaction(
             from: recurring,
-            on: occurrence.date,
-            now: appContainer.dateProvider.now
+            on: min(occurrence.date, now),
+            now: now
         )
         modelContext.insert(transaction)
         modelContext.saveOrRollback { saveErrorMessage = $0 }

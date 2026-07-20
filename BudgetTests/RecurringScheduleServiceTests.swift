@@ -316,3 +316,76 @@ final class RecurringScheduleServiceTests: XCTestCase {
         XCTAssertEqual(fetched.first?.amount, Decimal("100.00"))
     }
 }
+
+// MARK: - Rituel « Check du mois » (parité web)
+
+extension RecurringScheduleServiceTests {
+    private func makeCheckFixtures() -> (salary: RecurringTransaction, rent: RecurringTransaction) {
+        // Un salaire (le 25) et un loyer (le 5), tous deux dus en juin.
+        let account = Account(name: "Compte check", type: .current)
+        let salary = RecurringTransaction(
+            title: "Salaire", amount: Decimal("8450.00"), type: .income,
+            firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 1, day: 25, hour: 9))!,
+            account: account
+        )
+        let rent = RecurringTransaction(
+            title: "Loyer", amount: Decimal("1850.00"), type: .expense,
+            firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 1, day: 5, hour: 9))!,
+            account: account
+        )
+        return (salary, rent)
+    }
+
+    func testMonthCheckCountsPendingAndDone() {
+        let (salary, rent) = makeCheckFixtures()
+        let interval = MonthInterval(containing: now, calendar: calendar)
+
+        let before = service.monthCheck(recurrings: [salary, rent], in: interval, transactions: [])
+        XCTAssertEqual(before.done, 0)
+        XCTAssertEqual(before.total, 2)
+
+        // Le loyer est comptabilisé (mouvement lié par recurringID).
+        let posted = service.makeTransaction(
+            from: rent,
+            on: calendar.date(from: DateComponents(year: 2026, month: 6, day: 5, hour: 9))!,
+            now: now
+        )
+        let after = service.monthCheck(recurrings: [salary, rent], in: interval, transactions: [posted])
+        XCTAssertEqual(after.done, 1, "Le loyer comptabilisé compte comme validé")
+        XCTAssertEqual(after.total, 2)
+    }
+
+    func testMonthCheckClosedWhenEverythingIsPosted() {
+        let (salary, rent) = makeCheckFixtures()
+        let interval = MonthInterval(containing: now, calendar: calendar)
+        let postedSalary = service.makeTransaction(
+            from: salary, on: now, now: now
+        )
+        let postedRent = service.makeTransaction(
+            from: rent,
+            on: calendar.date(from: DateComponents(year: 2026, month: 6, day: 5, hour: 9))!,
+            now: now
+        )
+        let check = service.monthCheck(
+            recurrings: [salary, rent], in: interval, transactions: [postedSalary, postedRent]
+        )
+        XCTAssertEqual(check.done, check.total, "Tout validé = mois bouclé")
+        XCTAssertEqual(check.total, 2)
+    }
+
+    func testMonthCheckIgnoresInactiveAndOutOfMonthRecurrings() {
+        let (_, rent) = makeCheckFixtures()
+        rent.isActive = false
+        let futureOnly = RecurringTransaction(
+            title: "Prime annuelle", amount: Decimal("500.00"), type: .expense,
+            firstOccurrence: calendar.date(from: DateComponents(year: 2026, month: 9, day: 1, hour: 9))!,
+            account: account
+        )
+        let interval = MonthInterval(containing: now, calendar: calendar)
+        let check = service.monthCheck(
+            recurrings: [rent, futureOnly], in: interval, transactions: []
+        )
+        XCTAssertEqual(check.total, 0, "Inactif ou hors du mois : rien à valider")
+        XCTAssertEqual(check.done, 0)
+    }
+}
