@@ -98,7 +98,7 @@ Tenir cette liste à jour à chaque lot terminé (✅ + commit) :
 - [x] 7 (190e46b) · [x] 8 (6abe551) · [x] 9 (e02d7fa) · [x] 10 (a4b18fb) — C ✅
 - [x] 11 (a9a4108) · [x] 12 (2b4c7a9) · [x] 13 (c0d9683) — D ✅
 - [x] 14 (5aca7ef) · [x] 15 (c45d1b8) · [x] 16 (338cec9) — E ✅
-- [x] 17 (367ab21) · [ ] 18 audit final en cours · [x] 19 (79f662f) · [ ] 20 bilan final — F
+- [x] 17 (367ab21) · [x] 18 audit final corrigé · [x] 19 (79f662f) · [ ] 20 bilan final — F
 
 ## Reprise de contexte
 
