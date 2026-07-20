@@ -281,6 +281,30 @@ await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(!screenHTML.includes("NaN") && screenHTML.includes("Dans 20 ans"), "profil ambitieux : projection cassée");
 
+// ---------- Test 10b : dette vivante — la mensualité décrémente ----------
+currentTest = "dette vivante";
+await page.click("[data-additem]");
+await page.waitForSelector("#itemForm", { state: "visible" });
+await page.selectOption("#iKind", "liability");
+await page.fill("#iName", "Leasing E2E");
+await page.fill("#iAmount", "1200");
+await page.fill("#iMonthly", "100");
+await page.click('#itemForm button[type="submit"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Leasing E2E") && screenHTML.includes("terminé vers"), "dette vivante : fin projetée absente");
+const leasingId = await page.evaluate(() =>
+  JSON.parse(localStorage.getItem("budget-app-state-v1")).liabilities.find(l => l.name === "Leasing E2E").id);
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+await page.click(`[data-postrec="r-debt-${leasingId}"]`);
+await page.waitForTimeout(200);
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("1'100.00"), "la mensualité payée doit décrémenter la dette (1200 → 1100)");
+
 // ---------- Test 11 : onglet Mouvements — recherche et filtres ----------
 currentTest = "mouvements";
 await page.click(`#tabbar button[aria-label="Mouvements"]`);

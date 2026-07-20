@@ -630,6 +630,11 @@
       <input id="iName" placeholder="Voiture familiale" autocomplete="off" />
       <label for="iAmount">Valeur / montant dû (<span class="curlabel">CHF</span>)</label>
       <input id="iAmount" inputmode="decimal" placeholder="12000.00" autocomplete="off" />
+      <div id="iMonthlyWrap">
+        <label for="iMonthly">Mensualité (facultatif — dettes)</label>
+        <input id="iMonthly" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+        <p class="caption" style="margin:4px 0 0">Crée un récurrent : chaque « ✓ Fait » du Check du mois réduit la dette.</p>
+      </div>
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="iInclude" style="width:auto" checked /> Compter dans la fortune nette
       </label>
@@ -924,7 +929,7 @@ function projectWealth(years) {
     .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionManual = PENSIONS.reduce((a, p) => a + p.value, 0);
-  const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  const liabTotal = liabilitiesTotal();
   return projected + liquid + assetsTotal + pensionManual - liabTotal;
 }
 
@@ -1277,6 +1282,20 @@ function snapshot(y, m) {
 
 /* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
    mois affiché — salaire, récurrents, factures — avec l'action directe. */
+/* Dette vivante (ADR-016 côté web) : chaque mensualité comptabilisée
+   décrémente la dette — solde dérivé, jamais muté (l'annulation d'un
+   paiement la fait remonter toute seule). Simplification honnête :
+   tout est capital ; les intérêts se saisissent en dépense séparée. */
+function liabilityBalance(l) {
+  const paid = transactions
+    .filter(t => t.status === "posted" && t.recurringId === "r-debt-" + l.id)
+    .reduce((a, t) => a + txCHF(t), 0);
+  return Math.max(0, l.value - paid);
+}
+function liabilitiesTotal() {
+  return LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + liabilityBalance(x), 0);
+}
+
 function closedStreak(y, m) {
   let cur = { y, m };
   if (!(S.monthChecks || {})[`${cur.y}-${cur.m}`]) cur = shiftMonth(cur, -1);
@@ -1425,7 +1444,7 @@ function renderHome() {
   const pensionAccounts = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const pensionPositions = PENSIONS.reduce((a, p) => a + p.value, 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
-  const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  const liabTotal = liabilitiesTotal();
   const insuranceMonthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
   const net = liquid + savingsTotal + brokerageTotal + pensionAccounts + pensionPositions + assetsTotal - liabTotal;
   const activeGoals = GOALS.filter(g => !g.achieved);
@@ -2029,7 +2048,7 @@ function renderNetWorth() {
   const accountsTotal = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
-  const liabTotal = LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  const liabTotal = liabilitiesTotal();
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
   // Courbes DÉRIVÉES des soldes réels de fin de mois, sur 12 mois, par
   // classe (actifs/prévoyance manuelle/dettes sans historique : constants).
@@ -2115,10 +2134,17 @@ function renderNetWorth() {
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
     <p class="section-title">Dettes</p>
     ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Aucune dette enregistrée.</span></div>` : ""}
-    ${LIABILITIES.map(l => `<div class="card row tx" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
+    ${LIABILITIES.map(l => {
+      const bal = liabilityBalance(l);
+      const monthsLeft = (l.monthly > 0 && bal > 0) ? Math.ceil(bal / l.monthly) : null;
+      const end = monthsLeft !== null ? shiftMonth(NOW, monthsLeft) : null;
+      return `<div class="card row tx" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${l.icon || "📄"}</div>
-      <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Exclue du patrimoine" : "Dette"}</div></div>
-      <span class="amount ${l.include === false ? "" : "neg"}">−${chf(l.value)}</span></div>`).join("")}
+      <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Exclue du patrimoine"
+        : bal <= 0 ? "Remboursée ✓"
+        : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"}</div></div>
+      <span class="amount ${l.include === false ? "" : bal <= 0 ? "pos" : "neg"}">${bal <= 0 ? "0.00" : "−" + chf(bal)}</span></div>`;
+    }).join("")}
     <button class="btn secondary" data-additem style="margin-top:8px">＋ Ajouter un actif ou une dette</button>
     <p class="caption" style="padding:0 4px">Les virements internes ne changent jamais la fortune : déplacer CHF 600.00 vers l'épargne laisse ce total intact.</p>`;
 }
@@ -3679,6 +3705,11 @@ function openItemSheet(kind, id) {
   const kindSelect = document.getElementById("iKind");
   kindSelect.value = kind === "liability" ? "liability" : "asset";
   kindSelect.disabled = !!item;
+  const monthlyWrap = document.getElementById("iMonthlyWrap");
+  const syncMonthlyVisibility = () => { monthlyWrap.style.display = kindSelect.value === "liability" ? "" : "none"; };
+  syncMonthlyVisibility();
+  kindSelect.onchange = syncMonthlyVisibility;
+  document.getElementById("iMonthly").value = item && item.monthly ? item.monthly.toFixed(2) : "";
   if (item) {
     document.getElementById("iName").value = item.name;
     document.getElementById("iAmount").value = item.value.toFixed(2);
@@ -3702,11 +3733,25 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
   const kind = document.getElementById("iKind").value;
   const list = kind === "liability" ? LIABILITIES : ASSETS;
   const item = editingItem ? list.find(x => x.id === editingItem.id) : null;
-  if (item) { Object.assign(item, { name, value, include }); toast(kind === "liability" ? "Dette modifiée" : "Actif modifié"); }
+  const monthlyRaw = document.getElementById("iMonthly").value.trim();
+  const monthly = kind === "liability" && monthlyRaw ? parseAmountField(monthlyRaw) : 0;
+  let saved = item;
+  if (item) { Object.assign(item, { name, value, include, monthly: monthly || 0 }); toast(kind === "liability" ? "Dette modifiée" : "Actif modifié"); }
   else {
-    list.push({ id: (kind === "liability" ? "li-" : "as-") + Date.now().toString(36),
-                name, value, include, icon: kind === "liability" ? "📄" : "🏷" });
+    saved = { id: (kind === "liability" ? "li-" : "as-") + Date.now().toString(36),
+              name, value, include, monthly: monthly || 0, icon: kind === "liability" ? "📄" : "🏷" };
+    list.push(saved);
     toast(kind === "liability" ? "Dette ajoutée" : "Actif ajouté");
+  }
+  // Récurrent lié : créé, mis à jour ou retiré selon la mensualité.
+  if (kind === "liability" && saved) {
+    const recId = "r-debt-" + saved.id;
+    const idx = RECURRINGS.findIndex(r => r.id === recId);
+    if (monthly > 0) {
+      const rec = { id: recId, title: `Mensualité ${saved.name}`, amount: monthly,
+                    type: "expense", cat: null, day: 3, icon: "📄" };
+      if (idx >= 0) Object.assign(RECURRINGS[idx], rec); else RECURRINGS.push(rec);
+    } else if (idx >= 0) RECURRINGS.splice(idx, 1);
   }
   saveState();
   backdrop.classList.remove("open");
@@ -3714,6 +3759,10 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
 });
 document.getElementById("iDelete").addEventListener("click", () => {
   if (!editingItem || !confirm("Supprimer cet élément du patrimoine ?")) return;
+  if (editingItem.kind === "liability") {
+    const idx = RECURRINGS.findIndex(r => r.id === "r-debt-" + editingItem.id);
+    if (idx >= 0) RECURRINGS.splice(idx, 1);
+  }
   pushUndo();
   const list = editingItem.kind === "liability" ? LIABILITIES : ASSETS;
   const index = list.findIndex(x => x.id === editingItem.id);
