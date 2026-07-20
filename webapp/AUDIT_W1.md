@@ -85,3 +85,21 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
 - Période de démo avril-juin 2026 (les imports hors période sont
   refusés avec une raison claire) — les mois dynamiques viendront avec
   la synchronisation des données réelles
+
+## W5 — Expérience maximale (demande utilisateur post-W4)
+
+- **Factures** : nouveau module complet — en retard / à payer / payées,
+  CRUD, « Marquer payée » crée le mouvement lié (et « non payée » le
+  retire), carte « Factures à payer » sur le dashboard (dues sous 14
+  jours), les factures ouvertes du mois pèsent sur le « Vraiment
+  disponible ».
+- **Menu ＋ universel** : le bouton flottant est visible sur tous les
+  onglets et ouvre un menu de création — mouvement, facture, compte,
+  objectif, récurrent, actif/dette, assurance, prévoyance.
+- **Annulation globale** : chaque geste destructeur (suppressions,
+  paiement de facture, rollback d'import, suppression totale) affiche
+  un toast avec « Annuler » (6 s) qui restaure l'état exact.
+- **Dupliquer** un mouvement depuis sa feuille (copie datée du jour).
+- **Recherche + filtres** dans Mouvements : insensible aux accents,
+  puces Dépenses/Revenus/Épargne/Virements, compteur et net du mois,
+  liste rafraîchie sans perdre le focus de saisie.

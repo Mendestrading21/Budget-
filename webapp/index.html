@@ -397,7 +397,7 @@
     pointer-events: none;
     z-index: 30;
   }
-  .toast.show { opacity: 1; }
+  .toast.show { opacity: 1; pointer-events: auto; }
   @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
   .placeholder-list div {
@@ -452,6 +452,8 @@
         <button type="button" class="btn secondary" id="fCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
+      <button type="button" class="btn secondary" id="fDuplicate"
+              style="display:none;margin-top:10px">Dupliquer (copie datée d'aujourd'hui)</button>
       <button type="button" class="btn secondary" id="fDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce mouvement</button>
     </form>
@@ -641,6 +643,42 @@
       </div>
     </form>
 
+    <form class="sheet" id="billForm" style="display:none">
+      <h3 id="billSheetTitle">Nouvelle facture</h3>
+      <label for="bName">Nom</label>
+      <input id="bName" placeholder="Électricité T3" autocomplete="off" />
+      <label for="bAmount">Montant (CHF)</label>
+      <input id="bAmount" inputmode="decimal" placeholder="184.30" autocomplete="off" />
+      <label for="bDue">Échéance</label>
+      <input id="bDue" type="date" min="2026-04-01" max="2026-12-31" />
+      <label for="bCat">Catégorie</label>
+      <select id="bCat"></select>
+      <div class="error" id="bError" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="bCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn" id="bPay" style="display:none;margin-top:10px">Marquer payée (crée le mouvement)</button>
+      <button type="button" class="btn secondary" id="bUnpay" style="display:none;margin-top:10px">Marquer non payée</button>
+      <button type="button" class="btn secondary" id="bDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette facture</button>
+    </form>
+
+    <div class="sheet" id="quickMenu" style="display:none">
+      <h3>Ajouter</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button type="button" class="btn secondary" data-quick="tx">💸 Mouvement</button>
+        <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
+        <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
+        <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
+        <button type="button" class="btn secondary" data-quick="rec">🔁 Récurrent</button>
+        <button type="button" class="btn secondary" data-quick="item">🏛 Actif / dette</button>
+        <button type="button" class="btn secondary" data-quick="ins">🛡 Assurance</button>
+        <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
+      </div>
+      <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
+    </div>
+
     <form class="sheet" id="docForm" style="display:none">
       <h3>Nouveau document</h3>
       <label for="dName">Nom</label>
@@ -778,6 +816,12 @@ function seedState() {
     taxRate: 0.30,
     taxReserve: 2400,
     lastImport: null,
+    bills: [
+      { id: "bill-elec", name: "Électricité T2", amount: 184.30, dueY: 2026, dueM: 6, dueD: 20,
+        cat: "Logement", paidTxId: null, note: "" },
+      { id: "bill-serafe", name: "SERAFE (redevance)", amount: 335.00, dueY: 2026, dueM: 5, dueD: 10,
+        cat: "Logement", paidTxId: -1, note: "payée en mai" },
+    ],
     documents: [
       { id: "doc-lpp", name: "Certificat LPP 2026", kind: "Prévoyance" },
       { id: "doc-rc", name: "Police RC ménage", kind: "Assurance" },
@@ -807,6 +851,7 @@ function loadState() {
     if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0.30;
     if (typeof s.taxReserve !== "number") s.taxReserve = 2400;
     if (!Array.isArray(s.documents)) s.documents = [];
+    if (!Array.isArray(s.bills)) s.bills = [];
     if (s.lastImport && typeof s.lastImport !== "object") s.lastImport = null;
     // L'ancien « Face ID » simulé n'avait pas de code : on repart propre.
     if (s.faceIDEnabled && !s.lockCode) s.faceIDEnabled = false;
@@ -894,7 +939,11 @@ function snapshot(y, m) {
   const taxes = sum(posted, "taxPayment");
 
   const plannedIncome = sum(planned, "income");
-  const plannedOut = ["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0);
+  const openBillsDue = (S.bills || [])
+    .filter(b => !b.paidTxId && b.dueY === y && b.dueM === m)
+    .reduce((a, b) => a + b.amount, 0);
+  const plannedOut = ["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
+    + openBillsDue;
 
   const taxRecommended = Math.round(income * (S.taxRate ?? 0.30) * 100) / 100;
   const taxGap = Math.max(0, taxRecommended - taxes);
@@ -959,6 +1008,11 @@ let moreView = null;          // null | taxes | networth | insurance | recurring
 let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si activé
 let lockMessage = "";
 let editingTxId = null;
+let moreSearch = "";
+let moreFilter = "all"; // all | expense | income | saving | transfer
+function fold(value) {
+  return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
 
 const ICONS = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5M5.5 9v11h13V9"/></svg>',
@@ -1057,6 +1111,18 @@ function renderHome() {
       <p class="card-label">Budget vs réel — principales dépenses</p>
       ${chartRows}
     </div>
+    ${(() => {
+      const due = openBillsSoon();
+      if (!due.length) return "";
+      const total = due.reduce((a, b) => a + b.amount, 0);
+      const overdueCount = due.filter(billIsOverdue).length;
+      return `<div class="card row tx" data-more="bills" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico" aria-hidden="true">🧾</div>
+        <div class="meta"><div class="t">Factures à payer${overdueCount ? ` <span class="badge">${overdueCount} en retard</span>` : ""}</div>
+          <div class="s">${due.length} facture${due.length > 1 ? "s" : ""} sous 14 jours</div></div>
+        <span class="amount warn">${chf(total)}</span>
+      </div>`;
+    })()}
     ${s.upcomingRecurrings.length ? `
     <p class="section-title">À venir ce mois</p>
     ${s.upcomingRecurrings.map(r => `<div class="card row tx">
@@ -1558,6 +1624,40 @@ function renderImport() {
     <p class="caption" style="padding:6px 4px 0">Ré-importer le même fichier ne crée jamais de doublon : chaque ligne porte une empreinte (date + montant + intitulé).</p>`;
 }
 
+/* ---------- Factures (W5) ---------- */
+function billIsOverdue(b) {
+  return !b.paidTxId && (b.dueY < NOW.y || (b.dueY === NOW.y && (b.dueM < NOW.m || (b.dueM === NOW.m && b.dueD < NOW.d))));
+}
+function billDueLabel(b) {
+  return `${String(b.dueD).padStart(2, "0")}.${String(b.dueM).padStart(2, "0")}.${b.dueY}`;
+}
+function openBillsSoon() {
+  // Dues sous 14 jours ou en retard, non payées.
+  const horizon = new Date(NOW.y, NOW.m - 1, NOW.d + 14).getTime();
+  return (S.bills || []).filter(b => !b.paidTxId
+    && new Date(b.dueY, b.dueM - 1, b.dueD).getTime() <= horizon);
+}
+function renderBills() {
+  const bills = S.bills || [];
+  const overdue = bills.filter(billIsOverdue);
+  const upcoming = bills.filter(b => !b.paidTxId && !billIsOverdue(b))
+    .sort((a, b) => new Date(a.dueY, a.dueM - 1, a.dueD) - new Date(b.dueY, b.dueM - 1, b.dueD));
+  const paid = bills.filter(b => b.paidTxId);
+  const row = (b, cls) => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
+    <div class="ico" aria-hidden="true">🧾</div>
+    <div class="meta"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
+      <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${b.paidTxId ? " · payée ✓" : ""}</div></div>
+    <span class="amount ${cls}">${chf(b.amount)}</span>
+  </div>`;
+  return backBar("Factures") + `
+    ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
+    <p class="section-title">À payer</p>
+    ${upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`}
+    ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
+    <button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture</button>
+    <p class="caption" style="padding:6px 4px 0">« Marquer payée » crée le mouvement de dépense correspondant — la facture et le mouvement restent liés. Les factures ouvertes du mois pèsent déjà sur le « Vraiment disponible ».</p>`;
+}
+
 /* ---------- Réglages (Phase 12) ---------- */
 const PRIVACY = [
   "Vos données restent sur cet appareil. Budget n'a pas de serveur, pas de compte en ligne, et n'établit aucune connexion réseau.",
@@ -1598,20 +1698,19 @@ function renderSettings() {
 }
 
 const MORE_MENU = [
-  ["taxes", "🧾", "Impôts", "Estimé = payé + encore dû"],
+  ["bills", "🧾", "Factures", "À payer, en retard, payées"],
+  ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
   ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
   ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ["recurring", "🔁", "Récurrents", "Charges et revenus répétés"],
   ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
   ["settings", "⚙️", "Réglages", "Face ID, export, sauvegarde"],
 ];
-const MORE_RENDERERS = { taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
+const MORE_RENDERERS = { bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings };
 
 function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
-  const { y, m } = MONTHS[monthIndex];
-  const monthTx = transactions.filter(t => inMonth(t, y, m)).sort((a, b) => b.d - a.d || b.id - a.id);
   return `<h2 class="screen-title">Plus</h2>
     ${MORE_MENU.map(([id, icon, title, sub]) => `<div class="card row tx" data-more="${id}" style="cursor:pointer" role="button" tabindex="0">
       <div class="ico" aria-hidden="true">${icon}</div>
@@ -1620,7 +1719,33 @@ function renderMore() {
     </div>`).join("")}
     ${monthNav()}
     <p class="section-title">Mouvements — ${MONTHS[monthIndex].label}</p>
-    ${monthTx.length ? monthTx.map(txRow).join("") : `<div class="card row"><span class="caption">Aucun mouvement ce mois-ci.</span></div>`}`;
+    <input id="moreSearchInput" type="search" placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
+      aria-label="Rechercher un mouvement" autocomplete="off"
+      style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.12);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" role="group" aria-label="Filtrer par type">
+      ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Épargne"], ["transfer", "Virements"]]
+        .map(([id, label]) => `<button type="button" class="btn secondary" data-morefilter="${id}"
+          style="width:auto;padding:7px 12px;font-size:12px;${moreFilter === id ? "background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;border:none" : ""}">${label}</button>`).join("")}
+    </div>
+    <div id="moreTxList">${renderMoreTxList()}</div>`;
+}
+
+function renderMoreTxList() {
+  const { y, m } = MONTHS[monthIndex];
+  const FILTER_TYPES = {
+    expense: ["expense", "taxPayment"], income: ["income", "refund"],
+    saving: ["saving", "investment"], transfer: ["transfer"],
+  };
+  const needle = fold(moreSearch.trim());
+  const monthTx = transactions
+    .filter(t => inMonth(t, y, m))
+    .filter(t => moreFilter === "all" || FILTER_TYPES[moreFilter].includes(t.type))
+    .filter(t => !needle || fold(t.title).includes(needle) || (t.cat && fold(t.cat).includes(needle)))
+    .sort((a, b) => b.d - a.d || b.id - a.id);
+  const total = monthTx.reduce((a, t) => a + (t.type === "income" || t.type === "refund" ? t.amount : (t.type === "transfer" ? 0 : -t.amount)), 0);
+  return (monthTx.length
+    ? `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>` + monthTx.map(txRow).join("")
+    : `<div class="card row"><span class="caption">${moreSearch || moreFilter !== "all" ? "Aucun résultat pour cette recherche." : "Aucun mouvement ce mois-ci."}</span></div>`);
 }
 
 /* ---------- Écran verrouillé (Phase 12) ---------- */
@@ -1648,8 +1773,7 @@ function render() {
   const next = document.getElementById("nextM");
   if (prev) prev.onclick = () => { monthIndex--; render(); };
   if (next) next.onclick = () => { monthIndex++; render(); };
-  document.getElementById("fab").style.display =
-    (!locked && (activeTab === "home" || activeTab === "more") && !moreView) ? "grid" : "none";
+  document.getElementById("fab").style.display = locked ? "none" : "grid";
 }
 
 document.getElementById("tabbar").addEventListener("click", (e) => {
@@ -1673,6 +1797,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-addacc]")) { openAccSheet(null); return; }
+  const billEl = e.target.closest("[data-billid]");
+  if (billEl) { const b = S.bills.find(x => x.id === billEl.dataset.billid); if (b) openBillSheet(b); return; }
+  if (e.target.closest("[data-addbill]")) { openBillSheet(null); return; }
+  const filterBtn = e.target.closest("[data-morefilter]");
+  if (filterBtn) { moreFilter = filterBtn.dataset.morefilter; render(); return; }
   const goalEl = e.target.closest("[data-goalid]");
   if (goalEl) { const g = GOALS.find(x => x.id === goalEl.dataset.goalid); if (g) openGoalSheet(g); return; }
   if (e.target.closest("[data-addgoal]")) { openGoalSheet(null); return; }
@@ -1699,7 +1828,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   const entry = e.target.closest("[data-more]");
-  if (entry) { moreView = entry.dataset.more; render(); scrollTop(); pushNav(); return; }
+  if (entry) { activeTab = "more"; moreView = entry.dataset.more; render(); scrollTop(); pushNav(); return; }
   if (e.target.closest("[data-back]")) { moreView = null; render(); scrollTop(); return; }
   if (e.target.closest("[data-togglelock]")) {
     // Activer = définir un code ; désactiver = saisir le code (règle Phase 12).
@@ -1723,17 +1852,19 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-rollbackimport]")) {
     if (!S.lastImport) return;
     if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} mouvements) ? Le reste survit.`)) return;
+    pushUndo();
     rollbackLastImport();
-    toast("Lot annulé — les autres mouvements sont intacts");
+    toast("Lot annulé — les autres mouvements sont intacts", true);
     render();
     return;
   }
   const delDoc = e.target.closest("[data-deldoc]");
   if (delDoc) {
     if (!confirm("Supprimer ce document ?")) return;
+    pushUndo();
     const index = S.documents.findIndex(d => d.id === delDoc.dataset.deldoc);
     if (index >= 0) S.documents.splice(index, 1);
-    saveState(); toast("Document supprimé"); render();
+    saveState(); toast("Document supprimé", true); render();
     return;
   }
   if (e.target.closest("[data-adddoc]")) {
@@ -1771,6 +1902,13 @@ document.getElementById("screen").addEventListener("click", (e) => {
     render(); return;
   }
 });
+document.getElementById("screen").addEventListener("input", (e) => {
+  if (e.target && e.target.id === "moreSearchInput") {
+    moreSearch = e.target.value;
+    const list = document.getElementById("moreTxList");
+    if (list) list.innerHTML = renderMoreTxList();
+  }
+});
 document.getElementById("screen").addEventListener("change", (e) => {
   if (e.target && e.target.id === "restoreFile" && e.target.files && e.target.files[0]) {
     restoreFromFile(e.target.files[0]);
@@ -1791,20 +1929,47 @@ document.getElementById("screen").addEventListener("keydown", (e) => {
   if (entry) { e.preventDefault(); moreView = entry.dataset.more; render(); }
 });
 
-/* ---------- Toast (retour visuel après chaque action) ---------- */
+/* ---------- Toast + annulation du dernier geste ---------- */
 let toastTimer = null;
-function toast(message) {
+let undoSnapshot = null;
+function pushUndo() { try { undoSnapshot = JSON.stringify(S); } catch (e) { undoSnapshot = null; } }
+function undoLast() {
+  if (!undoSnapshot) return false;
+  let restored = null;
+  try { restored = JSON.parse(undoSnapshot); } catch (e) { return false; }
+  undoSnapshot = null;
+  // Les alias pointent dans S : restauration EN PLACE, jamais par réaffectation.
+  const lists = [[transactions, restored.transactions], [ACCOUNTS, restored.accounts],
+    [RECURRINGS, restored.recurrings], [GOALS, restored.goals], [ASSETS, restored.assets],
+    [LIABILITIES, restored.liabilities], [PENSIONS, restored.pensions], [INSURANCES, restored.insurances]];
+  for (const [live, saved] of lists) { live.length = 0; live.push(...(saved || [])); }
+  S.budgets = restored.budgets || {};
+  S.documents = restored.documents || [];
+  S.bills = restored.bills || [];
+  S.lastImport = restored.lastImport || null;
+  S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
+  S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
+  txSeq = transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
+  saveState();
+  return true;
+}
+function toast(message, undoable) {
   const el = document.getElementById("toast");
-  el.textContent = message;
+  el.innerHTML = `<span>${esc(message)}</span>` +
+    (undoable ? ' <button type="button" id="toastUndo" style="margin-left:10px;background:none;border:none;color:var(--electric);font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Annuler</button>' : "");
   el.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+  toastTimer = setTimeout(() => el.classList.remove("show"), undoable ? 6000 : 2600);
+  const undoBtn = document.getElementById("toastUndo");
+  if (undoBtn) undoBtn.addEventListener("click", () => {
+    if (undoLast()) { el.classList.remove("show"); toast("Annulé — état restauré"); render(); }
+  });
 }
 
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu"];
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -1838,6 +2003,7 @@ function openTxSheet(tx) {
   document.getElementById("txForm").reset();
   document.getElementById("sheetTitle").textContent = tx ? "Modifier le mouvement" : "Nouveau mouvement";
   document.getElementById("fDelete").style.display = tx ? "block" : "none";
+  document.getElementById("fDuplicate").style.display = tx ? "block" : "none";
   const typeSelect = document.getElementById("fType");
   if (tx) {
     document.getElementById("fTitle").value = tx.title;
@@ -1859,7 +2025,7 @@ function openTxSheet(tx) {
   document.getElementById("fTitle").focus();
 }
 
-document.getElementById("fab").addEventListener("click", () => openTxSheet(null));
+document.getElementById("fab").addEventListener("click", () => openSheet("quickMenu"));
 document.getElementById("fCancel").addEventListener("click", () => backdrop.classList.remove("open"));
 backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.classList.remove("open"); });
 document.addEventListener("keydown", (e) => {
@@ -1869,11 +2035,12 @@ document.addEventListener("keydown", (e) => {
 document.getElementById("fDelete").addEventListener("click", () => {
   if (editingTxId == null) return;
   if (!confirm("Supprimer définitivement ce mouvement ?")) return;
+  pushUndo();
   const index = transactions.findIndex(t => t.id === editingTxId);
   if (index >= 0) transactions.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Mouvement supprimé");
+  toast("Mouvement supprimé", true);
   render();
 });
 
@@ -1995,6 +2162,7 @@ function restoreFromFile(file) {
 function deleteAllData() {
   if (!confirm("Supprimer TOUS les mouvements, objectifs, récurrents et éléments de patrimoine ?")) return;
   if (!confirm("Vraiment ? Cette action est définitive (les comptes et leur solde d'ouverture restent).")) return;
+  pushUndo();
   transactions.length = 0;
   GOALS.length = 0;
   RECURRINGS.length = 0;
@@ -2004,9 +2172,10 @@ function deleteAllData() {
   INSURANCES.length = 0;
   S.documents.length = 0;
   S.lastImport = null;
+  S.bills.length = 0;
   saveState();
   moreView = null;
-  toast("Toutes les données ont été supprimées");
+  toast("Toutes les données ont été supprimées", true);
   render();
 }
 
@@ -2073,11 +2242,12 @@ document.getElementById("aDelete").addEventListener("click", () => {
     return;
   }
   if (!confirm("Supprimer ce compte ?")) return;
+  pushUndo();
   const index = ACCOUNTS.findIndex(a => a.id === editingAccId);
   if (index >= 0) ACCOUNTS.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Compte supprimé");
+  toast("Compte supprimé", true);
   render();
 });
 
@@ -2130,13 +2300,14 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
 document.getElementById("lDelete").addEventListener("click", () => {
   if (!editingLineCat) return;
   if (!confirm(`Retirer « ${editingLineCat} » du budget de ce mois ? (les mouvements restent)`)) return;
+  pushUndo();
   const { y, m } = MONTHS[monthIndex];
   const lines = S.budgets[`${y}-${m}`] || [];
   const index = lines.findIndex(l => l.cat === editingLineCat);
   if (index >= 0) lines.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Ligne retirée");
+  toast("Ligne retirée", true);
   render();
 });
 
@@ -2223,11 +2394,12 @@ document.getElementById("gAchieve").addEventListener("click", () => {
 });
 document.getElementById("gDelete").addEventListener("click", () => {
   if (!editingGoalId || !confirm("Supprimer cet objectif ?")) return;
+  pushUndo();
   const index = GOALS.findIndex(g => g.id === editingGoalId);
   if (index >= 0) GOALS.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Objectif supprimé");
+  toast("Objectif supprimé", true);
   render();
 });
 
@@ -2301,11 +2473,12 @@ document.getElementById("rPost").addEventListener("click", () => {
 });
 document.getElementById("rDelete").addEventListener("click", () => {
   if (!editingRecId || !confirm("Supprimer ce récurrent ? (les mouvements déjà saisis restent)")) return;
+  pushUndo();
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Récurrent supprimé");
+  toast("Récurrent supprimé", true);
   render();
 });
 
@@ -2356,12 +2529,13 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
 });
 document.getElementById("iDelete").addEventListener("click", () => {
   if (!editingItem || !confirm("Supprimer cet élément du patrimoine ?")) return;
+  pushUndo();
   const list = editingItem.kind === "liability" ? LIABILITIES : ASSETS;
   const index = list.findIndex(x => x.id === editingItem.id);
   if (index >= 0) list.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Élément supprimé");
+  toast("Élément supprimé", true);
   render();
 });
 
@@ -2411,9 +2585,10 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
 });
 document.getElementById("insDelete").addEventListener("click", () => {
   if (!editingInsId || !confirm("Supprimer ce contrat d'assurance ?")) return;
+  pushUndo();
   const index = INSURANCES.findIndex(i => i.id === editingInsId);
   if (index >= 0) INSURANCES.splice(index, 1);
-  saveState(); backdrop.classList.remove("open"); toast("Assurance supprimée"); render();
+  saveState(); backdrop.classList.remove("open"); toast("Assurance supprimée", true); render();
 });
 
 /* ---------- Feuille prévoyance (W4) ---------- */
@@ -2451,9 +2626,10 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
 });
 document.getElementById("penDelete").addEventListener("click", () => {
   if (!editingPenId || !confirm("Supprimer cette position de prévoyance ?")) return;
+  pushUndo();
   const index = PENSIONS.findIndex(p => p.id === editingPenId);
   if (index >= 0) PENSIONS.splice(index, 1);
-  saveState(); backdrop.classList.remove("open"); toast("Position supprimée"); render();
+  saveState(); backdrop.classList.remove("open"); toast("Position supprimée", true); render();
 });
 
 /* ---------- Feuille impôts (W4) ---------- */
@@ -2534,6 +2710,115 @@ document.getElementById("docForm").addEventListener("submit", (e) => {
   if (!name) { err.textContent = "Donnez un nom au document."; return; }
   S.documents.push({ id: "doc-" + Date.now().toString(36), name, kind: document.getElementById("dKind").value });
   saveState(); backdrop.classList.remove("open"); toast("Document ajouté"); render();
+});
+
+
+/* ---------- Feuille facture (W5) ---------- */
+let editingBillId = null;
+function openBillSheet(bill) {
+  editingBillId = bill ? bill.id : null;
+  document.getElementById("billForm").reset();
+  document.getElementById("billSheetTitle").textContent = bill ? "Modifier la facture" : "Nouvelle facture";
+  document.getElementById("bDelete").style.display = bill ? "block" : "none";
+  document.getElementById("bPay").style.display = bill && !bill.paidTxId ? "block" : "none";
+  document.getElementById("bUnpay").style.display = bill && bill.paidTxId ? "block" : "none";
+  const catSelectBill = document.getElementById("bCat");
+  catSelectBill.innerHTML = Object.entries(CATEGORIES)
+    .filter(([, k]) => k === "expense")
+    .map(([c]) => `<option>${esc(c)}</option>`).join("");
+  if (bill) {
+    document.getElementById("bName").value = bill.name;
+    document.getElementById("bAmount").value = bill.amount.toFixed(2);
+    document.getElementById("bDue").value =
+      `${bill.dueY}-${String(bill.dueM).padStart(2, "0")}-${String(bill.dueD).padStart(2, "0")}`;
+    if (bill.cat) catSelectBill.value = bill.cat;
+  }
+  document.getElementById("bError").textContent = "";
+  openSheet("billForm");
+  document.getElementById("bName").focus();
+}
+document.getElementById("bCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("billForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("bError");
+  const name = document.getElementById("bName").value.trim();
+  if (!name) { err.textContent = "Donnez un nom à la facture."; return; }
+  const amount = parseAmountField(document.getElementById("bAmount").value);
+  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 184.30"; return; }
+  const dueMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("bDue").value);
+  if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  const data = { name, amount, dueY: +dueMatch[1], dueM: +dueMatch[2], dueD: +dueMatch[3],
+                 cat: document.getElementById("bCat").value };
+  const existing = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
+  if (existing) { Object.assign(existing, data); toast("Facture modifiée"); }
+  else { S.bills.push({ id: "bill-" + Date.now().toString(36), paidTxId: null, note: "", ...data }); toast("Facture ajoutée"); }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
+document.getElementById("bPay").addEventListener("click", () => {
+  const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
+  if (!bill || bill.paidTxId) return;
+  pushUndo();
+  const tx = {
+    id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
+    title: bill.name, amount: bill.amount, type: "expense",
+    cat: bill.cat || null, acc: "cur", dest: null, status: "posted", billId: bill.id,
+  };
+  transactions.push(tx);
+  bill.paidTxId = tx.id;
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Facture payée — mouvement créé", true);
+  render();
+});
+document.getElementById("bUnpay").addEventListener("click", () => {
+  const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
+  if (!bill || !bill.paidTxId) return;
+  pushUndo();
+  const index = transactions.findIndex(t => t.id === bill.paidTxId);
+  if (index >= 0) transactions.splice(index, 1);
+  bill.paidTxId = null;
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Facture rouverte — mouvement retiré", true);
+  render();
+});
+document.getElementById("bDelete").addEventListener("click", () => {
+  if (!editingBillId || !confirm("Supprimer cette facture ? (un éventuel mouvement de paiement reste)")) return;
+  pushUndo();
+  const index = S.bills.findIndex(b => b.id === editingBillId);
+  if (index >= 0) S.bills.splice(index, 1);
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Facture supprimée", true);
+  render();
+});
+
+/* ---------- Menu d'actions rapides (W5) ---------- */
+document.getElementById("quickCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("quickMenu").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-quick]");
+  if (!btn) return;
+  const open = {
+    tx: () => openTxSheet(null), bill: () => openBillSheet(null),
+    acc: () => openAccSheet(null), goal: () => openGoalSheet(null),
+    rec: () => openRecSheet(null), item: () => openItemSheet("asset", null),
+    ins: () => openInsSheet(null), pen: () => openPenSheet(null),
+  }[btn.dataset.quick];
+  if (open) open();
+});
+
+/* ---------- Dupliquer un mouvement (W5) ---------- */
+document.getElementById("fDuplicate").addEventListener("click", () => {
+  // Bascule la feuille en mode création, champs conservés, datée d'aujourd'hui.
+  editingTxId = null;
+  document.getElementById("sheetTitle").textContent = "Nouveau mouvement (copie)";
+  document.getElementById("fDelete").style.display = "none";
+  document.getElementById("fDuplicate").style.display = "none";
+  document.getElementById("fDate").value =
+    `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  toast("Copie prête — ajustez puis enregistrez");
 });
 
 render();
