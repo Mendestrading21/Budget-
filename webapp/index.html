@@ -1317,11 +1317,20 @@ function renderHome() {
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
     <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (t.type === "transfer" ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
-  const portfolioRow = (label, amount, target, icon) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et liquidités" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
+  const contribFor = kinds => ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((agg, a) => {
+    const c = contributions(a.id);
+    agg.total += toCHF(c.total, a.currency); agg.year += toCHF(c.year, a.currency);
+    return agg;
+  }, { total: 0, year: 0 });
+  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et liquidités" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
     <div class="ico" aria-hidden="true">${icon}</div>
-    <div class="meta"><div class="t">${label}</div></div>
+    <div class="meta"><div class="t">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>
     <span class="amount">${chf(amount)}</span>
   </div>`;
+  const contribSub = kinds => {
+    const agg = contribFor(kinds);
+    return agg.total > 0 ? `Versé cette année : ${chf(agg.year)} · total : ${chf(agg.total)}` : "";
+  };
 
   const hero = s.isCurrent ? `
     <div class="card hero">
@@ -1451,9 +1460,9 @@ function renderHome() {
       <span class="caption">Argent disponible ce mois : ${chf(s.available)}</span>
     </div>
     ${portfolioRow("Comptes et liquidités", liquid, null, "💳")}
-    ${portfolioRow("Épargne", savingsTotal, null, "🏛")}
-    ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈") : ""}
-    ${portfolioRow("Prévoyance (3a, LPP)", pensionAccounts + pensionPositions, "insurance", "🛡")}
+    ${portfolioRow("Épargne", savingsTotal, null, "🏛", contribSub(["savings"]))}
+    ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
+    ${portfolioRow("Prévoyance (3a, LPP)", pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension"]))}
     ${portfolioRow("Actifs (voiture, biens…)", assetsTotal, "networth", "🏷")}
     ${liabTotal ? portfolioRow("Dettes", -liabTotal, "networth", "📄") : ""}
     <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
@@ -1569,7 +1578,7 @@ function renderBudget() {
 
 function renderAccounts() {
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== "CHF");
+  const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
   const groups = [
     ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
     ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
@@ -1579,18 +1588,26 @@ function renderAccounts() {
     <div class="card hero">
       <p class="card-label">Liquidités disponibles</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Somme des comptes marqués « compte dans le cash disponible »${hasForeign ? " — comptes étrangers convertis en CHF (taux manuels)" : ""}</span>
+      <span class="caption">Somme des comptes marqués « compte dans le cash disponible »${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
     </div>
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
       <p class="section-title">${title}</p>
       ${accs.map(a => {
         const kind = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.current;
+        const isPlacement = ["savings", "brokerage", "pension"].includes(a.kind);
+        const c = isPlacement ? contributions(a.id) : null;
+        const perf = (a.kind === "brokerage" && c)
+          ? balance(a.id) - a.opening - (c.total - c.withdrawn) : null;
+        const contribLine = c && (c.total > 0 || (perf !== null && Math.abs(perf) >= 0.005))
+          ? `<div class="caption" style="margin-top:2px">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${
+              perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
+          : "";
         return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kind.label)}${a.currency && a.currency !== "CHF" ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div></div>
-        <span class="amount acct-total">${money(balance(a.id), a.currency || "CHF")}</span>
+          <div class="s">${esc(a.inst || kind.label)}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div>${contribLine}</div>
+        <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
     <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
@@ -1703,6 +1720,20 @@ function renderTaxes() {
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
+/* Cumuls façon Finary : tout ce qui a été VERSÉ sur un compte de
+   placement s'additionne — total, année en cours, retraits (devise du
+   compte). La plus-value d'un compte titres = solde − ouverture −
+   versements nets (le solde se met à jour via « Réconcilier »). */
+function contributions(accId) {
+  let total = 0, year = 0, withdrawn = 0;
+  for (const t of transactions) {
+    if (t.status !== "posted") continue;
+    if (t.dest === accId) { total += t.amount; if (t.y === NOW.y) year += t.amount; }
+    else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawn += t.amount;
+  }
+  return { total, year, withdrawn };
+}
+
 function balanceAt(accId, y, m) {
   const account = ACCOUNTS.find(a => a.id === accId);
   if (!account) return 0;

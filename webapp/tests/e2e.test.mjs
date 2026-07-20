@@ -152,6 +152,12 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Compte E2E") && screenHTML.includes("1'500.00"), "compte créé absent");
 
+// ---------- Test 6b : cumuls Finary — chaque versement s'additionne ----------
+currentTest = "cumuls";
+screenHTML = await page.$eval("#screen", el => el.innerHTML); // toujours sur Comptes
+check(screenHTML.includes("Versé cette année : CHF 100.00"), "cumul annuel absent sur le compte Épargne");
+check(screenHTML.includes("total : CHF 100.00"), "cumul total absent sur le compte Épargne");
+
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
@@ -268,4 +274,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 15 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 16 tests verts, zéro erreur console ✓");
