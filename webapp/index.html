@@ -22,6 +22,7 @@
     --midnight: #0F1624;
     --slate: #1E2333;
     --indigo: #4B5CFF;
+    --indigo-text: #6B7AFF;
     --electric: #5AA7FF;
     --violet: #8B5CF6;
     --offwhite: #F2F4F8;
@@ -129,7 +130,7 @@
     border-radius: var(--card-radius);
     padding: 18px;
     margin-bottom: 14px;
-    border: 1px solid transparent;
+    border: 1px solid rgba(255, 255, 255, 0.05);
     background-clip: padding-box;
   }
   .card::before {
@@ -154,7 +155,8 @@
   }
   .card.hero {
     background: rgba(20, 27, 45, 0.72);
-    box-shadow: 0 18px 40px rgba(75, 92, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 18px 40px rgba(75, 92, 255, 0.16);
   }
   .card.row {
     border-radius: var(--row-radius);
@@ -322,7 +324,7 @@
     padding: 4px 0;
   }
   .tabbar button svg { width: 22px; height: 22px; }
-  .tabbar button.active { color: var(--indigo); }
+  .tabbar button.active { color: var(--indigo-text); }
   .tabbar button:focus-visible { outline: 2px solid var(--electric); border-radius: 8px; }
 
   /* ---------- Buttons / form ---------- */
