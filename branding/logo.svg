@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Budget — le chemin du patrimoine">
+  <!-- Logo « Budget » : le chemin ascendant du patrimoine.
+       Fond verre sombre, trajectoire indigo→violet, sommet bleu électrique.
+       Source de vérité de la marque — les PNG (1024/512/192/180) sont
+       rendus depuis cette géométrie par branding/render_icons.py. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#131B2E"/>
+      <stop offset="1" stop-color="#0B0E14"/>
+    </linearGradient>
+    <linearGradient id="path" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4B5CFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- socle : la base dont on part -->
+  <circle cx="232" cy="712" r="40" fill="#4B5CFF"/>
+  <!-- le chemin : montée, repli honnête, envolée -->
+  <path d="M232 712 L436 540 L568 618 L792 352"
+        stroke="url(#path)" stroke-width="78"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- le sommet : où l'on va -->
+  <circle cx="792" cy="352" r="62" fill="#5AA7FF"/>
+  <circle cx="792" cy="352" r="26" fill="#F2F4F8"/>
+</svg>
