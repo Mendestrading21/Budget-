@@ -34,7 +34,7 @@ async function goHome() {
 // ---------- Test 1 : chaque onglet s'ouvre ----------
 currentTest = "onglets";
 await goHome();
-for (const label of ["Accueil", "Mois", "Budget", "Comptes", "Plus"]) {
+for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
   await page.click(`#tabbar button[aria-label="${label}"]`);
   await page.waitForTimeout(120);
   const content = await page.$eval("#screen", el => el.innerHTML.length);
@@ -78,7 +78,7 @@ check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 
 // ---------- Test 4 : épargne rapide — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
-await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.click(`#tabbar button[aria-label="Accueil"]`);
 await page.click("[data-quicksend]");
 await page.waitForSelector("#txForm", { state: "visible" });
 const destOptions = await page.$eval("#fDest", el => el.options.length);
@@ -88,7 +88,7 @@ await page.fill("#fAmount", "100");
 await page.click('#txForm button[type="submit"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Épargne E2E"), "épargne absente de l'écran Mois");
+check(screenHTML.includes("Épargne E2E"), "épargne absente de l'écran Accueil");
 
 // ---------- Test 5 : Échap ferme la feuille ----------
 currentTest = "echap";
@@ -113,7 +113,7 @@ check(screenHTML.includes("Compte E2E") && screenHTML.includes("1'500.00"), "com
 
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";
-await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.click(`#tabbar button[aria-label="Accueil"]`);
 const payButton = await page.$("[data-paybill]");
 if (payButton) {
   await payButton.click();
@@ -165,7 +165,22 @@ await page.waitForTimeout(150);
 const svgOK = await page.$eval("#screen", el => !el.innerHTML.includes("NaN"));
 check(svgOK, "NaN dans la courbe de patrimoine");
 
-// ---------- Test 11 : effacer les opérations ≠ réinitialisation complète ----------
+// ---------- Test 11 : onglet Mouvements — recherche et filtres ----------
+currentTest = "mouvements";
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(150);
+check(await page.$("#moreSearchInput") !== null, "champ de recherche absent");
+check((await page.$$("[data-morefilter]")).length >= 5, "filtres de type absents");
+await page.fill("#moreSearchInput", "zzz-introuvable-e2e");
+await page.waitForTimeout(250);
+let listHTML = await page.$eval("#moreTxList", el => el.innerHTML);
+check(listHTML.includes("Aucun résultat"), "recherche sans résultat n'affiche pas l'état vide");
+await page.fill("#moreSearchInput", "");
+await page.waitForTimeout(250);
+listHTML = await page.$eval("#moreTxList", el => el.innerHTML);
+check(!listHTML.includes("Aucun résultat pour cette recherche"), "recherche vidée ne réaffiche pas la liste");
+
+// ---------- Test 12 : effacer les opérations ≠ réinitialisation complète ----------
 currentTest = "double suppression";
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.click('#screen [data-more="settings"]');
@@ -196,4 +211,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 11 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 12 tests verts, zéro erreur console ✓");
