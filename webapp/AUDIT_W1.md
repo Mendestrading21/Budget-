@@ -206,3 +206,36 @@ Finary).
 - Hors périmètre (valeurs manuelles) : positions LPP et assurances ne
   cumulent pas de versements automatiques — leurs primes/valeurs
   restent saisies à la main.
+
+## Second audit externe par agent (2026-07-20) — « 100 % fonctionnel »
+
+Un agent d'audit a repassé tout le fichier après la vague de
+fonctionnalités (bienvenue, devise, rituel, cumuls, hors-ligne).
+Verdict boutons : 51 attributs data-* rendus ↔ 51 handlers, zéro
+bouton mort dans les deux sens. Constats corrigés dans la foulée :
+
+- **BLOQUANT** : titre de récurrent non échappé dans « À venir ce
+  mois » (XSS stocké possible via un récurrent nommé avec du HTML) →
+  esc() ; catégories durcies aussi (défense en profondeur contre une
+  sauvegarde JSON malveillante).
+- **MAJEURS** : ajustements de solde — affichés avec le bon signe
+  (t.up), total de la liste Mouvements converti en devise de référence
+  et signé correctement, et l'édition ne transforme plus un ajustement
+  en dépense (type figé, seuls montant/date/intitulé s'éditent) ;
+  « À venir ce mois » affichait le salaire en charge négative rouge →
+  signe selon le type ; valider un récurrent ne date plus jamais un
+  mouvement comptabilisé dans le futur ; sélecteurs de comptes alignés
+  sur la devise de référence (deux « CHF » en dur) ; libellés fiscaux
+  explicités (« Réserve du mois » sur l'Accueil vs année sur Impôts —
+  deux horizons assumés, mêmes taux et réserve).
+- **Restauration/état** : baseCurrency, fxRates et monthChecks
+  voyagent désormais dans la sauvegarde (corrigé avant l'audit) ;
+  défaut taxReserve 0 (plus la valeur de démo) ; fxRates par défaut
+  selon la devise de référence ; mouvements hérités normalisés.
+- **Rituel** : un mois « bouclé » se rouvre si un élément se rouvre ;
+  « Comptabiliser » depuis la feuille récurrent est annulable.
+- **Accessibilité** : Entrée/Espace activent désormais TOUTES les
+  cartes-boutons (avant : seul un sous-ensemble, incorrectement).
+- **Nettoyage** : openBillsSoon, DEST_BY_TYPE, RENDERERS.goals retirés ;
+  service worker ne met plus en cache les réponses en erreur ;
+  « Dépenses du mois » aligné sur « Coût de la vie » (impôts à part).

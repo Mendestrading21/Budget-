@@ -1030,7 +1030,7 @@ function loadState() {
       if (!Array.isArray(s[key])) s[key] = [];
     }
     if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0.30;
-    if (typeof s.taxReserve !== "number") s.taxReserve = 2400;
+    if (typeof s.taxReserve !== "number") s.taxReserve = 0;
     if (!Array.isArray(s.documents)) s.documents = [];
     if (!Array.isArray(s.bills)) s.bills = [];
     if (s.lastImport && typeof s.lastImport !== "object") s.lastImport = null;
@@ -1041,12 +1041,12 @@ function loadState() {
       if (!account.kind) account.kind = inferKind[account.id] || "current";
       if (!account.currency) account.currency = "CHF";
     }
-    if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { EUR: 0.93, USD: 0.80 };
     // États d'avant l'écran de bienvenue : profil démo, déjà « onboardés ».
     if (!s.profile || typeof s.profile !== "object") s.profile = { name: "Alex" };
     if (typeof s.onboarded !== "boolean") s.onboarded = true;
     if (typeof s.isDemo !== "boolean") s.isDemo = true;
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
+    if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -1074,7 +1074,9 @@ if (!S) {
     // Ancien utilisateur de la toute première version : on reprend la
     // démo enrichie de ses mouvements, sans écran de bienvenue.
     S = seedState();
-    for (const t of legacyTx) S.transactions.push(t);
+    for (const t of legacyTx) {
+      S.transactions.push({ status: "posted", type: "expense", acc: "cur", dest: null, ...t });
+    }
     try { localStorage.removeItem(LEGACY_TX_KEY); } catch (e) {}
   } else {
     // Première ouverture : app vierge + écran de bienvenue.
@@ -1269,7 +1271,7 @@ function monthNav() {
 }
 
 function txRow(t) {
-  const inflow = t.type === "income" || t.type === "refund";
+  const inflow = t.type === "income" || t.type === "refund" || (t.type === "adjustment" && t.up);
   const neutral = t.type === "transfer";
   const cls = neutral ? "info" : inflow ? "pos" : "neg";
   const sign = neutral ? "" : inflow ? "+" : "−";
@@ -1302,7 +1304,7 @@ function renderHome() {
   const monthBills = (S.bills || []).filter(b => b.dueY === y && b.dueM === m);
 
   // Dépenses vs envois : la règle d'or — un envoi vers un compte n'est PAS une dépense.
-  const expenses = posted.filter(t => ["expense", "taxPayment"].includes(t.type));
+  const expenses = posted.filter(t => t.type === "expense"); // impôts à part, comme « Coût de la vie »
   const refunds = posted.filter(t => t.type === "refund");
   const spentTotal = expenses.reduce((a, t) => a + txCHF(t), 0) - refunds.reduce((a, t) => a + txCHF(t), 0);
   const sends = posted.filter(t => ["saving", "investment", "transfer"].includes(t.type));
@@ -1364,7 +1366,7 @@ function renderHome() {
     const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
     const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
     return `<div class="bar-row">
-      <div class="bar-head"><span>${l.cat}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
+      <div class="bar-head"><span>${esc(l.cat)}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
         <span class="vals">${chf(l.actual)} / ${chf(l.planned)}</span></div>
       <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
     </div>`;
@@ -1377,6 +1379,9 @@ function renderHome() {
   const monthClosed = checks.length > 0 && doneCount === checks.length;
   if (monthClosed && !(S.monthChecks || {})[monthKey]) {
     S.monthChecks[monthKey] = Date.now();
+    saveState();
+  } else if (!monthClosed && (S.monthChecks || {})[monthKey]) {
+    delete S.monthChecks[monthKey]; // un élément s'est rouvert : le mois ne l'est plus
     saveState();
   }
   const closedAt = (S.monthChecks || {})[monthKey];
@@ -1435,7 +1440,7 @@ function renderHome() {
       <div class="stat"><span class="card-label">Mis de côté</span><span class="amount info">${chf(s.savings + s.invest)}</span>
         <span class="caption">${s.income > 0 ? "Taux : " + pct(s.savingsRate) : "—"}</span></div>
       <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
-        <span class="caption">${s.taxGap > 0 ? "Réserve manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
+        <span class="caption">${s.taxGap > 0 ? "Réserve du mois manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
     ${checkCard}
     ${alertCards}
@@ -1480,9 +1485,9 @@ function renderHome() {
     <p class="section-title">À venir ce mois</p>
     ${s.upcomingRecurrings.map(r => `<div class="card row tx">
       <div class="ico" aria-hidden="true">${r.icon}</div>
-      <div class="meta"><div class="t">${r.title}<span class="badge planned">Prévu</span></div>
+      <div class="meta"><div class="t">${esc(r.title)}<span class="badge planned">Prévu</span></div>
         <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · récurrent mensuel</div></div>
-      <span class="amount neg">−${chf(r.amount)}</span>
+      <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(r.amount)}</span>
     </div>`).join("")}` : ""}
 
     <p class="section-title">🌍 Mon portefeuille global</p>
@@ -1547,7 +1552,7 @@ function renderBudget() {
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
       return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="bar-row" style="margin:0">
-          <div class="bar-head"><span>${l.cat}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
+          <div class="bar-head"><span>${esc(l.cat)}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
             <span class="vals">${chf(l.actual)} / ${chf(l.planned)}</span></div>
           <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
           <div class="bar-foot">${l.over ? "Dépassement de " + chf(-l.variance) : "Reste " + chf(l.variance)}</div>
@@ -1901,7 +1906,7 @@ function renderInsurance() {
     <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une position de prévoyance</button>
     ${ACCOUNTS.some(a => a.id === "p3a") ? `<div class="card row tx"><div class="ico" aria-hidden="true">🛡</div>
       <div class="meta"><div class="t">Pilier 3a</div><div class="s">Fondation Exemple — aussi visible dans Comptes</div></div>
-      <span class="amount acct-total">${chf(balance("p3a"))}</span></div>` : ""}`;
+      <span class="amount acct-total">${money(balance("p3a"), accountCurrency("p3a"))}</span></div>` : ""}`;
 }
 
 /* ---------- Récurrents (Phase 6) ---------- */
@@ -2100,12 +2105,6 @@ function billIsOverdue(b) {
 function billDueLabel(b) {
   return `${String(b.dueD).padStart(2, "0")}.${String(b.dueM).padStart(2, "0")}.${b.dueY}`;
 }
-function openBillsSoon() {
-  // Dues sous 14 jours ou en retard, non payées.
-  const horizon = new Date(NOW.y, NOW.m - 1, NOW.d + 14).getTime();
-  return (S.bills || []).filter(b => !b.paidTxId
-    && new Date(b.dueY, b.dueM - 1, b.dueD).getTime() <= horizon);
-}
 function renderBills() {
   const bills = S.bills || [];
   const overdue = bills.filter(billIsOverdue);
@@ -2241,7 +2240,11 @@ function renderMoreTxList() {
     .filter(t => moreFilter === "all" || FILTER_TYPES[moreFilter].includes(t.type))
     .filter(t => !needle || fold(t.title).includes(needle) || (t.cat && fold(t.cat).includes(needle)))
     .sort((a, b) => b.d - a.d || b.id - a.id);
-  const total = monthTx.reduce((a, t) => a + (t.type === "income" || t.type === "refund" ? t.amount : (t.type === "transfer" ? 0 : -t.amount)), 0);
+  const total = monthTx.reduce((a, t) => {
+    if (t.type === "transfer") return a;
+    if (t.type === "adjustment") return a + (t.up ? txCHF(t) : -txCHF(t));
+    return a + (t.type === "income" || t.type === "refund" ? txCHF(t) : -txCHF(t));
+  }, 0);
   return (monthTx.length
     ? `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>` + monthTx.map(txRow).join("")
     : `<div class="card row"><span class="caption">${moreSearch || moreFilter !== "all" ? "Aucun résultat pour cette recherche." : "Aucun mouvement ce mois-ci."}</span></div>`);
@@ -2385,7 +2388,7 @@ function renderLockScreen() {
   </div>`;
 }
 
-const RENDERERS = { home: renderHome, movements: renderMovements, budget: renderBudget, accounts: renderAccounts, goals: renderGoals, more: renderMore };
+const RENDERERS = { home: renderHome, movements: renderMovements, budget: renderBudget, accounts: renderAccounts, more: renderMore };
 
 function render() {
   if (!RENDERERS[activeTab]) activeTab = "home"; // ancien onglet « month » (historique) ou état inconnu
@@ -2489,8 +2492,9 @@ document.getElementById("screen").addEventListener("click", (e) => {
     if (already) return;
     pushUndo();
     const lastDay = new Date(y, m, 0).getDate();
+    const isCurrentMonth = (y === NOW.y && m === NOW.m);
     transactions.push({
-      id: ++txSeq, y, m, d: Math.min(rec.day, lastDay),
+      id: ++txSeq, y, m, d: Math.min(rec.day, isCurrentMonth ? NOW.d : lastDay),
       title: rec.title, amount: rec.amount, type: rec.type,
       cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
       recurringId: rec.id,
@@ -2666,8 +2670,8 @@ document.getElementById("screen").addEventListener("change", (e) => {
 function scrollTop() { document.getElementById("screen").scrollTop = 0; }
 document.getElementById("screen").addEventListener("keydown", (e) => {
   if (e.key !== "Enter" && e.key !== " ") return;
-  const entry = e.target.closest("[data-more]");
-  if (entry) { e.preventDefault(); moreView = entry.dataset.more; render(); }
+  const actionable = e.target.closest('[role="button"]');
+  if (actionable) { e.preventDefault(); actionable.click(); }
 });
 
 /* ---------- Toast + annulation du dernier geste ---------- */
@@ -2727,7 +2731,6 @@ function openSheet(id) {
 }
 // Épargne/investissement/virement créditent TOUJOURS un compte de
 // destination : l'argent change de poche, il ne disparaît jamais.
-const DEST_BY_TYPE = { saving: "sav", investment: "p3a", transfer: "cash" };
 
 function refreshCatOptions() {
   const type = document.getElementById("fType").value;
@@ -2762,7 +2765,7 @@ function refreshDestOptions(preselect) {
     .sort((a, b) => (b.kind === preferred ? 1 : 0) - (a.kind === preferred ? 1 : 0));
   const select = document.getElementById("fDest");
   select.innerHTML = candidates.length
-    ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${(ACCOUNT_KINDS[a.kind] || {}).label || a.kind}${a.currency && a.currency !== "CHF" ? ", " + a.currency : ""})</option>`).join("")
+    ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${(ACCOUNT_KINDS[a.kind] || {}).label || a.kind}${a.currency && a.currency !== baseCurrency() ? ", " + a.currency : ""})</option>`).join("")
     : `<option value="">— aucun compte en ${sourceCurrency} disponible —</option>`;
   if (preselect && candidates.some(a => a.id === preselect)) select.value = preselect;
 }
@@ -2772,7 +2775,7 @@ document.getElementById("fAccount").addEventListener("change", () => refreshDest
 function refreshAccountOptions(selectedId) {
   const select = document.getElementById("fAccount");
   select.innerHTML = ACCOUNTS.map(a =>
-    `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== "CHF" ? " (" + a.currency + ")" : ""}</option>`).join("");
+    `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== baseCurrency() ? " (" + a.currency + ")" : ""}</option>`).join("");
   if (selectedId && ACCOUNTS.some(a => a.id === selectedId)) select.value = selectedId;
 }
 
@@ -2784,10 +2787,20 @@ function openTxSheet(tx, presetType) {
   document.getElementById("fDelete").style.display = tx ? "block" : "none";
   document.getElementById("fDuplicate").style.display = tx ? "block" : "none";
   const typeSelect = document.getElementById("fType");
+  typeSelect.disabled = false;
+  typeSelect.querySelectorAll('option[value="adjustment"]').forEach(o => o.remove());
   if (tx) {
     document.getElementById("fTitle").value = tx.title;
     document.getElementById("fAmount").value = tx.amount.toFixed(2);
-    typeSelect.value = tx.type === "adjustment" ? "expense" : tx.type;
+    if (tx.type === "adjustment") {
+      // Un ajustement de réconciliation garde son type et son sens —
+      // seuls montant, date et intitulé s'éditent.
+      typeSelect.innerHTML += '<option value="adjustment">Ajustement de solde</option>';
+      typeSelect.value = "adjustment";
+      typeSelect.disabled = true;
+    } else {
+      typeSelect.value = tx.type;
+    }
     refreshCatOptions();
     if (tx.cat) catSelect.value = tx.cat;
     document.getElementById("fDate").value =
@@ -2839,7 +2852,9 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   const y = Number(dateMatch[1]), m = Number(dateMatch[2]), d = Number(dateMatch[3]);
   if (y < 2000 || y > 2100) { err.textContent = "Année entre 2000 et 2100."; return; }
 
-  const type = document.getElementById("fType").value;
+  const editingExisting = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
+  const type = (editingExisting && editingExisting.type === "adjustment")
+    ? "adjustment" : document.getElementById("fType").value;
   const sourceId = document.getElementById("fAccount").value;
   if (!ACCOUNTS.some(a => a.id === sourceId)) { err.textContent = "Choisissez un compte."; return; }
   const sourceCurrency = accountCurrency(sourceId);
@@ -2859,7 +2874,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   if (existing) {
     Object.assign(existing, {
       title, amount: Math.round(amount * 100) / 100,
-      y, m, d, status, type, cat, dest, acc: sourceId,
+      y, m, d, status, type, cat: type === "adjustment" ? null : cat, dest, acc: sourceId,
     });
     toast("Mouvement modifié");
   } else {
@@ -3255,6 +3270,7 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
 document.getElementById("rPost").addEventListener("click", () => {
   const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (!rec) return;
+  pushUndo();
   transactions.push({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
     title: rec.title, amount: rec.amount, type: rec.type,
