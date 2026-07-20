@@ -2693,6 +2693,11 @@ function undoLast() {
   if (restored.profile && typeof restored.profile === "object") S.profile = restored.profile;
   S.isDemo = restored.isDemo === true;
   S.onboarded = true;
+  S.baseCurrency = CURRENCIES.includes(restored.baseCurrency) ? restored.baseCurrency : "CHF";
+  S.fxRates = (restored.fxRates && typeof restored.fxRates === "object")
+    ? restored.fxRates : { ...FX_DEFAULTS[S.baseCurrency] };
+  S.monthChecks = (restored.monthChecks && typeof restored.monthChecks === "object")
+    ? restored.monthChecks : {};
   txSeq = transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
   saveState();
   return true;
@@ -2947,6 +2952,7 @@ function deleteAllData() {
   S.lastImport = null;
   S.bills.length = 0;
   S.isDemo = false; // ce qui reste est désormais à l'utilisateur
+  S.monthChecks = {}; // plus d'opérations → plus de mois « bouclés »
   saveState();
   moreView = null;
   toast("Opérations effacées — comptes, budgets et réglages conservés", true);
