@@ -128,3 +128,25 @@ Audit indépendant du 20.07.2026 sur la version plein écran. Résultat :
 - Migrations : comptes sans devise → CHF, fxRates par défaut, budgets
   re-seedés sur les mois relatifs si absents, anciens mouvements 2026
   conservés et accessibles par la navigation.
+
+## W7 — Cockpit « Mois en cours » (demande utilisateur post-W6)
+
+- **Nouvel onglet « Mois »** (icône calendrier, au centre de la barre) :
+  tout le mois sur un écran — salaire attendu avec bouton « ✓ Je l'ai
+  reçu » (comptabilise le récurrent, annulable), factures du mois
+  payables SUR PLACE (« Payer CHF 184.30 »), dépenses du mois (total +
+  dernières + ajout rapide), ENVOIS VERS MES COMPTES (épargne, bourse,
+  3a, virements) clairement séparés des dépenses avec le rappel « un
+  envoi n'est jamais une dépense », et le portefeuille global : fortune
+  nette totale, liquidités, épargne, bourse, prévoyance (comptes +
+  positions LPP/3a), actifs, dettes, assurances (coût mensuel),
+  objectifs (progression) — chaque ligne mène à son écran.
+- **Comptes Bourse / titres** : nouvelle nature de compte (📈), groupée
+  sous Épargne et placements — 2'000 envoyés à la bourse = un
+  investissement qui apparaît dans le portefeuille, jamais une dépense
+  (vérifié par test).
+- **Choix du compte de destination** : la feuille mouvement affiche
+  « Vers le compte » pour épargne/investissement/virement — liste des
+  comptes de même devise, tri intelligent (bourse d'abord pour un
+  investissement), refus clair si aucun compte compatible.
+- Objectifs déplacés dans « Plus » (l'onglet libéré accueille Mois).
