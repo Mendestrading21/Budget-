@@ -165,6 +165,28 @@ await page.waitForTimeout(150);
 const svgOK = await page.$eval("#screen", el => !el.innerHTML.includes("NaN"));
 check(svgOK, "NaN dans la courbe de patrimoine");
 
+// ---------- Test 11 : effacer les opérations ≠ réinitialisation complète ----------
+currentTest = "double suppression";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-deleteall]"); // dialogs auto-acceptés
+await page.waitForTimeout(250);
+let stored = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-app-state-v1")));
+check(stored.transactions.length === 0, "opérations non effacées");
+check(stored.accounts.length > 0, "les comptes doivent survivre à « Effacer les opérations »");
+check(Object.keys(stored.budgets || {}).length > 0, "les budgets doivent survivre");
+await page.click('#screen [data-more="settings"]'); // deleteAllData ramène à la racine de Plus
+await page.waitForTimeout(150);
+await page.click("[data-fullreset]");
+await page.waitForSelector("#tabbar button", { timeout: 10000 }); // reload complet
+stored = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-app-state-v1")));
+check(stored.accounts.length === 0, "réinitialisation complète : comptes encore présents");
+check(stored.transactions.length === 0, "réinitialisation complète : mouvements encore présents");
+check(!stored.lockCode, "réinitialisation complète : code de verrouillage encore présent");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.length > 200, "app vide n'affiche rien (écran cassé après reset)");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -174,4 +196,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 10 tests verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 11 tests verts, zéro erreur console ✓");

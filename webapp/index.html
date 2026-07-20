@@ -1921,7 +1921,8 @@ function renderSettings() {
     <button class="btn secondary" data-exportjson style="margin-top:8px">Télécharger la sauvegarde (JSON)</button>
     <button class="btn secondary" data-restorepick style="margin-top:8px">Restaurer une sauvegarde…</button>
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" aria-hidden="true" />
-    <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Tout supprimer…</button>
+    <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Effacer les opérations…</button>
+    <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Réinitialiser la démo…</button>
     <p class="section-title">Transparence</p>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Confidentialité</summary>
@@ -2171,6 +2172,21 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-exportjson]")) { exportBackup(); return; }
   if (e.target.closest("[data-restorepick]")) { document.getElementById("restoreFile").click(); return; }
   if (e.target.closest("[data-deleteall]")) { deleteAllData(); return; }
+  if (e.target.closest("[data-fullreset]")) {
+    if (!confirm("Réinitialiser COMPLÈTEMENT : comptes, mouvements, budgets, taux, code de verrouillage, réglages — tout est effacé de ce navigateur. Continuer ?")) return;
+    if (!confirm("Dernière confirmation : cette action est définitive et non annulable.")) return;
+    try {
+      const empty = seedState();
+      empty.transactions = []; empty.accounts = []; empty.recurrings = [];
+      empty.goals = []; empty.assets = []; empty.liabilities = [];
+      empty.pensions = []; empty.insurances = []; empty.bills = [];
+      empty.documents = []; empty.budgets = {}; empty.taxReserve = 0;
+      empty.lastImport = null; empty.lockCode = null; empty.faceIDEnabled = false;
+      localStorage.setItem(APP_STATE_KEY, JSON.stringify(empty));
+    } catch (err) {}
+    location.reload();
+    return;
+  }
   if (e.target.closest("[data-resetdemo]")) {
     if (!confirm("Revenir aux données de démonstration ? Vos ajouts et modifications seront effacés.")) return;
     try {
@@ -2481,8 +2497,8 @@ function restoreFromFile(file) {
   reader.readAsText(file);
 }
 function deleteAllData() {
-  if (!confirm("Supprimer TOUS les mouvements, objectifs, récurrents et éléments de patrimoine ?")) return;
-  if (!confirm("Vraiment ? Cette action est définitive (les comptes et leur solde d'ouverture restent).")) return;
+  if (!confirm("Effacer vos OPÉRATIONS : mouvements, objectifs, récurrents, patrimoine, assurances, prévoyance, factures, documents ? Les comptes, budgets, taux et réglages restent.")) return;
+  if (!confirm("Vraiment ? (annulable pendant 6 secondes après coup)")) return;
   pushUndo();
   transactions.length = 0;
   GOALS.length = 0;
@@ -2496,7 +2512,7 @@ function deleteAllData() {
   S.bills.length = 0;
   saveState();
   moreView = null;
-  toast("Toutes les données ont été supprimées", true);
+  toast("Opérations effacées — comptes, budgets et réglages conservés", true);
   render();
 }
 
