@@ -76,8 +76,8 @@ Voir DECISION_LOG.md (ADR-001 à ADR-013). Convention patrimoine : soldes signé
 
 ## Next exact action
 
-Le code V1 est terminé (phases 0-14). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
+Le code V1 est terminé (phases 0-14) et le pipeline TestFlight est prêt : `.github/workflows/testflight.yml` (déclenchement manuel, signature cloud via clé API App Store Connect, aucun Mac requis) + guide `TESTFLIGHT_SETUP.md` (100 % faisable depuis l'iPhone). Exemption de chiffrement déclarée (`ITSAppUsesNonExemptEncryption = NO`). Il reste ce qui exige un humain ou un compte Apple Developer (~99 $/an) :
 
-1. Valider la décision de prix (APP_STORE_LISTING.md).
-2. Compte Apple Developer → App ID, fiche App Store Connect (textes prêts), pages support/confidentialité, archive signée, TestFlight sur l'iPhone de l'utilisateur.
+1. Suivre TESTFLIGHT_SETUP.md : adhésion Apple Developer, App ID `ch.budgetapp.Budget`, fiche App Store Connect, clé API, 4 secrets GitHub, puis « Run workflow ».
+2. Valider la décision de prix (APP_STORE_LISTING.md).
 3. Sur appareil : MANUAL_QA_CHECKLIST.md + migration V1→V8 sur un store existant.
