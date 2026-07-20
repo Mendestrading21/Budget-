@@ -17,10 +17,14 @@ final class DemoTourUITests: XCTestCase {
         app.launch()
 
         // Demo mode boots straight into the dashboard (a household exists).
-        XCTAssertTrue(
-            app.tabBars.buttons["Accueil"].waitForExistence(timeout: 30),
-            "Le dashboard doit apparaître en mode démo, sans onboarding"
-        )
+        if !app.tabBars.buttons["Accueil"].waitForExistence(timeout: 60) {
+            snap(app, "00-echec-lancement")
+            XCTFail("""
+            Le dashboard doit apparaître en mode démo, sans onboarding.
+            Arborescence à l'échec :
+            \(app.debugDescription)
+            """)
+        }
         snap(app, "01-accueil")
 
         openTab(app, "Budget")
