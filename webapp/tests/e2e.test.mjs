@@ -79,8 +79,8 @@ for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
 currentTest = "accueil simple";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
 await page.waitForTimeout(150);
-check((await page.$("[data-homequick]")).length === 4, "les quatre actions rapides doivent être visibles");
-check((await page.$(".quick-action .type-glyph")).length === 4, "les pictogrammes Budget doivent accompagner les actions");
+check(await page.locator("[data-homequick]").count() === 4, "les quatre actions rapides doivent être visibles");
+check(await page.locator(".quick-action .type-glyph").count() === 4, "les pictogrammes Budget doivent accompagner les actions");
 let depthDisplay = await page.$eval(".home-depth", el => getComputedStyle(el).display);
 check(depthDisplay === "none", "les détails avancés doivent être repliés par défaut");
 await page.click('[data-homequick="expense"]');
