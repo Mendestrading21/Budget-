@@ -4,9 +4,9 @@
 
 - Date UTC : 2026-07-21
 - Branche : `claude/budget-project-connection-link-mhaokm` — SHA de départ : `6f686b7`
-- Jalon actif : J2 — Compréhension (lots B) ; J1 clos
-- Lot actif : reste des lots B (B01-B04, B06-B08) ; audit P0+P1 + B05 soldés
-- Dernière CI verte : `ebf75ce` ; commits de code en vérification (28 e2e + 4 parité verts en local)
+- Jalon actif : J2 — Compréhension (lots B) quasi clos ; prochain J5/G01 (centimes) ou J3/C (rituel mensuel)
+- Lot actif : jalon B soldé (B01-B08) ; audit P0+P1 + B05 soldés
+- Dernière CI verte : `77bbf11` (pipeline complet web+parité+iOS) ; commits B06/B07/B03 web verts en local (31 e2e + 4 parité)
 - Bloqueurs humains : compte Apple Developer (H04+), QA appareil réel (H03), décision prix (H08), revue réglementaire FR/BE (H09)
 - Environnement de session : Linux (pas de xcodebuild local) — les vérifications natives passent par la CI GitHub Actions (runner macos-15), conformément à « adapter la destination sans diminuer la couverture ».
 
@@ -26,7 +26,10 @@
 | A03-W4 retour ferme feuille | DONE | 6d1f40f | e2e 28✓ | Le retour ferme la feuille | résolu |
 | B06 États vides guidés | DONE | bb5b0b4 | e2e 29✓ | Un vide propose une action réelle | faible |
 | B07 Menu Plus regroupé | DONE | 2863de6 | e2e 30✓ | Plus lisible, état vivant factures | faible |
-| B01–B04, B08 (reste) | READY | — | — | App comprise en 10 secondes | — |
+| B03 Accueil essentiel + B04 Ajout 3 gestes | DONE | 752f7b6 | e2e 31✓ | Héros + 4 actions ; détail replié | faible |
+| B01 Navigation (5 onglets) | DONE (préexistant) | — | e2e | Cinq destinations, aucun doublon | faible |
+| B02 Onboarding (5 écrans) | DONE (préexistant) | — | e2e | Départ en < 2 min | faible |
+| B08 Erreurs récupérables | PARTIEL | dab6418 | e2e 27✓ | Saisie protégée (feuilles) | faible |
 
 ### Audit soldé (voir AUDIT_COMPLET_BUDGET_2026-07-21.md)
 
