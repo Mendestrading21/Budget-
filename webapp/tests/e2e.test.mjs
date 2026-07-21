@@ -75,6 +75,24 @@ for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
   check(content > 200, `onglet ${label} vide`);
 }
 
+// ---------- Test 1a : accueil simple — essentiel d’abord ----------
+currentTest = "accueil simple";
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+check((await page.$("[data-homequick]")).length === 4, "les quatre actions rapides doivent être visibles");
+check((await page.$(".quick-action .type-glyph")).length === 4, "les pictogrammes Budget doivent accompagner les actions");
+let depthDisplay = await page.$eval(".home-depth", el => getComputedStyle(el).display);
+check(depthDisplay === "none", "les détails avancés doivent être repliés par défaut");
+await page.click('[data-homequick="expense"]');
+await page.waitForSelector("#txForm", { state: "visible" });
+check(await page.$eval("#fType", el => el.value === "expense"), "l’action Dépense doit préremplir le bon type");
+await page.click("#fCancel");
+await page.click("[data-homedetails]");
+await page.waitForTimeout(100);
+depthDisplay = await page.$eval(".home-depth", el => getComputedStyle(el).display);
+check(depthDisplay !== "none", "Voir tous mes détails doit ouvrir le contenu avancé");
+await page.click("[data-homedetails]");
+
 // ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
 currentTest = "check du mois";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
@@ -421,4 +439,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 22 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 23 parcours verts, zéro erreur console ✓");
