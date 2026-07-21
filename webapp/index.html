@@ -3666,6 +3666,19 @@ function pushNav() {
 }
 try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
 window.addEventListener("popstate", (e) => {
+  // Une feuille ouverte ? Le « retour » la ferme d'abord, sans changer
+  // d'écran — et protège une saisie en cours comme un abandon accidentel.
+  if (backdrop.classList.contains("open")) {
+    const dirty = openSheetId && serializeSheet(openSheetId) !== openSheetSnapshot;
+    if (dirty && !confirm("Abandonner la saisie en cours ?")) {
+      try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (err) {}
+      return; // on reste : la feuille demeure ouverte
+    }
+    backdrop.classList.remove("open");
+    openSheetId = null;
+    try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (err) {}
+    return;
+  }
   const state = e.state || { tab: "home", more: null };
   activeTab = state.tab || "home";
   moreView = state.more || null;

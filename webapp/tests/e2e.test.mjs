@@ -518,6 +518,21 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("-") && screenHTML.includes("250.00"), "un solde négatif saisi via la case doit s'appliquer");
 
+// ---------- Test 23 : le bouton « retour » ferme une feuille ouverte ----------
+currentTest = "retour ferme feuille";
+await page.click(`#tabbar button[aria-label="Budget"]`);
+await page.waitForTimeout(150);
+await page.click("#fab");
+await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
+await page.click('#quickMenu [data-quick="tx"]'); // feuille propre (non modifiée)
+await page.waitForSelector("#txForm", { state: "visible" });
+await page.goBack();
+await page.waitForTimeout(200);
+const backClosed = await page.$eval("#sheetBackdrop", el => !el.classList.contains("open"));
+check(backClosed, "le bouton retour doit fermer la feuille ouverte");
+const stillBudget = await page.evaluate(() => activeTab);
+check(stillBudget === "budget", "le retour qui ferme une feuille ne doit pas aussi changer d'onglet");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -527,4 +542,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 27 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 28 parcours verts, zéro erreur console ✓");
