@@ -24,7 +24,9 @@
 | B05 Langage 10 ans | DONE | 2e811b7 | e2e 25✓ | Zéro jargon à l'écran | faible |
 | P1 réf./saisie/arrondis (A03-W2/W3, A04-W1..W4) | DONE | dab6418 | e2e 27✓ | Saisie protégée, soldes justes | résolu |
 | A03-W4 retour ferme feuille | DONE | 6d1f40f | e2e 28✓ | Le retour ferme la feuille | résolu |
-| B01–B04, B06–B08 (reste) | READY | — | — | App comprise en 10 secondes | — |
+| B06 États vides guidés | DONE | bb5b0b4 | e2e 29✓ | Un vide propose une action réelle | faible |
+| B07 Menu Plus regroupé | DONE | 2863de6 | e2e 30✓ | Plus lisible, état vivant factures | faible |
+| B01–B04, B08 (reste) | READY | — | — | App comprise en 10 secondes | — |
 
 ### Audit soldé (voir AUDIT_COMPLET_BUDGET_2026-07-21.md)
 
