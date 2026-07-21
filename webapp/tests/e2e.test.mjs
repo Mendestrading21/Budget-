@@ -600,6 +600,26 @@ const leaked = await page.evaluate(() => {
 check(!leaked.includes("HASH_SECRET_123") && !leaked.includes("lockCode"),
   "le fichier de sauvegarde ne doit contenir ni le hash du code ni le champ lockCode");
 
+// ---------- Test 28 : moteur en centimes — 0.10 + 0.20 = 0.30 EXACT (G01) ----------
+currentTest = "precision centimes";
+await page.evaluate(() => {
+  localStorage.setItem("budget-app-state-v1", JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Cent" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "C", kind: "current", opening: 1, cash: true, currency: "CHF" }],
+    transactions: [
+      { id: 1, title: "a", amount: 0.1, type: "expense", cat: "x", acc: "cur", dest: null, status: "posted", y: 2026, m: 5, d: 2 },
+      { id: 2, title: "b", amount: 0.2, type: "expense", cat: "x", acc: "cur", dest: null, status: "posted", y: 2026, m: 5, d: 3 },
+    ],
+    recurrings: [], goals: [], assets: [], liabilities: [], pensions: [], insurances: [], bills: [], documents: [], budgets: {},
+  }));
+});
+await page.reload();
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+const precision = await page.evaluate(() => ({ living: snapshot(2026, 5).living, bal: balance("cur") }));
+check(Object.is(precision.living, 0.3), `0.10 + 0.20 doit valoir exactement 0.30 (obtenu ${precision.living})`);
+check(Object.is(precision.bal, 0.7), `1 − 0.10 − 0.20 doit valoir exactement 0.70 (obtenu ${precision.bal})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -609,4 +629,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 32 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 33 parcours verts, zéro erreur console ✓");

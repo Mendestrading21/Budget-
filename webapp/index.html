@@ -1216,18 +1216,26 @@ function esc(value) {
 /* ---------- Services (miroir des services Swift) ---------- */
 const OUTFLOWS = new Set(["expense", "saving", "investment", "transfer", "taxPayment", "debtPayment"]);
 
+/* Arithmétique en centimes entiers (lot G01) : additionner en centimes
+   puis reconvertir supprime la dérive des flottants (0.10 + 0.20 = 0.30,
+   pas 0.30000000000000004). Étape moteur ; le stockage reste en unités
+   décimales tant que la migration G02 n'est pas faite. */
+function toCents(x) { return Math.round((Number(x) || 0) * 100); }
+function fromCents(c) { return c / 100; }
+function round2(x) { return fromCents(toCents(x)); } // arrondi au centime d'une valeur composée
+
 function balance(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
   if (!account) return 0;
-  let b = account.opening;
+  let c = toCents(account.opening); // accumulation en centimes entiers (G01)
   for (const t of transactions) {
     if (t.status !== "posted") continue;
-    if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount
-      : (t.type === "adjustment" ? (t.up ? t.amount : -t.amount)
-      : (OUTFLOWS.has(t.type) ? -t.amount : 0));
-    if (t.dest === accId) b += t.amount;
+    if (t.acc === accId) c += (t.type === "income" || t.type === "refund") ? toCents(t.amount)
+      : (t.type === "adjustment" ? (t.up ? toCents(t.amount) : -toCents(t.amount))
+      : (OUTFLOWS.has(t.type) ? -toCents(t.amount) : 0));
+    if (t.dest === accId) c += toCents(t.amount);
   }
-  return b;
+  return fromCents(c);
 }
 
 function inMonth(t, y, m) { return t.y === y && t.m === m; }
@@ -1235,20 +1243,20 @@ function inMonth(t, y, m) { return t.y === y && t.m === m; }
 function snapshot(y, m) {
   const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
   const planned = transactions.filter(t => inMonth(t, y, m) && t.status === "planned");
-  const sum = (list, type) => list.filter(t => t.type === type).reduce((a, t) => a + txCHF(t), 0);
+  const sum = (list, type) => fromCents(list.filter(t => t.type === type).reduce((a, t) => a + toCents(txCHF(t)), 0));
 
   const income = sum(posted, "income");
-  const living = sum(posted, "expense") - sum(posted, "refund");
+  const living = round2(sum(posted, "expense") - sum(posted, "refund"));
   const savings = sum(posted, "saving");
   const invest = sum(posted, "investment");
   const taxes = sum(posted, "taxPayment");
 
   const plannedIncome = sum(planned, "income");
-  const openBillsDue = (S.bills || [])
+  const openBillsDue = fromCents((S.bills || [])
     .filter(b => !b.paidTxId && b.dueY === y && b.dueM === m)
-    .reduce((a, b) => a + b.amount, 0);
-  const plannedOut = ["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
-    + openBillsDue;
+    .reduce((a, b) => a + toCents(b.amount), 0));
+  const plannedOut = round2(["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
+    + openBillsDue);
 
   // Même vérité que l'écran Impôts : la réserve annuelle constituée
   // couvre d'abord le manque du mois (jamais deux formules).
@@ -1257,7 +1265,7 @@ function snapshot(y, m) {
   const annualCover = Math.max(0, (S.taxReserve ?? 0));
   const taxGap = Math.max(0, monthShortfall - annualCover);
 
-  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const isCurrent = (y === NOW.y && m === NOW.m);
   // Occurrences récurrentes encore à venir ce mois, dédupliquées contre
   // les mouvements déjà saisis/planifiés (même titre, même mois) — la
@@ -1267,8 +1275,8 @@ function snapshot(y, m) {
         && !transactions.some(t => inMonth(t, y, m)
             && (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
     : [];
-  const recurringCharges = upcomingRecurrings.reduce((a, r) => a + (r.type === "expense" ? r.amount : 0), 0);
-  const recurringIncome = upcomingRecurrings.reduce((a, r) => a + (r.type === "income" ? r.amount : 0), 0);
+  const recurringCharges = fromCents(upcomingRecurrings.reduce((a, r) => a + (r.type === "expense" ? toCents(r.amount) : 0), 0));
+  const recurringIncome = fromCents(upcomingRecurrings.reduce((a, r) => a + (r.type === "income" ? toCents(r.amount) : 0), 0));
   // Revenus irréguliers (indépendants) : sans récurrent de revenu, la
   // prévision utilise la moyenne des 3 derniers mois comptabilisés.
   let irregularIncome = 0;
@@ -1279,13 +1287,13 @@ function snapshot(y, m) {
       .reduce((x, t) => x + txCHF(t), 0), 0) / 3;
     irregularIncome = Math.max(0, avg - income - plannedIncome);
   }
-  const available = liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGap;
+  const available = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGap);
   const daysInMonth = new Date(y, m, 0).getDate();
   const daysRemaining = isCurrent ? (daysInMonth - NOW.d + 1) : 0;
   const daily = (isCurrent && available > 0 && daysRemaining > 0) ? available / daysRemaining : 0;
 
   const savingsRate = income > 0 ? (savings + invest) / income : 0;
-  const cashFlow = income - living - savings - invest - taxes;
+  const cashFlow = round2(income - living - savings - invest - taxes);
 
   return { income, living, savings, invest, taxes, plannedIncome, plannedOut,
            taxRecommended, taxGap, liquid, available, daysRemaining, daily,
@@ -1299,13 +1307,13 @@ function snapshot(y, m) {
    paiement la fait remonter toute seule). Simplification honnête :
    tout est capital ; les intérêts se saisissent en dépense séparée. */
 function liabilityBalance(l) {
-  const paid = transactions
+  const paidC = transactions
     .filter(t => t.status === "posted" && t.recurringId === "r-debt-" + l.id)
-    .reduce((a, t) => a + txCHF(t), 0);
-  return Math.max(0, l.value - paid);
+    .reduce((a, t) => a + toCents(txCHF(t)), 0);
+  return Math.max(0, fromCents(toCents(l.value) - paidC));
 }
 function liabilitiesTotal() {
-  return LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + liabilityBalance(x), 0);
+  return fromCents(LIABILITIES.filter(x => x.include !== false).reduce((a, x) => a + toCents(liabilityBalance(x)), 0));
 }
 
 function closedStreak(y, m) {
@@ -1451,7 +1459,7 @@ function renderHome() {
   const sentTotal = sends.filter(t => t.type !== "transfer").reduce((a, t) => a + txCHF(t), 0);
 
   // Portefeuille global
-  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const savingsTotal = ACCOUNTS.filter(a => a.kind === "savings").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const brokerageTotal = ACCOUNTS.filter(a => a.kind === "brokerage").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const pensionAccounts = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
@@ -1822,7 +1830,7 @@ function renderAccounts() {
     if (account) return renderAccountDetail(account);
     accountView = null;
   }
-  const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
   const groups = [
     ["Argent disponible", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
