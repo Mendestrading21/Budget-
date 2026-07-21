@@ -567,6 +567,25 @@ check(screenHTML.includes('data-gototab="movements"'), "l'entrée Mouvements doi
 check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more="networth"'),
   "les destinations du menu Plus doivent rester atteignables après regroupement");
 
+// ---------- Test 26 : accueil essentiel — 4 actions directes + patrimoine replié ----------
+currentTest = "accueil essentiel";
+await goHome();
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+for (const act of ["data-quickexp", "data-quickinc", "data-quicksend", "data-quickinv"]) {
+  check(screenHTML.includes(act), `action rapide ${act} absente de l'accueil`);
+}
+// le patrimoine est replié (details fermé) mais son contenu reste dans le DOM
+check(screenHTML.includes("home-fold") && screenHTML.includes("Fortune nette totale"),
+  "le patrimoine doit être replié sur l'accueil sans disparaître");
+// « Investir » ouvre la feuille pré-réglée sur investissement
+await page.click("[data-quickinv]");
+await page.waitForSelector("#txForm", { state: "visible" });
+const presetInvest = await page.$eval("#fType", el => el.value);
+check(presetInvest === "investment", "« Investir » doit pré-régler le type sur investissement");
+await page.click("#fCancel");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -576,4 +595,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 30 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 31 parcours verts, zéro erreur console ✓");

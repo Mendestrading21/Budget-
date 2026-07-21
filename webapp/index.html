@@ -1620,6 +1620,12 @@ function renderHome() {
     : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
+    <div class="home-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 6px">
+      <button class="btn secondary" data-quickexp>💸 Dépense</button>
+      <button class="btn secondary" data-quickinc>💰 Revenu</button>
+      <button class="btn secondary" data-quicksend>📤 Épargne</button>
+      <button class="btn secondary" data-quickinv>📈 Investir</button>
+    </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(s.income)}</span></div>
       <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(s.living)}</span></div>
@@ -1670,13 +1676,11 @@ function renderHome() {
     <p class="section-title">💸 Dépenses du mois — ${chf(spentTotal)}</p>
     ${expenses.slice(-3).reverse().map(txMini).join("")}
     ${expenses.length === 0 ? `<div class="card row"><span class="caption">Aucune dépense ce mois.</span></div>` : ""}
-    <button class="btn secondary" data-quickexp style="margin-top:4px">＋ Dépense</button>
 
     <p class="section-title">📤 Envois vers mes comptes — ${chf(sentTotal)} mis de côté</p>
     <p class="caption" style="margin:-4px 0 8px;padding:0 4px">L'argent change de poche — il reste à vous.</p>
     ${sends.slice(-3).reverse().map(txMini).join("")}
     ${sends.length === 0 ? `<div class="card row"><span class="caption">Aucun envoi ce mois.</span></div>` : ""}
-    <button class="btn secondary" data-quicksend style="margin-top:4px">＋ Envoi</button>
 
     <div class="card" style="margin-top:14px">
       <p class="card-label">Budget vs réel — principales dépenses</p>
@@ -1691,7 +1695,8 @@ function renderHome() {
       <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(r.amount)}</span>
     </div>`).join("")}` : ""}
 
-    <p class="section-title">🌍 Mon portefeuille global</p>
+    <details class="home-fold">
+    <summary class="section-title" style="cursor:pointer;list-style:none">🌍 Mon patrimoine — ${chf(net)}</summary>
     <div class="card hero">
       <p class="card-label">Fortune nette totale</p>
       <p class="hero-amount">${chf(net)}</p>
@@ -1712,7 +1717,8 @@ function renderHome() {
       <div class="ico" aria-hidden="true">🎯</div>
       <div class="meta"><div class="t">Objectifs</div><div class="s">${activeGoals.length} actif${activeGoals.length > 1 ? "s" : ""}</div></div>
       <span class="amount">${goalsTarget > 0 ? pct(Math.min(1, goalsCurrent / goalsTarget)) : "—"}</span>
-    </div>`;
+    </div>
+    </details>`;
 }
 
 /* ---------- Onglet « Mouvements » : liste complète, recherche, filtres (P2) ---------- */
@@ -3001,7 +3007,9 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-quickexp]")) { openTxSheet(null, "expense"); return; }
+  if (e.target.closest("[data-quickinc]")) { openTxSheet(null, "income"); return; }
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
+  if (e.target.closest("[data-quickinv]")) { openTxSheet(null, "investment"); return; }
   if (e.target.closest("[data-addtx]")) { openTxSheet(null); return; }
   const gotoTab = e.target.closest("[data-gototab]");
   if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); return; }
