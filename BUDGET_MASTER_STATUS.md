@@ -5,8 +5,8 @@
 - Date UTC : 2026-07-21
 - Branche : `claude/budget-project-connection-link-mhaokm` — SHA de départ : `6f686b7`
 - Jalon actif : J2 — Compréhension (lots B) ; J1 clos
-- Lot actif : B05 Langage 10 ans (en cours) ; P0 corrigés
-- Dernière CI verte : `ebf75ce` (docs J1) ; `f75bd81` (parité) et `426752a` (P0) en cours de vérification
+- Lot actif : reste des lots B (B01-B04, B06-B08) ; audit P0+P1 + B05 soldés
+- Dernière CI verte : `ebf75ce` ; commits de code en vérification (28 e2e + 4 parité verts en local)
 - Bloqueurs humains : compte Apple Developer (H04+), QA appareil réel (H03), décision prix (H08), revue réglementaire FR/BE (H09)
 - Environnement de session : Linux (pas de xcodebuild local) — les vérifications natives passent par la CI GitHub Actions (runner macos-15), conformément à « adapter la destination sans diminuer la couverture ».
 
@@ -21,8 +21,17 @@
 | A05 Fixtures financières | DONE | f75bd81 | parité 4✓ en CI | Web et natif calculent pareil | moyen |
 | A06 Statut maître | DONE | ebf75ce | — | Ordre de travail verrouillé (voir audit) | faible |
 | P0 données+bouton | DONE | 426752a | e2e 25✓ | Aucune perte silencieuse ; Annuler agit | résolu |
-| B05 Langage 10 ans | IN_PROGRESS | — | — | Zéro jargon à l'écran | faible |
-| B01–B08 (reste) | READY | — | — | App comprise en 10 secondes | — |
+| B05 Langage 10 ans | DONE | 2e811b7 | e2e 25✓ | Zéro jargon à l'écran | faible |
+| P1 réf./saisie/arrondis (A03-W2/W3, A04-W1..W4) | DONE | dab6418 | e2e 27✓ | Saisie protégée, soldes justes | résolu |
+| A03-W4 retour ferme feuille | DONE | 6d1f40f | e2e 28✓ | Le retour ferme la feuille | résolu |
+| B01–B04, B06–B08 (reste) | READY | — | — | App comprise en 10 secondes | — |
+
+### Audit soldé (voir AUDIT_COMPLET_BUDGET_2026-07-21.md)
+
+Tous les constats A03 (B1 + W1..W4) et A04 (B1, B2, W1..W4) sont corrigés
+et couverts par des tests e2e. Restent des NIT non bloquants (N1..N7 de
+chaque audit) et les écarts de parité volontaires documentés (dette web
+dans le coût de la vie → D04 ; flottants → G01).
 | C01–C08 Rituel mensuel | BLOCKED (B) | — | — | Un check mensuel sans doublon | — |
 | D01–D08 Patrimoine | BLOCKED (C) | — | — | Fortune nette fiable | — |
 | E01–E06 Suisse/foyer | BLOCKED (D) | — | — | Vocabulaire et impôts justes par pays | — |
