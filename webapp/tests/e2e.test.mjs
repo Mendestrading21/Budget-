@@ -75,24 +75,6 @@ for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
   check(content > 200, `onglet ${label} vide`);
 }
 
-// ---------- Test 1a : accueil simple — essentiel d’abord ----------
-currentTest = "accueil simple";
-await page.click(`#tabbar button[aria-label="Accueil"]`);
-await page.waitForTimeout(150);
-check(await page.locator("[data-homequick]").count() === 4, "les quatre actions rapides doivent être visibles");
-check(await page.locator(".quick-action .type-glyph").count() === 4, "les pictogrammes Budget doivent accompagner les actions");
-let depthDisplay = await page.$eval(".home-depth", el => getComputedStyle(el).display);
-check(depthDisplay === "none", "les détails avancés doivent être repliés par défaut");
-await page.click('[data-homequick="expense"]');
-await page.waitForSelector("#txForm", { state: "visible" });
-check(await page.$eval("#fType", el => el.value === "expense"), "l’action Dépense doit préremplir le bon type");
-await page.click("#fCancel");
-await page.click("[data-homedetails]");
-await page.waitForTimeout(100);
-depthDisplay = await page.$eval(".home-depth", el => getComputedStyle(el).display);
-check(depthDisplay !== "none", "Voir tous mes détails doit ouvrir le contenu avancé");
-await page.click("[data-homedetails]");
-
 // ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
 currentTest = "check du mois";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
@@ -134,9 +116,6 @@ await page.reload();
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Test E2E dépense"), "dépense perdue après reload");
-// L\'accueil simple replie l\'historique détaillé : l\'édition se fait depuis Mouvements.
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(150);
 
 // ---------- Test 3 : modifier puis supprimer le mouvement ----------
 currentTest = "edition/suppression";
@@ -157,7 +136,7 @@ check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 // ---------- Test 4 : épargne rapide — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
-await page.click('[data-homequick="saving"]');
+await page.click("[data-quicksend]");
 await page.waitForSelector("#txForm", { state: "visible" });
 const destOptions = await page.$eval("#fDest", el => el.options.length);
 check(destOptions > 0, "aucune destination proposée pour une épargne");
@@ -205,7 +184,7 @@ check(!screenHTML.includes("NaN"), "NaN dans la fiche de compte");
 await page.click("[data-accback]");
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Disponible maintenant"), "retour à la liste des comptes cassé");
+check(screenHTML.includes("Liquidités disponibles"), "retour à la liste des comptes cassé");
 
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";
@@ -442,4 +421,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 23 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 22 parcours verts, zéro erreur console ✓");
