@@ -795,7 +795,7 @@
         <option value="USD">USD — Dollar américain</option>
       </select>
       <div class="actions">
-        <button type="button" class="btn secondary" id="bCancel">Annuler</button>
+        <button type="button" class="btn secondary" id="baseCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
     </form>
@@ -1051,6 +1051,15 @@ function insuranceMonthly(i) {
    Rien ne quitte jamais l'appareil (contrat budget-web). */
 const APP_STATE_KEY = "budget-app-state-v1";
 const LEGACY_TX_KEY = "budget-proto-mouvements";
+// Blob mis de côté quand l'état stocké est illisible (corrompu) ou écrit
+// par une version plus récente de l'app : on ne l'écrase JAMAIS en
+// silence — il reste récupérable (téléchargement au démarrage + Réglages).
+const RESCUE_KEY = "budget-app-state-rescue";
+let loadReason = null; // null | "corrupt" | "future"
+function rescueRawState(raw) {
+  try { if (!localStorage.getItem(RESCUE_KEY)) localStorage.setItem(RESCUE_KEY, raw); }
+  catch (e) { /* quota plein : le blob d'origine reste sous APP_STATE_KEY tant qu'aucune écriture ne réussit */ }
+}
 
 function seedState(country = "CH") {
   txSeq = 0;
@@ -1133,11 +1142,21 @@ function emptyState() {
 }
 
 function loadState() {
+  const raw = localStorage.getItem(APP_STATE_KEY);
+  if (!raw) return null; // vraie première ouverture (ou migration héritée)
+  let s;
+  try { s = JSON.parse(raw); }
+  catch (e) { loadReason = "corrupt"; rescueRawState(raw); return null; }
+  if (!s || typeof s !== "object" || !Array.isArray(s.transactions) || !Array.isArray(s.accounts)) {
+    loadReason = "corrupt"; rescueRawState(raw); return null;
+  }
+  if (typeof s.version === "number" && s.version > 1) {
+    // État écrit par une version plus récente : illisible ici, mais
+    // précieux — on le met de côté au lieu de le perdre.
+    loadReason = "future"; rescueRawState(raw); return null;
+  }
+  if (s.version !== 1) { loadReason = "corrupt"; rescueRawState(raw); return null; }
   try {
-    const raw = localStorage.getItem(APP_STATE_KEY);
-    if (!raw) return null;
-    const s = JSON.parse(raw);
-    if (!s || s.version !== 1 || !Array.isArray(s.transactions) || !Array.isArray(s.accounts)) return null;
     for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances"]) {
       if (!Array.isArray(s[key])) s[key] = [];
     }
@@ -1179,7 +1198,11 @@ function loadState() {
         [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))]));
     }
     return s;
-  } catch (e) { return null; }
+  } catch (e) {
+    // La normalisation d'un état v1 a échoué : illisible, mais on le
+    // préserve au lieu de l'écraser en silence.
+    loadReason = "corrupt"; rescueRawState(raw); return null;
+  }
 }
 
 let S = loadState();
@@ -2488,6 +2511,7 @@ function renderSettings() {
     <button class="btn secondary" data-exportjson style="margin-top:8px">Télécharger la sauvegarde (JSON)</button>
     <button class="btn secondary" data-restorepick style="margin-top:8px">Restaurer une sauvegarde…</button>
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" aria-hidden="true" />
+    ${localStorage.getItem(RESCUE_KEY) ? `<button class="btn secondary" data-rescue style="margin-top:8px;color:var(--warn,#e0a458)">Récupérer les données mises de côté…</button>` : ""}
     <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Effacer les opérations…</button>
     <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
@@ -3032,6 +3056,13 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-exportcsv]")) { exportCSV(); return; }
   if (e.target.closest("[data-exportjson]")) { exportBackup(); return; }
   if (e.target.closest("[data-restorepick]")) { document.getElementById("restoreFile").click(); return; }
+  if (e.target.closest("[data-rescue]")) {
+    if (downloadRescued() && confirm("Copie téléchargée. Oublier définitivement les données mises de côté sur cet appareil ?")) {
+      try { localStorage.removeItem(RESCUE_KEY); } catch (err) {}
+      render();
+    }
+    return;
+  }
   if (e.target.closest("[data-deleteall]")) { deleteAllData(); return; }
   if (e.target.closest("[data-displaydiag]")) {
     const vv = window.visualViewport;
@@ -3365,6 +3396,26 @@ function exportBackup() {
   downloadFile(`budget-sauvegarde-${fileStamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
   toast("Sauvegarde téléchargée");
 }
+// Télécharge le blob mis de côté (état illisible ou trop récent) tel quel,
+// pour qu'aucune donnée ne soit jamais perdue en silence.
+function downloadRescued() {
+  const raw = localStorage.getItem(RESCUE_KEY);
+  if (!raw) { toast("Aucune donnée de secours à récupérer"); return false; }
+  downloadFile(`budget-donnees-de-secours-${fileStamp()}.json`, raw, "application/json");
+  toast("Copie de secours téléchargée");
+  return true;
+}
+// Au démarrage : si l'état stocké n'a pas pu être lu, prévenir sans écran
+// de bienvenue trompeur et proposer de récupérer la copie de secours.
+function rescueNoticeAtBoot() {
+  if (!loadReason || !localStorage.getItem(RESCUE_KEY)) return;
+  const why = loadReason === "future"
+    ? "Vos données ont été créées par une version plus récente de l'app et ne peuvent pas être lues ici."
+    : "Vos données précédentes n'ont pas pu être lues (fichier abîmé).";
+  const ok = confirm(why + "\n\nElles ont été mises de côté sans être effacées. "
+    + "Télécharger une copie de secours maintenant ? (récupérable aussi dans Réglages)");
+  if (ok) downloadRescued();
+}
 function restoreFromFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -3375,8 +3426,11 @@ function restoreFromFile(file) {
       toast("Sauvegarde illisible — rien n'a été modifié");
       return;
     }
-    if (payload.version > 1) {
-      toast("Sauvegarde d'une version plus récente — rien n'a été modifié");
+    // La version vit à la fois sur l'enveloppe ET sur l'état : les deux
+    // doivent être exactement 1, sinon on refuse plutôt que d'écrire un
+    // état que le prochain chargement mettrait de côté (perte évitée).
+    if (payload.version !== 1 || payload.state.version !== 1) {
+      toast("Sauvegarde d'une autre version — rien n'a été modifié");
       return;
     }
     if (!confirm("La restauration REMPLACE toutes les données actuelles. Continuer ?")) return;
@@ -4151,7 +4205,7 @@ document.getElementById("countryForm").addEventListener("submit", (e) => {
 });
 
 /* ---------- Devise de référence ---------- */
-document.getElementById("bCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("baseCancel").addEventListener("click", () => backdrop.classList.remove("open"));
 document.getElementById("baseForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const chosen = document.getElementById("bCurrency").value;
@@ -4222,4 +4276,5 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
 });
 
 render();
+rescueNoticeAtBoot();
 </script>

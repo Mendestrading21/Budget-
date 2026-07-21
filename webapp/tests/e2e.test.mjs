@@ -25,6 +25,7 @@ const consoleErrors = [];
 page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[${currentTest}] ${msg.text()}`); });
 page.on("pageerror", err => consoleErrors.push(`[${currentTest}] pageerror: ${err.message}`));
 page.on("dialog", dialog => dialog.accept());
+page.on("download", () => {}); // les téléchargements (export, secours) sont ignorés en test
 
 async function goHome() {
   await page.goto(APP_URL);
@@ -412,6 +413,61 @@ await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Retraite (PER)") && screenHTML.includes("€"), "la démo française doit être en euros avec un PER");
 
+// ---------- Test 18 : état illisible/trop récent → mis de côté, jamais perdu (P0 données) ----------
+currentTest = "sauvetage donnees";
+const originalBlob = JSON.stringify({ version: 2, marqueur: "données-futures", transactions: [], accounts: [] });
+await page.evaluate(blob => {
+  localStorage.setItem("budget-app-state-v1", blob);
+  localStorage.removeItem("budget-app-state-rescue");
+}, originalBlob);
+await page.reload();
+await page.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 }); // écran de bienvenue, pas de crash
+const rescued = await page.evaluate(() => localStorage.getItem("budget-app-state-rescue"));
+check(rescued === originalBlob, "l'état trop récent doit être mis de côté intact, pas effacé");
+// JSON corrompu : même protection
+await page.evaluate(() => {
+  localStorage.setItem("budget-app-state-v1", "{ceci n'est pas du JSON");
+  localStorage.removeItem("budget-app-state-rescue");
+});
+await page.reload();
+await page.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
+const rescuedCorrupt = await page.evaluate(() => localStorage.getItem("budget-app-state-rescue"));
+check(rescuedCorrupt === "{ceci n'est pas du JSON", "un état corrompu doit être mis de côté, pas effacé en silence");
+
+// ---------- Test 19 : restauration refuse une version d'état incohérente (P0 données) ----------
+currentTest = "restauration validée";
+// D'abord un état sain et onboardé pour détecter tout remplacement indu.
+await page.evaluate(() => {
+  localStorage.setItem("budget-app-state-v1", JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Témoin" },
+    baseCurrency: "CHF", transactions: [], accounts: [{ id: "cur", name: "C", kind: "current", opening: 1, cash: true, currency: "CHF" }],
+    recurrings: [], goals: [], assets: [], liabilities: [], pensions: [], insurances: [], bills: [], documents: [], budgets: {},
+  }));
+  localStorage.removeItem("budget-app-state-rescue");
+});
+await page.reload();
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.evaluate(() => {
+  const bad = JSON.stringify({ app: "budget-web", version: 1, state: { version: 2, transactions: [], accounts: [] } });
+  restoreFromFile(new File([bad], "b.json", { type: "application/json" }));
+});
+await page.waitForTimeout(250);
+const afterRestore = await page.evaluate(() => JSON.parse(localStorage.getItem("budget-app-state-v1")));
+check(afterRestore.version === 1 && afterRestore.profile && afterRestore.profile.name === "Témoin",
+  "une sauvegarde dont l'état n'est pas en version 1 doit être refusée sans rien remplacer");
+
+// ---------- Test 20 : le bouton Annuler de « Devise de référence » agit (P0 bouton mort) ----------
+currentTest = "annuler devise";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-editbase]");
+await page.waitForSelector("#baseForm", { state: "visible" });
+await page.click("#baseCancel");
+await page.waitForTimeout(200);
+const baseSheetOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
+check(!baseSheetOpen, "le bouton Annuler de la devise de référence doit fermer la feuille");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -421,4 +477,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 22 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 25 parcours verts, zéro erreur console ✓");
