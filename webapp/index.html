@@ -539,20 +539,20 @@
         <button type="submit" class="btn">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="aReconcile"
-              style="display:none;margin-top:10px">Réconcilier le solde…</button>
+              style="display:none;margin-top:10px">Mettre le solde à jour…</button>
       <button type="button" class="btn secondary" id="aDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce compte</button>
     </form>
 
     <form class="sheet" id="reconForm" style="display:none">
-      <h3>Réconcilier le solde</h3>
+      <h3>Mettre le solde à jour</h3>
       <p class="caption" style="margin:0 0 6px">Indiquez le solde RÉEL constaté aujourd'hui (relevé bancaire). L'app crée un mouvement d'ajustement daté d'aujourd'hui — l'historique n'est jamais réécrit, et l'ajustement ne compte ni comme revenu ni comme dépense.</p>
       <label for="reconAmount">Solde réel constaté</label>
       <input id="reconAmount" inputmode="decimal" placeholder="4200.00" autocomplete="off" />
       <div class="error" id="reconError" role="alert"></div>
       <div class="actions">
         <button type="button" class="btn secondary" id="reconCancel">Annuler</button>
-        <button type="submit" class="btn">Réconcilier</button>
+        <button type="submit" class="btn">Mettre le solde à jour</button>
       </div>
     </form>
 
@@ -601,7 +601,7 @@
     </form>
 
     <form class="sheet" id="recForm" style="display:none">
-      <h3 id="recSheetTitle">Nouveau récurrent</h3>
+      <h3 id="recSheetTitle">Nouveau paiement régulier</h3>
       <label for="rTitle">Intitulé</label>
       <input id="rTitle" placeholder="Loyer" autocomplete="off" />
       <label for="rAmount">Montant (<span class="curlabel">CHF</span>)</label>
@@ -620,9 +620,9 @@
         <button type="button" class="btn secondary" id="rCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
-      <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Comptabiliser ce mois</button>
+      <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Marquer payé ce mois</button>
       <button type="button" class="btn secondary" id="rDelete"
-              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce récurrent</button>
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce paiement régulier</button>
     </form>
 
     <form class="sheet" id="itemForm" style="display:none">
@@ -640,7 +640,7 @@
       <div id="iMonthlyWrap">
         <label for="iMonthly">Mensualité (facultatif — dettes)</label>
         <input id="iMonthly" inputmode="decimal" placeholder="0.00" autocomplete="off" />
-        <p class="caption" style="margin:4px 0 0">Crée un récurrent : chaque « ✓ Fait » du Check du mois réduit la dette.</p>
+        <p class="caption" style="margin:4px 0 0">Crée un paiement régulier : chaque « ✓ Fait » du Check du mois réduit la dette.</p>
       </div>
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="iInclude" style="width:auto" checked /> Compter dans la fortune nette
@@ -698,7 +698,7 @@
 
     <form class="sheet" id="taxForm" style="display:none">
       <h3>Profil d'impôts</h3>
-      <label for="txRate">Taux de provision (% des revenus)</label>
+      <label for="txRate">Argent prévu pour les impôts (% des revenus)</label>
       <input id="txRate" inputmode="decimal" placeholder="30" autocomplete="off" />
       <label for="txReserve">Réserve déjà constituée (<span class="curlabel">CHF</span>)</label>
       <input id="txReserve" inputmode="decimal" placeholder="2400.00" autocomplete="off" />
@@ -751,7 +751,7 @@
         <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
         <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
         <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
-        <button type="button" class="btn secondary" data-quick="rec">🔁 Récurrent</button>
+        <button type="button" class="btn secondary" data-quick="rec">🔁 Paiement régulier</button>
         <button type="button" class="btn secondary" data-quick="item">🏛 Actif / dette</button>
         <button type="button" class="btn secondary" data-quick="ins">🛡 Assurance</button>
         <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
@@ -802,7 +802,7 @@
 
     <form class="sheet" id="salaryForm" style="display:none">
       <h3>Mon salaire</h3>
-      <p class="caption" style="margin:0 0 6px">Le salaire est un revenu récurrent : il nourrit les prévisions du mois et le « Vraiment disponible », sans jamais compter double une fois reçu.</p>
+      <p class="caption" style="margin:0 0 6px">Le salaire est un revenu régulier : il nourrit les prévisions du mois et le « Vraiment disponible », sans jamais compter double une fois reçu.</p>
       <label for="sAmount">Montant mensuel net (<span class="curlabel">CHF</span>)</label>
       <input id="sAmount" inputmode="decimal" placeholder="8450.00" autocomplete="off" />
       <label for="sDay">Jour de réception (1-28)</label>
@@ -1502,7 +1502,7 @@ function renderHome() {
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
     <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (t.type === "transfer" ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
-  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et liquidités" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
+  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et argent disponible" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
     <div class="ico" aria-hidden="true">${icon}</div>
     <div class="meta"><div class="t">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>
     <span class="amount">${chf(amount)}</span>
@@ -1520,17 +1520,17 @@ function renderHome() {
       <details>
         <summary>Détail du calcul</summary>
         <div class="breakdown">
-          <div><span>Liquidités incluses</span><span>${chf(s.liquid)}</span></div>
+          <div><span>Argent disponible inclus</span><span>${chf(s.liquid)}</span></div>
           <div><span>Revenus attendus</span><span>${chf(s.plannedIncome + s.recurringIncome, true)}</span></div>
           <div><span>Charges engagées (prévues)</span><span>${chf(-s.plannedOut, true)}</span></div>
-          <div><span>Récurrents à venir</span><span>${chf(-s.recurringCharges, true)}</span></div>
+          <div><span>Paiements réguliers à venir</span><span>${chf(-s.recurringCharges, true)}</span></div>
           ${s.irregularIncome > 0 ? `<div><span>Revenus attendus (moyenne 3 mois)</span><span>${chf(s.irregularIncome, true)}</span></div>` : ""}
           <div><span>Réserve d'impôts manquante</span><span>${chf(-s.taxGap, true)}</span></div>
         </div>
       </details>
     </div>` : `
     <div class="card hero">
-      <p class="card-label">Flux net du mois</p>
+      <p class="card-label">Ce qui reste du mois</p>
       <p class="hero-amount ${s.cashFlow < 0 ? "neg" : "pos"}">${chf(s.cashFlow, true)}</p>
       <span class="caption">Mois clôturé — revenus ${chf(s.income)}, coût de la vie ${chf(s.living)}</span>
     </div>`;
@@ -1678,7 +1678,7 @@ function renderHome() {
     ${s.upcomingRecurrings.map(r => `<div class="card row tx">
       <div class="ico" aria-hidden="true">${r.icon}</div>
       <div class="meta"><div class="t">${esc(r.title)}<span class="badge planned">Prévu</span></div>
-        <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · récurrent mensuel</div></div>
+        <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · paiement régulier mensuel</div></div>
       <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(r.amount)}</span>
     </div>`).join("")}` : ""}
 
@@ -1688,7 +1688,7 @@ function renderHome() {
       <p class="hero-amount">${chf(net)}</p>
       <span class="caption">Argent disponible ce mois : ${chf(s.available)}</span>
     </div>
-    ${portfolioRow("Comptes et liquidités", liquid, null, "💳")}
+    ${portfolioRow("Comptes et argent disponible", liquid, null, "💳")}
     ${portfolioRow("Épargne", savingsTotal, null, "🏛", contribSub(["savings"]))}
     ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
     ${portfolioRow(L("pensionGroup"), pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension", "lifeinsurance"]))}
@@ -1753,7 +1753,7 @@ function renderBudget() {
     }).join("");
 
   const outHTML = !report.outOfBudget.length ? "" : `
-    <p class="section-title">Hors budget</p>` + report.outOfBudget.map(([cat, v]) => `
+    <p class="section-title">Pas encore classé</p>` + report.outOfBudget.map(([cat, v]) => `
     <div class="card row tx"><div class="meta"><div class="t">${esc(cat)}</div></div>
       <span class="amount">${chf(v)}</span></div>`).join("");
 
@@ -1829,7 +1829,7 @@ function renderAccountDetail(a) {
       <p class="hero-amount ${bal < 0 ? "neg" : ""}">${money(bal, a.currency || baseCurrency())}</p>
       ${c ? `<span class="caption">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
-      <span class="caption">Valeur − versements nets — tenez le solde à jour via « Réconcilier »</span>` : ""}
+      <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
     <div class="card">
       <p class="card-label">Solde — 12 derniers mois</p>
@@ -1837,7 +1837,7 @@ function renderAccountDetail(a) {
         <polyline points="${px}" fill="none" stroke="#5AA7FF" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
     </div>
-    <button class="btn secondary" data-editacc="${esc(a.id)}">Modifier ou réconcilier</button>
+    <button class="btn secondary" data-editacc="${esc(a.id)}">Modifier ou mettre à jour</button>
     <p class="section-title">Historique</p>
     ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucun mouvement sur ce compte.</span></div>`}`;
 }
@@ -1851,13 +1851,13 @@ function renderAccounts() {
   const liquid = ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
   const groups = [
-    ["Liquidités", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
+    ["Argent disponible", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
     ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
     [L("pensionGroup"), ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
   ].filter(([, accs]) => accs.length);
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
-      <p class="card-label">Liquidités disponibles</p>
+      <p class="card-label">Argent disponible</p>
       <p class="hero-amount">${chf(liquid)}</p>
       <span class="caption">Comptes comptés dans le cash${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
     </div>
@@ -1985,9 +1985,9 @@ function renderTaxes() {
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Moyenne des ${observedMonths || 0} mois de revenus comptabilisés × 12 × ${pct(rate)}</span></div>
+        <span class="caption">Moyenne des ${observedMonths || 0} mois de revenus enregistrés × 12 × ${pct(rate)}</span></div>
       <div class="stat"><span class="card-label">Déjà payé en ${cursor.y}</span><span class="amount pos">${chf(paid)}</span>
-        <span class="caption">Mouvements « Paiement d'impôts » comptabilisés</span></div>
+        <span class="caption">Mouvements « Paiement d'impôts » enregistrés</span></div>
       <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span>
         <span class="caption">Saisie par vous — bouton Ajuster</span></div>
       <div class="stat"><span class="card-label">Reste après réserve</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
@@ -1999,7 +1999,7 @@ function renderTaxes() {
       <span class="amount">${chf(b.amount)}</span></div>`).join("")
       : `<div class="card row"><span class="caption">Aucune échéance saisie. Ajoutez vos acomptes comme FACTURES en catégorie « Impôts » (＋ → Facture) : elles apparaîtront ici et dans le mois.</span></div>`}
     <button class="btn secondary" data-adjusttax style="margin-top:8px">Ajuster le taux et la réserve</button>
-    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal — seuls vos mouvements comptabilisés de ${cursor.y} comptent. Estimé = payé + encore dû, toujours.</p>`;
+    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal — seuls vos mouvements enregistrés de ${cursor.y} comptent. Estimé = payé + encore dû, toujours.</p>`;
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
@@ -2063,7 +2063,7 @@ function renderYearReview() {
     <div class="card hero">
       <p class="card-label">Mis de côté en ${y}</p>
       <p class="hero-amount pos">${chf(now.saved)}</p>
-      <span class="caption">${now.income > 0 ? `Taux d'épargne : ${pct(now.rate)}` : "Aucun revenu comptabilisé cette année"}${prev.saved > 0 ? ` · ${y - 1} : ${chf(prev.saved)}` : ""}</span>
+      <span class="caption">${now.income > 0 ? `Taux d'épargne : ${pct(now.rate)}` : "Aucun revenu enregistré cette année"}${prev.saved > 0 ? ` · ${y - 1} : ${chf(prev.saved)}` : ""}</span>
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(now.income)}</span>
@@ -2085,7 +2085,7 @@ function renderYearReview() {
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
       </div>
     </div>
-    <p class="caption" style="padding:0 4px">Mouvements comptabilisés de l'année, convertis dans votre devise de référence.</p>`;
+    <p class="caption" style="padding:0 4px">Mouvements enregistrés de l'année, convertis dans votre devise de référence.</p>`;
 }
 
 function renderNetWorth() {
@@ -2104,7 +2104,7 @@ function renderNetWorth() {
     ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
       + assetsTotal + pensionTotal - liabTotal);
   const CLASS_LINES = [
-    { label: "Liquidités", color: "#FFB24D", series: classSeries(["current", "cash"]) },
+    { label: "Argent disponible", color: "#FFB24D", series: classSeries(["current", "cash"]) },
     { label: "Épargne", color: "#39D98A", series: classSeries(["savings"]) },
     { label: "Bourse", color: "#8B5CF6", series: classSeries(["brokerage"]) },
     { label: "Prévoyance", color: "#FF667A", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
@@ -2236,10 +2236,10 @@ function renderRecurring() {
       <div class="meta"><div class="t">${esc(r.title)}</div>
         <div class="s">Mensuel, le ${r.day} · ${status}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(r.amount)}</span></div>`;
-  }).join("") : `<div class="card row"><span class="caption">Aucun récurrent. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
-  return backBar("Récurrents") + rows + `
-    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un récurrent</button>
-    <p class="caption" style="padding:6px 4px 0">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir (ou « Comptabiliser ») la retire des prévisions, sans doublon.</p>`;
+  }).join("") : `<div class="card row"><span class="caption">Aucun paiement régulier. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
+  return backBar("Paiements réguliers") + rows + `
+    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un paiement régulier</button>
+    <p class="caption" style="padding:6px 4px 0">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir (ou « Marquer payé ») la retire des prévisions, sans doublon.</p>`;
 }
 
 /* ---------- Import CSV réel (Phase 11 / W4) ---------- */
@@ -2448,14 +2448,14 @@ const PRIVACY = [
   "Le verrouillage par code protège l'AFFICHAGE sur cet appareil — ce n'est pas un chiffrement. L'app iOS native, elle, s'appuie sur Face ID et le chiffrement iOS.",
   "Les documents sont des métadonnées uniquement (nom et type) : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
-  "« Tout supprimer » efface vos mouvements, objectifs, récurrents, patrimoine, factures et documents ; les comptes, budgets et réglages restent. « Réinitialiser la démo » remet tout à zéro.",
+  "« Tout supprimer » efface vos mouvements, objectifs, paiements réguliers, patrimoine, factures et documents ; les comptes, budgets et réglages restent. « Réinitialiser la démo » remet tout à zéro.",
 ]
 const METHODOLOGY = [
-  "Vraiment disponible = liquidités incluses + revenus attendus (prévus et récurrents) − charges engagées (prévues et récurrentes) − réserve d'impôts manquante.",
+  "Vraiment disponible = argent disponible inclus + revenus attendus (prévus et réguliers) − charges engagées (prévues et régulières) − réserve d'impôts manquante.",
   "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
   "Les virements internes ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
-  "Provision d'impôts = revenus × votre taux configuré. Estimé = payé + encore dû, toujours.",
-  "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas comptabilisé.",
+  "Argent prévu pour les impôts = revenus × votre taux configuré. Estimé = payé + encore dû, toujours.",
+  "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas enregistré.",
 ];
 function salaryRecurring() {
   return RECURRINGS.find(r => r.id === "r-salaire")
@@ -2538,7 +2538,7 @@ const MORE_MENU = [
   ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
   ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
   ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
-  ["recurring", "🔁", "Récurrents", "Charges et revenus répétés"],
+  ["recurring", "🔁", "Paiements réguliers", "Charges et revenus répétés"],
   ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
   ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
 ];
@@ -3442,7 +3442,7 @@ function restoreFromFile(file) {
   reader.readAsText(file);
 }
 function deleteAllData() {
-  if (!confirm("Effacer vos OPÉRATIONS : mouvements, objectifs, récurrents, patrimoine, assurances, prévoyance, factures, documents ? Les comptes, budgets, taux et réglages restent.")) return;
+  if (!confirm("Effacer vos OPÉRATIONS : mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures, documents ? Les comptes, budgets, taux et réglages restent.")) return;
   if (!confirm("Vraiment ? (annulable pendant 6 secondes après coup)")) return;
   pushUndo();
   transactions.length = 0;
@@ -3717,7 +3717,7 @@ document.getElementById("rType").addEventListener("change", refreshRecCatOptions
 function openRecSheet(rec) {
   editingRecId = rec ? rec.id : null;
   document.getElementById("recForm").reset();
-  document.getElementById("recSheetTitle").textContent = rec ? "Modifier le récurrent" : "Nouveau récurrent";
+  document.getElementById("recSheetTitle").textContent = rec ? "Modifier le paiement régulier" : "Nouveau paiement régulier";
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
   const alreadyThisMonth = rec && transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === rec.id : t.title === rec.title));
@@ -3754,8 +3754,8 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     cat: document.getElementById("rCat").value,
   };
   const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
-  if (existing) { Object.assign(existing, data); toast("Récurrent modifié"); }
-  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Récurrent ajouté"); }
+  if (existing) { Object.assign(existing, data); toast("Paiement régulier modifié"); }
+  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Paiement régulier ajouté"); }
   saveState();
   backdrop.classList.remove("open");
   render();
@@ -3772,17 +3772,17 @@ document.getElementById("rPost").addEventListener("click", () => {
   });
   saveState();
   backdrop.classList.remove("open");
-  toast("Occurrence comptabilisée — retirée des prévisions");
+  toast("Paiement enregistré — retiré des prévisions");
   render();
 });
 document.getElementById("rDelete").addEventListener("click", () => {
-  if (!editingRecId || !confirm("Supprimer ce récurrent ? (les mouvements déjà saisis restent)")) return;
+  if (!editingRecId || !confirm("Supprimer ce paiement régulier ? (les mouvements déjà saisis restent)")) return;
   pushUndo();
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);
   saveState();
   backdrop.classList.remove("open");
-  toast("Récurrent supprimé", true);
+  toast("Paiement régulier supprimé", true);
   render();
 });
 
@@ -4265,13 +4265,13 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
   pushUndo();
   transactions.push({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
-    title: "Réconciliation du solde", amount: Math.abs(difference),
+    title: "Solde mis à jour", amount: Math.abs(difference),
     type: "adjustment", up: difference > 0,
     cat: null, acc: account.id, dest: null, status: "posted",
   });
   saveState();
   backdrop.classList.remove("open");
-  toast(`Solde réconcilié à ${money(wanted, account.currency || baseCurrency())}`, true);
+  toast(`Solde mis à jour à ${money(wanted, account.currency || baseCurrency())}`, true);
   render();
 });
 
