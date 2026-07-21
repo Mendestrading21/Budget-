@@ -1,0 +1,4 @@
+interface:
+  display_name: "Budget Master Evolution"
+  short_description: "Audit and evolve Budget lot by lot"
+  default_prompt: "Use $budget-master-evolution to audit the Budget repository and execute the next validated lot."
