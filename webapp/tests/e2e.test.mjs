@@ -586,6 +586,20 @@ const presetInvest = await page.$eval("#fType", el => el.value);
 check(presetInvest === "investment", "« Investir » doit pré-régler le type sur investissement");
 await page.click("#fCancel");
 
+// ---------- Test 27 : la sauvegarde n'emporte jamais le code de verrouillage ----------
+currentTest = "sauvegarde sans code";
+const leaked = await page.evaluate(() => {
+  S.lockCode = "HASH_SECRET_123"; S.faceIDEnabled = true;
+  let captured = "";
+  const orig = downloadFile;
+  downloadFile = (name, text) => { captured = text; };
+  exportBackup();
+  downloadFile = orig;
+  return captured;
+});
+check(!leaked.includes("HASH_SECRET_123") && !leaked.includes("lockCode"),
+  "le fichier de sauvegarde ne doit contenir ni le hash du code ni le champ lockCode");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -595,4 +609,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 31 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 32 parcours verts, zéro erreur console ✓");
