@@ -134,6 +134,9 @@ await page.reload();
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Test E2E dépense"), "dépense perdue après reload");
+// L\'accueil simple replie l\'historique détaillé : l\'édition se fait depuis Mouvements.
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(150);
 
 // ---------- Test 3 : modifier puis supprimer le mouvement ----------
 currentTest = "edition/suppression";
