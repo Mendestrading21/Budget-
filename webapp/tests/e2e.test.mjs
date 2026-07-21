@@ -205,7 +205,7 @@ check(!screenHTML.includes("NaN"), "NaN dans la fiche de compte");
 await page.click("[data-accback]");
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Liquidités disponibles"), "retour à la liste des comptes cassé");
+check(screenHTML.includes("Disponible maintenant"), "retour à la liste des comptes cassé");
 
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";
