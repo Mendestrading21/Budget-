@@ -2540,16 +2540,31 @@ function renderSettings() {
       ${METHODOLOGY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>`;
 }
 
-const MORE_MENU = [
-  ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
-  ["bills", "🧾", "Factures", "À payer, en retard, payées"],
-  ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
-  ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
-  ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
-  ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
-  ["recurring", "🔁", "Paiements réguliers", "Charges et revenus répétés"],
-  ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
-  ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
+// Menu « Plus » regroupé par intention (blueprint B07) : Aujourd'hui,
+// Patrimoine, Données, Réglages. Le sous-titre peut être dynamique (fn).
+const MORE_GROUPS = [
+  ["Aujourd'hui", [
+    ["bills", "🧾", "Factures", () => {
+      const late = (S.bills || []).filter(billIsOverdue).length;
+      const open = (S.bills || []).filter(b => !b.paidTxId).length;
+      return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé 🎉");
+    }],
+    ["recurring", "🔁", "Paiements réguliers", "Charges et revenus répétés"],
+    ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
+    ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
+  ]],
+  ["Patrimoine", [
+    ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
+    ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
+    ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
+  ]],
+  ["Données", [
+    ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
+    ["movements", "🔎", "Mouvements", "Recherche et filtres — aussi dans la barre du bas"],
+  ]],
+  ["Réglages", [
+    ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
+  ]],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings,
@@ -2557,17 +2572,18 @@ const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().repla
 
 function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
-  return `<h2 class="screen-title">Plus</h2>
-    ${MORE_MENU.map(([id, icon, title, sub]) => `<div class="card row tx" data-more="${id}" style="cursor:pointer" role="button" tabindex="0">
+  const row = ([id, icon, title, sub]) => {
+    const s = typeof sub === "function" ? sub() : sub;
+    // « Mouvements » est un onglet, pas une sous-vue : routage dédié.
+    const nav = id === "movements" ? `data-gototab="movements"` : `data-more="${id}"`;
+    return `<div class="card row tx" ${nav} style="cursor:pointer" role="button" tabindex="0">
       <div class="ico" aria-hidden="true">${icon}</div>
-      <div class="meta"><div class="t">${title}</div><div class="s">${sub}</div></div>
-      <span style="color:var(--coolgray)">›</span>
-    </div>`).join("")}
-    <div class="card row tx" data-gototab="movements" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🔎</div>
-      <div class="meta"><div class="t">Mouvements</div><div class="s">Recherche et filtres — aussi dans la barre du bas</div></div>
+      <div class="meta"><div class="t">${title}</div><div class="s">${s}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>`;
+  };
+  return `<h2 class="screen-title">Plus</h2>` + MORE_GROUPS.map(([label, items]) =>
+    `<p class="section-title">${label}</p>` + items.map(row).join("")).join("");
 }
 
 function renderMoreTxList() {

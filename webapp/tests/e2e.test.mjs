@@ -555,6 +555,18 @@ const txSheetShown = await page.$eval("#txForm", el => el.style.display !== "non
 check(txSheetShown, "l'action de l'état vide des Mouvements doit ouvrir la feuille d'ajout");
 await page.click("#fCancel");
 
+// ---------- Test 25 : menu « Plus » regroupé par intention ----------
+currentTest = "menu plus groupé";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+for (const group of ["Aujourd'hui", "Patrimoine", "Données", "Réglages"]) {
+  check(screenHTML.includes(group), `groupe « ${group} » absent du menu Plus`);
+}
+check(screenHTML.includes('data-gototab="movements"'), "l'entrée Mouvements doit rester dans le menu Plus");
+check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more="networth"'),
+  "les destinations du menu Plus doivent rester atteignables après regroupement");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -564,4 +576,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 29 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 30 parcours verts, zéro erreur console ✓");
