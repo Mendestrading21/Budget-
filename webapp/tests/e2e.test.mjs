@@ -533,6 +533,28 @@ check(backClosed, "le bouton retour doit fermer la feuille ouverte");
 const stillBudget = await page.evaluate(() => activeTab);
 check(stillBudget === "budget", "le retour qui ferme une feuille ne doit pas aussi changer d'onglet");
 
+// ---------- Test 24 : état vide guidé des Mouvements → action directe ----------
+currentTest = "vide guidé mouvements";
+// État vierge onboardé (aucun mouvement), puis onglet Mouvements.
+await page.evaluate(() => {
+  localStorage.setItem("budget-app-state-v1", JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Vide" },
+    baseCurrency: "CHF", transactions: [], accounts: [{ id: "cur", name: "C", kind: "current", opening: 100, cash: true, currency: "CHF" }],
+    recurrings: [], goals: [], assets: [], liabilities: [], pensions: [], insurances: [], bills: [], documents: [], budgets: {},
+  }));
+  localStorage.removeItem("budget-app-state-rescue");
+});
+await page.reload();
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(150);
+await page.waitForSelector("[data-addtx]", { state: "visible" });
+await page.click("[data-addtx]");
+await page.waitForSelector("#txForm", { state: "visible" });
+const txSheetShown = await page.$eval("#txForm", el => el.style.display !== "none");
+check(txSheetShown, "l'action de l'état vide des Mouvements doit ouvrir la feuille d'ajout");
+await page.click("#fCancel");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -542,4 +564,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 28 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 29 parcours verts, zéro erreur console ✓");

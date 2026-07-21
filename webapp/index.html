@@ -2587,9 +2587,20 @@ function renderMoreTxList() {
     if (t.type === "adjustment") return a + (t.up ? txCHF(t) : -txCHF(t));
     return a + (t.type === "income" || t.type === "refund" ? txCHF(t) : -txCHF(t));
   }, 0);
-  return (monthTx.length
-    ? `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>` + monthTx.map(txRow).join("")
-    : `<div class="card row"><span class="caption">${moreSearch || moreFilter !== "all" ? "Aucun résultat pour cette recherche." : "Aucun mouvement ce mois-ci."}</span></div>`);
+  if (monthTx.length) {
+    return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>` + monthTx.map(txRow).join("");
+  }
+  // État vide guidé : une recherche infructueuse invite à l'élargir ; un
+  // mois réellement vide propose directement d'ajouter un mouvement.
+  if (moreSearch || moreFilter !== "all") {
+    return `<div class="card row"><span class="caption">Aucun résultat pour cette recherche.</span></div>`;
+  }
+  return `<div class="card" style="text-align:center;padding:22px 16px">
+      <div style="font-size:30px;margin-bottom:6px" aria-hidden="true">📝</div>
+      <p style="font-size:14px;font-weight:600;margin:0 0 4px">Rien ce mois-ci</p>
+      <p class="caption" style="margin:0 0 12px">Ajoutez une dépense, un revenu, un envoi vers l'épargne…</p>
+      <button class="btn" data-addtx style="max-width:260px;margin:0 auto">＋ Ajouter un mouvement</button>
+    </div>`;
 }
 
 /* ---------- Écran de bienvenue : première ouverture ---------- */
@@ -2975,6 +2986,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   if (e.target.closest("[data-quickexp]")) { openTxSheet(null, "expense"); return; }
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
+  if (e.target.closest("[data-addtx]")) { openTxSheet(null); return; }
   const gotoTab = e.target.closest("[data-gototab]");
   if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); return; }
   if (e.target.closest("[data-editname]")) {
