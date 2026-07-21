@@ -298,17 +298,6 @@
   .tx {
     display: flex; align-items: center; gap: 12px;
   }
-  /* ---------- Accueil simple + pictogrammes Budget ---------- */
-  .quick-strip { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:0 0 14px; }
-  .quick-action { min-height:58px; display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:16px; border:1px solid rgba(255,255,255,0.09); background:rgba(15,22,36,0.66); color:var(--offwhite); font:700 12px/1.15 inherit; cursor:pointer; text-align:left; }
-  .quick-action:active { transform:scale(0.98); }
-  .quick-action:focus-visible, .home-toggle:focus-visible { outline:2px solid var(--electric); outline-offset:2px; }
-  .quick-action .quick-mark { width:34px; height:34px; display:grid; place-items:center; flex:none; border-radius:11px; background:linear-gradient(135deg,rgba(90,167,255,0.18),rgba(139,92,246,0.18)); color:var(--electric); }
-  .type-glyph { width:22px; height:22px; display:block; }
-  .quick-action .type-glyph { width:20px; height:20px; }
-  .home-depth { display:none; }
-  .home-depth.open { display:block; }
-  .home-toggle { width:100%; margin:2px 0 14px; padding:12px 14px; border-radius:14px; border:1px solid rgba(90,167,255,0.22); background:rgba(90,167,255,0.08); color:var(--electric); font:700 13px/1 inherit; cursor:pointer; }
   .tx .ico {
     flex: none;
     width: 44px; height: 44px;
@@ -1078,7 +1067,6 @@ function seedState(country = "CH") {
     lockCode: null,
     taxRate: 0.30,
     taxReserve: 2400,
-    homeDetailsOpen: false,
     monthChecks: {},
     lastImport: null,
     fxRates: { EUR: 0.93, USD: 0.80 },
@@ -1135,7 +1123,6 @@ function emptyState() {
     lockCode: null,
     taxRate: 0.30,
     taxReserve: 0,
-    homeDetailsOpen: false,
     monthChecks: {},
     lastImport: null,
     fxRates: { EUR: 0.93, USD: 0.80 },
@@ -1175,7 +1162,6 @@ function loadState() {
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
     if (!COUNTRIES[s.country]) s.country = "CH";
     if (!PROJECTION_PROFILES[s.projectionProfile]) s.projectionProfile = "balanced";
-    if (typeof s.homeDetailsOpen !== "boolean") s.homeDetailsOpen = false;
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
@@ -1418,22 +1404,7 @@ const TABS = [
   ["home", "Accueil"], ["movements", "Mouvements"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
 ];
 
-function budgetGlyph(type) {
-  const paths = {
-    income: '<path d="M12 4v11m-4-4 4 4 4-4"/><path d="M5 20h14"/>',
-    expense: '<path d="M12 20V9m-4 4 4-4 4 4"/><path d="M5 4h14"/>',
-    saving: '<path d="M4 10h16M6 10v7m4-7v7m4-7v7m4-7v7M3 20h18M12 4 3 8h18z"/>',
-    investment: '<path d="M4 18V6m0 12h16M7 14l4-4 3 2 5-6"/><path d="M16 6h3v3"/>',
-    transfer: '<path d="M5 8h14m-4-4 4 4-4 4M19 16H5m4 4-4-4 4-4"/>',
-    taxPayment: '<path d="M7 3h8l4 4v14H7zM15 3v5h5M10 12h6m-6 4h6"/>',
-    debtPayment: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18m-6 5h3"/>',
-    refund: '<path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/>',
-    adjustment: '<path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M6 14v6"/>',
-  };
-  const path = paths[type] || '<circle cx="12" cy="12" r="7"/>';
-  return `<svg class="type-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
-}
-const TYPE_ICON = Object.fromEntries(["income", "expense", "saving", "investment", "transfer", "taxPayment", "debtPayment", "refund", "adjustment"].map(type => [type, budgetGlyph(type)]));
+const TYPE_ICON = { income: "⬇", expense: "⬆", saving: "🏛", investment: "📈", transfer: "⇄", taxPayment: "🧾", refund: "↩", adjustment: "⚖" };
 const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", investment: "Investissement",
                      transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement",
                      adjustment: "Ajustement de solde" };
@@ -1617,10 +1588,6 @@ function renderHome() {
     : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
-    <div class="quick-strip" aria-label="Ajouter rapidement">
-      ${[["expense", "Dépense"], ["income", "Revenu"], ["saving", "Épargne"], ["investment", "Investir"]]
-        .map(([type, label]) => `<button type="button" class="quick-action" data-homequick="${type}"><span class="quick-mark">${budgetGlyph(type)}</span><span>${label}</span></button>`).join("")}
-    </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(s.income)}</span></div>
       <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(s.living)}</span></div>
@@ -1645,10 +1612,6 @@ function renderHome() {
     })()}
     ${alertCards}
 
-    <button type="button" class="home-toggle" data-homedetails aria-expanded="${S.homeDetailsOpen ? "true" : "false"}">
-      ${S.homeDetailsOpen ? "Masquer les détails ↑" : "Voir tous mes détails ↓"}
-    </button>
-    <div class="home-depth ${S.homeDetailsOpen ? "open" : ""}">
     <p class="section-title">💰 Salaire et revenus</p>
     ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
         && !posted.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
@@ -1717,7 +1680,6 @@ function renderHome() {
       <div class="ico" aria-hidden="true">🎯</div>
       <div class="meta"><div class="t">Objectifs</div><div class="s">${activeGoals.length} actif${activeGoals.length > 1 ? "s" : ""}</div></div>
       <span class="amount">${goalsTarget > 0 ? pct(Math.min(1, goalsCurrent / goalsTarget)) : "—"}</span>
-    </div>
     </div>`;
 }
 
@@ -1872,9 +1834,9 @@ function renderAccounts() {
   ].filter(([, accs]) => accs.length);
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
-      <p class="card-label">Disponible maintenant</p>
+      <p class="card-label">Liquidités disponibles</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Argent utilisable maintenant${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
+      <span class="caption">Comptes comptés dans le cash${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
     </div>
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
@@ -2552,7 +2514,7 @@ const MORE_MENU = [
   ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
   ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
   ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
-  ["recurring", "🔁", "Paiements réguliers", "Charges et revenus répétés"],
+  ["recurring", "🔁", "Récurrents", "Charges et revenus répétés"],
   ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
   ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
 ];
@@ -2894,14 +2856,6 @@ document.getElementById("screen").addEventListener("click", (e) => {
   const billEl = e.target.closest("[data-billid]");
   if (billEl) { const b = S.bills.find(x => x.id === billEl.dataset.billid); if (b) openBillSheet(b); return; }
   if (e.target.closest("[data-addbill]")) { openBillSheet(null); return; }
-  const homeQuick = e.target.closest("[data-homequick]");
-  if (homeQuick) { openTxSheet(null, homeQuick.dataset.homequick); return; }
-  if (e.target.closest("[data-homedetails]")) {
-    S.homeDetailsOpen = !S.homeDetailsOpen;
-    saveState();
-    render();
-    return;
-  }
   const filterBtn = e.target.closest("[data-morefilter]");
   if (filterBtn) { moreFilter = filterBtn.dataset.morefilter; render(); return; }
   const goalEl = e.target.closest("[data-goalid]");
