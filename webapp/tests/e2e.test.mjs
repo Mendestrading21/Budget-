@@ -157,7 +157,7 @@ check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 // ---------- Test 4 : épargne rapide — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
 await page.click(`#tabbar button[aria-label="Accueil"]`);
-await page.click("[data-quicksend]");
+await page.click('[data-homequick="saving"]');
 await page.waitForSelector("#txForm", { state: "visible" });
 const destOptions = await page.$eval("#fDest", el => el.options.length);
 check(destOptions > 0, "aucune destination proposée pour une épargne");
