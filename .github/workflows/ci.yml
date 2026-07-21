@@ -35,6 +35,12 @@ jobs:
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
           node e2e.test.mjs
 
+      - name: Suite de parité web/natif (fixtures canoniques)
+        working-directory: webapp/tests
+        run: |
+          BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
+          node parity.test.mjs
+
   build-and-test:
     name: Build + tests (simulateur iOS)
     runs-on: macos-15

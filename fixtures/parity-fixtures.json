@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "description": "Fixtures canoniques de parité web/natif (lot A05, Budget Master Evolution). Le natif est la source de vérité des règles ; tout écart web volontaire est listé dans knownDifferences. Montants en CHF, mois fixe 2026-05 (passé → aucun pronostic récurrent).",
+  "knownDifferences": [
+    "web: une mensualité de dette est un mouvement type 'expense' portant recurringId 'r-debt-<id>' — elle décrémente bien la dette (liabilityBalance) et reste neutre pour le patrimoine, mais elle est comptée dans le coût de la vie du mois, contrairement à l'invariant natif ADR-016 (.debtPayment transfer-like, 0 hors intérêts). À résorber au lot D04.",
+    "web: balance() crédite t.amount brut sur le compte destination sans conversion de devise — les fixtures restent mono-devise tant que E05 n'est pas livré."
+  ],
+  "scenarios": [
+    {
+      "id": "mois-canonique",
+      "title": "Un mois complet : revenu, dépenses, remboursement, épargne, investissement, virement, impôt, ajustement",
+      "month": { "y": 2026, "m": 5 },
+      "state": {
+        "taxRate": 0.30,
+        "taxReserve": 400,
+        "accounts": [
+          { "id": "cur", "name": "Compte ménage", "kind": "current", "opening": 2000, "cash": true, "currency": "CHF" },
+          { "id": "sav", "name": "Épargne", "kind": "savings", "opening": 1000, "cash": false, "currency": "CHF" },
+          { "id": "inv", "name": "Titres", "kind": "savings", "opening": 500, "cash": false, "currency": "CHF" }
+        ],
+        "liabilities": [],
+        "transactions": [
+          { "id": "t1", "title": "Salaire", "amount": 8000.0, "type": "income", "cat": "Salaire", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 25 },
+          { "id": "t2", "title": "Loyer", "amount": 1500.0, "type": "expense", "cat": "Logement", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 1 },
+          { "id": "t3", "title": "Courses", "amount": 400.55, "type": "expense", "cat": "Courses", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 10 },
+          { "id": "t4", "title": "Retour courses", "amount": 50.55, "type": "refund", "cat": "Courses", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 12 },
+          { "id": "t5", "title": "Mis de côté", "amount": 500.0, "type": "saving", "cat": null, "acc": "cur", "dest": "sav", "status": "posted", "y": 2026, "m": 5, "d": 26 },
+          { "id": "t6", "title": "Achat titres", "amount": 300.0, "type": "investment", "cat": null, "acc": "cur", "dest": "inv", "status": "posted", "y": 2026, "m": 5, "d": 26 },
+          { "id": "t7", "title": "Virement interne", "amount": 200.0, "type": "transfer", "cat": null, "acc": "cur", "dest": "sav", "status": "posted", "y": 2026, "m": 5, "d": 27 },
+          { "id": "t8", "title": "Acompte impôts", "amount": 1000.0, "type": "taxPayment", "cat": null, "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 28 },
+          { "id": "t9", "title": "Solde mis à jour", "amount": 10.0, "type": "adjustment", "up": true, "cat": null, "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 30 }
+        ]
+      },
+      "expected": {
+        "snapshot": {
+          "income": 8000.0,
+          "living": 1850.0,
+          "savings": 500.0,
+          "invest": 300.0,
+          "taxes": 1000.0,
+          "plannedIncome": 0.0,
+          "plannedOut": 0.0,
+          "taxRecommended": 2400.0,
+          "taxGap": 1000.0,
+          "liquid": 6160.0,
+          "available": 5160.0,
+          "savingsRate": 0.1,
+          "cashFlow": 4350.0
+        },
+        "balances": { "cur": 6160.0, "sav": 1700.0, "inv": 800.0 },
+        "invariants": [
+          "virement interne t7 : résultat du mois 0, patrimoine 0",
+          "épargne t5 / investissement t6 : neutres pour le résultat, présentés mis de côté / investi",
+          "remboursement t4 : réduit le coût de la vie de sa catégorie",
+          "impôt t8 : séparé du coût de la vie",
+          "estimé fiscal : taxGap = max(0, recommandé − payé − réserve annuelle)"
+        ]
+      }
+    },
+    {
+      "id": "dette-vivante",
+      "title": "Une mensualité comptabilisée décrémente la dette, patrimoine neutre",
+      "month": { "y": 2026, "m": 5 },
+      "state": {
+        "taxRate": 0.30,
+        "taxReserve": 0,
+        "accounts": [
+          { "id": "cur", "name": "Compte ménage", "kind": "current", "opening": 3000, "cash": true, "currency": "CHF" }
+        ],
+        "liabilities": [
+          { "id": "hyp", "name": "Prêt personnel", "value": 5000, "include": true }
+        ],
+        "transactions": [
+          { "id": "d1", "title": "Mensualité prêt", "amount": 400.0, "type": "expense", "cat": null, "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 3, "recurringId": "r-debt-hyp" }
+        ]
+      },
+      "expected": {
+        "balances": { "cur": 2600.0 },
+        "liabilityBalances": { "hyp": 4600.0 },
+        "netWorth": -2000.0,
+        "invariants": [
+          "cash −400 (3000→2600) et dette −400 (5000→4600) : patrimoine net inchangé, 2600 − 4600 = −2000 = 3000 − 5000"
+        ]
+      }
+    },
+    {
+      "id": "centimes",
+      "title": "Additions de centimes : 0.10 + 0.20 = 0.30 exactement (au centime)",
+      "month": { "y": 2026, "m": 5 },
+      "state": {
+        "taxRate": 0.30,
+        "taxReserve": 0,
+        "accounts": [
+          { "id": "cur", "name": "Compte ménage", "kind": "current", "opening": 1, "cash": true, "currency": "CHF" }
+        ],
+        "liabilities": [],
+        "transactions": [
+          { "id": "c1", "title": "Dépense a", "amount": 0.1, "type": "expense", "cat": "Courses", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 2 },
+          { "id": "c2", "title": "Dépense b", "amount": 0.2, "type": "expense", "cat": "Courses", "acc": "cur", "dest": null, "status": "posted", "y": 2026, "m": 5, "d": 3 }
+        ]
+      },
+      "expected": {
+        "snapshot": { "living": 0.3 },
+        "balances": { "cur": 0.7 }
+      }
+    },
+    {
+      "id": "mois-vide",
+      "title": "Aucun mouvement : tous les agrégats valent 0, jamais NaN",
+      "month": { "y": 2026, "m": 5 },
+      "state": {
+        "taxRate": 0.30,
+        "taxReserve": 0,
+        "accounts": [
+          { "id": "cur", "name": "Compte ménage", "kind": "current", "opening": 0, "cash": true, "currency": "CHF" }
+        ],
+        "liabilities": [],
+        "transactions": []
+      },
+      "expected": {
+        "snapshot": {
+          "income": 0.0, "living": 0.0, "savings": 0.0, "invest": 0.0,
+          "taxes": 0.0, "taxGap": 0.0, "liquid": 0.0, "available": 0.0,
+          "savingsRate": 0.0, "cashFlow": 0.0
+        },
+        "balances": { "cur": 0.0 },
+        "allFinite": true
+      }
+    }
+  ]
+}
