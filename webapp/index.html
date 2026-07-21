@@ -549,6 +549,10 @@
       <p class="caption" style="margin:0 0 6px">Indiquez le solde RÉEL constaté aujourd'hui (relevé bancaire). L'app crée un mouvement d'ajustement daté d'aujourd'hui — l'historique n'est jamais réécrit, et l'ajustement ne compte ni comme revenu ni comme dépense.</p>
       <label for="reconAmount">Solde réel constaté</label>
       <input id="reconAmount" inputmode="decimal" placeholder="4200.00" autocomplete="off" />
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;cursor:pointer">
+        <input type="checkbox" id="reconNegative" style="width:auto;margin:0" />
+        <span>Solde négatif (compte à découvert / dette)</span>
+      </label>
       <div class="error" id="reconError" role="alert"></div>
       <div class="actions">
         <button type="button" class="btn secondary" id="reconCancel">Annuler</button>
@@ -889,8 +893,11 @@ const FX_DEFAULTS = {
   USD: { CHF: 1.25, EUR: 1.16 },
 };
 function money(n, currency, signed) {
-  const neg = n < 0;
-  const abs = Math.abs(n);
+  // Décider le signe sur la valeur ARRONDIE au centime : un résidu
+  // flottant (-5e-17) ne doit jamais afficher « -CHF 0.00 ».
+  const cents = Math.round((Number(n) || 0) * 100);
+  const neg = cents < 0;
+  const abs = Math.abs(cents) / 100;
   const [int, dec] = abs.toFixed(2).split(".");
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
   const sign = neg ? "-" : (signed ? "+" : "");
@@ -1398,7 +1405,9 @@ function budgetReport(y, m) {
     const key = t.cat || "Sans catégorie";
     out[key] = (out[key] || 0) + (t.type === "refund" ? -txCHF(t) : txCHF(t));
   }
-  return { lines, outOfBudget: Object.entries(out).filter(([, v]) => v !== 0) };
+  // Comparer au centime : une somme en cascade peut laisser un résidu
+  // flottant (~1e-16) qui ferait apparaître une ligne fantôme « 0.00 ».
+  return { lines, outOfBudget: Object.entries(out).filter(([, v]) => Math.round(v * 100) !== 0) };
 }
 
 /* ---------- État UI ---------- */
@@ -2737,7 +2746,8 @@ function bindOnboarding() {
       const seeded = seedState(obCountry);
       seeded.profile = { name: obName || "Alex", partner: obPartner || null,
                          householdType: obPartner ? obHousehold : "solo" };
-      try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); } catch (err) {}
+      try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); }
+      catch (err) { toast("Stockage plein — la démonstration n'a pas pu être chargée"); return; }
       location.reload();
     });
   }
@@ -3093,7 +3103,10 @@ document.getElementById("screen").addEventListener("click", (e) => {
       seeded.profile = { name: S.profile.name || "Alex" };
       localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded));
       localStorage.removeItem(LEGACY_TX_KEY);
-    } catch (err) {}
+    } catch (err) {
+      toast("Stockage plein — la démonstration n'a pas pu être chargée");
+      return;
+    }
     location.reload();
     return;
   }
@@ -3189,11 +3202,35 @@ function toast(message, undoable) {
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
 const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm"];
+let openSheetId = null;
+let openSheetSnapshot = "";
+// Empreinte des champs d'une feuille : sert à détecter une saisie en cours.
+function serializeSheet(id) {
+  const el = document.getElementById(id);
+  if (!el) return "";
+  return [...el.querySelectorAll("input, select, textarea")]
+    .map(f => (f.type === "checkbox" || f.type === "radio") ? (f.checked ? "1" : "0") : f.value)
+    .join("␟");
+}
 function openSheet(id) {
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
   }
   backdrop.classList.add("open");
+  // Les feuilles remplissent leurs champs AVANT d'appeler openSheet : la
+  // photo est donc prise sur l'état initial réel (édition comprise).
+  openSheetId = id;
+  openSheetSnapshot = serializeSheet(id);
+}
+// Fermeture accidentelle (clic sur le fond, Échap) : si la saisie a
+// changé depuis l'ouverture, demander confirmation avant de la jeter.
+// Les boutons « Annuler » restent un abandon explicite, sans garde-fou.
+function dismissSheetGuarded() {
+  if (openSheetId && serializeSheet(openSheetId) !== openSheetSnapshot) {
+    if (!confirm("Abandonner la saisie en cours ?")) return;
+  }
+  backdrop.classList.remove("open");
+  openSheetId = null;
 }
 // Épargne/investissement/virement créditent TOUJOURS un compte de
 // destination : l'argent change de poche, il ne disparaît jamais.
@@ -3286,9 +3323,9 @@ function openTxSheet(tx, presetType) {
 
 document.getElementById("fab").addEventListener("click", () => openSheet("quickMenu"));
 document.getElementById("fCancel").addEventListener("click", () => backdrop.classList.remove("open"));
-backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.classList.remove("open"); });
+backdrop.addEventListener("click", (e) => { if (e.target === backdrop) dismissSheetGuarded(); });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && backdrop.classList.contains("open")) backdrop.classList.remove("open");
+  if (e.key === "Escape" && backdrop.classList.contains("open")) dismissSheetGuarded();
 });
 
 document.getElementById("fDelete").addEventListener("click", () => {
@@ -3297,6 +3334,11 @@ document.getElementById("fDelete").addEventListener("click", () => {
   pushUndo();
   const index = transactions.findIndex(t => t.id === editingTxId);
   if (index >= 0) transactions.splice(index, 1);
+  // Une facture réglée par ce mouvement redevient « à payer » : on ne
+  // laisse jamais une facture pointer vers un mouvement disparu.
+  for (const bill of (S.bills || [])) {
+    if (bill.paidTxId === editingTxId) bill.paidTxId = null;
+  }
   saveState();
   backdrop.classList.remove("open");
   toast("Mouvement supprimé", true);
@@ -3530,16 +3572,22 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   backdrop.classList.remove("open");
   render();
 });
-function canDeleteAccount(id) {
-  // Règle .deny du natif : un compte portant des mouvements ne se
-  // supprime pas — on supprime ou réaffecte d'abord les mouvements.
-  return !transactions.some(t => t.acc === id || t.dest === id);
+function accountDeleteBlocker(id) {
+  // Règle .deny du natif : ni mouvement, ni objectif ne doit se retrouver
+  // orphelin (un objectif lié verrait son solde retomber à 0 en silence).
+  if (transactions.some(t => t.acc === id || t.dest === id)) {
+    return "Ce compte porte des mouvements — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
+  }
+  if ((S.goals || []).some(g => g.linked === id)) {
+    return "Un objectif suit ce compte — déliez-le d'abord, sinon sa progression retomberait à zéro.";
+  }
+  return null;
 }
 document.getElementById("aDelete").addEventListener("click", () => {
   if (!editingAccId) return;
-  if (!canDeleteAccount(editingAccId)) {
-    document.getElementById("aError").textContent =
-      "Ce compte porte des mouvements — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
+  const blocker = accountDeleteBlocker(editingAccId);
+  if (blocker) {
+    document.getElementById("aError").textContent = blocker;
     return;
   }
   if (!confirm("Supprimer ce compte ?")) return;
@@ -4244,7 +4292,13 @@ document.getElementById("aReconcile").addEventListener("click", () => {
   if (!editingAccId) return;
   document.getElementById("reconForm").reset();
   const account = ACCOUNTS.find(a => a.id === editingAccId);
-  if (account) document.getElementById("reconAmount").value = balance(account.id).toFixed(2);
+  if (account) {
+    const current = balance(account.id);
+    // Le pavé décimal iOS n'a pas de touche moins : on présente la valeur
+    // absolue et on coche « négatif » quand le solde actuel est en dessous de zéro.
+    document.getElementById("reconAmount").value = Math.abs(current).toFixed(2);
+    document.getElementById("reconNegative").checked = current < 0;
+  }
   document.getElementById("reconError").textContent = "";
   openSheet("reconForm");
   document.getElementById("reconAmount").focus();
@@ -4256,7 +4310,9 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
   const account = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
   if (!account) return;
   const target = parseAmountField(document.getElementById("reconAmount").value.replace(/^-/, ""));
-  const negative = document.getElementById("reconAmount").value.trim().startsWith("-");
+  // « Négatif » vient de la case à cocher OU d'un « - » saisi à la main.
+  const negative = document.getElementById("reconNegative").checked
+    || document.getElementById("reconAmount").value.trim().startsWith("-");
   if (Number.isNaN(target)) { err.textContent = "Solde invalide. Exemple : 4200.00"; return; }
   const wanted = negative ? -target : target;
   const current = balance(account.id);

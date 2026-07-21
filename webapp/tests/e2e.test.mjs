@@ -468,6 +468,56 @@ await page.waitForTimeout(200);
 const baseSheetOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
 check(!baseSheetOpen, "le bouton Annuler de la devise de référence doit fermer la feuille");
 
+// ---------- Test 21 : fermeture accidentelle d'une feuille avec saisie → garde-fou ----------
+currentTest = "garde-fou saisie";
+await goHome();
+await page.click("#fab");
+await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
+await page.click('#quickMenu [data-quick="tx"]');
+await page.waitForSelector("#txForm", { state: "visible" });
+await page.fill("#fTitle", "Saisie en cours");
+await page.fill("#fAmount", "12.30");
+// clic sur le fond = dismiss accidentel : confirm auto-accepté → se ferme
+await page.evaluate(() => document.getElementById("sheetBackdrop").click());
+await page.waitForTimeout(150);
+let guardOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
+check(!guardOpen, "après confirmation, la feuille doit se fermer");
+// ouvrir sans rien changer et cliquer le fond : pas de saisie → fermeture directe
+await page.click("#fab");
+await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
+await page.click('#quickMenu [data-quick="tx"]');
+await page.waitForSelector("#txForm", { state: "visible" });
+const snapClean = await page.evaluate(() => serializeSheet("txForm") === openSheetSnapshot);
+check(snapClean, "une feuille fraîchement ouverte ne doit pas être considérée comme modifiée");
+await page.evaluate(() => document.getElementById("sheetBackdrop").click());
+await page.waitForTimeout(120);
+guardOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
+check(!guardOpen, "sans saisie, le clic sur le fond ferme sans obstacle");
+
+// ---------- Test 22 : solde négatif saisissable via la case à cocher ----------
+currentTest = "solde negatif";
+// Repartir de la démo pour disposer d'un compte avec historique (le bouton
+// « Mettre le solde à jour » n'apparaît que si le compte a des mouvements).
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-resetdemo]");
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-accid]'); // → fiche de compte
+await page.waitForSelector("[data-editacc]", { state: "visible" });
+await page.click("[data-editacc]"); // → feuille compte (avec « Mettre le solde à jour… » si historique)
+await page.waitForSelector("#aReconcile", { state: "visible" });
+await page.click("#aReconcile");
+await page.waitForSelector("#reconForm", { state: "visible" });
+await page.fill("#reconAmount", "250.00");
+await page.check("#reconNegative");
+await page.click('#reconForm button[type="submit"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("-") && screenHTML.includes("250.00"), "un solde négatif saisi via la case doit s'appliquer");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -477,4 +527,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 25 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 27 parcours verts, zéro erreur console ✓");
