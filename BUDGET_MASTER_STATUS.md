@@ -4,9 +4,9 @@
 
 - Date UTC : 2026-07-21
 - Branche : `claude/budget-project-connection-link-mhaokm` — SHA de départ : `6f686b7`
-- Jalon actif : J2 — Compréhension (lots B) quasi clos ; prochain J5/G01 (centimes) ou J3/C (rituel mensuel)
-- Lot actif : jalon B soldé (B01-B08) ; audit P0+P1 + B05 soldés
-- Dernière CI verte : `77bbf11` (pipeline complet web+parité+iOS) ; commits B06/B07/B03 web verts en local (31 e2e + 4 parité)
+- Jalon actif : J5 amorcé (G01 étape 1 fait) ; jalon B soldé ; reste G01 étape 2 (budgetReport/contributions) + G02 migration centimes
+- Lot actif : G01 (moteur d'agrégation en centimes) livré ; prochain G02 (migration stockage) ou lots C (rituel)
+- Dernière CI verte : `0fce07b` (pipeline complet web+parité+iOS) ; commits B03→G01 web verts en local (33 e2e + 4 parité)
 - Bloqueurs humains : compte Apple Developer (H04+), QA appareil réel (H03), décision prix (H08), revue réglementaire FR/BE (H09)
 - Environnement de session : Linux (pas de xcodebuild local) — les vérifications natives passent par la CI GitHub Actions (runner macos-15), conformément à « adapter la destination sans diminuer la couverture ».
 
@@ -30,6 +30,8 @@
 | B01 Navigation (5 onglets) | DONE (préexistant) | — | e2e | Cinq destinations, aucun doublon | faible |
 | B02 Onboarding (5 écrans) | DONE (préexistant) | — | e2e | Départ en < 2 min | faible |
 | B08 Erreurs récupérables | PARTIEL | dab6418 | e2e 27✓ | Saisie protégée (feuilles) | faible |
+| Qualité/sécurité (NITs) | DONE | f8fd8b0 | e2e 32✓ | Sauvegarde sans code, code mort retiré | résolu |
+| G01 Centimes (moteur d'agrégation) | DONE (étape 1) | 895afcf | e2e 33✓ + parité | Sommes exactes au centime | moyen |
 
 ### Audit soldé (voir AUDIT_COMPLET_BUDGET_2026-07-21.md)
 
