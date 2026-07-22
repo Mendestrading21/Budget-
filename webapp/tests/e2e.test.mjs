@@ -636,6 +636,15 @@ await page.reload();
 await page.waitForSelector("#tabbar button");
 theme = await page.evaluate(() => document.documentElement.dataset.theme);
 check(theme === "dark", "le thème sombre doit survivre au rechargement");
+// 3e option : « Système » suit l'appareil (clair par défaut en headless)
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-toggletheme]"); // sombre → système
+await page.waitForTimeout(150);
+const sysPref = await page.evaluate(() => ({ pref: S.theme, applied: document.documentElement.dataset.theme }));
+check(sysPref.pref === "system", "après Sombre, le cycle doit proposer Système");
+check(sysPref.applied === "light", "en mode Système, le thème appliqué suit l'appareil (clair en test)");
 await page.evaluate(() => { S.theme = "light"; saveState(); }); // remettre le défaut
 
 // ---------- Test 30 : Horizon L2 — une recommandation utile sur l'accueil ----------

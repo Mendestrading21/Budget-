@@ -1252,14 +1252,20 @@ function saveState() {
   catch (e) { toast("Stockage indisponible — ce changement ne survivra pas au rechargement"); }
 }
 
-/* Horizon : thème clair par défaut, sombre premium en option (persisté). */
+/* Horizon : clair par défaut, sombre premium, ou « système » (suit le
+   réglage de l'appareil, en direct). Persisté dans S.theme. */
+const systemDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
 function applyTheme() {
-  const theme = S.theme === "dark" ? "dark" : "light";
+  const pref = ["light", "dark", "system"].includes(S.theme) ? S.theme : "light";
+  const theme = pref === "system" ? (systemDark && systemDark.matches ? "dark" : "light") : pref;
   document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = theme === "dark" ? "#07090e" : "#F4F6FB";
 }
 applyTheme();
+if (systemDark && systemDark.addEventListener) {
+  systemDark.addEventListener("change", () => { if (S.theme === "system") { applyTheme(); render(); } });
+}
 
 /* Échappement systématique des textes utilisateur injectés en HTML. */
 function esc(value) {
@@ -2604,9 +2610,10 @@ function renderSettings() {
       <span style="color:var(--coolgray)">›</span>
     </div>
     <div class="card row tx" data-toggletheme role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${S.theme === "dark" ? "🌙" : "☀️"}</div>
+      <div class="ico" aria-hidden="true">${S.theme === "dark" ? "🌙" : (S.theme === "system" ? "📱" : "☀️")}</div>
       <div class="meta"><div class="t">Apparence</div>
-        <div class="s">${S.theme === "dark" ? "Sombre — tapez pour passer en clair" : "Clair — tapez pour passer en sombre"}</div></div>
+        <div class="s">${S.theme === "dark" ? "Sombre — tapez pour suivre le réglage de l'appareil"
+          : (S.theme === "system" ? "Système (suit l'appareil) — tapez pour Clair" : "Clair — tapez pour Sombre")}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
     <div class="card row tx" data-editbase role="button" tabindex="0" style="cursor:pointer">
@@ -3221,7 +3228,8 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-toggletheme]")) {
-    S.theme = S.theme === "dark" ? "light" : "dark";
+    // Cycle : Clair → Sombre → Système → Clair.
+    S.theme = S.theme === "dark" ? "system" : (S.theme === "system" ? "light" : "dark");
     saveState(); applyTheme(); render();
     return;
   }
