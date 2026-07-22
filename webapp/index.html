@@ -1357,13 +1357,14 @@ function budgetReport(y, m) {
     const kind = CATEGORIES[cat];
     const types = kind === "expense" ? ["expense", "debtPayment"] : kind === "saving" ? ["saving"]
                 : kind === "investment" ? ["investment"] : kind === "tax" ? ["taxPayment"] : ["income"];
-    let actual = 0;
+    let actualC = 0; // accumulation en centimes entiers (G01)
     for (const t of monthTx) {
       if (t.cat !== cat) continue;
-      if (types.includes(t.type)) actual += txCHF(t);
-      else if (kind === "expense" && t.type === "refund") actual -= txCHF(t);
+      if (types.includes(t.type)) actualC += toCents(txCHF(t));
+      else if (kind === "expense" && t.type === "refund") actualC -= toCents(txCHF(t));
     }
-    return { cat, kind, planned: plannedAmt, actual, variance: plannedAmt - actual, over: actual > plannedAmt };
+    const actual = fromCents(actualC);
+    return { cat, kind, planned: plannedAmt, actual, variance: round2(plannedAmt - actual), over: actualC > toCents(plannedAmt) };
   });
   const budgeted = new Set(budgetLines(y, m).map(l => l.cat));
   const out = {};
@@ -1371,11 +1372,11 @@ function budgetReport(y, m) {
     if (t.type === "transfer" || t.type === "adjustment" || t.type === "income") continue;
     if (t.cat && budgeted.has(t.cat)) continue;
     const key = t.cat || "Sans catégorie";
-    out[key] = (out[key] || 0) + (t.type === "refund" ? -txCHF(t) : txCHF(t));
+    out[key] = (out[key] || 0) + (t.type === "refund" ? -toCents(txCHF(t)) : toCents(txCHF(t)));
   }
-  // Comparer au centime : une somme en cascade peut laisser un résidu
-  // flottant (~1e-16) qui ferait apparaître une ligne fantôme « 0.00 ».
-  return { lines, outOfBudget: Object.entries(out).filter(([, v]) => Math.round(v * 100) !== 0) };
+  // out est en centimes entiers : filtrer à zéro exact (aucune ligne
+  // fantôme « 0.00 »), puis reconvertir en unités pour l'affichage.
+  return { lines, outOfBudget: Object.entries(out).filter(([, c]) => c !== 0).map(([k, c]) => [k, fromCents(c)]) };
 }
 
 /* ---------- État UI ---------- */
@@ -1990,22 +1991,23 @@ function renderTaxes() {
    compte). La plus-value d'un compte titres = solde − ouverture −
    versements nets (le solde se met à jour via « Réconcilier »). */
 function contributions(accId) {
-  let total = 0, year = 0, withdrawn = 0;
+  let totalC = 0, yearC = 0, withdrawnC = 0; // centimes entiers (G01)
   for (const t of transactions) {
     if (t.status !== "posted") continue;
-    if (t.dest === accId) { total += t.amount; if (t.y === NOW.y) year += t.amount; }
-    else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawn += t.amount;
+    if (t.dest === accId) { totalC += toCents(t.amount); if (t.y === NOW.y) yearC += toCents(t.amount); }
+    else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawnC += toCents(t.amount);
   }
-  return { total, year, withdrawn };
+  return { total: fromCents(totalC), year: fromCents(yearC), withdrawn: fromCents(withdrawnC) };
 }
 
 /* Cumuls agrégés par nature de compte, en devise de référence. */
 function contributionsFor(kinds) {
-  return ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((agg, a) => {
+  const agg = ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((acc, a) => {
     const c = contributions(a.id);
-    agg.total += toCHF(c.total, a.currency); agg.year += toCHF(c.year, a.currency);
-    return agg;
+    acc.total += toCents(toCHF(c.total, a.currency)); acc.year += toCents(toCHF(c.year, a.currency));
+    return acc;
   }, { total: 0, year: 0 });
+  return { total: fromCents(agg.total), year: fromCents(agg.year) };
 }
 
 function balanceAt(accId, y, m) {
