@@ -2631,6 +2631,19 @@ function renderSettings() {
     </div>
     ${S.faceIDEnabled ? `<button class="btn" data-locknow style="margin-bottom:10px">Passer en arrière-plan (verrouille)</button>` : ""}
     <p class="section-title">Vos données</p>
+    ${(() => {
+      // H01 — sauvegarde guidée : état honnête, rappel discret après 30 jours.
+      if (!transactions.length) return "";
+      const at = S.lastBackupAt;
+      const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
+      const overdue = at == null || days > 30;
+      const label = at == null ? "jamais" : (days === 0 ? "aujourd'hui" : `il y a ${days} jour${days > 1 ? "s" : ""}`);
+      return `<div class="card row" style="${overdue ? "border-color:var(--line-strong)" : ""}">
+        <div class="ico" aria-hidden="true">${overdue ? "⚠️" : "✅"}</div>
+        <div class="meta"><div class="t">Dernière sauvegarde : ${label}</div>
+          <div class="s">${overdue ? "Vos données ne vivent que dans ce navigateur — téléchargez une sauvegarde." : "Pensez-y après chaque grosse saisie."}</div></div>
+      </div>`;
+    })()}
     <button class="btn secondary" data-exportcsv>Exporter les mouvements (CSV)</button>
     <button class="btn secondary" data-exportjson style="margin-top:8px">Télécharger la sauvegarde (JSON)</button>
     <button class="btn secondary" data-restorepick style="margin-top:8px">Restaurer une sauvegarde…</button>
@@ -3589,7 +3602,10 @@ function exportBackup() {
   const { lockCode, faceIDEnabled, ...safe } = S;
   const payload = { app: "budget-web", version: 1, exportedAt: new Date().toISOString(), state: safe };
   downloadFile(`budget-sauvegarde-${fileStamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  S.lastBackupAt = Date.now(); // H01 : mémoriser pour guider les rappels
+  saveState();
   toast("Sauvegarde téléchargée");
+  render();
 }
 // Télécharge le blob mis de côté (état illisible ou trop récent) tel quel,
 // pour qu'aucune donnée ne soit jamais perdue en silence.

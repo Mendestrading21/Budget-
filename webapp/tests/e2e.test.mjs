@@ -687,6 +687,20 @@ check(screenHTML.includes("Calcul : montant restant ÷ rythme mensuel"),
 check(screenHTML.includes("estimation, pas une promesse"),
   "l'estimation ne doit jamais être présentée comme une certitude");
 
+// ---------- Test 34 : H01 — sauvegarde guidée dans Réglages ----------
+currentTest = "sauvegarde guidee";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Dernière sauvegarde : jamais"),
+  "sans sauvegarde, Réglages doit le dire honnêtement");
+await page.evaluate(() => exportBackup());
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Dernière sauvegarde : aujourd'hui"),
+  "après export, la date de sauvegarde doit se mettre à jour");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -696,4 +710,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 38 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 39 parcours verts, zéro erreur console ✓");
