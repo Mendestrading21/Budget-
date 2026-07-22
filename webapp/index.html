@@ -2001,8 +2001,18 @@ function renderGoals() {
         ${g.achieved ? "" : `
         <div><span>Rythme réel</span><span class="${onTrack ? "pos" : "warn"}">${chf(paceMonthly)} / mois ${onTrack ? "✓" : "⚠"}</span></div>
         ${eta ? `<div><span>Atteint vers</span><span style="font-weight:700">${MONTH_NAMES[eta.m - 1]} ${eta.y}</span></div>` : ""}
-        ${extraNeeded > 0.005 ? `<div><span>Pour l'échéance</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}`}
+        ${extraNeeded > 0.005 ? `<div><span>Pour l'échéance</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}
+        ${(() => {
+          // Scénario simple (L6) : que change ＋50/mois ? Jamais une promesse.
+          if (monthsToGo === null || remaining <= 0) return "";
+          const fasterMonths = Math.ceil(remaining / (paceMonthly + 50));
+          const saved = monthsToGo - fasterMonths;
+          if (saved < 1) return "";
+          const fasterEta = shiftMonth(NOW, fasterMonths);
+          return `<div><span>Scénario ＋ ${chf(50)} / mois</span><span class="pos">${MONTH_NAMES[fasterEta.m - 1]} ${fasterEta.y} · ${saved} mois plus tôt</span></div>`;
+        })()}`}
       </div>
+      ${g.achieved ? "" : `<span class="caption" style="display:block;margin-top:6px">Calcul : montant restant ÷ rythme mensuel. Le rythme réel vient de vos versements de l'année — une estimation, pas une promesse.</span>`}
     </div>`;
   };
   return `<h2 class="screen-title">Objectifs</h2>

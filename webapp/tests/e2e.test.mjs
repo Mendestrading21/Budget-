@@ -676,6 +676,17 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Charges de l'année"), "la vue annuelle des charges doit exister sur Factures");
 check(screenHTML.includes("par mois"), "la provision mensuelle de lissage doit être proposée");
 
+// ---------- Test 33 : Horizon L6 — scénario et calcul expliqué sur les objectifs ----------
+currentTest = "scenario objectifs";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="goals"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Calcul : montant restant ÷ rythme mensuel"),
+  "le calcul des objectifs doit être expliqué en clair");
+check(screenHTML.includes("estimation, pas une promesse"),
+  "l'estimation ne doit jamais être présentée comme une certitude");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -685,4 +696,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 37 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 38 parcours verts, zéro erreur console ✓");
