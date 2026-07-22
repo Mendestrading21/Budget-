@@ -31,7 +31,8 @@
 | B02 Onboarding (5 écrans) | DONE (préexistant) | — | e2e | Départ en < 2 min | faible |
 | B08 Erreurs récupérables | PARTIEL | dab6418 | e2e 27✓ | Saisie protégée (feuilles) | faible |
 | Qualité/sécurité (NITs) | DONE | f8fd8b0 | e2e 32✓ | Sauvegarde sans code, code mort retiré | résolu |
-| G01 Centimes (moteur d'agrégation) | DONE (étape 1) | 895afcf | e2e 33✓ + parité | Sommes exactes au centime | moyen |
+| G01 Centimes (moteur d'agrégation) | DONE | 339ab03 | e2e 33✓ + parité | Sommes exactes au centime (balance, snapshot, budget, contributions, dettes) | faible |
+| G02 Migration stockage centimes | READY | — | — | Stockage en entiers, migration réversible | élevé — effort dédié |
 
 ### Audit soldé (voir AUDIT_COMPLET_BUDGET_2026-07-21.md)
 
