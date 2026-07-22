@@ -671,6 +671,8 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois dernier : coût de la vie"),
   "le Budget doit comparer au coût de la vie du mois précédent (démo chargée)");
+check(screenHTML.includes("Budget consommé"),
+  "l'anneau plan/réel doit être présent et étiqueté pour VoiceOver");
 await page.click(`#tabbar button[aria-label="Accueil"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);

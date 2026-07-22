@@ -1853,9 +1853,27 @@ function renderBudget() {
         <button class="btn secondary" data-addline>＋ Ajouter une ligne budgétaire</button>
       </div>`;
   }
+  // Anneau plan/réel (Horizon) : la part du budget déjà consommée, d'un
+  // coup d'œil — vert/indigo tant que ça tient, ambre dès 85 %, rouge au-delà.
+  const ringFraction = totalPlanned > 0 ? totalActual / totalPlanned : 0;
+  const ringShown = Math.min(1, Math.max(0, ringFraction));
+  const ringColor = ringFraction > 1 ? "var(--negative)" : (ringFraction > 0.85 ? "var(--amber)" : "var(--indigo)");
+  const ringCirc = 2 * Math.PI * 34;
+  const ring = totalPlanned > 0 ? `
+    <svg viewBox="0 0 80 80" width="84" height="84" role="img"
+         aria-label="Budget consommé : ${pct(ringShown)} du planifié"
+         style="flex:none;transform:rotate(-90deg)">
+      <circle cx="40" cy="40" r="34" fill="none" stroke="var(--line-strong)" stroke-width="9"></circle>
+      <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="9"
+              stroke-linecap="round" stroke-dasharray="${(ringShown * ringCirc).toFixed(1)} ${ringCirc.toFixed(1)}"></circle>
+      <text x="40" y="44" transform="rotate(90 40 40)" text-anchor="middle"
+            style="font-size:16px;font-weight:800;fill:var(--offwhite)">${Math.round(ringFraction * 100)}%</text>
+    </svg>` : "";
   return `<h2 class="screen-title">Budget</h2>
     ${monthNav()}
     <div class="card hero">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="min-width:0;flex:1">
       <p class="card-label">Reste à dépenser (dépenses budgétées)</p>
       <p class="hero-amount ${remaining < 0 ? "neg" : ""}">${chf(remaining)}</p>
       <span class="caption">Dépenses : planifié ${chf(totalPlanned)} · réel ${chf(totalActual)} — l'épargne et les impôts sont suivis à part</span>
@@ -1867,6 +1885,9 @@ function renderBudget() {
         const diff = round2(snapshot(cursor.y, cursor.m).living - prevLiving);
         return `<span class="caption" style="display:block;margin-top:4px">Mois dernier : coût de la vie ${chf(prevLiving)}${diff !== 0 ? ` · ce mois <span class="${diff > 0 ? "neg" : "pos"}">${chf(diff, true)}</span>` : ""}</span>`;
       })()}
+        </div>
+        ${ring}
+      </div>
     </div>
     ${groups.map(lineHTML).join("")}
     <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>
