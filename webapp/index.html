@@ -39,6 +39,9 @@
     --line: rgba(16, 22, 35, 0.10);
     --line-strong: rgba(16, 22, 35, 0.26);
     --sheen: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(75,92,255,0.14), transparent 70%);
+    --field: #FFFFFF;
+    --surface-3: #E9EDF6;
+    --badge-ink: #3730A3;
   }
   /* Horizon — mode sombre premium : l'identité verre historique, intacte */
   html[data-theme="dark"] {
@@ -56,9 +59,12 @@
     --bg: #07090e;
     --surface: rgba(15, 22, 36, 0.55);
     --surface-2: rgba(9, 12, 19, 0.92);
-    --line: var(--line);
-    --line-strong: var(--line-strong);
-    --sheen: linear-gradient(135deg, var(--line-strong), rgba(75,92,255,0.28), transparent 70%);
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.18);
+    --sheen: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(75,92,255,0.28), transparent 70%);
+    --field: rgba(11, 14, 20, 0.8);
+    --surface-3: rgba(30, 35, 51, 0.9);
+    --badge-ink: #C9D2FF;
   }
 
   /* Le prototype assume l'identité canonique sombre de l'app,
@@ -124,7 +130,7 @@
     background: rgba(75, 92, 255, 0.22);
     border: 1px solid rgba(75, 92, 255, 0.4);
     font-size: 11px;
-    color: #C9D2FF;
+    color: var(--badge-ink);
   }
 
   h2.screen-title {
@@ -218,7 +224,7 @@
     margin-bottom: 12px;
   }
   .month-nav button {
-    background: rgba(30, 35, 51, 0.8);
+    background: var(--surface-3);
     color: var(--electric);
     border: 1px solid var(--line);
     width: 44px; height: 44px;
@@ -358,7 +364,7 @@
     width: 100%;
   }
   .btn.secondary {
-    background: rgba(30, 35, 51, 0.9);
+    background: var(--surface-3);
     border: 1px solid var(--line);
     color: var(--electric);
   }
@@ -402,7 +408,7 @@
   .sheet input, .sheet select {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(11, 14, 20, 0.8);
+    background: var(--field);
     border: 1px solid var(--line);
     color: var(--offwhite);
     font-family: inherit;
@@ -415,7 +421,7 @@
   .ob-form input, .ob-form select {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(11, 14, 20, 0.8);
+    background: var(--field);
     border: 1px solid var(--line);
     color: var(--offwhite);
     font-family: inherit;
@@ -432,7 +438,7 @@
     left: 50%;
     bottom: calc(96px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
-    background: rgba(30, 35, 51, 0.96);
+    background: var(--surface-3);
     border: 1px solid var(--line-strong);
     color: var(--offwhite);
     padding: 10px 16px;
@@ -1731,7 +1737,7 @@ function renderMovements() {
     ${monthNav()}
     <input id="moreSearchInput" type="search" placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
       aria-label="Rechercher un mouvement" autocomplete="off"
-      style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
+      style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" role="group" aria-label="Filtrer par type">
       ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Épargne"], ["transfer", "Virements"]]
         .map(([id, label]) => `<button type="button" class="btn secondary" data-morefilter="${id}"
@@ -2402,7 +2408,7 @@ function renderImport() {
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
       <textarea id="importPaste" rows="4" placeholder="date;montant;intitulé&#10;05.06.2026;-45.50;Courses"
-        style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
+        style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
       <button type="button" class="btn" data-importpaste style="margin-top:10px">Analyser et importer le collage</button>
     </div>
     ${report ? `
