@@ -1,5 +1,27 @@
 # Budget project status
 
+## Programme Horizon — Budget Leader Refonte (2026-07-21)
+
+Exécuté sur `claude/budget-project-connection-link-mhaokm` (la branche
+`codex/budget-leader-refonte` n'existe pas — ADR-019). Lots L0→L8 web
+livrés, un commit par lot, 38 parcours e2e + 4 fixtures de parité verts :
+
+- **L1** thème clair par défaut « Swiss calm fintech » + sombre premium
+  (tokens, bascule persistée dans Réglages, contrastes vérifiés sur
+  captures 390/320 px, zéro débordement horizontal).
+- **L2** recommandation du mois sur l'accueil (une seule priorité :
+  rattrapage > facture en retard > réserve d'impôts > dépassement >
+  objectif). **L3** comparaison au coût de la vie du mois précédent
+  (Budget + accueil). **L4** parité dette D04 alignée sur ADR-016.
+  **L5** « Charges de l'année » sur Factures + provision de lissage.
+  **L6** scénario ＋50/mois et calcul expliqué sur chaque objectif.
+- Précédé le même jour par : jalons J1/J2 du programme master-evolution
+  (audits soldés — 3 P0 dont 2 pertes de données, langage « 10 ans »,
+  accueil essentiel, menu Plus regroupé) et moteur G01 en centimes
+  entiers. Voir BUDGET_MASTER_STATUS.md et AUDIT_COMPLET_BUDGET_2026-07-21.md.
+- Reste (natif) : reprendre les tokens Horizon dans DesignTokens.swift
+  (lot dédié, vérifié par la CI macOS) ; G02 migration stockage centimes.
+
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
 Current phase: Phases 0 à 12 terminées — prochaine : Phase 13 (Polish produit)

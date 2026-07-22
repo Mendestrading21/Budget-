@@ -1,5 +1,44 @@
 # Budget decision log
 
+## ADR-019 — Horizon : thème clair par défaut (web), sombre premium conservé ; parité dette D04
+
+Date: 2026-07-21
+Status: accepted
+
+### Context
+
+Le programme « Budget Leader Refonte » impose une direction « Swiss calm
+fintech » : interface claire par défaut, sombre premium fonctionnel. La
+branche codex/budget-leader-refonte annoncée n'existe pas sur GitHub —
+la spécification du propriétaire fait foi. Par ailleurs l'audit de
+parité (fixtures A05) avait documenté que le web comptait les
+mensualités de dette dans le coût de la vie, contrairement à ADR-016.
+
+### Decision
+
+1. PWA : tokens de thème (`--bg/--surface/--surface-2/--surface-3/--field/
+   --line/--line-strong/--sheen/--hero-surface/--badge-ink`) ; clair par
+   défaut dans `:root`, l'identité verre sombre historique intacte sous
+   `html[data-theme="dark"]` ; préférence `S.theme` persistée, bascule
+   dans Réglages, `meta theme-color` synchronisé. Le natif reprendra les
+   mêmes rôles de tokens (DesignTokens) lors d'un lot dédié vérifié par CI.
+2. Web : les mouvements `recurringId` préfixé `r-debt-` sont exclus du
+   coût de la vie, du « pas encore classé » et des dépenses de l'accueil
+   (capital ≠ dépense ; intérêts saisis à part) — aligné sur ADR-016.
+
+### Consequences
+
+Les montants du mois web et natif sont réconciliés par les fixtures de
+parité (living 0 / cashFlow 0 / dette décrémentée sur le scénario
+dette-vivante). Les utilisateurs existants du web basculent en clair au
+prochain chargement (S.theme absent → light) ; le sombre se réactive en
+deux gestes dans Réglages.
+
+### Verification
+
+38 parcours e2e Chromium + 4 fixtures de parité verts, zéro erreur
+console ; captures clair/sombre 390 px et 320 px sans débordement.
+
 ## ADR-013 — Sécurité/portabilité : verrouillage authentifié dans les deux sens, sauvegarde en montants String
 
 Date: 2026-07-19
