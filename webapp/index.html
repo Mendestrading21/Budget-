@@ -1551,7 +1551,9 @@ function renderHome() {
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
     <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (t.type === "transfer" ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
-  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : (label === "Comptes et argent disponible" ? ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"' : "")}>
+  // Toute ligne du portefeuille mène quelque part : sous-vue dédiée si
+  // target, sinon l'onglet Comptes (A03-N3 : plus d'asymétrie tactile).
+  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"'}>
     <div class="ico" aria-hidden="true">${icon}</div>
     <div class="meta"><div class="t">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>
     <span class="amount">${chf(amount)}</span>
