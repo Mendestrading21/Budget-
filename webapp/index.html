@@ -1533,6 +1533,31 @@ function renderHome() {
     return agg.total > 0 ? `Versé cette année : ${chf(agg.year)} · total : ${chf(agg.total)}` : "";
   };
 
+  // Horizon L2 — LA priorité du mois : une seule recommandation, dérivée
+  // de l'état réel, jamais un conseil financier. Ordre : rattrapage >
+  // facture en retard > réserve d'impôts > budget dépassé > objectif.
+  const recommendation = (() => {
+    if (!s.isCurrent) return "";
+    const prev = shiftMonth({ y, m }, -1);
+    const prevOpen = !(S.monthChecks || {})[`${prev.y}-${prev.m}`]
+      && monthCheckItems(prev.y, prev.m).some(c => !c.done);
+    const lateBills = (S.bills || []).filter(billIsOverdue);
+    const overCats = report.lines.filter(l => l.kind === "expense" && l.over);
+    const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
+    let icon, text, nav;
+    if (prevOpen) { icon = "⏪"; text = `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`; nav = `data-gotomonth="${prev.y}-${prev.m}"`; }
+    else if (lateBills.length) { icon = "🧾"; text = `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`; nav = 'data-more="bills"'; }
+    else if (s.taxGap > 0) { icon = "📮"; text = `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts de ce mois.`; nav = 'data-more="taxes"'; }
+    else if (overCats.length) { icon = "⚖️"; text = `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`; nav = 'data-gototab="budget"'; }
+    else if (goal) { icon = "🎯"; text = `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`; nav = 'data-more="goals"'; }
+    else return "";
+    return `<div class="card row tx" ${nav} role="button" tabindex="0" style="cursor:pointer;border-color:var(--line-strong)">
+      <div class="ico" aria-hidden="true">${icon}</div>
+      <div class="meta"><div class="t">${text}</div></div>
+      <span style="color:var(--electric);font-weight:700">›</span>
+    </div>`;
+  })();
+
   const hero = s.isCurrent ? `
     <div class="card hero">
       <p class="card-label">Argent disponible</p>
@@ -1632,6 +1657,7 @@ function renderHome() {
     : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
+    ${recommendation}
     <div class="home-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 6px">
       <button class="btn secondary" data-quickexp>💸 Dépense</button>
       <button class="btn secondary" data-quickinc>💰 Revenu</button>

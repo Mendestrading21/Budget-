@@ -638,6 +638,23 @@ theme = await page.evaluate(() => document.documentElement.dataset.theme);
 check(theme === "dark", "le thème sombre doit survivre au rechargement");
 await page.evaluate(() => { S.theme = "light"; saveState(); }); // remettre le défaut
 
+// ---------- Test 30 : Horizon L2 — une recommandation utile sur l'accueil ----------
+currentTest = "recommandation du mois";
+await goHome();
+// repartir de la démo : factures, paiements réguliers et objectifs présents
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-resetdemo]");
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(150);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Priorité :") || screenHTML.includes("Attention :") || screenHTML.includes("Tout est en ordre"),
+  "l'accueil doit afficher une recommandation du mois");
+const recCount = (screenHTML.match(/Priorité :|Attention :|Tout est en ordre/g) || []).length;
+check(recCount === 1, `une SEULE recommandation à la fois (obtenu ${recCount})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -647,4 +664,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 34 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 35 parcours verts, zéro erreur console ✓");
