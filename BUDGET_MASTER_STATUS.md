@@ -1,5 +1,14 @@
 # BUDGET_MASTER_STATUS
 
+## Programme « Budget Leader Refonte » (Horizon) — Lot 0, 2026-07-21
+
+- **Branche de travail** : `claude/budget-project-connection-link-mhaokm` (désignée pour cette session, sur-ensemble de tout le reste).
+- **`codex/budget-leader-refonte` : introuvable sur GitHub.** La seule branche codex (`codex/audit-simplicite-budget`) contient le skill budget-master-evolution + l'audit source — déjà intégrés et EXÉCUTÉS ici (P0/P1 corrigés, jalon B soldé, G01 fait). Rien à récupérer ; sa suite e2e est plus ancienne. Aucune trace de code « Horizon » dans aucune branche.
+- **Direction Horizon** : faute de diff existant, la spécification fait foi telle que donnée par le propriétaire : « Swiss calm fintech » — interface CLAIRE par défaut, mode sombre premium conservé, cartes arrondies, glass discret, vert/rouge sémantiques, accents bleu/turquoise/violet/corail maîtrisés. L'identité actuelle (verre sombre) devient le mode sombre ; le mode clair est à construire (Lot 1).
+- **État vérifié au départ du programme** : 33 parcours e2e + 4 fixtures de parité verts, zéro erreur console ; CI web+iOS verte ; ~190 tests natifs ; arbre propre.
+- **Lots restants** : L1 tokens/thème clair+sombre (PWA puis natif) → L2 accueil (recommandation du mois) → L3 budget/mouvements polish → L4 comptes/patrimoine (dont parité dette D04) → L5 charges suisses (échéances annuelles) → L6 objectifs/recommandations → L7 onboarding/réglages (préférence thème) → L8 qualité finale.
+- **Interdits actés** : pas de merge dans main, pas de déploiement sans autorisation, pas de suppression de branche/fonctionnalité.
+
 ## En-tête
 
 - Date UTC : 2026-07-21
