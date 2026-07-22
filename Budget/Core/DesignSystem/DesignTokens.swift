@@ -18,11 +18,24 @@ enum BudgetColor {
     static let offWhite = Color(red: 242 / 255, green: 244 / 255, blue: 248 / 255)   // #F2F4F8
     static let coolGray = Color(red: 122 / 255, green: 134 / 255, blue: 153 / 255)   // #7A8699
 
-    // Semantic status
-    static let positive = Color(red: 57 / 255, green: 217 / 255, blue: 138 / 255)    // #39D98A
-    static let negative = Color(red: 255 / 255, green: 102 / 255, blue: 122 / 255)   // #FF667A
-    static let warning = Color(red: 255 / 255, green: 178 / 255, blue: 77 / 255)     // #FFB24D
-    static let informative = electricBlue
+    // Semantic status — dynamic (ADR-019) : les teintes lumineuses de
+    // l'identité sombre passent en versions assombries AA sur fond clair,
+    // les mêmes valeurs que la PWA. Résolu par trait UIKit pour que tous
+    // les sites d'appel existants restent inchangés.
+    static let positive = dynamic(dark: (57, 217, 138), light: (11, 138, 87))     // #39D98A / #0B8A57
+    static let negative = dynamic(dark: (255, 102, 122), light: (210, 59, 85))    // #FF667A / #D23B55
+    static let warning = dynamic(dark: (255, 178, 77), light: (169, 106, 16))     // #FFB24D / #A96A10
+    static let informative = dynamic(dark: (90, 167, 255), light: (37, 99, 235))  // #5AA7FF / #2563EB
+
+    private static func dynamic(
+        dark: (CGFloat, CGFloat, CGFloat),
+        light: (CGFloat, CGFloat, CGFloat)
+    ) -> Color {
+        Color(uiColor: UIColor { traits in
+            let rgb = traits.userInterfaceStyle == .dark ? dark : light
+            return UIColor(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, alpha: 1)
+        })
+    }
 }
 
 /// Semantic roles resolved against the current appearance.
