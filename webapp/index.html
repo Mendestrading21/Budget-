@@ -1666,7 +1666,9 @@ function renderHome() {
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(s.income)}</span></div>
-      <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(s.living)}</span></div>
+      <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(s.living)}</span>
+        ${(() => { const pm = shiftMonth({ y, m }, -1); const pl = snapshot(pm.y, pm.m).living;
+          return pl > 0 ? `<span class="caption">Mois dernier : ${chf(pl)}</span>` : ""; })()}</div>
       <div class="stat"><span class="card-label">Mis de côté</span><span class="amount info">${chf(s.savings + s.invest)}</span>
         <span class="caption">${s.income > 0 ? "Taux : " + pct(s.savingsRate) : "—"}</span></div>
       <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
@@ -1829,6 +1831,14 @@ function renderBudget() {
       <p class="card-label">Reste à dépenser (dépenses budgétées)</p>
       <p class="hero-amount ${remaining < 0 ? "neg" : ""}">${chf(remaining)}</p>
       <span class="caption">Dépenses : planifié ${chf(totalPlanned)} · réel ${chf(totalActual)} — l'épargne et les impôts sont suivis à part</span>
+      ${(() => {
+        // Comparaison pédagogique : le coût de la vie du mois précédent.
+        const pm = shiftMonth(cursor, -1);
+        const prevLiving = snapshot(pm.y, pm.m).living;
+        if (prevLiving <= 0) return "";
+        const diff = round2(snapshot(cursor.y, cursor.m).living - prevLiving);
+        return `<span class="caption" style="display:block;margin-top:4px">Mois dernier : coût de la vie ${chf(prevLiving)}${diff !== 0 ? ` · ce mois <span class="${diff > 0 ? "neg" : "pos"}">${chf(diff, true)}</span>` : ""}</span>`;
+      })()}
     </div>
     ${groups.map(lineHTML).join("")}
     <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>

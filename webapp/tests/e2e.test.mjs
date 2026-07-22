@@ -655,6 +655,18 @@ check(screenHTML.includes("Priorité :") || screenHTML.includes("Attention :") |
 const recCount = (screenHTML.match(/Priorité :|Attention :|Tout est en ordre/g) || []).length;
 check(recCount === 1, `une SEULE recommandation à la fois (obtenu ${recCount})`);
 
+// ---------- Test 31 : Horizon L3 — comparaison au mois précédent ----------
+currentTest = "comparaison mois";
+await page.click(`#tabbar button[aria-label="Budget"]`);
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Mois dernier : coût de la vie"),
+  "le Budget doit comparer au coût de la vie du mois précédent (démo chargée)");
+await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Mois dernier :"), "l'accueil doit rappeler le coût de la vie du mois dernier");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -664,4 +676,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 35 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 36 parcours verts, zéro erreur console ✓");
