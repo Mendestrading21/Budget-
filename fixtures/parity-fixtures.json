@@ -2,8 +2,10 @@
   "version": 1,
   "description": "Fixtures canoniques de parité web/natif (lot A05, Budget Master Evolution). Le natif est la source de vérité des règles ; tout écart web volontaire est listé dans knownDifferences. Montants en CHF, mois fixe 2026-05 (passé → aucun pronostic récurrent).",
   "knownDifferences": [
-    "web: une mensualité de dette est un mouvement type 'expense' portant recurringId 'r-debt-<id>' — elle décrémente bien la dette (liabilityBalance) et reste neutre pour le patrimoine, mais elle est comptée dans le coût de la vie du mois, contrairement à l'invariant natif ADR-016 (.debtPayment transfer-like, 0 hors intérêts). À résorber au lot D04.",
     "web: balance() crédite t.amount brut sur le compte destination sans conversion de devise — les fixtures restent mono-devise tant que E05 n'est pas livré."
+  ],
+  "resolved": [
+    "D04 (2026-07-21) : les mensualités de dette (recurringId 'r-debt-*') sont désormais exclues du coût de la vie web, comme l'invariant natif ADR-016 — vérifié par le scénario dette-vivante."
   ],
   "scenarios": [
     {
@@ -75,6 +77,7 @@
         ]
       },
       "expected": {
+        "snapshot": { "living": 0.0, "debtPaid": 400.0, "cashFlow": 0.0 },
         "balances": { "cur": 2600.0 },
         "liabilityBalances": { "hyp": 4600.0 },
         "netWorth": -2000.0,

@@ -1268,6 +1268,13 @@ function toCents(x) { return Math.round((Number(x) || 0) * 100); }
 function fromCents(c) { return c / 100; }
 function round2(x) { return fromCents(toCents(x)); } // arrondi au centime d'une valeur composée
 
+/* Parité D04 (ADR-016 natif) : une mensualité de dette décrémente la
+   dette et le cash — patrimoine neutre — mais n'est PAS un coût de la
+   vie (les intérêts se saisissent en dépense séparée). */
+function isDebtPayment(t) {
+  return !!(t.recurringId && String(t.recurringId).startsWith("r-debt-"));
+}
+
 function balance(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
   if (!account) return 0;
@@ -1287,7 +1294,11 @@ function inMonth(t, y, m) { return t.y === y && t.m === m; }
 function snapshot(y, m) {
   const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
   const planned = transactions.filter(t => inMonth(t, y, m) && t.status === "planned");
-  const sum = (list, type) => fromCents(list.filter(t => t.type === type).reduce((a, t) => a + toCents(txCHF(t)), 0));
+  // Les mensualités de dette sont exclues du coût de la vie (D04).
+  const sum = (list, type) => fromCents(list.filter(t => t.type === type && !(type === "expense" && isDebtPayment(t)))
+    .reduce((a, t) => a + toCents(txCHF(t)), 0));
+  const debtPaid = fromCents(posted.filter(t => t.type === "expense" && isDebtPayment(t))
+    .reduce((a, t) => a + toCents(txCHF(t)), 0));
 
   const income = sum(posted, "income");
   const living = round2(sum(posted, "expense") - sum(posted, "refund"));
@@ -1339,7 +1350,7 @@ function snapshot(y, m) {
   const savingsRate = income > 0 ? (savings + invest) / income : 0;
   const cashFlow = round2(income - living - savings - invest - taxes);
 
-  return { income, living, savings, invest, taxes, plannedIncome, plannedOut,
+  return { income, living, savings, invest, taxes, debtPaid, plannedIncome, plannedOut,
            taxRecommended, taxGap, liquid, available, daysRemaining, daily,
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
 }
@@ -1414,6 +1425,7 @@ function budgetReport(y, m) {
   const out = {};
   for (const t of monthTx) {
     if (t.type === "transfer" || t.type === "adjustment" || t.type === "income") continue;
+    if (isDebtPayment(t)) continue; // capital de dette : pas une dépense à classer (D04)
     if (t.cat && budgeted.has(t.cat)) continue;
     const key = t.cat || "Sans catégorie";
     out[key] = (out[key] || 0) + (t.type === "refund" ? -toCents(txCHF(t)) : toCents(txCHF(t)));
@@ -1497,7 +1509,7 @@ function renderHome() {
   const monthBills = (S.bills || []).filter(b => b.dueY === y && b.dueM === m);
 
   // Dépenses vs envois : la règle d'or — un envoi vers un compte n'est PAS une dépense.
-  const expenses = posted.filter(t => t.type === "expense"); // impôts à part, comme « Coût de la vie »
+  const expenses = posted.filter(t => t.type === "expense" && !isDebtPayment(t)); // impôts et capital de dette à part (D04)
   const refunds = posted.filter(t => t.type === "refund");
   const spentTotal = expenses.reduce((a, t) => a + txCHF(t), 0) - refunds.reduce((a, t) => a + txCHF(t), 0);
   const sends = posted.filter(t => ["saving", "investment", "transfer"].includes(t.type));
