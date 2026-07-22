@@ -667,6 +667,15 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois dernier :"), "l'accueil doit rappeler le coût de la vie du mois dernier");
 
+// ---------- Test 32 : Horizon L5 — charges de l'année et provision mensuelle ----------
+currentTest = "charges annuelles";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="bills"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Charges de l'année"), "la vue annuelle des charges doit exister sur Factures");
+check(screenHTML.includes("par mois"), "la provision mensuelle de lissage doit être proposée");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -676,4 +685,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 36 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 37 parcours verts, zéro erreur console ✓");

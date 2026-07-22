@@ -2508,7 +2508,25 @@ function renderBills() {
       <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${b.paidTxId ? " · payée ✓" : ""}</div></div>
     <span class="amount ${cls}">${chf(b.amount)}</span>
   </div>`;
-  return backBar("Factures") + `
+  // L5 — vue annuelle : factures de l'année + primes d'assurance, et la
+  // provision mensuelle qui lisse ces charges (pédagogique, pas un conseil).
+  const yearBills = bills.filter(b => b.dueY === NOW.y);
+  const yearBillsTotal = fromCents(yearBills.reduce((a, b) => a + toCents(b.amount), 0));
+  const yearBillsOpen = fromCents(yearBills.filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0));
+  const insuranceYear = round2(INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0) * 12);
+  const yearTotal = round2(yearBillsTotal + insuranceYear);
+  const annualCard = yearTotal > 0 ? `
+    <div class="card">
+      <p class="card-label">Charges de l'année ${NOW.y}</p>
+      <div class="breakdown" style="margin-top:8px">
+        <div><span>Factures ${NOW.y} (payées + à payer)</span><span>${chf(yearBillsTotal)}</span></div>
+        ${yearBillsOpen > 0 ? `<div><span>… dont encore à payer</span><span>${chf(yearBillsOpen)}</span></div>` : ""}
+        ${insuranceYear > 0 ? `<div><span>Primes d'assurance (équivalent annuel)</span><span>${chf(insuranceYear)}</span></div>` : ""}
+        <div><span><strong>Pour lisser ces charges</strong></span><span><strong>≈ ${chf(round2(yearTotal / 12))} par mois</strong></span></div>
+      </div>
+      <span class="caption" style="display:block;margin-top:6px">Mettre ce montant de côté chaque mois évite les surprises aux échéances. Les impôts ont leur propre réserve (écran Impôts).</span>
+    </div>` : "";
+  return backBar("Factures") + annualCard + `
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
     <p class="section-title">À payer</p>
     ${upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`}
