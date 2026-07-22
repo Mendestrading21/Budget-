@@ -1,11 +1,10 @@
 {
   "version": 1,
   "description": "Fixtures canoniques de parité web/natif (lot A05, Budget Master Evolution). Le natif est la source de vérité des règles ; tout écart web volontaire est listé dans knownDifferences. Montants en CHF, mois fixe 2026-05 (passé → aucun pronostic récurrent).",
-  "knownDifferences": [
-    "web: balance() crédite t.amount brut sur le compte destination sans conversion de devise — les fixtures restent mono-devise tant que E05 n'est pas livré."
-  ],
+  "knownDifferences": [],
   "resolved": [
-    "D04 (2026-07-21) : les mensualités de dette (recurringId 'r-debt-*') sont désormais exclues du coût de la vie web, comme l'invariant natif ADR-016 — vérifié par le scénario dette-vivante."
+    "D04 (2026-07-21) : les mensualités de dette (recurringId 'r-debt-*') sont désormais exclues du coût de la vie web, comme l'invariant natif ADR-016 — vérifié par le scénario dette-vivante.",
+    "E05 (2026-07-21) : un virement entre devises convertit le montant vers la devise du compte destination (via la devise de référence ; taux absent → 1:1) — vérifié par le scénario virement-devises."
   ],
   "scenarios": [
     {
@@ -105,6 +104,31 @@
       "expected": {
         "snapshot": { "living": 0.3 },
         "balances": { "cur": 0.7 }
+      }
+    },
+    {
+      "id": "virement-devises",
+      "title": "Virement CHF → compte EUR : converti à l'arrivée, patrimoine sans double compte",
+      "month": { "y": 2026, "m": 5 },
+      "state": {
+        "taxRate": 0.30,
+        "taxReserve": 0,
+        "fxRates": { "EUR": 0.93, "USD": 0.8 },
+        "accounts": [
+          { "id": "cur", "name": "Compte ménage", "kind": "current", "opening": 1000, "cash": true, "currency": "CHF" },
+          { "id": "eur", "name": "Compte euros", "kind": "savings", "opening": 0, "cash": false, "currency": "EUR" }
+        ],
+        "liabilities": [],
+        "transactions": [
+          { "id": "x1", "title": "Virement vers euros", "amount": 100.0, "type": "transfer", "cat": null, "acc": "cur", "dest": "eur", "status": "posted", "y": 2026, "m": 5, "d": 10 }
+        ]
+      },
+      "expected": {
+        "balances": { "cur": 900.0, "eur": 107.53 },
+        "invariants": [
+          "100 CHF partent de cur ; le compte EUR reçoit 100 / 0.93 = 107.53 EUR (arrondi au centime)",
+          "en devise de référence le patrimoine reste ≈ 1000 CHF : 900 + 107.53 × 0.93 = 1000.00 (au centime)"
+        ]
       }
     },
     {

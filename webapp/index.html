@@ -958,6 +958,16 @@ function toCHF(amount, currency) {
   return amount * (rate > 0 ? rate : 1);
 }
 function txCHF(t) { return toCHF(t.amount, accountCurrency(t.acc)); }
+/* E05 : un montant saisi dans la devise du compte SOURCE se convertit
+   dans celle du compte DESTINATION (via la devise de référence).
+   Taux absent → 1:1, même repli assumé que toCHF. */
+function convertAmount(amount, fromCur, toCur) {
+  if (!fromCur || !toCur || fromCur === toCur) return amount;
+  const base = toCHF(amount, fromCur);
+  if (toCur === baseCurrency()) return base;
+  const rate = (S.fxRates || {})[toCur];
+  return rate > 0 ? base / rate : base;
+}
 function pct(f) { return (f * 100).toFixed(f * 100 % 1 ? 1 : 0).replace(".", ",") + " %"; }
 
 /* ---------- Données de démonstration (miroir de DemoDataFactory) ---------- */
@@ -1284,7 +1294,7 @@ function balance(accId) {
     if (t.acc === accId) c += (t.type === "income" || t.type === "refund") ? toCents(t.amount)
       : (t.type === "adjustment" ? (t.up ? toCents(t.amount) : -toCents(t.amount))
       : (OUTFLOWS.has(t.type) ? -toCents(t.amount) : 0));
-    if (t.dest === accId) c += toCents(t.amount);
+    if (t.dest === accId) c += toCents(convertAmount(t.amount, accountCurrency(t.acc), account.currency));
   }
   return fromCents(c);
 }
@@ -2093,10 +2103,14 @@ function renderTaxes() {
    compte). La plus-value d'un compte titres = solde − ouverture −
    versements nets (le solde se met à jour via « Réconcilier »). */
 function contributions(accId) {
-  let totalC = 0, yearC = 0, withdrawnC = 0; // centimes entiers (G01)
+  const destCur = accountCurrency(accId);
+  let totalC = 0, yearC = 0, withdrawnC = 0; // centimes entiers (G01), devise du compte (E05)
   for (const t of transactions) {
     if (t.status !== "posted") continue;
-    if (t.dest === accId) { totalC += toCents(t.amount); if (t.y === NOW.y) yearC += toCents(t.amount); }
+    if (t.dest === accId) {
+      const inDest = toCents(convertAmount(t.amount, accountCurrency(t.acc), destCur));
+      totalC += inDest; if (t.y === NOW.y) yearC += inDest;
+    }
     else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawnC += toCents(t.amount);
   }
   return { total: fromCents(totalC), year: fromCents(yearC), withdrawn: fromCents(withdrawnC) };
@@ -2122,7 +2136,7 @@ function balanceAt(accId, y, m) {
     if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount
       : (t.type === "adjustment" ? (t.up ? t.amount : -t.amount)
       : (OUTFLOWS.has(t.type) ? -t.amount : 0));
-    if (t.dest === accId) b += t.amount;
+    if (t.dest === accId) b += convertAmount(t.amount, accountCurrency(t.acc), account.currency);
   }
   return b;
 }
