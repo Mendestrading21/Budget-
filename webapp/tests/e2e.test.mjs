@@ -620,6 +620,24 @@ const precision = await page.evaluate(() => ({ living: snapshot(2026, 5).living,
 check(Object.is(precision.living, 0.3), `0.10 + 0.20 doit valoir exactement 0.30 (obtenu ${precision.living})`);
 check(Object.is(precision.bal, 0.7), `1 − 0.10 − 0.20 doit valoir exactement 0.70 (obtenu ${precision.bal})`);
 
+// ---------- Test 29 : Horizon — clair par défaut, sombre persisté ----------
+currentTest = "theme horizon";
+await goHome();
+let theme = await page.evaluate(() => document.documentElement.dataset.theme);
+check(theme === "light", `le thème par défaut doit être clair (obtenu ${theme})`);
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-toggletheme]");
+await page.waitForTimeout(150);
+theme = await page.evaluate(() => document.documentElement.dataset.theme);
+check(theme === "dark", "la bascule doit passer en sombre");
+await page.reload();
+await page.waitForSelector("#tabbar button");
+theme = await page.evaluate(() => document.documentElement.dataset.theme);
+check(theme === "dark", "le thème sombre doit survivre au rechargement");
+await page.evaluate(() => { S.theme = "light"; saveState(); }); // remettre le défaut
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -629,4 +647,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 33 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 34 parcours verts, zéro erreur console ✓");

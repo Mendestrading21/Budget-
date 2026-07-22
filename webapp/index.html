@@ -18,10 +18,33 @@
 </script>
 <style>
   :root {
+    /* Horizon — thème CLAIR par défaut (Swiss calm fintech) */
+    --graphite: #E9EDF4;
+    --midnight: #FFFFFF;
+    --slate: #FFFFFF;
+    --indigo: #4B5CFF;
+    --indigo-text: #4338CA;
+    --electric: #2563EB;
+    --violet: #7C3AED;
+    --offwhite: #101623;
+    --coolgray: #5A6478;
+    --positive: #0B8A57;
+    --negative: #D23B55;
+    --amber: #A96A10;
+    --card-radius: 22px;
+    --row-radius: 14px;
+    --bg: #F4F6FB;
+    --surface: rgba(255, 255, 255, 0.86);
+    --surface-2: rgba(240, 243, 250, 0.96);
+    --line: rgba(16, 22, 35, 0.10);
+    --line-strong: rgba(16, 22, 35, 0.26);
+    --sheen: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(75,92,255,0.14), transparent 70%);
+  }
+  /* Horizon — mode sombre premium : l'identité verre historique, intacte */
+  html[data-theme="dark"] {
     --graphite: #0B0E14;
     --midnight: #0F1624;
     --slate: #1E2333;
-    --indigo: #4B5CFF;
     --indigo-text: #6B7AFF;
     --electric: #5AA7FF;
     --violet: #8B5CF6;
@@ -30,13 +53,17 @@
     --positive: #39D98A;
     --negative: #FF667A;
     --amber: #FFB24D;
-    --card-radius: 22px;
-    --row-radius: 14px;
+    --bg: #07090e;
+    --surface: rgba(15, 22, 36, 0.55);
+    --surface-2: rgba(9, 12, 19, 0.92);
+    --line: var(--line);
+    --line-strong: var(--line-strong);
+    --sheen: linear-gradient(135deg, var(--line-strong), rgba(75,92,255,0.28), transparent 70%);
   }
 
   /* Le prototype assume l'identité canonique sombre de l'app,
      quel que soit le thème du viewer. */
-  html, body { background: #07090e; overscroll-behavior: none; }
+  html, body { background: var(--bg); overscroll-behavior: none; }
   html { height: 100%; }
 
   body {
@@ -72,8 +99,8 @@
   }
   @media (min-width: 561px) {
     .phone {
-      border-left: 1px solid rgba(255, 255, 255, 0.08);
-      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
     }
   }
   .notch { display: none; }
@@ -110,11 +137,11 @@
   /* ---------- Glass cards ---------- */
   .card {
     position: relative;
-    background: rgba(15, 22, 36, 0.55);
+    background: var(--surface);
     border-radius: var(--card-radius);
     padding: 18px;
     margin-bottom: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--line);
     background-clip: padding-box;
   }
   .card::before {
@@ -123,7 +150,7 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(75,92,255,0.28), transparent 70%);
+    background: var(--sheen);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -134,12 +161,12 @@
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 45%);
+    background: linear-gradient(135deg, var(--line), transparent 45%);
     pointer-events: none;
   }
   .card.hero {
     background: rgba(20, 27, 45, 0.72);
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--line);
     box-shadow: 0 18px 40px rgba(75, 92, 255, 0.16);
   }
   .card.row {
@@ -193,7 +220,7 @@
   .month-nav button {
     background: rgba(30, 35, 51, 0.8);
     color: var(--electric);
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid var(--line);
     width: 44px; height: 44px;
     border-radius: 11px;
     font-size: 16px;
@@ -228,8 +255,8 @@
     margin-bottom: 14px;
   }
   .stat {
-    background: rgba(15, 22, 36, 0.55);
-    border: 1px solid rgba(255,255,255,0.07);
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 16px;
     padding: 12px 14px;
   }
@@ -246,7 +273,7 @@
   .bar-head .vals { color: var(--coolgray); font-variant-numeric: tabular-nums; font-size: 11.5px; }
   .track {
     height: 7px; border-radius: 5px;
-    background: rgba(255,255,255,0.08);
+    background: var(--line);
     overflow: hidden;
   }
   .fill {
@@ -296,8 +323,8 @@
   .tabbar {
     flex: none;
     display: flex;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    background: rgba(9, 12, 19, 0.92);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
     backdrop-filter: blur(14px);
     padding: 8px 6px calc(14px + env(safe-area-inset-bottom));
   }
@@ -332,7 +359,7 @@
   }
   .btn.secondary {
     background: rgba(30, 35, 51, 0.9);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid var(--line);
     color: var(--electric);
   }
   .fab {
@@ -376,7 +403,7 @@
     width: 100%;
     box-sizing: border-box;
     background: rgba(11, 14, 20, 0.8);
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid var(--line);
     color: var(--offwhite);
     font-family: inherit;
     font-size: 15px;
@@ -389,7 +416,7 @@
     width: 100%;
     box-sizing: border-box;
     background: rgba(11, 14, 20, 0.8);
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid var(--line);
     color: var(--offwhite);
     font-family: inherit;
     font-size: 16px;
@@ -406,7 +433,7 @@
     bottom: calc(96px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     background: rgba(30, 35, 51, 0.96);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--line-strong);
     color: var(--offwhite);
     padding: 10px 16px;
     border-radius: 12px;
@@ -1207,6 +1234,15 @@ function saveState() {
   catch (e) { toast("Stockage indisponible — ce changement ne survivra pas au rechargement"); }
 }
 
+/* Horizon : thème clair par défaut, sombre premium en option (persisté). */
+function applyTheme() {
+  const theme = S.theme === "dark" ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = theme === "dark" ? "#07090e" : "#F4F6FB";
+}
+applyTheme();
+
 /* Échappement systématique des textes utilisateur injectés en HTML. */
 function esc(value) {
   return String(value).replace(/[&<>"']/g, c =>
@@ -1553,12 +1589,12 @@ function renderHome() {
           current: mm.y === y && mm.m === m,
         }));
         return `<div style="display:flex;gap:6px;margin:2px 0 8px" aria-label="Mois bouclés récents">
-          ${history.map(h => `<span class="caption" style="flex:1;text-align:center;padding:4px 0;border-radius:8px;${h.current ? "border:1px solid rgba(255,255,255,0.18);" : ""}${h.closed ? "color:var(--positive);font-weight:700" : ""}">${h.short}${h.closed ? " ✓" : ""}</span>`).join("")}
+          ${history.map(h => `<span class="caption" style="flex:1;text-align:center;padding:4px 0;border-radius:8px;${h.current ? "border:1px solid var(--line-strong);" : ""}${h.closed ? "color:var(--positive);font-weight:700" : ""}">${h.short}${h.closed ? " ✓" : ""}</span>`).join("")}
         </div>`;
       })()}
       ${monthClosed ? `<p style="margin:0;font-size:14px;font-weight:700;color:var(--positive)">✓ Mois bouclé${closedAt ? " le " + new Date(closedAt).toLocaleDateString("fr-CH") : ""} — tout est validé</p>`
         : checks.filter(c => !c.done).map(c => `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)">
         <div style="display:flex;align-items:center;gap:9px;min-width:0">
           <span aria-hidden="true">${c.icon}</span>
           <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.label)}</div>
@@ -1695,7 +1731,7 @@ function renderMovements() {
     ${monthNav()}
     <input id="moreSearchInput" type="search" placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
       aria-label="Rechercher un mouvement" autocomplete="off"
-      style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.12);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
+      style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" role="group" aria-label="Filtrer par type">
       ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Épargne"], ["transfer", "Virements"]]
         .map(([id, label]) => `<button type="button" class="btn secondary" data-morefilter="${id}"
@@ -1778,7 +1814,7 @@ function renderBudget() {
               ? Math.round(cellSpending.reduce((a, l) => a + l.actual, 0) / cellPlanned * 100) : 0;
           }
           const active = hasBudget || hasTx;
-          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "rgba(75,92,255,0.16)" : "rgba(255,255,255,0.04)"}">
+          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "rgba(75,92,255,0.16)" : "var(--line)"}">
             <div style="font-size:10px;color:var(--coolgray);text-transform:uppercase">${lbl}</div>
             <div style="font-size:12px;font-weight:700;margin-top:2px">${hasBudget ? consumed + " %" : (hasTx ? "·" : "—")}</div>
           </div>`;
@@ -2366,7 +2402,7 @@ function renderImport() {
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
       <textarea id="importPaste" rows="4" placeholder="date;montant;intitulé&#10;05.06.2026;-45.50;Courses"
-        style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.12);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
+        style="width:100%;box-sizing:border-box;background:rgba(11,14,20,0.8);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
       <button type="button" class="btn" data-importpaste style="margin-top:10px">Analyser et importer le collage</button>
     </div>
     ${report ? `
@@ -2467,6 +2503,12 @@ function renderSettings() {
       <div class="ico" aria-hidden="true">${COUNTRIES[S.country || "CH"].flag}</div>
       <div class="meta"><div class="t">Mon pays</div>
         <div class="s">${COUNTRIES[S.country || "CH"].name}</div></div>
+      <span style="color:var(--coolgray)">›</span>
+    </div>
+    <div class="card row tx" data-toggletheme role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${S.theme === "dark" ? "🌙" : "☀️"}</div>
+      <div class="meta"><div class="t">Apparence</div>
+        <div class="s">${S.theme === "dark" ? "Sombre — tapez pour passer en clair" : "Clair — tapez pour passer en sombre"}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
     <div class="card row tx" data-editbase role="button" tabindex="0" style="cursor:pointer">
@@ -2613,7 +2655,7 @@ let obAccounts = { savings: true, pension: false, brokerage: false };
 
 function obProgress() {
   return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:18px" aria-label="Étape ${obStep} sur 5">
-    ${[1, 2, 3, 4, 5].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "rgba(255,255,255,0.12)"};transition:width .2s"></span>`).join("")}
+    ${[1, 2, 3, 4, 5].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "var(--line)"};transition:width .2s"></span>`).join("")}
   </div>`;
 }
 
@@ -2792,7 +2834,7 @@ function renderLockScreen() {
     <div style="font-size:19px;font-weight:700">Budget est verrouillé</div>
     <div class="caption" style="max-width:250px">Saisissez votre code pour continuer.</div>
     <input id="lockInput" type="password" inputmode="numeric" maxlength="6" aria-label="Code de déverrouillage"
-      style="width:140px;text-align:center;font-size:22px;letter-spacing:6px;background:rgba(11,14,20,0.8);border:1px solid rgba(255,255,255,0.15);color:var(--offwhite);padding:10px;border-radius:12px" />
+      style="width:140px;text-align:center;font-size:22px;letter-spacing:6px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--offwhite);padding:10px;border-radius:12px" />
     ${lockMessage ? `<div class="caption neg" role="alert">${lockMessage}</div>` : ""}
     <button class="btn" data-unlock style="width:auto;padding:12px 26px">Déverrouiller</button>
   </div>`;
@@ -3065,6 +3107,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("dError").textContent = "";
     openSheet("docForm");
     document.getElementById("dName").focus();
+    return;
+  }
+  if (e.target.closest("[data-toggletheme]")) {
+    S.theme = S.theme === "dark" ? "light" : "dark";
+    saveState(); applyTheme(); render();
     return;
   }
   if (e.target.closest("[data-locknow]")) { locked = true; lockMessage = ""; render(); return; }
