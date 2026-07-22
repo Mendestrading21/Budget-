@@ -14,6 +14,10 @@ CI activée sur `codex/**`. Lots livrés ici, un commit chacun, suites vertes :
   pourcentage au centre, aria-label), vérifié par captures clair/sombre.
 
 État : 39 parcours e2e + 5 fixtures de parité verts, zéro erreur console.
+CI GitHub Actions : **7/7 runs verts sur la branche (143→149)** — web e2e +
+parité + build/tests iOS macOS + Release à chaque commit ; tous les
+constats d'audit (P0/P1/NITs) sont soldés. Reste : G02 (effort dédié),
+QA humaine iPhone, TestFlight/prix.
 
 ## Programme Horizon — Budget Leader Refonte (2026-07-21)
 
