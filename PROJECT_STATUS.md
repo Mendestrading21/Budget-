@@ -1,5 +1,20 @@
 # Budget project status
 
+## Branche `codex/budget-leader-refonte` (2026-07-22)
+
+Créée et publiée depuis l'état vérifié de `claude/budget-project-connection-link-mhaokm`
+(la branche Codex locale du même nom n'a jamais atteint GitHub — ADR-019).
+CI activée sur `codex/**`. Lots livrés ici, un commit chacun, suites vertes :
+
+- Import CSV : vraie confirmation avant toute écriture (résumé
+  prêtes/doublons/invalides ; annuler n'écrit rien) — texte honnête (A04-N4).
+- Apparence « Système » : Clair → Sombre → Système (suit l'appareil en
+  direct via prefers-color-scheme), persistée ; clair reste le défaut.
+- Anneau plan/réel sur le héros Budget (indigo / ambre ≥85 % / rouge >100 %,
+  pourcentage au centre, aria-label), vérifié par captures clair/sombre.
+
+État : 39 parcours e2e + 5 fixtures de parité verts, zéro erreur console.
+
 ## Programme Horizon — Budget Leader Refonte (2026-07-21)
 
 Exécuté sur `claude/budget-project-connection-link-mhaokm` (la branche
