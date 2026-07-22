@@ -42,6 +42,7 @@
     --field: #FFFFFF;
     --surface-3: #E9EDF6;
     --badge-ink: #3730A3;
+    --hero-surface: rgba(255, 255, 255, 0.92);
   }
   /* Horizon — mode sombre premium : l'identité verre historique, intacte */
   html[data-theme="dark"] {
@@ -65,6 +66,7 @@
     --field: rgba(11, 14, 20, 0.8);
     --surface-3: rgba(30, 35, 51, 0.9);
     --badge-ink: #C9D2FF;
+    --hero-surface: rgba(20, 27, 45, 0.72);
   }
 
   /* Le prototype assume l'identité canonique sombre de l'app,
@@ -171,7 +173,7 @@
     pointer-events: none;
   }
   .card.hero {
-    background: rgba(20, 27, 45, 0.72);
+    background: var(--hero-surface);
     border-color: var(--line);
     box-shadow: 0 18px 40px rgba(75, 92, 255, 0.16);
   }
