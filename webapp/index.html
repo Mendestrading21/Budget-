@@ -2477,7 +2477,7 @@ function renderImport() {
   return backBar("Import CSV & documents") + `
     <div class="card">
       <p class="card-label">Importer des mouvements</p>
-      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un collage. Colonnes reconnues : date, montant (négatif = dépense), intitulé, catégorie. Rien n'est écrit avant votre confirmation implicite d'import.</p>
+      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un collage. Colonnes reconnues : date, montant (négatif = dépense), intitulé, catégorie. L'analyse s'affiche d'abord — rien n'est écrit avant votre confirmation.</p>
       <button type="button" class="btn secondary" data-importpick>Choisir un fichier CSV…</button>
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
@@ -4101,6 +4101,19 @@ document.getElementById("iDelete").addEventListener("click", () => {
 function runImport(content, fileName) {
   const analysis = analyzeCSV(content);
   if (!analysis.rows.length) { toast("Rien à importer dans ce contenu"); return; }
+  // A04-N4 : une VRAIE confirmation avant toute écriture — le résumé
+  // d'analyse d'abord, l'écriture seulement après accord explicite.
+  const ready = analysis.rows.filter(r => r.state === "ready").length;
+  const dupes = analysis.rows.filter(r => r.state === "duplicate").length;
+  const bad = analysis.rows.length - ready - dupes;
+  if (!ready) { toast(`Rien de nouveau : ${dupes} doublon${dupes > 1 ? "s" : ""}, ${bad} invalide${bad > 1 ? "s" : ""}`); return; }
+  if (!confirm(`Importer ${ready} opération${ready > 1 ? "s" : ""} ?`
+    + (dupes ? `\n${dupes} doublon${dupes > 1 ? "s" : ""} ignoré${dupes > 1 ? "s" : ""}.` : "")
+    + (bad ? `\n${bad} ligne${bad > 1 ? "s" : ""} invalide${bad > 1 ? "s" : ""} listée${bad > 1 ? "s" : ""} après import.` : "")
+    + "\nRien n'est écrit si vous annulez ; l'import reste annulable en un geste.")) {
+    toast("Import annulé — rien n'a été écrit");
+    return;
+  }
   const report = applyImport(analysis, fileName);
   toast(`Import : ${report.imported} importées, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
   render();
