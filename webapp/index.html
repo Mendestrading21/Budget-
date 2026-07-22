@@ -3001,10 +3001,10 @@ function render() {
   ).join("");
   const prev = document.getElementById("prevM");
   const next = document.getElementById("nextM");
-  if (prev) prev.onclick = () => { cursor = shiftMonth(cursor, -1); render(); };
-  if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); render(); };
+  if (prev) prev.onclick = () => { cursor = shiftMonth(cursor, -1); render(); pushNav(); };
+  if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); render(); pushNav(); };
   const backToNow = document.getElementById("backToNow");
-  if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; render(); };
+  if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; render(); pushNav(); };
   document.getElementById("fab").style.display = locked ? "none" : "grid";
   animateHeroAmount();
 }
@@ -3183,7 +3183,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   const gotoMonth = e.target.closest("[data-gotomonth]");
   if (gotoMonth) {
     const [gy, gm] = gotoMonth.dataset.gotomonth.split("-").map(Number);
-    if (gy && gm) { cursor = { y: gy, m: gm }; render(); scrollTop(); }
+    if (gy && gm) { cursor = { y: gy, m: gm }; render(); scrollTop(); pushNav(); }
     return;
   }
   const projBtn = e.target.closest("[data-projprofile]");
@@ -3367,7 +3367,7 @@ function undoLast() {
   if (COUNTRIES[restored.country]) S.country = restored.country;
   if (PROJECTION_PROFILES[restored.projectionProfile]) S.projectionProfile = restored.projectionProfile;
   S.isDemo = restored.isDemo === true;
-  S.onboarded = true;
+  S.onboarded = restored.onboarded !== false;
   S.baseCurrency = CURRENCIES.includes(restored.baseCurrency) ? restored.baseCurrency : "CHF";
   S.fxRates = (restored.fxRates && typeof restored.fxRates === "object")
     ? restored.fxRates : { ...FX_DEFAULTS[S.baseCurrency] };
@@ -3860,7 +3860,7 @@ document.getElementById("lDelete").addEventListener("click", () => {
 
 /* ---------- Retour naturel du navigateur (History API) ---------- */
 function pushNav() {
-  try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (e) {}
+  try { history.pushState({ tab: activeTab, more: moreView, acc: accountView, cur: { y: cursor.y, m: cursor.m } }, ""); } catch (e) {}
 }
 try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
 window.addEventListener("popstate", (e) => {
@@ -3881,6 +3881,7 @@ window.addEventListener("popstate", (e) => {
   activeTab = state.tab || "home";
   moreView = state.more || null;
   accountView = state.acc || null;
+  cursor = (state.cur && state.cur.y && state.cur.m) ? { y: state.cur.y, m: state.cur.m } : { y: NOW.y, m: NOW.m };
   render();
   scrollTop();
 });
