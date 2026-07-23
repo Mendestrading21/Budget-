@@ -52,8 +52,12 @@ struct InsuranceListView: View {
                         Text("Primes du ménage")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text("\(FinanceFormatting.chf(service.totalAnnualPremium(contracts: contracts))) / an")
-                            .font(BudgetFont.heroAmount)
+                        HStack(alignment: .firstTextBaseline, spacing: BudgetSpacing.micro) {
+                            AmountText(amount: service.totalAnnualPremium(contracts: contracts), role: .hero)
+                            Text("par an")
+                                .font(BudgetFont.cardLabel)
+                                .foregroundStyle(.secondary)
+                        }
                         Text("Soit \(FinanceFormatting.chf(service.totalMonthlyPremium(contracts: contracts))) par mois · \(active.count) contrat(s) actif(s)")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
@@ -93,18 +97,13 @@ struct InsuranceListView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucun contrat", systemImage: "shield")
-                        .font(BudgetFont.sectionTitle)
-                    Text("LAMal, RC, ménage, véhicule… Regroupez vos contrats pour voir la prime annuelle totale et ne plus rater un délai de résiliation.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter un contrat") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "shield",
+                    title: "Aucun contrat",
+                    message: "LAMal, RC, ménage, véhicule… Regroupez vos contrats pour voir la prime annuelle totale et ne plus rater un délai de résiliation.",
+                    actionTitle: "Ajouter un contrat",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }

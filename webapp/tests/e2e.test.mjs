@@ -1404,6 +1404,201 @@ const signs51 = await page.$$eval("#moreTxList .tx .amount", els =>
   els.slice(0, 8).map(e => e.textContent.trim()));
 check(signs51.every(t => /^[+−-]/.test(t) || t.length > 0), "chaque montant porte un signe ou un libellé textuel");
 
+/* ============= MODULES FINANCIERS OBSIDIAN L6 (Tests 52-55) ============= */
+
+// ---------- Test 52 : Factures L6 — héros, retard écrit, paiement lié SANS double comptage, vide ----------
+currentTest = "factures L6";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="bills"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Encore à payer"), "le héros Factures répond « qu'est-ce que je dois encore payer »");
+const billsHero52 = await page.evaluate(() => ({
+  shown: document.querySelector(".hero-amount").textContent,
+  open: chf(fromCents((S.bills || []).filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0))),
+  overdue: (S.bills || []).filter(billIsOverdue).length,
+  pill: document.querySelector(".hero .pill")?.textContent || "",
+}));
+check(billsHero52.shown === billsHero52.open,
+  `le héros = somme des factures ouvertes, rien d'autre (${billsHero52.shown} vs ${billsHero52.open})`);
+check(billsHero52.overdue > 0 ? /en retard/.test(billsHero52.pill) : /Rien en retard/.test(billsHero52.pill),
+  "l'état de retard est ÉCRIT dans une pill, jamais couleur seule");
+// Payer une facture LIE facture et mouvement : un seul mouvement, jamais deux.
+await page.evaluate(() => {
+  S.bills.push({ id: "l6bill", name: "Facture test L6", amount: 123.45, dueY: NOW.y, dueM: NOW.m,
+    dueD: Math.min(NOW.d + 2, 28), cat: "Logement", paidTxId: null, note: "" });
+  saveState(); render();
+});
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(250);
+await page.click('[data-paybill="l6bill"]');
+await page.waitForTimeout(300);
+const afterPay52 = await page.evaluate(() => {
+  const bill = S.bills.find(b => b.id === "l6bill");
+  const linked = transactions.filter(t => t.billId === "l6bill");
+  return { linkedCount: linked.length, sameId: linked.length === 1 && bill.paidTxId === linked[0].id,
+    type: linked[0]?.type, status: linked[0]?.status };
+});
+check(afterPay52.linkedCount === 1 && afterPay52.sameId, "« Payer » crée UN seul mouvement, lié à la facture");
+check(afterPay52.type === "expense" && afterPay52.status === "posted", "le paiement est une dépense comptabilisée");
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="bills"]');
+await page.waitForTimeout(250);
+const billsAfter52 = await page.evaluate(() => ({
+  hero: document.querySelector(".hero-amount").textContent,
+  open: chf(fromCents(S.bills.filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0))),
+  caption: document.querySelector(".hero .caption").textContent,
+  paidSection: document.getElementById("screen").innerHTML.includes("Payées"),
+}));
+check(billsAfter52.hero === billsAfter52.open, "après paiement, le héros exclut la facture payée — pas de double comptage");
+check(billsAfter52.caption.includes("payé ce mois"), "le « payé ce mois » est affiché séparément de l'ouvert");
+check(billsAfter52.paidSection, "la facture payée est rangée dans « Payées », pas mélangée");
+// État vide guidé.
+await page.evaluate(() => { window.__l6bills = S.bills; S.bills = []; render(); });
+await page.waitForTimeout(200);
+const empty52 = await page.evaluate(() => ({
+  empty: document.querySelector("#screen .empty-state") !== null,
+  html: document.getElementById("screen").innerHTML,
+}));
+check(empty52.empty && empty52.html.includes("Aucune facture"), "sans facture : état vide guidé");
+await page.evaluate(() => {
+  S.bills = window.__l6bills; delete window.__l6bills;
+  const i = S.bills.findIndex(b => b.id === "l6bill"); if (i >= 0) S.bills.splice(i, 1);
+  const j = transactions.findIndex(t => t.billId === "l6bill"); if (j >= 0) transactions.splice(j, 1);
+  saveState(); render();
+});
+
+// ---------- Test 53 : Objectifs + Impôts L6 — états écrits, stats distinctes, rien d'inventé ----------
+currentTest = "objectifs+impôts L6";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="goals"]');
+await page.waitForTimeout(250);
+const goals53 = await page.evaluate(() =>
+  [...document.querySelectorAll("#screen [data-goalid]")].map(cardEl => ({
+    hasPill: /Atteint|En bonne voie|À accélérer|Échéance passée/.test(cardEl.textContent),
+    hasProgress: cardEl.querySelector('[role="progressbar"]') !== null,
+  })));
+check(goals53.length > 0, "des objectifs sont affichés en démo");
+check(goals53.every(g => g.hasPill), "chaque objectif porte un état ÉCRIT (jamais couleur seule)");
+check(goals53.every(g => g.hasProgress), "chaque objectif expose sa progression en role=progressbar");
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="taxes"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("estimation"), "le héros Impôts est étiqueté comme estimation");
+for (const label53 of ["Estimation annuelle", "Déjà payé", "Réserve constituée", "Reste après réserve"]) {
+  check(screenHTML.includes(label53), `la stat « ${label53} » est présente et distincte`);
+}
+check(/Réserve (couverte|manquante)/.test(screenHTML), "l'état de la réserve est écrit en pill");
+check(screenHTML.includes("pas un conseil fiscal"), "le disclaimer honnête est affiché");
+check(screenHTML.includes("Estimé = payé + encore dû"), "l'identité de réconciliation est écrite");
+const tax53 = await page.evaluate(() => {
+  const s = taxSummary(cursor.y);
+  return { holds: s.estimated < s.paid || Math.abs(s.estimated - (s.paid + s.due)) < 0.005 };
+});
+check(tax53.holds, "identité chiffrée : estimé = payé + encore dû");
+// Utilisateur sans revenu comptabilisé : on le DIT, on n'invente rien.
+await page.evaluate(() => { window.__l6txs = transactions.splice(0, transactions.length); render(); });
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Estimation incomplète") && screenHTML.includes("rien n'est inventé"),
+  "sans revenu : l'écran DIT que l'estimation est incomplète au lieu d'inventer un chiffre");
+await page.evaluate(() => { transactions.push(...window.__l6txs); delete window.__l6txs; render(); });
+
+// ---------- Test 54 : Patrimoine + Prévoyance + Assurances + Récurrents L6 ----------
+currentTest = "patrimoine+prévoyance L6";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Fortune nette"), "le héros Patrimoine annonce la fortune nette");
+for (const line54 of ["Comptes inclus", "Actifs", "Prévoyance", "Dettes"]) {
+  check(screenHTML.includes(line54), `la décomposition affiche « ${line54} »`);
+}
+check(screenHTML.includes("conversions explicites"), "la fraîcheur et la conversion sont expliquées");
+const compo54 = await page.$eval('[aria-label^="Répartition du patrimoine brut"]', el => el.getAttribute("aria-label"));
+check(compo54.includes("Comptes") && compo54.includes("%"), "la répartition est une composition ACCESSIBLE (aria-label chiffré)");
+// Dette qui domine : fortune négative affichée honnêtement, jamais masquée.
+await page.evaluate(() => { LIABILITIES.push({ id: "l6debt", name: "Dette test L6", value: 99999999, include: true }); render(); });
+await page.waitForTimeout(200);
+const neg54 = await page.evaluate(() => {
+  const el = document.querySelector(".hero-amount");
+  return { neg: el.classList.contains("neg"), signed: /[−-]/.test(el.textContent) };
+});
+check(neg54.neg && neg54.signed, "fortune nette négative : classe neg ET signe écrit");
+await page.evaluate(() => { const i = LIABILITIES.findIndex(l => l.id === "l6debt"); if (i >= 0) LIABILITIES.splice(i, 1); render(); });
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="insurance"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("équivalent mensuel") && screenHTML.includes("par an"),
+  "les primes affichent les DEUX équivalents, réconciliés");
+check(screenHTML.includes("Déjà constitué") && screenHTML.includes("valeurs saisies, jamais calculées"),
+  "la prévoyance affiche le constitué en annonçant sa source");
+check(screenHTML.includes("Selon certificat"), "chaque position cite sa source (certificat)");
+// Échéance annuelle à moins de 45 jours : état ÉCRIT sur le contrat.
+await page.evaluate(() => {
+  const soon = new Date(NOW.y, NOW.m - 1, NOW.d + 10);
+  INSURANCES.push({ id: "l6ins", name: "Assurance échéance proche", insurer: "Test",
+    premium: 500, unit: "year", dueM: soon.getMonth() + 1, dueD: soon.getDate() });
+  render();
+});
+await page.waitForTimeout(200);
+const ins54 = await page.$eval('[data-insid="l6ins"]', el => el.textContent);
+check(/Échéance dans \d+ j/.test(ins54), "un contrat à ≤ 45 j de son échéance le DIT dans une pill");
+await page.evaluate(() => { const i = INSURANCES.findIndex(x => x.id === "l6ins"); if (i >= 0) INSURANCES.splice(i, 1); render(); });
+// Aucune projection inventée pour une position qui n'en a pas.
+await page.evaluate(() => { PENSIONS.push({ id: "l6pen", name: "Pilier sans projection", value: 1000 }); render(); });
+await page.waitForTimeout(200);
+const pen54 = await page.$eval('[data-penid="l6pen"]', el => el.textContent);
+check(!pen54.includes("Projection"), "une position SANS projection de certificat n'en reçoit JAMAIS une");
+await page.evaluate(() => { const i = PENSIONS.findIndex(p => p.id === "l6pen"); if (i >= 0) PENSIONS.splice(i, 1); render(); });
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="recurring"]');
+await page.waitForTimeout(250);
+const rec54 = await page.evaluate(() => [...document.querySelectorAll("#screen [data-recid]")].map(r => r.textContent));
+check(rec54.length > 0, "des paiements réguliers sont affichés en démo");
+check(rec54.every(t => /Saisi ce mois|À venir/.test(t)), "chaque paiement régulier porte son état écrit (pill)");
+
+// ---------- Test 55 : a11y L6 — 320 px sur les 6 modules, extrême, cibles 44 px ----------
+currentTest = "a11y L6";
+await page.setViewportSize({ width: 320, height: 844 });
+for (const view55 of ["bills", "goals", "taxes", "networth", "insurance", "recurring"]) {
+  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.waitForTimeout(120);
+  await page.click(`#screen [data-more="${view55}"]`);
+  await page.waitForTimeout(200);
+  const ok55 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+  check(ok55, `module « ${view55} » sans débordement à 320 px`);
+}
+// Actif extrême : le héros Patrimoine se réduit (classe long) sans tronquer ni déborder.
+await page.evaluate(() => { ASSETS.push({ id: "l6extreme", name: "Actif extrême", value: 9999999.99, include: true }); render(); });
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(120);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(250);
+const extreme55 = await page.evaluate(() => {
+  const el = document.querySelector(".hero-amount");
+  return { long: el.classList.contains("long"), clipped: el.scrollWidth > el.clientWidth + 1,
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+});
+check(extreme55.long && !extreme55.clipped && !extreme55.overflow,
+  "montant extrême : héros réduit, jamais tronqué ni débordant à 320 px");
+await page.evaluate(() => { const i = ASSETS.findIndex(a => a.id === "l6extreme"); if (i >= 0) ASSETS.splice(i, 1); render(); });
+const targets55 = await page.evaluate(() =>
+  [...document.querySelectorAll("#screen .btn")]
+    .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || "?").trim().slice(0, 20) }))
+    .filter(x => x.h > 0 && x.h < 43.5));
+check(targets55.length === 0, `boutons de module < 44 px : ${targets55.map(x => `${x.t} (${x.h.toFixed(0)})`).join(", ")}`);
+await page.setViewportSize({ width: 390, height: 844 });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -1413,4 +1608,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 56 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 60 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6), zéro erreur console ✓");

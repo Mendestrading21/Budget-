@@ -45,6 +45,9 @@ final class DemoTourUITests: XCTestCase {
         visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents")
         visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
         visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
+        // L6 : les deux modules financiers restants, assertés eux aussi.
+        visitMoreEntry(app, label: "Assurances", shot: "14-assurances")
+        visitMoreEntry(app, label: "Prévoyance", shot: "15-prevoyance")
 
         // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
         // partie des trois parcours refondus — preuve native exigée.

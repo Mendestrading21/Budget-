@@ -2528,8 +2528,10 @@ function renderGoals() {
     return `<div class="card" data-goalid="${esc(g.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="bar-head" style="margin-bottom:8px">
         <span style="font-size:15px;font-weight:700">${esc(g.emoji || "🎯")} ${esc(g.name)}
-          ${g.achieved ? '<span class="badge" style="background:rgba(57,217,138,0.2);color:var(--positive)">Atteint ✓</span>'
-            : g.priority ? '<span class="badge planned">Prioritaire</span>' : ""}</span>
+          ${g.achieved ? '<span class="pill pos">Atteint</span>'
+            : monthsLeft === 0 ? '<span class="pill neg">Échéance passée</span>'
+            : onTrack ? '<span class="pill pos">En bonne voie</span>'
+            : '<span class="pill warn">À accélérer</span>'}${!g.achieved && g.priority ? ' <span class="pill">Prioritaire</span>' : ""}</span>
         <span class="vals">${pct(fr)}</span>
       </div>
       <div class="track" role="progressbar" aria-valuenow="${Math.round(fr * 100)}" aria-valuemin="0" aria-valuemax="100"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
@@ -2556,7 +2558,7 @@ function renderGoals() {
   return `<h2 class="screen-title">Objectifs</h2>
     <div class="card hero">
       <p class="card-label">Progression globale (objectifs actifs)</p>
-      <p class="hero-amount">${chf(totalCurrent)}</p>
+      <p class="hero-amount${totalCurrent >= 1000000 ? " long" : ""}">${chf(totalCurrent)}</p>
       <span class="caption">sur ${chf(totalTarget)} d'objectifs actifs</span>
     </div>
     ${active.length === 0 && achieved.length === 0 ? `<div class="card"><span class="caption">Aucun objectif. Fonds d'urgence, vacances, 3e pilier… Le bouton ci-dessous en crée un.</span></div>` : ""}
@@ -2601,9 +2603,11 @@ function renderTaxes() {
   const { rate, estimated, paid, due, reserved, reserveGap, observedMonths, taxBills } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
-      <p class="card-label">Encore dû (arriérés compris)</p>
-      <p class="hero-amount warn">${chf(due)}</p>
-      <span class="caption warn">⚠ Réserve manquante : ${chf(reserveGap)}</span>
+      <p class="card-label">Encore dû (arriérés compris) — estimation</p>
+      <p class="hero-amount warn${due >= 1000000 ? " long" : ""}">${chf(due)}</p>
+      <div style="margin:6px 0 4px">${reserveGap > 0
+        ? `<span class="pill warn">Réserve manquante : ${chf(reserveGap)}</span>`
+        : '<span class="pill pos">Réserve couverte</span>'}</div>
       <span class="caption" style="display:block;margin-top:4px">${COUNTRIES[S.country || "CH"].flag} ${COUNTRIES[S.country || "CH"].taxHint}</span>
     </div>
     <div class="stat-grid">
@@ -2615,6 +2619,10 @@ function renderTaxes() {
         <span class="caption">Saisie par vous — bouton Ajuster</span></div>
       <div class="stat"><span class="card-label">Reste après réserve</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
     </div>
+    ${observedMonths === 0 ? `<div class="card" style="border-color:var(--warning)">
+      <p class="card-label warn">Estimation incomplète</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0">Aucun revenu comptabilisé en ${cursor.y} : l'estimation vaut zéro faute de données — rien n'est inventé. Enregistrez vos revenus pour une estimation utile.</p>
+    </div>` : ""}
     <p class="section-title">Échéances (vos factures « Impôts »)</p>
     ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🗓</div>
@@ -2746,7 +2754,8 @@ function renderNetWorth() {
   return backBar("Patrimoine") + `
     <div class="card hero">
       <p class="card-label">Fortune nette</p>
-      <p class="hero-amount">${chf(net)}</p>
+      <p class="hero-amount${net < 0 ? " neg" : ""}${Math.abs(net) >= 1000000 ? " long" : ""}">${chf(net)}</p>
+      <span class="caption">Soldes du jour, dérivés de vos comptes, actifs, prévoyance et dettes — conversions explicites en ${baseCurrency()}</span>
       <div class="breakdown" style="margin-top:10px">
         <div><span>Comptes inclus</span><span>${chf(accountsTotal, true)}</span></div>
         <div><span>Actifs</span><span>${chf(assetsTotal, true)}</span></div>
@@ -2847,12 +2856,34 @@ function renderInsurance() {
       <span class="caption">Soit ${chf(monthlyTotal * 12)} par an — toutes les primes ramenées au mois, quelle que soit leur périodicité réelle</span>
     </div>
     ${INSURANCES.length === 0 ? `<div class="card row"><span class="caption">Aucun contrat d'assurance enregistré.</span></div>` : ""}
-    ${INSURANCES.map(i => `<div class="card row tx" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
-      <div class="meta"><div class="t">${esc(i.name)}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : ""}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
-      <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`).join("")}
+    ${INSURANCES.map(i => {
+      // L6 : échéance annuelle ≤ 45 jours = état ÉCRIT (déjà alerté sur Mois).
+      let soon = "";
+      if (i.dueM && i.dueD) {
+        const today = new Date(NOW.y, NOW.m - 1, NOW.d);
+        let due = new Date(NOW.y, i.dueM - 1, i.dueD);
+        if (due < today) due = new Date(NOW.y + 1, i.dueM - 1, i.dueD);
+        const days = Math.round((due - today) / 86400000);
+        if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
+      }
+      return `<div class="card row tx" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
+      <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
+      <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`;
+    }).join("")}
     <button class="btn secondary" data-addins style="margin-top:4px">＋ Ajouter une assurance</button>
     <p class="section-title">Prévoyance</p>
-    ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Aucune position de prévoyance enregistrée.</span></div>` : ""}
+    ${(() => {
+      // L6 : total constitué + versements de l'année — valeurs existantes.
+      const positionsTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
+      const acc = contributionsFor(["pension", "lifeinsurance"]);
+      if (positionsTotal <= 0 && acc.total <= 0) return "";
+      return `<div class="card">
+        <p class="card-label">Déjà constitué</p>
+        <p class="amount acct-total" style="margin:2px 0">${chf(positionsTotal + (ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a2, x) => a2 + toCHF(balance(x.id), x.currency), 0)))}</p>
+        <span class="caption">Positions selon certificats + comptes de prévoyance${acc.year > 0 ? ` · versé cette année : ${chf(acc.year)}` : ""} — valeurs saisies, jamais calculées par l'app</span>
+      </div>`;
+    })()}
+    ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Aucune position de prévoyance enregistrée — rien n'est inventé : ajoutez vos certificats pour voir le total.</span></div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
       <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Selon certificat — jamais un calcul de l'app</div></div>
       <span class="amount acct-total">${chf(p.value)}</span></div>
@@ -2873,11 +2904,12 @@ function renderRecurring() {
   const rows = RECURRINGS.length ? RECURRINGS.map(r => {
     const isIncome = r.type === "income";
     const materialized = transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === r.id : t.title === r.title));
+    const statusPill = materialized ? '<span class="pill pos">Saisi ce mois</span>' : '<span class="pill">À venir</span>';
     const status = materialized ? "déjà saisi ce mois"
       : `prochaine occurrence : ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
     return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
-      <div class="meta"><div class="t">${esc(r.title)}</div>
+      <div class="meta"><div class="t">${esc(r.title)}${statusPill}</div>
         <div class="s">Mensuel, le ${r.day} · ${status}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(r.amount)}</span></div>`;
   }).join("") : `<div class="card row"><span class="caption">Aucun paiement régulier. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
@@ -3094,12 +3126,33 @@ function renderBills() {
       </div>
       <span class="caption" style="display:block;margin-top:6px">Mettre ce montant de côté chaque mois évite les surprises aux échéances. Les impôts ont leur propre réserve (écran Impôts).</span>
     </div>` : "";
-  return backBar("Factures") + annualCard + `
+  // L6 : héros « Encore à payer » — sommes d'AFFICHAGE de valeurs
+  // existantes (les factures ouvertes pèsent déjà sur le disponible,
+  // jamais deux fois : marquer payée LIE la facture au mouvement créé).
+  const openTotal = fromCents(bills.filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0));
+  const paidThisMonth = fromCents(bills.filter(b => b.paidTxId && b.dueY === NOW.y && b.dueM === NOW.m)
+    .reduce((a, b) => a + toCents(b.amount), 0));
+  const nextDue = upcoming[0] || null;
+  const billsHero = `<div class="card hero">
+      <p class="card-label">Encore à payer</p>
+      <p class="hero-amount${openTotal >= 1000000 ? " long" : ""}">${chf(openTotal)}</p>
+      <div style="margin:6px 0 4px">${overdue.length
+        ? `<span class="pill neg">${overdue.length > 1 ? overdue.length + " factures en retard" : "1 facture en retard"}</span>`
+        : (bills.length ? '<span class="pill pos">Rien en retard</span>' : "")}</div>
+      <span class="caption">${nextDue ? `Prochaine échéance : ${esc(nextDue.name)} le ${billDueLabel(nextDue)}` : "Aucune échéance à venir"}${paidThisMonth > 0 ? ` · payé ce mois : ${chf(paidThisMonth)}` : ""}</span>
+    </div>`;
+  const billsEmpty = bills.length === 0 ? `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">🧾</span>
+      <p class="t">Aucune facture</p>
+      <p>Acomptes d'impôts, prime de voiture, facture du dentiste… Ajoutez ce qui doit être payé pour ne rien oublier.</p>
+      <button class="btn" data-addbill style="max-width:260px;margin:12px auto 0">＋ Ajouter une facture</button>
+    </div>` : "";
+  return backBar("Factures") + billsHero + billsEmpty + annualCard + `
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
-    <p class="section-title">À payer</p>
-    ${upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`}
+    ${bills.length ? `<p class="section-title">À payer</p>` : ""}
+    ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`) : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
-    <button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture</button>
+    ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture</button>` : ""}
     <p class="caption" style="padding:6px 4px 0">« Marquer payée » crée le mouvement de dépense correspondant — la facture et le mouvement restent liés. Les factures ouvertes du mois pèsent déjà sur le « Vraiment disponible ».</p>`;
 }
 

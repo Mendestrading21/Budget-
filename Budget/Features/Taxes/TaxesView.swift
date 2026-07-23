@@ -132,9 +132,11 @@ struct TaxesView: View {
                 Text("Encore dû (arriérés compris)")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(report.totalDue))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(report.totalDue > 0 ? BudgetColor.warning : BudgetColor.positive)
+                AmountText(
+                    amount: report.totalDue,
+                    role: .hero,
+                    emphasis: report.totalDue > 0 ? .warning : .positive
+                )
                 if report.reserveGap > 0 {
                     Label("Réserve manquante : \(FinanceFormatting.chf(report.reserveGap))", systemImage: "exclamationmark.triangle")
                         .font(BudgetFont.caption.weight(.semibold))

@@ -20,15 +20,81 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L2 Fondations | DONE | **validation humaine reçue le 23.07.2026** ; CI #172 verte (run 30021212918) : web + parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app | — |
 | L3 Pilote PWA | DONE | **validation humaine reçue le 23.07.2026** ; CI #173 verte (run 30028514793, SHA 8a82a2e) : 53 parcours web zéro erreur console + 5 parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app (le run manuel #174 confirme) | — |
 | L4 Pilote iOS | DONE | **validation humaine reçue le 23.07.2026** ; commit `99cbb75` ; CI #175 verte (run 30038788928 : 222 tests iOS 0 échec, ObsidianPilotTests passed, Debug+Release, manifeste) ; workflow Demo vert (run 30039344152, artefact budget-demo 36,5 Mo, tour 12 étapes asserté). Risque visuel NON bloquant conservé : la capture native détaillée de la feuille « Ajouter un mouvement » n'a pas été inspectée séparément par le propriétaire | — |
-| L5 Mouvements/Comptes | VERIFYING | livré : 4 parcours refondus (PWA + iOS), 56 e2e verts, 9 tests natifs L5, 12 captures PWA + README, tour Demo 13 étapes (détail ci-dessous) | CI verte + workflow Demo + validation humaine |
-| L6 Modules financiers | BLOCKED | — | L5 validé |
+| L5 Mouvements/Comptes | DONE | **validation humaine reçue le 23.07.2026** ; commit `f4ea4d0` ; CI #177 verte (run 30043810568 : 56 e2e + 5 parité + design, 231 tests iOS 0 échec) ; Demo vert (run 30044319681, tour 13 étapes, artefact 47,2 Mo). Risques visuels NON bloquants conservés : capture `13-compte-detail` non retrouvée par le propriétaire ; intitulés longs encore tronqués dans les listes ; texte « Versé cette année / total » du compte Épargne à clarifier ; FAB pouvant masquer légèrement le bas selon la hauteur visible | — |
+| L6 Modules financiers | VERIFYING | commit `feat(l6)` ; 60 e2e + 5 parité + design verts en local ; 8 tests natifs `ObsidianFinancialModulesTests` ; 16 captures + README ; tour Demo enrichi 14-assurances/15-prevoyance ; CI + Demo en attente de confirmation | validation humaine des 7 modules |
 | L7 Onboarding/Confiance | BLOCKED | — | L6 validé |
 | L8 Widgets/Mouvement | BLOCKED | — | L7 validé |
 | L9 Audit final | BLOCKED | — | L8 validé |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
-## Critères d'acceptation L5 (annoncés avant toute édition, 23.07.2026)
+## Critères d'acceptation L6 (annoncés avant toute édition, 23.07.2026)
+
+**Périmètre strict** : les 7 modules financiers — Factures/charges
+annuelles, Objectifs, Impôts, Patrimoine, Actifs+dettes, Prévoyance,
+Assurances — PWA (`renderBills`, `renderGoals`, `renderTaxes`,
+`renderNetWorth`, `renderInsurance`, `renderRecurring`) et iOS
+(`GoalsTab`, `TaxesView`, `NetWorthView`, `PensionView`,
+`InsuranceListView`, `RecurringListView`) + tests + captures + tour Demo
+enrichi. Aucune formule financière modifiée, aucune migration, aucune clé
+localStorage, aucune structure SwiftData, aucun écran hors périmètre
+(Onboarding, Plus, Réglages, Documents, Import/Export intouchés).
+
+**Factures (PWA).** Héros « Encore à payer » (total des factures
+ouvertes) ; pill négative « N facture(s) en retard » ou positive « Rien
+en retard » ; prochaine échéance nommée et datée ; « payé ce mois »
+distinct (dérivé des factures liées à un mouvement) — jamais de double
+comptage payé/ouvert ; état vide `.empty-state` guidé.
+
+**Objectifs.** Pills d'état écrites (« Atteint », « En bonne voie »,
+« À accélérer », « Échéance passée », « Prioritaire ») — jamais couleur
+seule ; réel (solde lié ou saisie) séparé de la projection ; sans date :
+aucun délai ni effort mensuel inventé ; héros natif `AmountText` +
+`EmptyState` L2.
+
+**Impôts.** Héros étiqueté « — estimation » ; réservé / payé / encore dû
+strictement distincts (payé DÉRIVÉ des mouvements « Paiement d'impôts »
+comptabilisés, identité estimé = payé + encore dû) ; pill « Réserve
+couverte / manquante » ; carte « Estimation incomplète » quand aucun
+revenu n'est comptabilisé (rien n'est inventé, jamais de faux zéro
+présenté comme un calcul) ; aucun barème officiel inventé.
+
+**Patrimoine.** Fortune nette = comptes + actifs + prévoyance − dettes,
+négatif affiché honnêtement (classe `neg`, jamais masqué) ; caption de
+fraîcheur « Soldes du jour, dérivés de vos comptes… conversions
+explicites » ; aucune addition multi-devises sans conversion explicite
+(`toCHF` PWA, natif V1 mono-devise CHF, ADR-017).
+
+**Prévoyance.** Capital = somme des valeurs SAISIES (certificats) ;
+projection à la retraite affichée UNIQUEMENT si chaque position active en
+donne une (somme partielle interdite) ; aucun rendement inventé ;
+`EmptyState` natif « sans faux zéro ».
+
+**Assurances.** Héros = total annuel avec unité « par an » séparée ;
+équivalents mensuels/annuels réconciliés par une seule formule
+(`InsurancePensionService`) ; pill « Échéance dans N j » par contrat à
+≤ 45 jours de la résiliation ; PWA : carte « Déjà constitué » (positions
++ comptes prévoyance, valeurs saisies, jamais calculées par l'app).
+
+**Récurrents.** Pill « Saisi ce mois » / « À venir » écrite par ligne ;
+héros natif avec unité « par mois » séparée ; `EmptyState` L2.
+
+**Preuves.** e2e Tests 52-55 (factures héros/retard/vide sans double
+comptage ; objectifs+impôts pills, stats distinctes, « Estimation
+incomplète » utilisateur neuf ; patrimoine négatif honnête, prévoyance
+« Déjà constitué », composition accessible ; a11y 320 px + extrême) —
+suite portée à 60 parcours, rien d'affaibli ;
+`ObsidianFinancialModulesTests` natifs (8 tests : réel≠projection,
+sans-date sans invention, atteint, fortune négative, projection jamais
+inventée, primes réconciliées, champs fiscaux distincts + identité,
+écrans construits 320 pt/a11y/transparence réduite) ; tour Demo enrichi
+« 14-assurances » + « 15-prevoyance » assertés ; captures PWA
+`docs/obsidian-glass/financial-modules/l6/` + README (hypothèses
+visibles) ; un commit
+`feat(l6): redesign financial modules with Obsidian Glass` ; CI complète
++ Demo verts ; **L6 = VERIFYING**, L7 = BLOCKED.
+
+## Critères d'acceptation L5 (archivés, 23.07.2026)
 
 **Périmètre strict** : Mouvements et Comptes, PWA
 (`renderMovements`/`renderMoreTxList`/`txRow`/`renderAccounts`/
@@ -475,7 +541,60 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   ci-dessus (aucune capture fabriquée).
 - PWA, services financiers, modèles, migrations, sauvegardes : INCHANGÉS.
 
-## Livraison L5 (23.07.2026) — en VERIFYING
+## Livraison L6 (23.07.2026) — en VERIFYING
+
+- **Factures (PWA)** : héros « Encore à payer » (somme exacte des
+  factures ouvertes), pill de retard ÉCRITE (« N facture(s) en retard » /
+  « Rien en retard »), prochaine échéance nommée et datée, « payé ce
+  mois » séparé, état vide `.empty-state` guidé. « Marquer payée » LIE la
+  facture au mouvement créé — un seul mouvement, jamais deux (prouvé par
+  test).
+- **Objectifs** : pills d'état écrites (« Atteint », « En bonne voie »,
+  « À accélérer », « Échéance passée », « Prioritaire ») — plus jamais la
+  couleur seule ; iOS : héros `AmountText`, `EmptyState` L2 avec action.
+- **Impôts** : héros étiqueté « — estimation », pill « Réserve couverte /
+  manquante », carte « Estimation incomplète » quand AUCUN revenu n'est
+  comptabilisé (le zéro est expliqué, jamais présenté comme un calcul) ;
+  identité « Estimé = payé + encore dû » écrite ET vérifiée chiffrée ;
+  payé DÉRIVÉ des mouvements « Paiement d'impôts » comptabilisés ; aucun
+  barème inventé ; iOS : héros `AmountText` (warning si dû > 0).
+- **Patrimoine** : fortune nette négative affichée honnêtement (`neg` +
+  signe), caption de fraîcheur et de conversion explicite, composition
+  accessible (aria-label chiffré) ; iOS : héros `AmountText` (négatif en
+  emphase) + caption de fraîcheur.
+- **Prévoyance** : « Déjà constitué » = positions selon certificats +
+  comptes de prévoyance, source écrite (« valeurs saisies, jamais
+  calculées par l'app ») ; AUCUNE projection inventée — une position sans
+  projection de certificat n'en reçoit jamais (web + natif
+  `totalProjectedAtRetirement` nil si une position n'en a pas, testé des
+  deux côtés) ; iOS : `EmptyState` « sans faux zéro ».
+- **Assurances** : équivalents mensuel/annuel réconciliés par UNE
+  formule ; pill « Échéance dans N j » par contrat à ≤ 45 jours ; iOS :
+  héros `AmountText` + unité « par an » séparée, `EmptyState` L2.
+- **Récurrents** : pill « Saisi ce mois » / « À venir » par ligne ; iOS :
+  héros + « par mois », `EmptyState` L2.
+- **Tests** : e2e **60 parcours verts** (48 + 5 L3 + 3 L5 + Tests 52-55 :
+  héros factures = somme exacte, paiement lié sans double comptage, état
+  vide ; pills objectifs + progressbar ; 4 stats fiscales distinctes,
+  identité chiffrée, « Estimation incomplète » sans revenu ; fortune
+  négative honnête, composition accessible, projection jamais inventée,
+  pill échéance ≤ 45 j, pills récurrents ; 320 px sur les 6 modules,
+  extrême, cibles 44 px) ; 5 parité ✓ ; design system ✓ ; natif :
+  `ObsidianFinancialModulesTests` (8 tests — réel ≠ projection, sans date
+  aucun délai inventé, atteint, fortune = actifs − dettes même négative,
+  projection de prévoyance jamais inventée, primes réconciliées
+  600/an = 50/mois, champs fiscaux distincts + identité estimé = payé +
+  encore dû + réserve manquante, écrans construits 320 pt/texte
+  accessibilité/transparence réduite) — total attendu 239 tests iOS.
+- **Preuves** : 16 captures PWA + README (hypothèses visibles, refus
+  documentés) dans `docs/obsidian-glass/financial-modules/l6/` ; tour
+  Demo enrichi « 14-assurances » + « 15-prevoyance » assertés.
+- Formules, migrations, clés localStorage, structures : INCHANGÉES.
+- Risques visuels NON bloquants conservés (L5) : intitulés longs
+  tronqués dans les listes (visible aussi sur les contrats d'assurance),
+  FAB pouvant masquer le bas, « Versé cette année / total » à clarifier.
+
+## Livraison L5 (23.07.2026) — archivée
 
 - **Mouvements PWA** : recherche 44 px aux tokens, chips de filtres
   `aria-pressed` (teinte de marque, gradient supprimé), regroupement par
@@ -530,9 +649,9 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 verify L5
+/budget-v1 verify L6
 ```
 
-L4 reste VERIFYING jusqu'à validation humaine des trois écrans natifs et
-des captures du workflow Demo. Ne pas lancer le lot suivant sans cette
-validation explicite.
+L6 reste VERIFYING jusqu'à validation humaine des 7 modules financiers
+(PWA + iOS via l'artefact Demo). Ne pas lancer L7 sans cette validation
+explicite.

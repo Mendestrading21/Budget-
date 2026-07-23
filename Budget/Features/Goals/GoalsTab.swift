@@ -79,8 +79,7 @@ struct GoalsListView: View {
                         Text("Épargné vers vos objectifs")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(totalSaved))
-                            .font(BudgetFont.heroAmount)
+                        AmountText(amount: totalSaved, role: .hero)
                         if totalTarget > 0 {
                             Text("Sur \(FinanceFormatting.chf(totalTarget)) visés · \(achievedGoals.count) objectif(s) atteint(s)")
                                 .font(BudgetFont.caption)
@@ -120,18 +119,13 @@ struct GoalsListView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucun objectif", systemImage: "target")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Fonds d'urgence, vacances, pilier 3a… Fixez un cap et suivez la contribution mensuelle nécessaire pour l'atteindre.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Créer un objectif") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "target",
+                    title: "Aucun objectif",
+                    message: "Fonds d'urgence, vacances, pilier 3a… Fixez un cap et suivez la contribution mensuelle nécessaire pour l'atteindre.",
+                    actionTitle: "Créer un objectif",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }

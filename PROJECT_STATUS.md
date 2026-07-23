@@ -1,5 +1,23 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L6 (2026-07-23)
+
+L6 « Modules financiers » exécuté (`/budget-v1 execute L6`) après
+validation humaine de L5. Les 7 modules (Factures, Objectifs, Impôts,
+Patrimoine, Actifs+dettes, Prévoyance, Assurances) refondus PWA + iOS.
+PWA : héros Factures « Encore à payer » + paiement LIÉ sans double
+comptage, pills d'état écrites partout (objectifs, réserve d'impôts,
+échéance d'assurance ≤ 45 j, récurrents), carte « Estimation
+incomplète » sans revenu (rien d'inventé), fortune nette négative
+honnête + fraîcheur/conversion explicites, « Déjà constitué » sourcé.
+iOS : héros en AmountText (unités « par an »/« par mois » séparées),
+EmptyState L2 partout, caption de fraîcheur Patrimoine. Suites : 60 e2e
++ 5 parité + design verts ; ObsidianFinancialModulesTests (8 tests
+natifs, total 239 attendu) ; 16 captures PWA + README
+(`docs/obsidian-glass/financial-modules/l6/`) ; tour Demo 15 étapes
+(+ 14-assurances, 15-prevoyance). Formules, migrations, persistance :
+INCHANGÉES. **L6 = VERIFYING**, L7 = BLOCKED.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L5 (2026-07-23)
 
 L5 « Mouvements et Comptes » exécuté (`/budget-v1 execute L5`) après

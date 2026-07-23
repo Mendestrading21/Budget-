@@ -75,8 +75,12 @@ struct RecurringListView: View {
                         Text("Charges récurrentes")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text("\(FinanceFormatting.chf(monthlyChargesTotal)) / mois")
-                            .font(BudgetFont.heroAmount)
+                        HStack(alignment: .firstTextBaseline, spacing: BudgetSpacing.micro) {
+                            AmountText(amount: monthlyChargesTotal, role: .hero)
+                            Text("par mois")
+                                .font(BudgetFont.cardLabel)
+                                .foregroundStyle(.secondary)
+                        }
                         Text("Soit \(FinanceFormatting.chf(annualChargesTotal)) par an, revenus non compris")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
@@ -109,18 +113,13 @@ struct RecurringListView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucune charge récurrente", systemImage: "arrow.triangle.2.circlepath")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Salaire, loyer, primes, abonnements : enregistrez ce qui revient chaque mois pour que vos prévisions se remplissent toutes seules.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter un récurrent") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "arrow.triangle.2.circlepath",
+                    title: "Aucune charge récurrente",
+                    message: "Salaire, loyer, primes, abonnements : enregistrez ce qui revient chaque mois pour que vos prévisions se remplissent toutes seules.",
+                    actionTitle: "Ajouter un récurrent",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }

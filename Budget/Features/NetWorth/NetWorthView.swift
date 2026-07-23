@@ -166,9 +166,11 @@ struct NetWorthView: View {
                 Text("Fortune nette")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(breakdown.netWorth))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(breakdown.netWorth < 0 ? BudgetColor.negative : .primary)
+                AmountText(
+                    amount: breakdown.netWorth,
+                    role: .hero,
+                    emphasis: breakdown.netWorth < 0 ? .negative : .neutral
+                )
                 VStack(spacing: BudgetSpacing.micro) {
                     breakdownRow("Comptes inclus", breakdown.accountsTotal)
                     breakdownRow("Actifs", breakdown.assetsTotal)
@@ -176,6 +178,10 @@ struct NetWorthView: View {
                     breakdownRow("Dettes", -breakdown.liabilitiesTotal)
                 }
                 .padding(.top, BudgetSpacing.micro)
+                // Fraîcheur : la fortune est dérivée des données du jour.
+                Text("Soldes du jour, dérivés de vos comptes, actifs, prévoyance et dettes enregistrés.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Fortune nette : \(FinanceFormatting.chf(breakdown.netWorth))")

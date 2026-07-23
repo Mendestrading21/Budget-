@@ -50,8 +50,7 @@ struct PensionView: View {
                         Text("Capital de prévoyance")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(service.totalPensionCapital(assets: assets)))
-                            .font(BudgetFont.heroAmount)
+                        AmountText(amount: service.totalPensionCapital(assets: assets), role: .hero)
                         Text("Contributions annuelles : \(FinanceFormatting.chf(service.totalAnnualContributions(assets: assets)))")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
@@ -109,18 +108,13 @@ struct PensionView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucune position de prévoyance", systemImage: "shield.checkered")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Reportez votre certificat LPP, vos comptes 3a/3b et votre estimation AVS pour voir l'ensemble de votre prévoyance.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter une position") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "shield.checkered",
+                    title: "Aucune position de prévoyance",
+                    message: "Reportez votre certificat LPP, vos comptes 3a/3b et votre estimation AVS pour voir l'ensemble de votre prévoyance — sans faux zéro : rien n'est inventé.",
+                    actionTitle: "Ajouter une position",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }
