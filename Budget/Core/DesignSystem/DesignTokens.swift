@@ -27,6 +27,9 @@ enum BudgetColor {
     static let warning = dynamic(dark: (255, 178, 77), light: (169, 106, 16))     // #FFB24D / #A96A10
     static let informative = dynamic(dark: (90, 167, 255), light: (37, 99, 235))  // #5AA7FF / #2563EB
 
+    // Horizon v2 — accent teal premium, mêmes valeurs que la PWA.
+    static let teal = dynamic(dark: (45, 212, 191), light: (13, 148, 136))     // #2DD4BF / #0D9488
+
     private static func dynamic(
         dark: (CGFloat, CGFloat, CGFloat),
         light: (CGFloat, CGFloat, CGFloat)
@@ -35,6 +38,36 @@ enum BudgetColor {
             let rgb = traits.userInterfaceStyle == .dark ? dark : light
             return UIColor(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255, alpha: 1)
         })
+    }
+}
+
+/// Horizon v2 — teintes de pastilles d'icônes par nature financière,
+/// miroir des tokens PWA (--tint-*). La pastille oriente avant la lecture :
+/// revenu vert, dépense/impôt corail, épargne/investissement teal,
+/// virement neutre, objectif/patrimoine violet.
+enum BudgetTint {
+    static func income(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? BudgetColor.positive.opacity(0.16) : BudgetColor.positive.opacity(0.14)
+    }
+
+    static func expense(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? BudgetColor.negative.opacity(0.14) : BudgetColor.negative.opacity(0.12)
+    }
+
+    static func saving(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? BudgetColor.teal.opacity(0.15) : BudgetColor.teal.opacity(0.14)
+    }
+
+    static func goal(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? BudgetColor.violet.opacity(0.16) : BudgetColor.violet.opacity(0.12)
+    }
+
+    static func info(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? BudgetColor.electricBlue.opacity(0.14) : BudgetColor.indigo.opacity(0.12)
+    }
+
+    static func neutral(_ scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color.white.opacity(0.08) : BudgetColor.graphite.opacity(0.06)
     }
 }
 
