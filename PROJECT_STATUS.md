@@ -16,10 +16,18 @@ avec vérification déterministe de `PrivacyInfo.xcprivacy` dans le produit
 Release (plutil + derivedDataPath connu, échec sinon) ;
 `APP_STORE_LISTING.md` corrigé (`ch.budgetapp.Budget` canonique,
 URLs = RELEASE_BLOCKER humain) ; captures baseline versionnées dans
-`docs/obsidian-glass/baseline/l1/`. Suites locales : 48 parcours e2e +
-5 fixtures de parité verts. Détail : `OBSIDIAN_GLASS_STATUS.md`. Prochaine
-étape après validation humaine : `/budget-v1 execute L2` (fondations, sans
-refonte d'écrans).
+`docs/obsidian-glass/baseline/l1/`. Micro-clôture `test(l1)` (fe374f6) :
+la couverture transactionnelle de restauration compte les **18 modèles
+persistants** (HouseholdMember et ImportBatch ajoutés au comptage,
+sentinelles survivant au rollback vérifiées par identifiant).
+**L1 = DONE, L2 = READY.** Preuves CI : run 167 échec constaté →
+run 168 vert (48 e2e + 5 parité, build Debug, 206 tests iOS 0 échec,
+build Release, « PrivacyInfo.xcprivacy présent et valide dans
+Budget.app ✓ ») → run 170 vert (idem, 206 tests, BackupServiceTests
+passed) — liens dans `OBSIDIAN_GLASS_STATUS.md`. Risques humains
+ouverts : branche GitHub par défaut obsolète, URLs support/
+confidentialité `VOTRE-DOMAINE`, configuration GitHub Pages. Prochaine
+étape : `/budget-v1 execute L2` (fondations, sans refonte d'écrans).
 
 ## Branche `codex/budget-leader-refonte` (2026-07-22)
 

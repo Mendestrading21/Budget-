@@ -16,8 +16,8 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | Lot | Statut | Preuve | Prochaine condition |
 |---|---|---|---|
 | L0 Gouvernance | DONE | branche, skill, constitution, matrice et livraison | vérifier les fichiers distants |
-| L1 Vérité/baseline/P0 | VERIFYING | corrections en cours (try manquants, transaction unique, migration fx, CI refonte/**, captures versionnées) | CI complète verte sur refonte/** |
-| L2 Fondations | BLOCKED | — | L1 validé |
+| L1 Vérité/baseline/P0 | DONE | runs CI 167 (échec constaté) → 168 (correctif vert) → 170 (couverture 18 modèles verte) ; 48 e2e + 5 parité + 206 tests iOS ; manifeste vérifié dans Budget.app ; captures versionnées | — |
+| L2 Fondations | READY | — | lancer `/budget-v1 execute L2` |
 | L3 Pilote PWA | BLOCKED | — | L2 validé |
 | L4 Pilote iOS | BLOCKED | — | validation humaine de L3 |
 | L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
@@ -65,6 +65,24 @@ Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
   `com.mendes.budget`) ; zéro URL codée en dur dans le Swift. RESTE OUVERT
   (RELEASE_BLOCKER humain) : les URLs support/confidentialité
   `VOTRE-DOMAINE` à créer avant toute soumission — jamais inventées ici.
+
+## Preuves CI de clôture L1 (23.07.2026)
+
+- Run **167** (workflow_dispatch, commit `2c5214d`) : ÉCHEC constaté du job
+  macOS — 4 `try` manquants sur `Optional.map(decimal)` dans
+  `BackupService.swift` ; le correctif est né de cet échec.
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30010413674>
+- Run **168** (push, commit `2d095a7` `fix(l1)`) : VERT complet — web e2e
+  48 parcours + 5 fixtures de parité ; build Debug ; **206 tests iOS,
+  0 échec** ; build Release (`derivedDataPath` connu) ; log littéral
+  « PrivacyInfo.xcprivacy présent et valide dans Budget.app ✓ ».
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30012413633>
+- Run **170** (push, commit `fe374f6` `test(l1)`) : VERT complet — mêmes
+  jobs, avec la couverture transactionnelle portée aux **18 modèles
+  persistants** (`counts(in:)` + sentinelles HouseholdMember/ImportBatch
+  survivant au rollback) ; 206 tests iOS, 0 échec ;
+  `Test Suite 'BackupServiceTests' passed`.
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30014447802>
 
 ## Baseline L1 (captures et mesures)
 
@@ -119,7 +137,8 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
 /budget-v1 execute L2
 ```
 
-À lancer UNIQUEMENT après validation humaine du rapport L1. Résultat attendu :
-tokens sémantiques Obsidian (PWA + iOS), primitives `GlassCard`, `AmountText`,
-`StatusPill`, fallback reduced transparency, galerie déterministe — sans
-refondre les écrans.
+L1 est DONE (CI verte, preuves ci-dessus) ; L2 est READY. Résultat attendu de
+L2 : tokens sémantiques Obsidian (PWA + iOS), primitives `GlassCard`,
+`AmountText`, `StatusPill`, fallback reduced transparency, galerie
+déterministe — sans refondre les écrans, sans toucher aux formules
+financières.
