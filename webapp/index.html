@@ -1544,6 +1544,21 @@ function monthNav() {
   </div>`;
 }
 
+/* Fraîcheur d'un solde : dernier mouvement comptabilisé touchant le compte. */
+function accountFreshness(accId) {
+  let last = null;
+  for (const t of transactions) {
+    if (t.status !== "posted" || (t.acc !== accId && t.dest !== accId)) continue;
+    if (!last || t.y > last.y || (t.y === last.y && (t.m > last.m || (t.m === last.m && t.d > last.d)))) last = t;
+  }
+  if (!last) return "";
+  const days = Math.max(0, Math.round((new Date(NOW.y, NOW.m - 1, NOW.d) - new Date(last.y, last.m - 1, last.d)) / 86400000));
+  if (days === 0) return "à jour aujourd'hui";
+  if (days === 1) return "mis à jour hier";
+  if (days <= 60) return `mis à jour il y a ${days} j`;
+  return `mis à jour le ${String(last.d).padStart(2, "0")}.${String(last.m).padStart(2, "0")}.${last.y}`;
+}
+
 function txRow(t) {
   const inflow = t.type === "income" || t.type === "refund" || (t.type === "adjustment" && t.up);
   // Épargne/investissement : l'argent change de poche, il ne se perd pas —
@@ -2101,7 +2116,7 @@ function renderAccounts() {
         return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}</div>${contribLine}</div>
+          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + f : ""; })()}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
@@ -2364,6 +2379,22 @@ function renderNetWorth() {
         <div><span>Prévoyance</span><span>${chf(pensionTotal, true)}</span></div>
         <div><span>Dettes</span><span class="neg">${chf(-liabTotal, true)}</span></div>
       </div>
+      ${(() => {
+        // Répartition en composition : la part de chaque classe dans le
+        // patrimoine BRUT (les dettes se lisent dans la décomposition).
+        const parts = [
+          ["Comptes", Math.max(0, accountsTotal), "var(--electric)"],
+          ["Actifs", Math.max(0, assetsTotal), "var(--amber)"],
+          ["Prévoyance", Math.max(0, pensionTotal), "var(--violet)"],
+        ].filter(([, v]) => v > 0);
+        const grossC = parts.reduce((a, [, v]) => a + toCents(v), 0);
+        if (grossC <= 0 || parts.length < 2) return "";
+        return `<div style="display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px" role="img"
+             aria-label="Répartition du patrimoine brut : ${parts.map(([l, v]) => `${l} ${pct(toCents(v) / grossC)}`).join(", ")}">
+          ${parts.map(([, v, c]) => `<span style="width:${(toCents(v) / grossC * 100).toFixed(1)}%;background:${c}"></span>`).join("")}
+        </div>
+        <div class="caption" style="margin-top:6px">${parts.map(([l, v, c]) => `<span style="color:${c};font-weight:700">●</span> ${l} ${pct(toCents(v) / grossC)}`).join(" · ")}</div>`;
+      })()}
     </div>
     ${(() => {
       const rows = [
