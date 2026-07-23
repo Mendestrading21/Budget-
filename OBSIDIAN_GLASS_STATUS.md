@@ -408,9 +408,20 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   accessibilité / transparence réduite forcée). Previews ajoutées :
   texte agrandi + transparence réduite (Mois, Budget), texte agrandi +
   virement (feuille). Total attendu : 222 tests iOS.
-- **Preuve native** : tour Demo enrichi d'une 12e étape « Nouveau
-  mouvement » (FAB → Dépense → capture) ; workflow Demo à déclencher
-  après la CI pour l'artefact `budget-demo` (captures + vidéo réelles).
+- **Preuve native RÉELLE (23.07.2026)** : CI #175 verte sur `99cbb75`
+  (run 30038788928 — **222 tests iOS, 0 échec**, `ObsidianPilotTests
+  passed`, builds Debug + Release, manifeste dans Budget.app) ; workflow
+  **Demo vert** (run 30039344152) — la vraie app en simulateur iPhone 16,
+  tour de 12 étapes ASSERTÉES (dont « 12-nouveau-mouvement » : FAB →
+  Dépense → feuille), artefact **`budget-demo` 36,5 Mo** (captures de
+  chaque écran + vidéo du tour + .ipa non signée), téléchargeable depuis
+  le run jusqu'au 21.10.2026 :
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30039344152>.
+  Limitation d'environnement : la politique d'egress de cette session
+  refuse `*.blob.core.windows.net` (stockage des artefacts GitHub) — les
+  captures natives n'ont donc pas pu être RE-versionnées dans `docs/`
+  depuis ici ; elles s'inspectent et se téléchargent depuis le run
+  ci-dessus (aucune capture fabriquée).
 - PWA, services financiers, modèles, migrations, sauvegardes : INCHANGÉS.
 
 ## Prochaine commande exacte
