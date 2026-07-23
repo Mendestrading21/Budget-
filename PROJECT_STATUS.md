@@ -20,9 +20,10 @@ teal, tactile, entrée d'écran), écran « Mois » au blueprint (courbe
 widgets personnalisables persistés, fraîcheur des soldes, composition
 du patrimoine, bienvenue réécrite + objectif optionnel, Assistant local
 déterministe. 42 parcours e2e + 5 fixtures de parité verts, zéro erreur
-console. Reste : R8/R9 natif (tokens v2 + écrans, CI macOS), lot K
-durcissement (audit final agent), retrait contrôlé (rien à retirer
-identifié).
+console. **CI 18/18 verte sur la branche (runs 143→160)** — chaque commit
+de la refonte a passé e2e web + parité + build/tests iOS + Release.
+Reste : R8/R9 natif (tokens v2 + écrans, CI macOS), lot K durcissement
+(audit final agent), retrait contrôlé (rien à retirer identifié).
 CI GitHub Actions : **7/7 runs verts sur la branche (143→149)** — web e2e +
 parité + build/tests iOS macOS + Release à chaque commit ; tous les
 constats d'audit (P0/P1/NITs) sont soldés. Reste : G02 (effort dédié),
