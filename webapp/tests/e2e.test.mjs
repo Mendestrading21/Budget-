@@ -69,7 +69,7 @@ check(homeHTML.includes("Elio") && homeHTML.includes("Sara"), "prénoms perdus a
 // ---------- Test 1 : chaque onglet s'ouvre ----------
 currentTest = "onglets";
 await goHome();
-for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
+for (const label of ["Mois", "Mouvements", "Budget", "Comptes", "Plus"]) {
   await page.click(`#tabbar button[aria-label="${label}"]`);
   await page.waitForTimeout(120);
   const content = await page.$eval("#screen", el => el.innerHTML.length);
@@ -78,7 +78,7 @@ for (const label of ["Accueil", "Mouvements", "Budget", "Comptes", "Plus"]) {
 
 // ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
 currentTest = "check du mois";
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 let screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Check du mois"), "carte « Check du mois » absente");
@@ -101,7 +101,7 @@ check(screenHTML.includes("9'700.00") || screenHTML.includes("5'500.00"), "les s
 
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
 currentTest = "creation mouvement";
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.click("#fab");
 await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
 await page.click('#quickMenu [data-quick="tx"]');
@@ -136,7 +136,7 @@ check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 
 // ---------- Test 4 : épargne rapide — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.click("[data-quicksend]");
 await page.waitForSelector("#txForm", { state: "visible" });
 const destOptions = await page.$eval("#fDest", el => el.options.length);
@@ -189,7 +189,7 @@ check(screenHTML.includes("Argent disponible"), "retour à la liste des comptes 
 
 // ---------- Test 7 : facture — payer crée le mouvement ----------
 currentTest = "facture";
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 const payButton = await page.$("[data-paybill]");
 if (payButton) {
   await payButton.click();
@@ -211,7 +211,7 @@ const dueSoon = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
 await page.fill("#insDue", dueSoon);
 await page.click('#insForm button[type="submit"]');
 await page.waitForTimeout(200);
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("RC ménage E2E") && screenHTML.includes("arrive à échéance"),
@@ -292,7 +292,7 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Leasing E2E") && screenHTML.includes("terminé vers"), "dette vivante : fin projetée absente");
 const leasingId = await page.evaluate(() =>
   JSON.parse(localStorage.getItem("budget-app-state-v1")).liabilities.find(l => l.name === "Leasing E2E").id);
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 await page.click(`[data-postrec="r-debt-${leasingId}"]`);
 await page.waitForTimeout(200);
@@ -570,7 +570,7 @@ check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more
 // ---------- Test 26 : accueil essentiel — 4 actions directes + patrimoine replié ----------
 currentTest = "accueil essentiel";
 await goHome();
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 for (const act of ["data-quickexp", "data-quickinc", "data-quicksend", "data-quickinv"]) {
@@ -656,7 +656,7 @@ await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Priorité :") || screenHTML.includes("Attention :") || screenHTML.includes("Tout est en ordre"),
@@ -673,7 +673,7 @@ check(screenHTML.includes("Mois dernier : coût de la vie"),
   "le Budget doit comparer au coût de la vie du mois précédent (démo chargée)");
 check(screenHTML.includes("Budget consommé"),
   "l'anneau plan/réel doit être présent et étiqueté pour VoiceOver");
-await page.click(`#tabbar button[aria-label="Accueil"]`);
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois dernier :"), "l'accueil doit rappeler le coût de la vie du mois dernier");
@@ -712,6 +712,17 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Dernière sauvegarde : aujourd'hui"),
   "après export, la date de sauvegarde doit se mettre à jour");
 
+// ---------- Test 35 : Horizon R2 — l'écran « Mois » suit le blueprint ----------
+currentTest = "mois blueprint";
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Ce qui reste, 6 derniers mois"), "la mini-courbe 6 mois doit être sur l'écran Mois");
+check(screenHTML.includes("Budget restant :"), "le widget budget restant doit être sur l'écran Mois");
+check(screenHTML.includes('data-more="goals"'), "l'objectif prioritaire doit mener aux objectifs");
+const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
+check(tabLabel === "Mois", "l'onglet d'accueil s'appelle « Mois »");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -721,4 +732,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 39 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 40 parcours verts, zéro erreur console ✓");

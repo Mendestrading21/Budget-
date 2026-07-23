@@ -1507,7 +1507,7 @@ const ICONS = {
   more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
 };
 const TABS = [
-  ["home", "Accueil"], ["movements", "Mouvements"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
+  ["home", "Mois"], ["movements", "Mouvements"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
 ];
 
 /* Teinte de pastille par nature de mouvement (design system Horizon). */
@@ -1748,6 +1748,57 @@ function renderHome() {
       <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
         <span class="caption">${s.taxGap > 0 ? "Réserve du mois manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
+    ${(() => {
+      // Résultat du mois — mini-courbe 6 mois (« ce qui reste »), pédagogique.
+      const months = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5));
+      const vals = months.map(mm => snapshot(mm.y, mm.m).cashFlow);
+      if (!vals.some(v => v !== 0)) return "";
+      const lo = Math.min(...vals, 0), hi = Math.max(...vals, 0);
+      const span = (hi - lo) || 1;
+      const px = (i) => 8 + i * (304 / 5);
+      const py = (v) => 8 + (1 - (v - lo) / span) * 40;
+      const points = vals.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
+      const lastUp = vals[5] >= vals[4];
+      return `<div class="card" data-more="year" role="button" tabindex="0" style="cursor:pointer">
+        <div class="bar-head"><span class="card-label" style="margin:0">Ce qui reste, 6 derniers mois</span>
+          <span class="vals ${lastUp ? "pos" : "neg"}">${chf(vals[5], true)}</span></div>
+        <svg viewBox="0 0 320 56" width="100%" height="56" role="img" preserveAspectRatio="none"
+             aria-label="Reste du mois sur 6 mois : ${months.map((mm, i) => MONTH_NAMES[mm.m - 1].slice(0, 3) + " " + chf(vals[i], true)).join(", ")}">
+          <polyline fill="none" stroke="var(--teal)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
+          <circle cx="${px(5).toFixed(1)}" cy="${py(vals[5]).toFixed(1)}" r="3.5" fill="var(--teal)"/>
+        </svg>
+        <span class="caption">${MONTH_NAMES[months[0].m - 1].slice(0, 3)} → ${MONTH_NAMES[m - 1].slice(0, 3)} · revenus − coût de la vie − mis de côté − impôts</span>
+      </div>`;
+    })()}
+    ${(() => {
+      // Budget restant — widget compact qui mène à l'onglet Budget.
+      const rep = budgetReport(y, m);
+      const expLines = rep.lines.filter(l => l.kind === "expense");
+      if (!expLines.length) return "";
+      const plannedC = expLines.reduce((a, l) => a + toCents(l.planned), 0);
+      const actualC = expLines.reduce((a, l) => a + toCents(l.actual), 0);
+      const remainingB = fromCents(plannedC - actualC);
+      const fr = plannedC > 0 ? Math.min(1, actualC / plannedC) : 0;
+      return `<div class="card row tx" data-gototab="budget" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico t-expense" aria-hidden="true">⏱</div>
+        <div class="meta"><div class="t">Budget restant : ${chf(remainingB)}</div>
+          <div class="track" style="margin-top:6px"><div class="fill ${actualC > plannedC ? "over-fill" : (fr > 0.85 ? "warn-fill" : "")}" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
+        <span style="color:var(--coolgray)">›</span>
+      </div>`;
+    })()}
+    ${(() => {
+      // Objectif prioritaire — progression et action directe.
+      const g = GOALS.find(x => !x.achieved && x.priority) || GOALS.find(x => !x.achieved);
+      if (!g) return "";
+      const cur = Math.min(goalCurrent(g), g.target);
+      const fr = g.target > 0 ? cur / g.target : 0;
+      return `<div class="card row tx" data-more="goals" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico t-goal" aria-hidden="true">${esc(g.emoji || "🎯")}</div>
+        <div class="meta"><div class="t">${esc(g.name)} — ${pct(fr)}</div>
+          <div class="track" style="margin-top:6px"><div class="fill" style="width:${(fr * 100).toFixed(1)}%;background:linear-gradient(90deg,var(--violet),var(--indigo))"></div></div></div>
+        <span style="color:var(--coolgray)">›</span>
+      </div>`;
+    })()}
     ${checkCard}
     ${(() => {
       const prev = shiftMonth({ y, m }, -1);
