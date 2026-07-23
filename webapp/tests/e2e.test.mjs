@@ -560,7 +560,7 @@ currentTest = "menu plus groupé";
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-for (const group of ["Aujourd'hui", "Patrimoine", "Données", "Réglages"]) {
+for (const group of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
   check(screenHTML.includes(group), `groupe « ${group} » absent du menu Plus`);
 }
 check(screenHTML.includes('data-gototab="movements"'), "l'entrée Mouvements doit rester dans le menu Plus");

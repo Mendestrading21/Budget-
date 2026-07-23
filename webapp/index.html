@@ -2795,28 +2795,31 @@ function renderSettings() {
 
 // Menu « Plus » regroupé par intention (blueprint B07) : Aujourd'hui,
 // Patrimoine, Données, Réglages. Le sous-titre peut être dynamique (fn).
+// Hub « Plus » par intentions (blueprint Horizon).
 const MORE_GROUPS = [
-  ["Aujourd'hui", [
+  ["À organiser", [
+    ["movements", "🔎", "Mouvements", "Recherche et filtres — aussi dans la barre du bas"],
     ["bills", "🧾", "Factures", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
       const open = (S.bills || []).filter(b => !b.paidTxId).length;
       return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé 🎉");
     }],
-    ["recurring", "🔁", "Paiements réguliers", "Charges et revenus répétés"],
-    ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
-    ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
+    ["recurring", "🔁", "Paiements réguliers", "Charges, revenus et abonnements"],
   ]],
-  ["Patrimoine", [
-    ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
-    ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
+  ["À prévoir", [
+    ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
     ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ]],
-  ["Données", [
-    ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
-    ["movements", "🔎", "Mouvements", "Recherche et filtres — aussi dans la barre du bas"],
+  ["À construire", [
+    ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
+    ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
+    ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
   ]],
-  ["Réglages", [
-    ["settings", "⚙️", "Réglages", "Code, export, sauvegarde"],
+  ["Mes données", [
+    ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
+  ]],
+  ["Application", [
+    ["settings", "⚙️", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
