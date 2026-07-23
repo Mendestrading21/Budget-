@@ -910,6 +910,10 @@ const LABELS = {
   pensionGroup: { CH: "Prévoyance et assurance vie", FR: "Retraite et assurance vie", BE: "Épargne-pension et assurance vie" },
   healthExample: { CH: "Caisse maladie (LAMal)", FR: "Mutuelle santé", BE: "Mutuelle santé" },
 };
+function L2(key, country) {
+  const entry = LABELS[key] || {};
+  return entry[country] || entry.CH || key;
+}
 function L(key) {
   const entry = LABELS[key] || {};
   return entry[S.country || "CH"] || entry.CH || key;
@@ -2935,12 +2939,14 @@ let obSalary = null;
 let obSalary2 = null;
 let obSalaryDay = 25;
 let obSalaryPhase = 1;
+let obOpeningVal = 0;
+let obGoal = null; // préréglage d'objectif choisi à la bienvenue
 let obSalaryDay2 = 25;
 let obAccounts = { savings: true, pension: false, brokerage: false };
 
 function obProgress() {
-  return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:18px" aria-label="Étape ${obStep} sur 5">
-    ${[1, 2, 3, 4, 5].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "var(--line)"};transition:width .2s"></span>`).join("")}
+  return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:18px" aria-label="Étape ${obStep} sur 6">
+    ${[1, 2, 3, 4, 5, 6].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "var(--line)"};transition:width .2s"></span>`).join("")}
   </div>`;
 }
 
@@ -2961,6 +2967,7 @@ function renderOnboarding() {
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">🏠</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Pour parler de « nous » quand vous êtes deux — rien d'autre.</p>
     </div>
     <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
     <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
@@ -2969,6 +2976,7 @@ function renderOnboarding() {
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">👋</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obHousehold === "solo" ? "Votre prénom" : "Vos prénoms"}</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Uniquement pour vous saluer — ça reste sur cet appareil.</p>
     </div>
     <form id="obForm1" class="ob-form">
       <label for="obName">Prénom</label>
@@ -2993,6 +3001,16 @@ function renderOnboarding() {
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
       <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer</button>
     </form>`);
+  if (obStep === 6) return shell(`
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-size:44px" aria-hidden="true">🎯</div>
+      <h2 style="margin:10px 0 6px;font-size:22px">Un premier objectif ?</h2>
+      <p class="caption" style="max-width:290px;margin:0 auto">Facultatif — il vous donne un cap dès le premier jour. Modifiable à tout moment.</p>
+    </div>
+    <button type="button" class="btn secondary" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
+    <button type="button" class="btn secondary" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
+    <button type="button" class="btn secondary" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
+    <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>`);
   const accToggle = (key, label, icon) => `
     <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
       style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:13px 16px">
@@ -3064,11 +3082,18 @@ function bindOnboarding() {
     obAccounts[btn.dataset.obacc] = !obAccounts[btn.dataset.obacc];
     render(); scrollTop();
   }));
+  document.querySelectorAll("[data-obgoal]").forEach(btn => btn.addEventListener("click", () => {
+    obGoal = btn.dataset.obgoal;
+    finishOnboarding();
+  }));
+  const skipGoal = document.querySelector("[data-obskipgoal]");
+  if (skipGoal) skipGoal.addEventListener("click", () => { obGoal = null; finishOnboarding(); });
   const form3 = document.getElementById("obForm3");
   if (form3) {
     form3.addEventListener("submit", (e) => {
       e.preventDefault();
-      finishOnboarding();
+      obOpeningVal = parseAmountField(document.getElementById("obOpening").value) || 0;
+      obStep = 6; render(); scrollTop();
     });
     form3.querySelector("[data-obdemo]").addEventListener("click", () => {
       // La démo complète, avec le prénom déjà saisi si l'on est passé par là.
@@ -3083,7 +3108,7 @@ function bindOnboarding() {
 }
 
 function finishOnboarding() {
-  const opening = parseAmountField(document.getElementById("obOpening").value) || 0;
+  const opening = obOpeningVal;
   S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
   S.taxRate = COUNTRIES[obCountry].taxRate;
@@ -3104,6 +3129,18 @@ function finishOnboarding() {
   if (obSalary2 && obPartner) {
     RECURRINGS.push({ id: "r-salaire-2", title: `Salaire ${obPartner}`, amount: obSalary2,
                       type: "income", cat: "Salaire", day: obSalaryDay2, icon: "💰" });
+  }
+  if (obGoal) {
+    const savingsAcc = ACCOUNTS.find(a => a.kind === "savings");
+    const presets = {
+      urgence: { name: "Fonds d'urgence", emoji: "🛟", target: obSalary ? round2(obSalary * 3) : 10000, linked: savingsAcc ? savingsAcc.id : null },
+      voyage: { name: "Voyage", emoji: "✈️", target: 3000, linked: null },
+      pension: { name: L2("pensionKind", obCountry), emoji: "🛡", target: 7056, linked: (ACCOUNTS.find(a => a.kind === "pension") || {}).id || null },
+    };
+    const g = presets[obGoal];
+    if (g) GOALS.push({ id: "g-" + txSeq++, name: g.name, emoji: g.emoji, target: g.target,
+      manualCurrent: 0, linked: g.linked, monthly: 0,
+      dueY: NOW.y + 2, dueM: NOW.m, priority: true, achieved: false });
   }
   S.onboarded = true;
   S.isDemo = false;

@@ -54,10 +54,13 @@ await page.click('#obForm2 button[type="submit"]');
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "2000");
 await page.click('#obForm3 button[type="submit"]');
+await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" }); // étape objectif (facultative)
+await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
 let homeHTML = await page.$eval("#screen", el => el.innerHTML);
 check(homeHTML.includes("Bonjour Elio &amp; Sara") || homeHTML.includes("Bonjour Elio & Sara"), "le couple doit être salué à deux prénoms");
 check(homeHTML.includes("Salaire"), "le salaire configuré doit nourrir l'accueil");
+check(homeHTML.includes("Fonds d'urgence"), "l'objectif choisi à la bienvenue doit exister et apparaître sur Mois");
 const bannerHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(bannerHidden, "pas de bannière « données fictives » après un vrai départ");
 // persistance : recharger garde l'utilisateur onboardé
@@ -353,6 +356,8 @@ await page.click("[data-obskip]");
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "1000");
 await page.click('#obForm3 button[type="submit"]');
+await page.waitForSelector("[data-obskipgoal]", { state: "visible" }); // étape objectif : passer
+await page.click("[data-obskipgoal]");
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Bonjour Eva"), "prénom absent après un départ en euros");
