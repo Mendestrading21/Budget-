@@ -1,237 +1,196 @@
 ---
-name: Budget V1 — Build the full iOS app
-description: Build, continue, audit, verify, and polish Budget V1, a native offline-first Swiss household finance app. Use for end-to-end product construction in SwiftUI/SwiftData, architecture, financial rules, Swiss localization, premium glass UI, tests, CSV import, security, accessibility, and App Store readiness.
-when_to_use: Invoke when creating the Budget app from scratch, continuing an existing implementation, auditing its quality, rebuilding a screen, applying the supplied visual identity, or preparing a release.
-argument-hint: "[bootstrap|plan|build|continue|audit|verify|release] [optional scope]"
-arguments:
-  - mode
-  - scope
+name: budget-v1
+description: Piloter, refondre, continuer, auditer et vérifier Budget sur iOS et PWA. Utiliser pour tout travail important sur l'application, notamment la refonte Obsidian Glass, les écrans, widgets, graphiques, interactions, règles financières, données, tests, accessibilité, confidentialité et préparation App Store.
+argument-hint: "[plan|execute|continue|verify] [L0-L9 ou périmètre]"
 disable-model-invocation: true
 user-invocable: true
 effort: max
 allowed-tools: Read Write Edit Grep Glob Bash
 ---
 
-# Budget V1 mission
+# Budget V1 — directeur de produit et de refonte
 
-Create a production-quality native iOS application named **Budget** that becomes the financial dashboard of Swiss households. Build the product from end to end, not a visual prototype. The application must remain useful without a backend, protect financial data, compile at every completed milestone, and preserve all domain invariants.
+## Mission
 
-Invocation mode: **$mode**  
-Optional scope: **$scope**
+Faire de Budget une application de finances personnelles suisse simple,
+fiable, désirable et compréhensible en moins de dix secondes. Conserver les
+fonctions et les données existantes. Ne jamais recommencer le produit depuis
+zéro pour obtenir un nouveau visuel.
 
-## Load the right references before acting
+Le programme actif est **Budget — Obsidian Glass**. Il remplace les anciennes
+directions visuelles et constitue l'unique feuille de route opérationnelle.
 
-Read only the documents needed for the current task, but always load these first:
+Mode demandé : **$ARGUMENTS**
 
-1. [PRODUCT_VISION.md](references/PRODUCT_VISION.md)
-2. [ENGINEERING_CONTRACT.md](references/ENGINEERING_CONTRACT.md)
-3. [DESIGN_SYSTEM.md](references/DESIGN_SYSTEM.md)
-4. [REFERENCE_INDEX.md](references/REFERENCE_INDEX.md)
+## Charger le contexte obligatoire
 
-Then load the relevant specialist document:
+Avant toute action, lire :
 
-- Models and calculations: [DATA_MODEL_AND_RULES.md](references/DATA_MODEL_AND_RULES.md)
-- Screens and flows: [FUNCTIONAL_SPEC.md](references/FUNCTIONAL_SPEC.md)
-- Architecture and folders: [ARCHITECTURE.md](references/ARCHITECTURE.md)
-- Delivery sequence: [IMPLEMENTATION_ROADMAP.md](references/IMPLEMENTATION_ROADMAP.md)
-- Tests and release gates: [QUALITY_PLAN.md](references/QUALITY_PLAN.md)
-- Notion migration: [CSV_IMPORT_SPEC.md](references/CSV_IMPORT_SPEC.md)
-- Launch and growth readiness: [RELEASE_AND_GROWTH.md](references/RELEASE_AND_GROWTH.md)
+1. `CLAUDE.md`
+2. `OBSIDIAN_GLASS_STATUS.md`
+3. `PROJECT_STATUS.md`
+4. `DECISION_LOG.md`
+5. [OBSIDIAN_GLASS_CONSTITUTION.md](references/OBSIDIAN_GLASS_CONSTITUTION.md)
+6. [OBSIDIAN_GLASS_DELIVERY.md](references/OBSIDIAN_GLASS_DELIVERY.md)
+7. [OBSIDIAN_GLASS_SCREEN_MATRIX.md](references/OBSIDIAN_GLASS_SCREEN_MATRIX.md)
+8. [REFERENCE_INDEX.md](references/REFERENCE_INDEX.md)
 
-Inspect the visual files in `references/visual/` whenever the task touches UI, charts, branding, spacing, icons, colors, onboarding, screenshots, or App Store assets.
+Selon le lot, charger ensuite uniquement les références nécessaires :
 
-## Interpret the mode
+- Produit : [PRODUCT_VISION.md](references/PRODUCT_VISION.md)
+- Architecture : [ENGINEERING_CONTRACT.md](references/ENGINEERING_CONTRACT.md)
+  et [ARCHITECTURE.md](references/ARCHITECTURE.md)
+- Finance et données : [DATA_MODEL_AND_RULES.md](references/DATA_MODEL_AND_RULES.md)
+- Parcours : [FUNCTIONAL_SPEC.md](references/FUNCTIONAL_SPEC.md)
+- Qualité : [QUALITY_PLAN.md](references/QUALITY_PLAN.md)
+- Publication : [RELEASE_AND_GROWTH.md](references/RELEASE_AND_GROWTH.md)
 
-### `bootstrap`
+Pour tout travail d'interface, ouvrir réellement les images sélectionnées dans
+`REFERENCE_INDEX.md`. Ne pas se contenter de leurs noms.
 
-Create or normalize the project foundation. If no iOS project exists, create the project structure and implementation files that can be opened in Xcode. If an Xcode project already exists, inspect and improve it without destroying current work. Establish models, services, theme, demo data, tests, project status, and the first compilable vertical slice.
+## Interpréter la commande
 
 ### `plan`
 
-Audit the repository and produce a phased execution plan grounded in the actual code. Do not make broad implementation changes. Small diagnostic or documentation edits are allowed. Identify current state, missing foundations, risks, dependencies, and exact acceptance criteria.
+Inspecter le dépôt, les tests, les captures et le lot demandé. Produire les
+critères d'acceptation et le diff prévu. Ne pas lancer une refonte générale.
 
-### `build`
+### `execute Lx`
 
-Implement the requested scope or the next incomplete roadmap phase. Finish the vertical slice fully: model, service, UI, previews, empty/error states, tests, build verification, and documentation.
+Exécuter uniquement le lot `Lx` décrit dans
+`OBSIDIAN_GLASS_DELIVERY.md`. Terminer le lot verticalement : code, états,
+tests, rendu, captures, documentation et commit. S'arrêter ensuite.
 
 ### `continue`
 
-Read `PROJECT_STATUS.md`, git history, current diff, tests, and TODOs. Resume from the first incomplete acceptance criterion. Do not restart completed work or replace working architecture without evidence.
-
-### `audit`
-
-Perform a rigorous product, architecture, financial-correctness, visual, accessibility, security, and performance audit. Fix high-confidence defects. Record larger redesigns as prioritized findings before changing them.
+Lire `OBSIDIAN_GLASS_STATUS.md`, vérifier le code et la CI, puis reprendre le
+premier critère incomplet du lot actif. Ne pas répéter un lot terminé.
 
 ### `verify`
 
-Run the complete applicable quality gate. Build the app, run unit tests, verify previews or simulator behavior where available, inspect data integrity, and report evidence. Do not claim success without command output or direct inspection.
+Ne pas ajouter de fonction. Construire, tester, vérifier visuellement et
+produire les preuves demandées pour le lot ou l'écran indiqué.
 
-### `release`
+Si la commande est ambiguë, choisir l'action la plus conservatrice. Pour un
+grand chantier inconnu, planifier. Si un lot est déjà actif, le terminer.
 
-Complete production hardening, privacy copy, onboarding polish, accessibility, localization, export/backup flows, store metadata drafts, screenshots checklist, and final regression verification. Do not upload or publish without explicit permission.
+## Sécurité du dépôt
 
-If the mode is omitted, infer the safest useful mode from the repository. Prefer `plan` for a large unknown codebase and `continue` when `PROJECT_STATUS.md` clearly identifies the next task.
+Avant chaque modification :
 
-# Non-negotiable product contract
+1. exécuter `pwd` et `git status --short --branch`;
+2. confirmer la branche `refonte/budget-obsidian-glass-v1`;
+3. inspecter le diff et préserver tout travail non lié;
+4. lire le code, les tests et les décisions réelles;
+5. identifier les commandes de build et de test depuis la CI;
+6. annoncer les critères d'acceptation du lot.
 
-- Native iOS only: Swift 5.10+, SwiftUI, SwiftData, Swift Charts, iOS 17 minimum.
-- iPhone first; layouts must remain adaptable for iPad and Dynamic Type.
-- No external runtime dependency in V1 unless explicitly approved.
-- Offline first. No backend is required for core use.
-- Store monetary values as `Decimal`, never `Double` or binary floating point.
-- Use stable identifiers and explicit relationships. Avoid hidden global mutable state.
-- Use `fr-CH` formatting: `CHF 18’190.00` and `dd.MM.yyyy`.
-- Planned and actual money are separate concepts.
-- Savings and investments are not cost-of-living expenses.
-- Internal transfers are neutral for income, expenses, savings rate, cash flow, and net worth.
-- Tax provisioning is configurable and defaults to 30% of taxable income.
-- Every active recurring charge appears in the month forecast.
-- No financial ratio may produce `NaN` or infinity.
-- Never silently discard an import row or financial error.
-- No fake claim of live bank connectivity in V1.
-- No personalized regulated financial advice. Present calculations as organizational estimates.
-- Never embed the user's real personal financial data in source code or previews.
+Ne jamais utiliser de commande Git destructive. Ne jamais modifier la branche
+par défaut, fusionner, déployer ou publier sans autorisation explicite.
 
-# Repository safety protocol
+## Contrat financier non négociable
 
-Before changing code:
+- `Decimal` de bout en bout dans l'app native; jamais `Double` pour l'argent.
+- Format `fr-CH`, dates `dd.MM.yyyy`, montants explicables.
+- Planifié et comptabilisé restent distincts.
+- Épargne et investissement ne sont pas des dépenses de vie.
+- Un virement interne est neutre pour revenu, dépense, cash-flow et patrimoine.
+- Un remboursement de capital réduit le cash et la dette sans créer une dépense;
+  intérêts et frais restent séparés.
+- Aucune devise n'est additionnée sans conversion explicite et historisée.
+- Un taux actuel ne réécrit jamais l'historique.
+- Une restauration invalide ne modifie aucune donnée et ne transforme jamais
+  silencieusement une valeur invalide en zéro.
+- Aucun échec de persistance ne peut être ignoré.
+- Aucun calcul fiscal, délai ou donnée réelle ne doit être inventé.
+- Aucun conseil financier personnalisé ni promesse de connexion bancaire.
 
-1. Run `pwd`, inspect the directory tree, identify `.xcodeproj` or `.xcworkspace`, targets, schemes, deployment target, and test targets.
-2. Run `git status --short --branch` and inspect relevant uncommitted changes.
-3. Preserve unrelated work. Never reset, clean, delete, or overwrite user changes.
-4. Read existing architecture and conventions before introducing a competing pattern.
-5. Locate build and test commands from the project, CI, README, and scheme configuration.
-6. Create `PROJECT_STATUS.md` from [PROJECT_STATUS_TEMPLATE.md](templates/PROJECT_STATUS_TEMPLATE.md) if absent.
-7. Record material architectural choices in `DECISION_LOG.md` using [DECISION_LOG_TEMPLATE.md](templates/DECISION_LOG_TEMPLATE.md).
+Tout P0 confirmé sur les données, la restauration, la confidentialité ou la
+publication bloque le passage au lot visuel suivant.
 
-When the repository is empty, create a clean structure based on [ARCHITECTURE.md](references/ARCHITECTURE.md). Do not generate hundreds of placeholder files. Build a small compilable foundation, then grow it vertically.
+## Contrat UX
 
-# Mandatory execution loop
+Chaque écran doit répondre à une question principale et proposer une action
+évidente. Utiliser les mots « Disponible », « À payer », « Dépensé », « Mis de
+côté » et « Patrimoine ». Garder le jargon technique hors de l'interface.
 
-For every phase or screen:
+L'Accueil doit permettre de comprendre en dix secondes :
 
-1. **Understand** — inspect existing models, services, views, tests, and the canonical references.
-2. **Specify** — state the user outcome and acceptance criteria in `PROJECT_STATUS.md`.
-3. **Model** — add or adapt domain types and migrations before UI work.
-4. **Calculate** — place financial logic in pure, testable services.
-5. **Test first where risk is financial** — write invariant tests before or alongside implementation.
-6. **Build UI** — implement the complete screen with loading, empty, populated, error, and edit states.
-7. **Preview** — create deterministic SwiftUI previews using fictional demo data.
-8. **Integrate** — connect navigation, persistence, validation, and related modules.
-9. **Compile** — build the actual scheme. Fix warnings that indicate correctness or API issues.
-10. **Verify** — run targeted tests, then the broader suite when the slice is stable.
-11. **Inspect visually** — compare against the canonical brand board and chart reference. Correct spacing, clipping, contrast, hierarchy, and glass depth.
-12. **Document** — update status, decisions, known limitations, and the next exact action.
+1. l'argent réellement disponible;
+2. ce qui est entré et sorti;
+3. ce qui reste à payer ou à réserver;
+4. l'état du budget;
+5. la prochaine action utile.
 
-Do not move to the next phase while the current acceptance criteria are incomplete, unless a blocker is documented with evidence.
+Navigation cible : `Mois`, `Mouvements`, `Budget`, `Comptes`, `Plus`.
+L'action la plus fréquente doit être accessible en un ou deux gestes. Aucun
+bouton mort, faux chargement ou donnée de démonstration présentée comme réelle.
 
-# Build order
+## Contrat Obsidian Glass
 
-Follow the detailed roadmap, with this default sequence:
+- Une seule identité sombre, sans thème clair décoratif.
+- Fond Obsidienne `#090C12`.
+- Surface verre Graphite autour de `rgba(20, 25, 37, 0.72)`.
+- Accent de marque unique Indigo Aurora `#7367FF`.
+- Vert, corail et ambre uniquement pour leur sens financier.
+- Chiffres très lisibles, cartes aérées, profondeur mesurée.
+- Graphiques pédagogiques avant les effets.
+- Widgets utiles et persistants; jamais de gadget ou d'animation permanente.
+- Emojis ou pictogrammes chaleureux en petites touches, jamais comme seul sens.
+- VoiceOver, Dynamic Type, contrastes, cibles de 44 points, reduced motion et
+  reduced transparency obligatoires.
 
-1. Project foundation, theme, formatting, persistence container, demo data, and tests.
-2. Local onboarding and household profile.
-3. Accounts and balances.
-4. Transactions and strict validation.
-5. Monthly dashboard and snapshots.
-6. Monthly and annual budget.
-7. Recurring transactions and subscriptions.
-8. Tax profile and tax provisions.
-9. Savings goals and emergency fund.
-10. Insurance and contract register.
-11. Swiss pension overview: pillars 1, 2, 3a, 3b.
-12. Assets, liabilities, and net worth.
-13. Documents, CSV import, export, backup, Face ID, and privacy controls.
-14. Accessibility, localization, performance, release hardening, and App Store package.
+La constitution détaillée prévaut sur toute ancienne référence Horizon ou
+multi-thème.
 
-A later phase may introduce future-ready types earlier when a relationship requires them, but avoid implementing incomplete screens out of sequence.
+## Boucle d'exécution obligatoire
 
-# Architecture rules
+Pour chaque lot :
 
-- Prefer feature folders and small focused types.
-- Use SwiftData models for persisted entities and plain structs for derived snapshots and presentation data.
-- Views may use `@Query`; nontrivial calculations must live in services or view models.
-- Prefer constructor/environment injection over service singletons.
-- Keep date, calendar, locale, exchange-rate, and “now” dependencies injectable for deterministic tests.
-- Make Decimal arithmetic explicit and centralized.
-- Treat transfers as linked double-entry-like movements or a single transfer entity with atomic balance effects; never duplicate them as income and expense.
-- Use schema versions and migration planning from the beginning.
-- Isolate file import/export and biometric authentication behind protocols.
-- Keep demo and preview data out of production stores.
-- Do not place formatting logic, persistence writes, or tax calculations directly in SwiftUI view bodies.
+1. observer l'état réel;
+2. écrire le résultat utilisateur et les critères mesurables;
+3. protéger les invariants et prévoir les migrations;
+4. créer ou adapter les composants réutilisables;
+5. implémenter tous les états utiles : vide, chargé, erreur, montant long,
+   contenu long et clavier;
+6. ajouter les tests ciblés;
+7. exécuter les tests puis la suite applicable;
+8. rendre et inspecter sur iPhone étroit et courant;
+9. comparer avant/après;
+10. vérifier accessibilité, mouvement et transparence réduits;
+11. mettre à jour `OBSIDIAN_GLASS_STATUS.md` et les décisions;
+12. produire un commit ciblé et s'arrêter.
 
-# UI and design rules
+## Gates de qualité
 
-Use the canonical visual board as the primary direction, not as a pixel-for-pixel screenshot to copy.
+Un lot n'est terminé que si :
 
-- Mood: neutral, premium, reassuring, precise, human.
-- Base: graphite and midnight navy with transparent layered glass cards.
-- Accents: indigo, electric blue, restrained violet/cyan glow; amber only for attention.
-- Positive: green; negative: coral red; warning: amber; informational: indigo/blue.
-- Use soft frosted transparency, subtle inner highlights, one-pixel borders, gentle shadows, and controlled bloom.
-- Avoid excessive neon, heavy gradients, noisy backgrounds, tiny text, and generic banking clichés.
-- Use SF Pro/system typography in the actual app. Reproduce the hierarchy of the visual references without bundling font files.
-- Charts must be legible before decorative: clear scale, restrained grid, meaningful highlights, accessible labels, and no misleading area encoding.
-- Emojis are small lifestyle accents, not core navigation icons. Limit them to friendly greetings, goals, categories, and celebrations. Never use them as the sole meaning for critical data.
-- The dashboard must answer within ten seconds: what is available, what came in, what went out, what is reserved, and what requires action.
-- Every polished screen needs light/dark behavior, Dynamic Type, VoiceOver labels, reduced-motion behavior, and color-independent status cues.
+- l'app ou la PWA concernée fonctionne réellement;
+- les tests ciblés et la suite applicable sont verts;
+- aucune erreur console ni crash connu n'est introduit;
+- les chiffres se réconcilient avec les fixtures existantes;
+- le rendu est vérifié, pas seulement décrit;
+- l'écran fonctionne à 320 px et sur un iPhone courant;
+- les états vide, erreur et données extrêmes sont traités;
+- VoiceOver/Dynamic Type ou équivalents web sont couverts;
+- reduced motion et reduced transparency ont un comportement correct;
+- les captures avant/après sont conservées;
+- le statut indique preuves, risques et prochain lot exact.
 
-Use [DesignTokens.swift](examples/DesignTokens.swift), [GlassCard.swift](examples/GlassCard.swift), and [FinanceFormatting.swift](examples/FinanceFormatting.swift) only as patterns; adapt them to the actual repository rather than copying blindly.
+Ne jamais déclarer « 10/10 », « terminé » ou « prêt App Store » tant qu'une
+validation iPhone réel, une migration, la confidentialité ou une exigence de
+publication reste non vérifiée.
 
-# Financial correctness gates
+## Rapport de fin de lot
 
-Before marking a feature complete, verify all applicable rules:
+Répondre avec :
 
-- Planned amount and actual amount are independently queryable.
-- Savings rate = `(savings + investments) / income`, safely returning zero when income is zero.
-- Cost of living excludes savings, investments, and internal transfers.
-- An internal transfer changes account balances but not household net worth.
-- Tax provision distinguishes recommended, reserved, paid, outstanding, and arrears.
-- Available-to-spend subtracts committed future charges, tax reserve, debt payments, and committed goals according to the defined policy.
-- Net worth = included assets − included liabilities.
-- Investment contribution and market-value change are distinguishable.
-- Active subscriptions forecast correctly for monthly, quarterly, annual, and custom schedules.
-- Validation rejects missing dates, nonpositive amounts where inappropriate, missing accounts/categories, and invalid transfer destinations.
-- Imported rows are reproducible, traceable, and idempotent.
+1. résultat utilisateur livré;
+2. fichiers modifiés;
+3. tests et builds exécutés avec résultats;
+4. captures produites;
+5. invariants contrôlés;
+6. risques ou blocages réels;
+7. commit du lot;
+8. prochain prompt exact, sans commencer le lot suivant.
 
-# Quality gate
-
-A phase is complete only when:
-
-- The actual app target compiles.
-- Relevant unit tests pass.
-- No known crash path exists in normal use.
-- Empty, first-use, populated, validation-error, and edge states are handled.
-- SwiftUI previews compile for meaningful screen states.
-- Financial values use `Decimal` end to end.
-- Accessibility labels and Dynamic Type have been inspected.
-- The screen visually aligns with the reference identity.
-- Persistence survives relaunch in a manual or automated check.
-- Status documentation reflects reality.
-
-For release verification, also require the complete checklist in [QUALITY_PLAN.md](references/QUALITY_PLAN.md).
-
-# Decision behavior
-
-- Make sensible reversible defaults without interrupting the user.
-- Ask only when blocked by an irreversible product decision, missing legal/commercial requirement, unavailable signing credential, or destructive data migration.
-- When uncertain, inspect evidence before redesigning.
-- Prefer a smaller finished vertical slice over a broad unfinished implementation.
-- Never claim an action, build, test, simulator verification, or migration succeeded unless it was actually performed.
-- Do not push, publish, purchase, or alter production services without explicit permission.
-
-# Progress output
-
-At the end of each invocation, provide:
-
-1. What was completed.
-2. Files and modules materially changed.
-3. Build and test evidence.
-4. Remaining risks or blockers.
-5. The next exact phase or command.
-
-Also update `PROJECT_STATUS.md` so another session can resume without re-discovering the project.
-
-# Definition of Budget V1 done
-
-Budget V1 is done only when a new Swiss user can install the app, complete onboarding, create accounts, enter/import transactions, distinguish planned from actual money, understand the month dashboard, manage recurring charges, reserve taxes, track goals, record insurance and pension data, view net worth, export/backup data, protect access with Face ID, and use the core experience offline without crashes or misleading calculations.
