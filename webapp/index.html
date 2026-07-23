@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Budget">
-<meta name="theme-color" content="#07090e">
+<meta name="theme-color" content="#090C12">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -18,73 +18,107 @@
 </script>
 <style>
   :root {
-    /* Horizon — thème CLAIR par défaut (Swiss calm fintech) */
-    --graphite: #E9EDF4;
-    --midnight: #FFFFFF;
-    --slate: #FFFFFF;
-    --indigo: #4B5CFF;
-    --indigo-text: #4338CA;
-    --electric: #2563EB;
-    --violet: #7C3AED;
-    --offwhite: #101623;
-    --coolgray: #5A6478;
-    --positive: #0B8A57;
-    --negative: #D23B55;
-    --amber: #A96A10;
+    /* ==========================================================
+       Obsidian Glass (ADR-020, L2) — UNE seule identité sombre.
+       Tokens canoniques : mêmes valeurs que la source
+       webapp/design-system/obsidian.css (parité testée par
+       webapp/tests/design.test.mjs). Vert, corail et ambre sont
+       STRICTEMENT sémantiques — jamais décoratifs.
+       ========================================================== */
+    --canvas: #090C12;                       /* fond principal */
+    --canvas-raised: #0D1119;                /* zone élevée / navigation */
+    --glass: rgba(20, 25, 37, 0.72);         /* carte standard */
+    --glass-strong: rgba(27, 34, 48, 0.88);  /* héros, feuille, popover */
+    --glass-fallback: #151B26;               /* transparence réduite */
+    --stroke: rgba(255, 255, 255, 0.10);     /* bord standard */
+    --stroke-active: rgba(115, 103, 255, 0.48); /* sélection / focus */
+    --brand: #7367FF;                        /* Indigo Aurora */
+    --brand-bright: #9188FF;                 /* surbrillance, même teinte */
+    --text-primary: #F6F7FB;
+    --text-secondary: #A7B0C0;
+    --text-tertiary: #758094;
+    --positive: #36D399;                     /* sémantique : progrès */
+    --negative: #FF6B7A;                     /* sémantique : perte, erreur */
+    --warning: #FFB454;                      /* sémantique : échéance */
+
+    /* Tons dérivés de l'indigo (permis par la constitution) */
+    --brand-deep: #6457F0;                   /* boutons primaires : blanc AA */
+    --brand-halo: rgba(115, 103, 255, 0.10); /* halo de fond 6-10 % */
+    --brand-glow: rgba(115, 103, 255, 0.35); /* ombre des CTA */
+    --brand-tint: rgba(115, 103, 255, 0.16); /* pastilles informatives */
+
+    /* Teintes sémantiques translucides */
+    --tint-positive: rgba(54, 211, 153, 0.16);
+    --tint-negative: rgba(255, 107, 122, 0.14);
+    --tint-warning: rgba(255, 180, 84, 0.18);
+    --tint-neutral: rgba(255, 255, 255, 0.08);
+
+    /* Géométrie */
     --card-radius: 22px;
     --row-radius: 14px;
-    --bg: #F4F6FB;
-    --surface: rgba(255, 255, 255, 0.86);
-    --surface-2: rgba(240, 243, 250, 0.96);
-    --line: rgba(16, 22, 35, 0.10);
-    --line-strong: rgba(16, 22, 35, 0.26);
-    --sheen: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(75,92,255,0.14), transparent 70%);
-    --field: #FFFFFF;
-    --surface-3: #E9EDF6;
-    --badge-ink: #3730A3;
-    --hero-surface: rgba(255, 255, 255, 0.92);
-    --teal: #0D9488;
-    --tint-income: rgba(11, 138, 87, 0.14);
-    --tint-expense: rgba(210, 59, 85, 0.12);
-    --tint-save: rgba(13, 148, 136, 0.14);
-    --tint-goal: rgba(124, 58, 237, 0.12);
-    --tint-info: rgba(37, 99, 235, 0.12);
-    --tint-neutral: rgba(16, 22, 35, 0.06);
-  }
-  /* Horizon — mode sombre premium : l'identité verre historique, intacte */
-  html[data-theme="dark"] {
-    --graphite: #0B0E14;
-    --midnight: #0F1624;
-    --slate: #1E2333;
-    --indigo-text: #6B7AFF;
-    --electric: #5AA7FF;
-    --violet: #8B5CF6;
-    --offwhite: #F2F4F8;
-    --coolgray: #7A8699;
-    --positive: #39D98A;
-    --negative: #FF667A;
-    --amber: #FFB24D;
-    --bg: #07090e;
-    --surface: rgba(15, 22, 36, 0.55);
-    --surface-2: rgba(9, 12, 19, 0.92);
-    --line: rgba(255, 255, 255, 0.07);
+    --hero-radius: 28px;
+
+    /* ----------------------------------------------------------
+       ALIAS HÉRITÉS (transition L2 — à retirer quand les écrans
+       seront réécrits en L3+). Ils pointent TOUS vers les tokens
+       Obsidian : aucune teinte teal, cyan, violette ou bleu
+       électrique indépendante ne reste active.
+       ---------------------------------------------------------- */
+    --graphite: var(--canvas);
+    --midnight: var(--canvas-raised);
+    --slate: var(--glass-fallback);
+    --indigo: var(--brand);
+    --indigo-text: var(--brand-bright);
+    --electric: var(--brand-bright);         /* ex-bleu électrique */
+    --violet: var(--brand-bright);           /* ex-violet décoratif */
+    --teal: var(--brand-bright);             /* ex-teal épargne */
+    --offwhite: var(--text-primary);
+    --coolgray: var(--text-secondary);
+    --amber: var(--warning);
+    --bg: var(--canvas);
+    --surface: var(--glass);
+    --surface-2: rgba(13, 17, 25, 0.92);     /* tabbar translucide sur canvasRaised */
+    --surface-3: var(--glass-fallback);
+    --line: var(--stroke);
     --line-strong: rgba(255, 255, 255, 0.18);
-    --sheen: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(75,92,255,0.28), transparent 70%);
-    --field: rgba(11, 14, 20, 0.8);
-    --surface-3: rgba(30, 35, 51, 0.9);
-    --badge-ink: #C9D2FF;
-    --hero-surface: rgba(20, 27, 45, 0.72);
-    --teal: #2DD4BF;
-    --tint-income: rgba(57, 217, 138, 0.16);
-    --tint-expense: rgba(255, 102, 122, 0.14);
-    --tint-save: rgba(45, 212, 191, 0.15);
-    --tint-goal: rgba(139, 92, 246, 0.16);
-    --tint-info: rgba(90, 167, 255, 0.14);
-    --tint-neutral: rgba(255, 255, 255, 0.08);
+    --sheen: linear-gradient(135deg, rgba(255,255,255,0.16), var(--stroke-active), transparent 70%);
+    --field: var(--canvas-raised);
+    --badge-ink: #C9D2FF;                    /* encre indigo pastel (dérivée) */
+    --hero-surface: var(--glass-strong);
+    --tint-income: var(--tint-positive);
+    --tint-expense: var(--tint-negative);
+    --tint-save: var(--brand-tint);          /* ex-teal → indigo */
+    --tint-goal: var(--brand-tint);          /* ex-violet → indigo */
+    --tint-info: var(--brand-tint);
   }
 
-  /* Le prototype assume l'identité canonique sombre de l'app,
-     quel que soit le thème du viewer. */
+  /* Transparence réduite : verre remplacé par le graphite OPAQUE,
+     halo supprimé, blurs retirés. Deux déclencheurs : le réglage
+     utilisateur ET le mécanisme déterministe de test
+     html[data-reduced-transparency="true"]. */
+  @media (prefers-reduced-transparency: reduce) {
+    :root {
+      --glass: var(--glass-fallback);
+      --glass-strong: var(--glass-fallback);
+      --surface-2: var(--canvas-raised);
+      --brand-halo: transparent;
+    }
+    .tabbar, .sheet, .card.hero { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+  html[data-reduced-transparency="true"] {
+    --glass: var(--glass-fallback);
+    --glass-strong: var(--glass-fallback);
+    --surface-2: var(--canvas-raised);
+    --brand-halo: transparent;
+  }
+  html[data-reduced-transparency="true"] .tabbar,
+  html[data-reduced-transparency="true"] .sheet,
+  html[data-reduced-transparency="true"] .card.hero {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+
+  /* L'app assume l'identité canonique sombre Obsidian,
+     quel que soit le réglage du viewer. */
   html, body { background: var(--bg); overscroll-behavior: none; }
   html { height: 100%; }
 
@@ -101,10 +135,21 @@
     align-items: center;
     padding: 0;
     overflow: hidden;
+    /* Halo radial indigo 6-10 % derrière le point focal (constitution) —
+       supprimé quand la transparence est réduite via --brand-halo. */
     background:
-      radial-gradient(1000px 520px at 50% -140px, rgba(75, 92, 255, 0.16), transparent 65%),
-      radial-gradient(700px 420px at 85% 100%, rgba(139, 92, 246, 0.08), transparent 60%),
-      #07090e;
+      radial-gradient(1000px 520px at 50% -140px, var(--brand-halo), transparent 65%),
+      var(--canvas);
+  }
+
+  /* Texte agrandi — mécanisme déterministe de vérification. */
+  html[data-large-text="true"] { font-size: 130%; }
+
+  /* Focus clavier global : anneau visible + décalage (indice de forme,
+     jamais la couleur seule). */
+  :focus-visible {
+    outline: 2px solid var(--brand-bright);
+    outline-offset: 2px;
   }
 
   /* ---------- App container (full screen, no phone frame) ---------- */
@@ -143,8 +188,8 @@
     margin: 8px 18px 0;
     padding: 7px 12px;
     border-radius: 10px;
-    background: rgba(75, 92, 255, 0.22);
-    border: 1px solid rgba(75, 92, 255, 0.4);
+    background: var(--brand-tint);
+    border: 1px solid var(--stroke-active);
     font-size: 11px;
     color: var(--badge-ink);
   }
@@ -189,7 +234,11 @@
   .card.hero {
     background: var(--hero-surface);
     border-color: var(--line);
-    box-shadow: 0 18px 40px rgba(75, 92, 255, 0.16);
+    border-radius: var(--hero-radius);
+    padding: 24px;
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    box-shadow: 0 18px 40px var(--brand-halo);
   }
   .card.row {
     border-radius: var(--row-radius);
@@ -308,20 +357,20 @@
     background: linear-gradient(90deg, var(--electric), var(--indigo));
     transition: width 0.5s ease;
   }
-  .fill.warn-fill { background: linear-gradient(90deg, var(--amber), #ff9d2e); }
-  .fill.over-fill { background: linear-gradient(90deg, #ff8a99, var(--negative)); }
+  .fill.warn-fill { background: var(--warning); }
+  .fill.over-fill { background: var(--negative); }
   .badge {
     display: inline-block;
     font-size: 10px; font-weight: 700;
     padding: 2px 7px; border-radius: 99px;
-    background: rgba(255, 102, 122, 0.2);
+    background: var(--tint-negative);
     color: var(--negative);
     margin-left: 6px;
     vertical-align: 1px;
   }
   .badge.planned {
-    background: rgba(255, 178, 77, 0.18);
-    color: var(--amber);
+    background: var(--tint-warning);
+    color: var(--warning);
   }
   .bar-foot { text-align: right; font-size: 11px; color: var(--coolgray); margin-top: 3px; }
 
@@ -379,12 +428,17 @@
   /* ---------- Buttons / form ---------- */
   .btn {
     display: inline-block;
-    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    /* Fond indigo profond dérivé : texte blanc AA (≥ 4.5). */
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+      var(--brand-deep);
     color: #fff;
     border: none;
     font-family: inherit;
     font-size: 14px; font-weight: 700;
     padding: 12px 18px;
+    min-height: 44px;
+    box-sizing: border-box;
     border-radius: 13px;
     cursor: pointer;
     width: 100%;
@@ -394,16 +448,23 @@
     border: 1px solid var(--line);
     color: var(--electric);
   }
+  .btn.destructive {
+    background: var(--tint-negative);
+    border: 1px solid var(--negative);
+    color: var(--negative);
+  }
   .fab {
     position: absolute;
     right: 20px; bottom: calc(92px + env(safe-area-inset-bottom));
     width: 50px; height: 50px;
     border-radius: 17px;
     border: none;
-    background: linear-gradient(135deg, var(--indigo), var(--violet));
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+      var(--brand-deep);
     color: #fff; font-size: 24px;
     cursor: pointer;
-    box-shadow: 0 10px 26px rgba(75, 92, 255, 0.4);
+    box-shadow: 0 10px 26px var(--brand-glow);
     display: grid; place-items: center;
     line-height: 0;
   }
@@ -419,9 +480,12 @@
   .sheet-backdrop.open { display: flex; }
   .sheet {
     width: 100%;
-    background: var(--slate);
-    border-radius: 26px 26px 0 0;
+    background: var(--glass-strong);
+    border-top: 1px solid var(--stroke);
+    border-radius: var(--hero-radius) var(--hero-radius) 0 0;
     padding: 18px 20px 26px;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     animation: rise 0.28s ease;
   }
   @keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -488,6 +552,55 @@
   }
   .toast.show { opacity: 1; pointer-events: auto; }
   @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  /* ---------- Primitives Obsidian L2 (badge, erreurs, vide) ---------- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--tint-neutral);
+    color: var(--text-secondary);
+  }
+  /* Point de forme : le statut ne repose jamais sur la couleur seule. */
+  .pill::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: currentColor;
+    flex: none;
+  }
+  .pill.pos { background: var(--tint-positive); color: var(--positive); }
+  .pill.neg { background: var(--tint-negative); color: var(--negative); }
+  .pill.warn { background: var(--tint-warning); color: var(--warning); }
+
+  .sheet input[aria-invalid="true"], .ob-form input[aria-invalid="true"] {
+    border-color: var(--negative);
+  }
+  .sheet input[aria-invalid="true"]:focus, .ob-form input[aria-invalid="true"]:focus {
+    outline-color: var(--negative);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 28px 18px;
+    color: var(--text-secondary);
+  }
+  .empty-state .glyph { font-size: 28px; display: block; margin-bottom: 8px; }
+  .empty-state .t { font-weight: 700; color: var(--text-primary); margin: 0 0 4px; font-size: 14.5px; }
+  .empty-state p { margin: 0; font-size: 13px; }
+
+  .error-state {
+    border: 1px solid var(--negative);
+    background: var(--tint-negative);
+    border-radius: var(--card-radius);
+    padding: 18px;
+    color: var(--text-primary);
+  }
+  .error-state .t { font-weight: 700; margin: 0 0 4px; font-size: 14.5px; }
+  .error-state p { margin: 0; font-size: 13px; color: var(--text-secondary); }
 </style>
 
 <div class="phone" id="phone">
@@ -1367,20 +1480,15 @@ function saveState() {
   catch (e) { toast("Stockage indisponible — ce changement ne survivra pas au rechargement"); }
 }
 
-/* Horizon : clair par défaut, sombre premium, ou « système » (suit le
-   réglage de l'appareil, en direct). Persisté dans S.theme. */
-const systemDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+/* Obsidian Glass (ADR-020, L2) : UNE seule identité sombre. L'ancien champ
+   S.theme est PRÉSERVÉ dans l'état et les sauvegardes (compatibilité des
+   restaurations) mais ne commande plus l'apparence. */
 function applyTheme() {
-  const pref = ["light", "dark", "system"].includes(S.theme) ? S.theme : "light";
-  const theme = pref === "system" ? (systemDark && systemDark.matches ? "dark" : "light") : pref;
-  document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.theme = "dark";
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = theme === "dark" ? "#07090e" : "#F4F6FB";
+  if (meta) meta.content = "#090C12";
 }
 applyTheme();
-if (systemDark && systemDark.addEventListener) {
-  systemDark.addEventListener("change", () => { if (S.theme === "system") { applyTheme(); render(); } });
-}
 
 /* Échappement systématique des textes utilisateur injectés en HTML. */
 function esc(value) {
@@ -2113,7 +2221,7 @@ function renderBudget() {
               ? Math.round(cellSpending.reduce((a, l) => a + l.actual, 0) / cellPlanned * 100) : 0;
           }
           const active = hasBudget || hasTx;
-          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "rgba(75,92,255,0.16)" : "var(--line)"}">
+          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "var(--brand-tint)" : "var(--line)"}">
             <div style="font-size:10px;color:var(--coolgray);text-transform:uppercase">${lbl}</div>
             <div style="font-size:12px;font-weight:700;margin-top:2px">${hasBudget ? consumed + " %" : (hasTx ? "·" : "—")}</div>
           </div>`;
@@ -2508,7 +2616,7 @@ function renderNetWorth() {
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
            aria-label="Courbe de la fortune nette, de ${chf(points[0])} à ${chf(net)}">
         <defs><linearGradient id="nw" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="rgba(75,92,255,0.35)"/><stop offset="1" stop-color="rgba(75,92,255,0)"/>
+          <stop offset="0" stop-color="rgba(115,103,255,0.35)"/><stop offset="1" stop-color="rgba(115,103,255,0)"/>
         </linearGradient></defs>
         <polygon points="0,100 ${px.join(" ")} 300,100" fill="url(#nw)"/>
         ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>`).join("")}
@@ -2852,13 +2960,6 @@ function renderSettings() {
         <div class="s">${COUNTRIES[S.country || "CH"].name}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
-    <div class="card row tx" data-toggletheme role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${S.theme === "dark" ? "🌙" : (S.theme === "system" ? "📱" : "☀️")}</div>
-      <div class="meta"><div class="t">Apparence</div>
-        <div class="s">${S.theme === "dark" ? "Sombre — tapez pour suivre le réglage de l'appareil"
-          : (S.theme === "system" ? "Système (suit l'appareil) — tapez pour Clair" : "Clair — tapez pour Sombre")}</div></div>
-      <span style="color:var(--coolgray)">›</span>
-    </div>
     <div class="card row tx" data-editbase role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🌐</div>
       <div class="meta"><div class="t">Devise de référence</div>
@@ -2898,7 +2999,7 @@ function renderSettings() {
     <button class="btn secondary" data-exportjson style="margin-top:8px">Télécharger la sauvegarde (JSON)</button>
     <button class="btn secondary" data-restorepick style="margin-top:8px">Restaurer une sauvegarde…</button>
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" aria-hidden="true" />
-    ${localStorage.getItem(RESCUE_KEY) ? `<button class="btn secondary" data-rescue style="margin-top:8px;color:var(--warn,#e0a458)">Récupérer les données mises de côté…</button>` : ""}
+    ${localStorage.getItem(RESCUE_KEY) ? `<button class="btn secondary" data-rescue style="margin-top:8px;color:var(--warning)">Récupérer les données mises de côté…</button>` : ""}
     <button class="btn secondary" data-deleteall style="margin-top:8px;color:var(--negative)">Effacer les opérations…</button>
     <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
@@ -3581,12 +3682,6 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-customize]")) { openWidgetSheet(); return; }
   const assistBtn = e.target.closest("[data-assistq]");
   if (assistBtn) { assistantQ = assistantQ === assistBtn.dataset.assistq ? null : assistBtn.dataset.assistq; render(); return; }
-  if (e.target.closest("[data-toggletheme]")) {
-    // Cycle : Clair → Sombre → Système → Clair.
-    S.theme = S.theme === "dark" ? "system" : (S.theme === "system" ? "light" : "dark");
-    saveState(); applyTheme(); render();
-    return;
-  }
   if (e.target.closest("[data-locknow]")) { locked = true; lockMessage = ""; render(); return; }
   if (e.target.closest("[data-exportcsv]")) { exportCSV(); return; }
   if (e.target.closest("[data-exportjson]")) { exportBackup(); return; }

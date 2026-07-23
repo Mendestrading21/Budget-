@@ -43,6 +43,12 @@ jobs:
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
           node parity.test.mjs
 
+      - name: Design system Obsidian (tokens, contrastes, galerie, a11y)
+        working-directory: webapp/tests
+        run: |
+          BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
+          node design.test.mjs
+
   build-and-test:
     name: Build + tests (simulateur iOS)
     runs-on: macos-15

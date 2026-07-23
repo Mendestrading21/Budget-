@@ -1,5 +1,68 @@
 # Budget decision log
 
+## ADR-022 — L2 : fondations Obsidian livrées par alias, S.theme neutralisé, indigo profond AA
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+L2 doit livrer le système visuel réutilisable (tokens + primitives + galerie)
+sans refondre les écrans Mois, Budget et Ajout d'un mouvement (L3/L4). La PWA
+portait deux palettes (claire par défaut + sombre) commandées par `S.theme` ;
+le natif résolvait ses couleurs selon l'apparence système et gardait des
+teintes décoratives héritées (teal, cyan, violet, bleu électrique).
+
+### Decision
+
+1. **Identité unique par alias.** Les tokens canoniques Obsidian (constitution
+   §2) deviennent la seule source : `:root` PWA et `BudgetColor` natif. Les
+   anciens noms (`--indigo`, `--electric`, `--violet`, `--teal`, `--graphite`…
+   / `indigo`, `electricBlue`, `violet`, `cyan`, `teal`, `informative`…) sont
+   conservés comme ALIAS pointant vers `brand`, `brandBright` ou les rôles
+   Obsidian — les écrans existants héritent de l'identité sans être réécrits.
+   Ces alias sont temporaires, documentés, à retirer avec les lots L3+.
+2. **`S.theme` neutralisé, jamais détruit.** Le champ reste lu/écrit dans
+   l'état et les sauvegardes (compatibilité des restaurations) mais ne
+   commande plus l'apparence ; `applyTheme()` applique toujours le sombre.
+   La ligne « Apparence » des Réglages et son handler sont retirés. Sur iOS,
+   `.preferredColorScheme(.dark)` est posé UNE fois à la racine (BudgetApp) ;
+   `BudgetTint`/`BudgetTheme` gardent leurs signatures mais ignorent le
+   paramètre `scheme`.
+3. **Indigo profond dérivé `#6457F0` (`brandDeep`).** Le blanc sur `brand`
+   `#7367FF` mesure 4.11:1 (< AA). Les boutons primaires utilisent donc un
+   ton dérivé de la même teinte (permis par la constitution) : 5.04:1 mesuré.
+   Vert/corail/ambre restent strictement sémantiques.
+4. **Transparence réduite déterministe.** `prefers-reduced-transparency` ET
+   l'attribut de test `html[data-reduced-transparency="true"]` (web), le
+   réglage système ET l'environnement `obsidianForcedReducedTransparency`
+   (SwiftUI, previews/tests) remplacent le verre par `glassFallback` opaque,
+   suppriment halo et blurs.
+5. **Galerie hors navigation.** `webapp/design-system/obsidian-gallery.html`
+   (+ `obsidian.css`, source canonique des tokens, parité testée avec
+   `index.html`) et `ObsidianComponentGallery` (previews + argument de
+   lancement `-obsidianGallery`, sans effet Release). `index.html` reste
+   auto-suffisant hors ligne : aucun nouvel asset de production chargé, le
+   service worker est inchangé.
+
+### Consequences
+
+Les écrans existants s'affichent en Obsidian par héritage de tokens ; leurs
+compositions, widgets, graphiques et logiques sont inchangés. Le Test 29 e2e
+vérifie désormais l'identité unique (sombre appliqué, `S.theme` préservé,
+sélecteur absent). Aucune formule financière, donnée, migration ou
+persistance n'est touchée.
+
+### Verification
+
+`webapp/tests/design.test.mjs` (tokens canoniques + parité, contrastes AA
+mesurés, galerie 320/390 sans débordement, cibles ≥ 44 px, focus clavier,
+reduced motion, fallback opaque, zéro erreur console) ; `DesignSystemTests`
+natifs (rôles, alias sans seconde palette, contrastes, géométrie, montants
+extrêmes, construction de la galerie) ; 48 e2e + 5 parité + suite iOS
+complète en CI ; captures `docs/obsidian-glass/foundations/l2/`.
+
+
 ## ADR-021 — L1 : montants historiques figés à la saisie, restauration refusant les montants corrompus
 
 Date: 2026-07-23

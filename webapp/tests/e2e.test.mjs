@@ -625,32 +625,32 @@ const precision = await page.evaluate(() => ({ living: snapshot(2026, 5).living,
 check(Object.is(precision.living, 0.3), `0.10 + 0.20 doit valoir exactement 0.30 (obtenu ${precision.living})`);
 check(Object.is(precision.bal, 0.7), `1 − 0.10 − 0.20 doit valoir exactement 0.70 (obtenu ${precision.bal})`);
 
-// ---------- Test 29 : Horizon — clair par défaut, sombre persisté ----------
-currentTest = "theme horizon";
+// ---------- Test 29 : Obsidian Glass — UNE seule identité sombre ----------
+// (ADR-020, L2) L'ancien sélecteur d'apparence a disparu ; S.theme reste
+// préservé dans l'état pour la compatibilité des sauvegardes, mais ne
+// commande plus l'apparence.
+currentTest = "identite obsidian";
 await goHome();
 let theme = await page.evaluate(() => document.documentElement.dataset.theme);
-check(theme === "light", `le thème par défaut doit être clair (obtenu ${theme})`);
-await page.click(`#tabbar button[aria-label="Plus"]`);
-await page.click('#screen [data-more="settings"]');
-await page.waitForTimeout(150);
-await page.click("[data-toggletheme]");
-await page.waitForTimeout(150);
-theme = await page.evaluate(() => document.documentElement.dataset.theme);
-check(theme === "dark", "la bascule doit passer en sombre");
+check(theme === "dark", `l'identité doit toujours être sombre (obtenu ${theme})`);
+// Une ancienne préférence claire est conservée dans l'état… mais sans effet.
+await page.evaluate(() => { S.theme = "light"; saveState(); });
 await page.reload();
 await page.waitForSelector("#tabbar button");
-theme = await page.evaluate(() => document.documentElement.dataset.theme);
-check(theme === "dark", "le thème sombre doit survivre au rechargement");
-// 3e option : « Système » suit l'appareil (clair par défaut en headless)
+const obsidian = await page.evaluate(() => ({
+  applied: document.documentElement.dataset.theme,
+  pref: S.theme,
+  canvas: getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim(),
+}));
+check(obsidian.applied === "dark", "une préférence claire héritée ne doit plus changer l'apparence");
+check(obsidian.pref === "light", "S.theme doit être PRÉSERVÉ dans l'état (compatibilité des sauvegardes)");
+check(obsidian.canvas === "#090C12", `le token --canvas doit valoir #090C12 (obtenu ${obsidian.canvas})`);
+// Le sélecteur d'apparence a été retiré des Réglages.
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
-await page.click("[data-toggletheme]"); // sombre → système
-await page.waitForTimeout(150);
-const sysPref = await page.evaluate(() => ({ pref: S.theme, applied: document.documentElement.dataset.theme }));
-check(sysPref.pref === "system", "après Sombre, le cycle doit proposer Système");
-check(sysPref.applied === "light", "en mode Système, le thème appliqué suit l'appareil (clair en test)");
-await page.evaluate(() => { S.theme = "light"; saveState(); }); // remettre le défaut
+const themeToggle = await page.$("[data-toggletheme]");
+check(themeToggle === null, "le sélecteur d'apparence ne doit plus exister dans les Réglages");
 
 // ---------- Test 30 : Horizon L2 — une recommandation utile sur l'accueil ----------
 currentTest = "recommandation du mois";

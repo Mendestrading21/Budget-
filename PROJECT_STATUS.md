@@ -1,5 +1,28 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L2 (2026-07-23)
+
+L2 « Fondations Obsidian » exécuté (`/budget-v1 execute L2`, ADR-022) :
+identité sombre UNIQUE livrée par tokens canoniques + alias (PWA `:root` et
+`DesignTokens.swift`) — les ex-teintes teal/cyan/violet/bleu électrique ne
+sont plus que des alias de `brand`/`brandBright` ; `S.theme` préservé dans
+les sauvegardes mais sans effet, sélecteur d'apparence retiré ; sombre posé
+à la racine iOS. Primitives : cartes verre (28/22/14, fallback opaque
+déterministe web `data-reduced-transparency` / SwiftUI
+`obsidianForcedReducedTransparency`), montants jamais tronqués
+(`AmountText`, clamp web), `StatusPill`/`.pill` (jamais couleur seule),
+boutons 44 pt blanc-AA sur `brandDeep` #6457F0 (5.04:1), feuilles, états
+vide/erreur, focus-visible global. Galeries déterministes hors navigation
+(web + previews natives + argument `-obsidianGallery`). Tests : nouveau
+`design.test.mjs` en CI (tokens+parité, 11 contrastes AA mesurés, 320/390,
+44 px, clavier, reduced motion/transparency, zéro erreur console),
+`DesignSystemTests` natifs, Test 29 e2e réécrit (identité unique). Local :
+48 e2e + 5 parité + design verts ; captures
+`docs/obsidian-glass/foundations/l2/` + README. Écrans, formules
+financières, données et service worker inchangés. **L2 = VERIFYING**
+(validation humaine composants/captures + preuve native visuelle au
+pilote L4), **L3 = BLOCKED**.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L1 (2026-07-23)
 
 L1 « Vérité, baseline et P0 » exécuté (`/budget-v1 execute L1`), puis passe

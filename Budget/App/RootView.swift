@@ -2,20 +2,26 @@ import SwiftUI
 import SwiftData
 
 /// Routes between onboarding (no household yet) and the main experience.
+/// L'identité sombre Obsidian est établie à la racine (BudgetApp) —
+/// aucun écran ne gère l'apparence individuellement.
 struct RootView: View {
     @Query private var households: [Household]
     @State private var router = AppRouter()
 
     var body: some View {
         Group {
-            if households.isEmpty {
+            if ProcessInfo.processInfo.arguments.contains("-obsidianGallery") {
+                // Galerie interne du design system (preuves L2) : jamais
+                // atteignable sans cet argument de lancement — l'expérience
+                // Release est inchangée.
+                ObsidianComponentGallery()
+            } else if households.isEmpty {
                 OnboardingFlowView()
             } else {
                 MainTabView()
                     .environment(router)
             }
         }
-        .preferredColorScheme(nil) // respect the system appearance
     }
 }
 

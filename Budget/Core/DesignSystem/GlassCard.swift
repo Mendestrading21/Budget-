@@ -1,11 +1,25 @@
 import SwiftUI
 
-/// Layered glass card: translucent fill, top-left highlight, one-pixel
-/// gradient border and a single restrained outer shadow.
+/// Mécanisme DÉTERMINISTE de vérification de la transparence réduite
+/// (previews et tests) — miroir du `html[data-reduced-transparency]` web.
+/// Le réglage système `accessibilityReduceTransparency` reste prioritaire.
+private struct ForcedReducedTransparencyKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var obsidianForcedReducedTransparency: Bool {
+        get { self[ForcedReducedTransparencyKey.self] }
+        set { self[ForcedReducedTransparencyKey.self] = newValue }
+    }
+}
+
+/// Carte verre Obsidian : surface translucide, reflet supérieur discret,
+/// bord d'un point et une seule ombre extérieure mesurée.
 ///
-/// `style` controls how heavy the treatment is — `.hero` for the main
-/// dashboard card, `.standard` for section cards, `.row` for scrolling
-/// list cells where stacked materials would hurt performance.
+/// `style` dose le traitement — `.hero` pour la carte principale (verre
+/// fort + blur), `.standard` pour les cartes de section, `.row` pour les
+/// cellules de listes où tout matériau lourd nuirait aux performances.
 struct GlassCard<Content: View>: View {
     enum Style {
         case hero
@@ -16,8 +30,8 @@ struct GlassCard<Content: View>: View {
     private let style: Style
     private let content: Content
 
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.obsidianForcedReducedTransparency) private var forcedFallback
 
     init(style: Style = .standard, @ViewBuilder content: () -> Content) {
         self.style = style
@@ -36,16 +50,24 @@ struct GlassCard<Content: View>: View {
             )
     }
 
+    private var isOpaqueFallback: Bool {
+        reduceTransparency || forcedFallback
+    }
+
     private var padding: CGFloat {
         switch style {
-        case .hero: BudgetSpacing.large
-        case .standard: BudgetSpacing.medium + BudgetSpacing.micro
+        case .hero: BudgetSpacing.heroPadding
+        case .standard: BudgetSpacing.cardPadding
         case .row: BudgetSpacing.medium
         }
     }
 
     private var cornerRadius: CGFloat {
-        style == .row ? BudgetRadius.control : BudgetRadius.card
+        switch style {
+        case .hero: BudgetRadius.hero
+        case .standard: BudgetRadius.card
+        case .row: BudgetRadius.control
+        }
     }
 
     @ViewBuilder
@@ -54,47 +76,68 @@ struct GlassCard<Content: View>: View {
         shape
             .fill(fillStyle)
             .overlay {
-                // Top-left soft highlight.
-                shape
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(colorScheme == .dark ? 0.07 : 0.4), .clear],
-                            startPoint: .topLeading,
-                            endPoint: .center
-                        )
-                    )
+                // Voile de verre fort par-dessus l'unique matériau du héros.
+                if style == .hero && !isOpaqueFallback {
+                    shape.fill(BudgetColor.glassStrong.opacity(0.55))
+                }
             }
             .overlay {
-                shape.strokeBorder(BudgetTheme.cardBorder(colorScheme), lineWidth: 1)
+                // Reflet supérieur très discret — supprimé sans transparence.
+                if !isOpaqueFallback {
+                    shape
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.06), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .center
+                            )
+                        )
+                }
+            }
+            .overlay {
+                shape.strokeBorder(borderStyle, lineWidth: 1)
             }
     }
 
     private var fillStyle: AnyShapeStyle {
-        // Respect "reduce transparency": use an opaque card instead of material.
-        if reduceTransparency {
-            return AnyShapeStyle(colorScheme == .dark ? BudgetColor.slateBlue : .white)
+        // Transparence réduite : surface graphite OPAQUE, sans blur.
+        if isOpaqueFallback {
+            return AnyShapeStyle(BudgetColor.glassFallback)
         }
         switch style {
         case .hero:
+            // Un seul matériau (blur mesuré) — le voile glassStrong est
+            // appliqué en overlay dans `background`.
             return AnyShapeStyle(.ultraThinMaterial)
         case .standard, .row:
-            return AnyShapeStyle(BudgetTheme.cardFill(colorScheme))
+            // Cellule légère : pas de matériau dans les listes.
+            return AnyShapeStyle(BudgetColor.glass)
         }
     }
 
+    private var borderStyle: AnyShapeStyle {
+        if isOpaqueFallback {
+            return AnyShapeStyle(BudgetColor.stroke)
+        }
+        return AnyShapeStyle(
+            LinearGradient(
+                colors: [.white.opacity(0.16), BudgetColor.strokeActive, .clear],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+
     private var shadowColor: Color {
-        guard colorScheme == .dark else { return Color.black.opacity(0.08) }
-        return style == .hero ? BudgetColor.indigo.opacity(0.14) : Color.black.opacity(0.25)
+        style == .hero ? BudgetColor.brand.opacity(0.14) : Color.black.opacity(0.25)
     }
 }
 
 /// Full-screen branded background used behind every screen.
 struct BudgetScreenBackground: View {
-    @Environment(\.colorScheme) private var colorScheme
-
     var body: some View {
         Rectangle()
-            .fill(BudgetTheme.screenBackground(colorScheme))
+            .fill(BudgetTheme.screenBackground(.dark))
             .ignoresSafeArea()
     }
 }
@@ -107,15 +150,15 @@ struct BudgetScreenBackground: View {
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                     Text("Disponible ce mois")
                         .font(BudgetFont.cardLabel)
-                        .foregroundStyle(BudgetColor.coolGray)
+                        .foregroundStyle(BudgetColor.textSecondary)
                     Text("CHF 2'450.00")
                         .font(BudgetFont.heroAmount)
-                        .foregroundStyle(BudgetColor.offWhite)
+                        .foregroundStyle(BudgetColor.textPrimary)
                 }
             }
             GlassCard(style: .row) {
                 Text("Ligne de liste")
-                    .foregroundStyle(BudgetColor.offWhite)
+                    .foregroundStyle(BudgetColor.textPrimary)
             }
         }
         .padding(BudgetSpacing.screenMargin)

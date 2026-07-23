@@ -17,7 +17,7 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 |---|---|---|---|
 | L0 Gouvernance | DONE | branche, skill, constitution, matrice et livraison | vérifier les fichiers distants |
 | L1 Vérité/baseline/P0 | DONE | runs CI 167 (échec constaté) → 168 (correctif vert) → 170 (couverture 18 modèles verte) ; 48 e2e + 5 parité + 206 tests iOS ; manifeste vérifié dans Budget.app ; captures versionnées | — |
-| L2 Fondations | READY | — | lancer `/budget-v1 execute L2` |
+| L2 Fondations | VERIFYING | livré : tokens, primitives, galerie, tests, captures (détail ci-dessous) | CI verte + validation humaine des composants et captures |
 | L3 Pilote PWA | BLOCKED | — | L2 validé |
 | L4 Pilote iOS | BLOCKED | — | validation humaine de L3 |
 | L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
@@ -27,6 +27,57 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L9 Audit final | BLOCKED | — | L8 validé |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
+
+## Critères d'acceptation L2 (annoncés avant toute édition, 23.07.2026)
+
+**A — Identité unique.** PWA : `:root` = tokens Obsidian canoniques, bloc
+`html[data-theme="dark"]` et valeurs claires supprimés, apparence toujours
+sombre quel que soit `S.theme` (champ préservé dans les sauvegardes, plus
+aucune commande visuelle), ligne « Apparence » des Réglages retirée sans
+toucher au reste de l'écran. iOS : identité sombre établie à la racine
+(`RootView`), résolution clair/sombre supprimée de `DesignTokens.swift`,
+aucun écran individuel modifié.
+
+**B — Fondations PWA.** Tokens canoniques (`canvas`, `canvasRaised`, `glass`,
+`glassStrong`, `glassFallback`, `stroke`, `strokeActive`, `brand`,
+`brandBright`, `textPrimary/Secondary/Tertiary`, `positive`, `negative`,
+`warning`) dans `webapp/design-system/obsidian.css` ET `webapp/index.html`
+avec les mêmes valeurs (parité testée) ; anciens noms (`--indigo`,
+`--electric`, `--violet`, `--teal`, `--graphite`, …) réduits à des alias vers
+les nouveaux tokens — aucune teinte teal/cyan/violet/bleu électrique
+indépendante active. Primitives : cartes verre standard/forte/légère,
+montants héros/standard, badge de statut, boutons primaire/secondaire/
+destructif, champ, feuille, état vide, état d'erreur, focus-visible global.
+`prefers-reduced-transparency` + mécanisme déterministe
+`html[data-reduced-transparency="true"]` → `glassFallback` opaque, halo
+supprimé. Galerie déterministe hors navigation
+(`webapp/design-system/obsidian-gallery.html`). Cibles ≥ 44 px,
+`CHF -9'999'999.99` jamais tronqué, chiffres tabulaires, AA, 320 px, reduced
+motion, aucune animation infinie, aucun asset externe, aucun empilement de
+blurs lourds. App installable et hors ligne inchangée.
+
+**C — Fondations iOS.** `DesignTokens.swift` : rôles Obsidian complets,
+valeurs brutes centralisées là uniquement, alias documentés à retirer
+(`electricBlue`/`violet`/`cyan`/`teal` → `brand`/`brandBright`). Rayons
+28/22/14, marge écran 18, paddings 24/18, grille 4-32 (+12). `GlassCard`
+évolué (hero/standard/row, reduceTransparency → `glassFallback` opaque, pas
+de matériau lourd en liste). `AmountText` (FinanceFormatting, zéro nouveau
+calcul), `StatusPill` (jamais couleur seule), `PrimaryActionButton`,
+`ObsidianSheet`, `EmptyState`, `ErrorState`, `ObsidianComponentGallery` avec
+previews déterministes (7 chiffres, négatif, texte agrandi, transparence
+réduite, 4 états sémantiques).
+
+**D — Preuves.** Nouveau test web design-system (tokens + parité,
+contrastes AA mesurés, galerie sans débordement 320/390, cibles 44 px,
+focus clavier, reduced motion, fallback opaque, zéro erreur console) ;
+tests iOS des rôles/alias/contrastes ; 48 e2e (Test 29 adapté à l'identité
+unique) + 5 parité + 206 tests iOS conservés verts ; captures
+`docs/obsidian-glass/foundations/l2/` + README ; un commit
+`feat(l2): establish Obsidian Glass foundations` ; CI complète verte ;
+L2 = VERIFYING (jamais DONE sans validation humaine), L3 = BLOCKED.
+
+Interdits : refonte Mois/Budget/Ajout d'un mouvement, formules financières,
+données/migrations/persistance, suppression de fonctionnalité, L3.
 
 ## P0 revalidés en L1 (23.07.2026)
 
@@ -131,14 +182,61 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
 - Environnement `github-pages` : autoriser la branche de déploiement choisie
   (Settings → Environments) — hors périmètre Obsidian.
 
+## Livraison L2 (23.07.2026) — en VERIFYING
+
+- **Identité unique** : PWA `:root` = tokens Obsidian canoniques, bloc
+  `html[data-theme="dark"]` supprimé, apparence toujours sombre ; `S.theme`
+  préservé dans l'état/sauvegardes mais sans effet (ADR-022) ; ligne
+  « Apparence » des Réglages retirée. iOS : `.preferredColorScheme(.dark)` à
+  la racine (BudgetApp), résolution clair/sombre supprimée de
+  `DesignTokens.swift`.
+- **Alias hérités** : `--electric`/`--violet`/`--teal`/`--indigo-text` →
+  `brand`/`brandBright` (idem `electricBlue`/`violet`/`cyan`/`teal`/
+  `informative` côté Swift) — aucune seconde palette active, alias documentés
+  à retirer en L3+.
+- **Primitives PWA** : cartes verre standard/forte(28px, blur 22)/légère,
+  montants héros/standard (clamp, jamais tronqués), `.pill` statut
+  (point + texte), `.btn`/`.btn.secondary`/`.btn.destructive` (≥ 44 px,
+  blanc AA sur `--brand-deep` #6457F0 : 5.04:1), champs + état
+  `aria-invalid`, feuille verre fort, `.empty-state`/`.error-state`,
+  `:focus-visible` global, `prefers-reduced-transparency` +
+  `html[data-reduced-transparency="true"]` → `glassFallback` opaque.
+- **Primitives iOS** : `GlassCard` hero/standard/row évolué (fallback
+  opaque, pas de matériau en liste), `AmountText` (FinanceFormatting, zéro
+  calcul), `StatusPill` (symbole + texte), `PrimaryActionButtonStyle`
+  (+ destructive) / `SecondaryActionButtonStyle` (44 pt, reduceMotion),
+  `ObsidianSheetSurface`, `EmptyState`, `ErrorState`,
+  `ObsidianComponentGallery` (previews standard / texte agrandi /
+  transparence réduite ; argument `-obsidianGallery`).
+- **Galerie** : `webapp/design-system/obsidian-gallery.html` +
+  `obsidian.css` (source canonique, parité `index.html` testée), hors
+  navigation, déterministe.
+- **Tests** : nouveau `webapp/tests/design.test.mjs` (tokens + parité,
+  11 contrastes mesurés — tous AA, galerie 320/390 sans débordement,
+  cibles ≥ 44 px, focus clavier ≥ 2 px, reduced motion, fallback opaque,
+  zéro erreur console) exécuté en CI ; `BudgetTests/DesignSystemTests.swift`
+  (rôles, alias, contrastes, géométrie 28/22/14-18-24/18, grille +12,
+  montants extrêmes, galerie construite à 320 pt). Test 29 e2e réécrit pour
+  l'identité unique. Local : 48 e2e ✓, 5 parité ✓, design ✓.
+- **Contrastes mesurés** : textPrimary/canvas 18.28:1 ; textPrimary/verre
+  17.03:1 ; textSecondary/verre 8.35:1 ; textTertiary/verre 4.58:1 ;
+  brand/canvas 4.77:1 ; brandBright/canvas 6.68:1 ; blanc/brandDeep 5.04:1 ;
+  positive 10.19:1 ; negative 7.12:1 ; warning 11.10:1.
+- **Captures** : `docs/obsidian-glass/foundations/l2/` (galerie 390, 320,
+  transparence réduite 390, texte agrandi 320 + README complet). Sanité
+  app : écran Mois hérite de l'identité sans refonte, zéro erreur console.
+- **Hors ligne** : `index.html` reste auto-suffisant (tokens embarqués,
+  aucun nouvel asset de production), service worker inchangé.
+- **Preuve native visuelle** : en attente du workflow Demo / pilote L4
+  (pas de simulateur dans cet environnement Linux) — raison du VERIFYING
+  avec la validation humaine.
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 execute L2
+/budget-v1 verify L2
 ```
 
-L1 est DONE (CI verte, preuves ci-dessus) ; L2 est READY. Résultat attendu de
-L2 : tokens sémantiques Obsidian (PWA + iOS), primitives `GlassCard`,
-`AmountText`, `StatusPill`, fallback reduced transparency, galerie
-déterministe — sans refondre les écrans, sans toucher aux formules
-financières.
+L2 reste VERIFYING jusqu'à validation humaine des composants et des
+captures (et CI verte du commit `feat(l2)`). Ne pas lancer L3 sans cette
+validation explicite.
