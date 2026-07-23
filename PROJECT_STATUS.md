@@ -1,5 +1,19 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L1 (2026-07-23)
+
+L1 « Vérité, baseline et P0 » exécuté (`/budget-v1 execute L1`). Les cinq P0
+revalidés sur le code réel : P0-2 (restauration native coerçait les montants
+illisibles à zéro) et P0-3 (historique PWA recalculé au taux actuel) CONFIRMÉS
+et corrigés avec tests (ADR-021) ; P0-4 corrigé (`Budget/PrivacyInfo.xcprivacy`
+créé, inclus via groupes synchronisés Xcode 16) ; P0-1 et P0-5 constatés sans
+défaut de code (branche par défaut obsolète et URLs App Store = actions
+humaines). Baseline : captures 390/320 px clair+sombre, ~180 ms de rendu,
+zéro erreur console, aucun débordement. Suites : 43 parcours e2e + 5 fixtures
+de parité verts. Détail : `OBSIDIAN_GLASS_STATUS.md`. Prochaine étape après
+validation humaine : `/budget-v1 execute L2` (fondations, sans refonte
+d'écrans).
+
 ## Branche `codex/budget-leader-refonte` (2026-07-22)
 
 Créée et publiée depuis l'état vérifié de `claude/budget-project-connection-link-mhaokm`

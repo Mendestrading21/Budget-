@@ -1005,7 +1005,32 @@ function toCHF(amount, currency) {
   const rate = (S.fxRates || {})[currency];
   return amount * (rate > 0 ? rate : 1);
 }
-function txCHF(t) { return toCHF(t.amount, accountCurrency(t.acc)); }
+function txCHF(t) {
+  const cur = accountCurrency(t.acc);
+  if (!cur || cur === baseCurrency()) return t.amount;
+  // P0 : l'historique est figé — le taux estampillé à la création prime,
+  // tant que la devise de référence n'a pas changé depuis.
+  if (t.fx > 0 && t.fxBase === baseCurrency()) return t.amount * t.fx;
+  return toCHF(t.amount, cur);
+}
+/* P0 change historique : tout nouveau mouvement passe par addTx, qui fige
+   le taux du jour (t.fx, t.fxBase) et le montant crédité côté destination
+   (t.destAmount). Modifier un taux ensuite n'altère plus jamais le passé.
+   Les mouvements anciens sans estampille gardent l'ancien comportement. */
+function addTx(t) {
+  const srcCur = accountCurrency(t.acc);
+  if (srcCur && srcCur !== baseCurrency()) {
+    const r = (S.fxRates || {})[srcCur];
+    if (r > 0) { t.fx = r; t.fxBase = baseCurrency(); }
+  }
+  if (t.dest) {
+    const destCur = accountCurrency(t.dest);
+    if (destCur !== srcCur) t.destAmount = round2(convertAmount(t.amount, srcCur, destCur));
+  }
+  transactions.push(t);
+  return t;
+}
+
 /* E05 : un montant saisi dans la devise du compte SOURCE se convertit
    dans celle du compte DESTINATION (via la devise de référence).
    Taux absent → 1:1, même repli assumé que toCHF. */
@@ -1348,7 +1373,7 @@ function balance(accId) {
     if (t.acc === accId) c += (t.type === "income" || t.type === "refund") ? toCents(t.amount)
       : (t.type === "adjustment" ? (t.up ? toCents(t.amount) : -toCents(t.amount))
       : (OUTFLOWS.has(t.type) ? -toCents(t.amount) : 0));
-    if (t.dest === accId) c += toCents(convertAmount(t.amount, accountCurrency(t.acc), account.currency));
+    if (t.dest === accId) c += toCents(t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), account.currency));
   }
   return fromCents(c);
 }
@@ -2274,7 +2299,7 @@ function contributions(accId) {
   for (const t of transactions) {
     if (t.status !== "posted") continue;
     if (t.dest === accId) {
-      const inDest = toCents(convertAmount(t.amount, accountCurrency(t.acc), destCur));
+      const inDest = toCents(t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), destCur));
       totalC += inDest; if (t.y === NOW.y) yearC += inDest;
     }
     else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawnC += toCents(t.amount);
@@ -2302,7 +2327,7 @@ function balanceAt(accId, y, m) {
     if (t.acc === accId) b += (t.type === "income" || t.type === "refund") ? t.amount
       : (t.type === "adjustment" ? (t.up ? t.amount : -t.amount)
       : (OUTFLOWS.has(t.type) ? -t.amount : 0));
-    if (t.dest === accId) b += convertAmount(t.amount, accountCurrency(t.acc), account.currency);
+    if (t.dest === accId) b += t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), account.currency);
   }
   return b;
 }
@@ -2622,7 +2647,7 @@ function applyImport(analysis, fileName) {
   for (const row of analysis.rows) {
     if (row.state !== "ready") continue;
     const { y, m, d, amount, title, type, cat } = row.tx;
-    transactions.push({
+    addTx({
       id: ++txSeq, y, m, d, title, amount, type,
       cat: cat || (type === "expense" ? null : null),
       acc: defaultCashAccount(), dest: null,
@@ -3388,7 +3413,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     pushUndo();
     const lastDay = new Date(y, m, 0).getDate();
     const isCurrentMonth = (y === NOW.y && m === NOW.m);
-    transactions.push({
+    addTx({
       id: ++txSeq, y, m, d: Math.min(rec.day, isCurrentMonth ? NOW.d : lastDay),
       title: rec.title, amount: rec.amount, type: rec.type,
       cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
@@ -3412,7 +3437,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
       title: bill.name, amount: bill.amount, type: "expense",
       cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
     };
-    transactions.push(tx);
+    addTx(tx);
     bill.paidTxId = tx.id;
     saveState();
     toast(`Facture payée : ${chf(bill.amount)}`, true);
@@ -3844,7 +3869,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
     });
     toast("Mouvement modifié");
   } else {
-    transactions.push({
+    addTx({
       id: ++txSeq, y, m, d,
       title, amount: Math.round(amount * 100) / 100,
       type, cat, acc: sourceId, dest, status,
@@ -4290,7 +4315,7 @@ document.getElementById("rPost").addEventListener("click", () => {
   const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (!rec) return;
   pushUndo();
-  transactions.push({
+  addTx({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
     title: rec.title, amount: rec.amount, type: rec.type,
     cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
@@ -4642,7 +4667,7 @@ document.getElementById("bPay").addEventListener("click", () => {
     title: bill.name, amount: bill.amount, type: "expense",
     cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
   };
-  transactions.push(tx);
+  addTx(tx);
   bill.paidTxId = tx.id;
   saveState();
   backdrop.classList.remove("open");
@@ -4810,7 +4835,7 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
   const difference = Math.round((wanted - current) * 100) / 100;
   if (difference === 0) { err.textContent = "Le solde est déjà exact — rien à ajuster."; return; }
   pushUndo();
-  transactions.push({
+  addTx({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
     title: "Solde mis à jour", amount: Math.abs(difference),
     type: "adjustment", up: difference > 0,

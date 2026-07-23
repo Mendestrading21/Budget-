@@ -170,6 +170,33 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertGreaterThan(try context.fetch(FetchDescriptor<Household>()).count, 0, "Rien n'est effacé sur échec de lecture")
     }
 
+    func testRestoreRejectsCorruptAmountWithoutCoercingToZero() throws {
+        // P0 Obsidian L1 : un montant illisible ne doit JAMAIS devenir zéro —
+        // la restauration refuse et le store reste intact.
+        try populateSampleStore()
+        var json = try JSONSerialization.jsonObject(
+            with: service.makeBackup(context: context, now: now)
+        ) as! [String: Any]
+        var transactions = json["transactions"] as! [[String: Any]]
+        XCTAssertFalse(transactions.isEmpty)
+        transactions[0]["amount"] = "pas-un-montant"
+        json["transactions"] = transactions
+        let tampered = try JSONSerialization.data(withJSONObject: json)
+
+        let countBefore = try context.fetch(FetchDescriptor<BudgetTransaction>()).count
+        XCTAssertThrowsError(try service.restore(data: tampered, context: context, documentFileStore: nil)) { error in
+            guard case BackupError.corruptAmount(let raw) = error else {
+                return XCTFail("Erreur attendue : corruptAmount, reçu \(error)")
+            }
+            XCTAssertEqual(raw, "pas-un-montant")
+        }
+        // Transactionnel : rien n'a été effacé, aucun zéro n'a été écrit.
+        XCTAssertEqual(try context.fetch(FetchDescriptor<BudgetTransaction>()).count, countBefore)
+        let zeroAmounts = try context.fetch(FetchDescriptor<BudgetTransaction>())
+            .filter { $0.amount == .zero }.count
+        XCTAssertEqual(zeroAmounts, 0, "Aucun montant coercé vers zéro")
+    }
+
     // MARK: - Complete deletion
 
     func testDeleteAllEmptiesEveryEntityAndDocumentFiles() throws {

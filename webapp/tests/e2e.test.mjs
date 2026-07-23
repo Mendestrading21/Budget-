@@ -769,6 +769,33 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Parce que") || screenHTML.includes("Aucun retard"), "la priorité doit être justifiée");
 
+// ---------- Test 38 : P0 Obsidian — l'historique de change est figé ----------
+currentTest = "change historique fige";
+await goHome();
+const figeAvant = await page.evaluate(() => {
+  ACCOUNTS.push({ id: "eurtest", name: "Compte EUR", kind: "current", opening: 0, cash: true, currency: "EUR" });
+  addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 1, title: "Dépense EUR",
+    amount: 100, type: "expense", cat: null, acc: "eurtest", dest: null, status: "posted" });
+  saveState();
+  return snapshot(NOW.y, NOW.m).living;
+});
+const figeApres = await page.evaluate(() => {
+  S.fxRates.EUR = 0.50; saveState(); // le taux change APRÈS la saisie
+  return snapshot(NOW.y, NOW.m).living;
+});
+check(Math.abs(figeAvant - figeApres) < 0.005,
+  `un taux modifié ne réécrit pas l'historique (avant ${figeAvant}, après ${figeApres})`);
+const stamped = await page.evaluate(() => {
+  const t = transactions.find(x => x.title === "Dépense EUR");
+  return { fx: t.fx, fxBase: t.fxBase };
+});
+check(stamped.fx === 0.93 && stamped.fxBase === "CHF", "le taux du jour doit être estampillé à la création");
+await page.evaluate(() => { // nettoyage
+  const i = transactions.findIndex(x => x.title === "Dépense EUR"); if (i >= 0) transactions.splice(i, 1);
+  const a = ACCOUNTS.findIndex(x => x.id === "eurtest"); if (a >= 0) ACCOUNTS.splice(a, 1);
+  S.fxRates.EUR = 0.93; saveState();
+});
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -778,4 +805,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 42 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 43 parcours verts, zéro erreur console ✓");

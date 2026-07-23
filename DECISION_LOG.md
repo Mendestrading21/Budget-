@@ -1,5 +1,48 @@
 # Budget decision log
 
+## ADR-021 — L1 : montants historiques figés à la saisie, restauration refusant les montants corrompus
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+Audit L1 des cinq P0 Obsidian Glass. Deux étaient réellement présents dans le
+code courant :
+
+1. Natif : `BackupService.decimal(_:)` convertissait toute chaîne illisible en
+   `.zero` (`Decimal(string:) ?? .zero`). Une sauvegarde corrompue pouvait donc
+   restaurer silencieusement des montants à zéro — perte de données invisible.
+2. PWA : `txCHF()` convertissait les mouvements en devise étrangère avec le taux
+   ACTUEL (`S.fxRates`). Modifier un taux recalculait rétroactivement tout
+   l'historique (coût de la vie, budgets, mois bouclés), en violation de
+   l'invariant « les montants historiques ne changent jamais parce qu'un taux
+   actuel a changé ».
+
+### Decision
+
+1. Natif : `decimal(_:)` devient `throws` et lève `BackupError.corruptAmount`
+   avec le montant fautif ; la restauration transactionnelle (ADR-014) annule
+   tout et laisse les données actuelles intactes. Aucune coercition vers zéro.
+2. PWA : chaque mouvement en devise ≠ devise de base est estampillé À LA
+   CRÉATION avec `fx` (taux du jour) et `fxBase` (devise de base au moment de
+   la saisie) via le nouveau point d'entrée unique `addTx()` ; les virements
+   inter-devises figent aussi `destAmount`. `txCHF()` et les lectures de crédit
+   destination privilégient la valeur estampillée et ne retombent sur le taux
+   actuel que pour l'historique antérieur non estampillé (comportement inchangé
+   pour les données existantes, aucune migration destructive).
+3. Ces champs (`fx`, `fxBase`, `destAmount`) sont additifs dans l'état v1 ; ils
+   ne cassent ni les sauvegardes existantes ni les fixtures de parité.
+
+### Verification
+
+`BudgetTests/BackupServiceTests.testRestoreRejectsCorruptAmountWithoutCoercingToZero`
+(sauvegarde altérée → erreur dédiée, store intact, zéro montant à zéro) ;
+e2e Test 38 « changer un taux ne change pas l'historique » (mouvement EUR
+estampillé, taux divisé par deux, coût de la vie inchangé à 0.005 près) ;
+suites : 43 parcours e2e + 5 fixtures de parité verts.
+
+
 ## ADR-020 — Obsidian Glass : identité sombre unique et skill canonique
 
 Date: 2026-07-23
