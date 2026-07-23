@@ -1,5 +1,52 @@
 # Budget decision log
 
+## ADR-020 — Obsidian Glass : identité sombre unique et skill canonique
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+Le propriétaire valide la direction « Budget — Obsidian Glass » : une
+application sombre, premium, simple, vivante et professionnelle, avec des
+widgets transparents et une seule palette de marque. Les programmes précédents
+ont laissé plusieurs skills et deux directions visuelles concurrentes
+(Horizon clair/sombre et identité verre sombre).
+
+### Decision
+
+1. `/budget-v1` devient l'unique autorité opérationnelle pour Claude Code.
+   Les autres skills Budget restent des archives et ne doivent plus être
+   invoqués ou combinés.
+2. Obsidian Glass utilise une seule identité sombre : fond `#090C12`, surfaces
+   graphite translucides et accent Indigo Aurora `#7367FF`. Vert, corail et
+   ambre restent strictement sémantiques.
+3. Cette décision remplace uniquement la partie visuelle et multi-thème
+   d'ADR-019. Les décisions financières d'ADR-019, notamment la parité dette,
+   restent valides.
+4. La refonte progresse par lots sur une branche dédiée. Le pilote porte sur
+   Mois, Budget et Ajout d'un mouvement avant tout déploiement général.
+5. PWA et iOS partagent les rôles, tokens, vocabulaire et invariants, sans
+   obligation de copie pixel par pixel.
+6. Un P0 de données, restauration, confidentialité ou publication confirmé
+   bloque le lot visuel suivant jusqu'à correction et test.
+7. Chaque lot produit tests, captures, mise à jour du statut et commit ciblé,
+   puis s'arrête pour revue.
+
+### Consequences
+
+Le sélecteur de thème et l'ancien rendu ne sont pas supprimés pendant L0. Leur
+migration contrôlée appartient aux lots de fondation et de pilote. Aucune
+logique financière, donnée, route, migration ou persistance n'est modifiée par
+cette décision de gouvernance.
+
+### Verification
+
+Branche `refonte/budget-obsidian-glass-v1`, `CLAUDE.md`, skill
+`/budget-v1`, constitution, plan de livraison, matrice d'écrans et statut
+créés. Aucun code applicatif modifié dans L0.
+
+
 ## ADR-019 — Horizon : thème clair par défaut (web), sombre premium conservé ; parité dette D04
 
 Date: 2026-07-21
