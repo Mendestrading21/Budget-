@@ -175,7 +175,9 @@
   .screen {
     flex: 1;
     overflow-y: auto;
-    padding: 14px 18px 20px;
+    /* Zone de sécurité : le contenu défile toujours AU-DESSUS du FAB —
+       plus aucun chevauchement à 320 px (constat baseline L1). */
+    padding: 14px 18px calc(96px + env(safe-area-inset-bottom));
     scrollbar-width: none;
   }
   .screen::-webkit-scrollbar { display: none; }
@@ -195,10 +197,10 @@
   }
 
   h2.screen-title {
-    font-size: 30px;
+    font-size: 26px;
     font-weight: 800;
     letter-spacing: -0.03em;
-    margin: 6px 0 14px;
+    margin: 6px 0 12px;
   }
 
   /* ---------- Glass cards ---------- */
@@ -265,12 +267,20 @@
     margin: 0 0 6px;
   }
   .hero-amount {
-    font-size: 36px;
+    /* Dominant, se resserre sur petit écran — jamais tronqué. */
+    font-size: clamp(30px, 9.6vw, 40px);
     font-weight: 700;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     margin: 0;
+    white-space: nowrap;
   }
+  /* Héros partagé avec un anneau (Budget) : corps borné pour ne jamais
+     passer sous l'anneau. */
+  .hero-amount.fit-row { font-size: clamp(22px, 6.6vw, 30px); }
+  /* Montant à sept chiffres et plus : réduit mais entier, même à côté
+     d'un anneau (héros Budget). */
+  .hero-amount.long { font-size: clamp(17px, 5.8vw, 28px); }
   .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
   .caption { font-size: 11.5px; color: var(--coolgray); }
   .section-title {
@@ -601,6 +611,83 @@
   }
   .error-state .t { font-weight: 700; margin: 0 0 4px; font-size: 14.5px; }
   .error-state p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+  /* ---------- Pilote L3 : Mois ---------- */
+  .hello { font-size: 13px; color: var(--text-secondary); margin: 2px 0 2px; }
+  /* La priorité du mois : une carte distincte, texte JAMAIS tronqué. */
+  .priority-card { border-color: var(--stroke-active); }
+  .priority-card .meta .t {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+  }
+  .quick-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 2px 0 6px;
+  }
+  @media (min-width: 380px) { .quick-row { grid-template-columns: repeat(4, 1fr); } }
+  .quick-row .btn { padding: 12px 6px; font-size: 12.5px; white-space: nowrap; }
+  .stat .amount { font-size: 18px; }
+  .hero .btn { margin-top: 12px; }
+
+  /* ---------- Pilote L3 : feuille Ajouter un mouvement ---------- */
+  /* La feuille suit la hauteur VISIBLE (clavier compris, dvh) et défile ;
+     la barre d'actions reste collée en bas : Enregistrer jamais caché. */
+  .sheet {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .sheet .actions.sticky {
+    position: sticky;
+    bottom: 0;
+    margin: 16px -20px -26px;
+    padding: 12px 20px calc(14px + env(safe-area-inset-bottom));
+    background: var(--glass-strong);
+    border-top: 1px solid var(--stroke);
+  }
+  .sheet input, .sheet select { min-height: 44px; box-sizing: border-box; }
+  .type-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .type-grid button {
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--stroke);
+    background: var(--glass-fallback);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 6px;
+  }
+  .type-grid button[aria-pressed="true"] {
+    border-color: var(--stroke-active);
+    background: var(--brand-tint);
+    color: var(--brand-bright);
+  }
+  .sr-select {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .sheet details.f-more summary {
+    font-size: 12px;
+    color: var(--brand-bright);
+    margin-top: 10px;
+    cursor: pointer;
+    list-style: none;
+    min-height: 24px;
+  }
 </style>
 
 <div class="phone" id="phone">
@@ -613,16 +700,19 @@
   <div class="sheet-backdrop" id="sheetBackdrop">
     <form class="sheet" id="txForm">
       <h3 id="sheetTitle">Nouveau mouvement</h3>
-      <label for="fTitle">Intitulé</label>
-      <input id="fTitle" placeholder="Courses de la semaine" autocomplete="off" />
-      <label for="fAmount">Montant (<span class="curlabel">CHF</span>)</label>
-      <input id="fAmount" inputmode="decimal" placeholder="45.50" autocomplete="off" />
-      <label for="fDate">Date</label>
-      <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
-      <label for="fAccount">Compte</label>
-      <select id="fAccount"></select>
-      <label for="fType">Type</label>
-      <select id="fType">
+      <!-- 1. Type : chips tactiles (≥ 44 px), synchronisées sur le select
+           historique (masqué visuellement, toujours fonctionnel). -->
+      <label id="typeGridLabel">Type</label>
+      <div class="type-grid" id="typeGrid" role="group" aria-labelledby="typeGridLabel">
+        <button type="button" data-ftype="expense" aria-pressed="false">💸 Dépense</button>
+        <button type="button" data-ftype="income" aria-pressed="false">💰 Revenu</button>
+        <button type="button" data-ftype="saving" aria-pressed="false">🏛 Épargne</button>
+        <button type="button" data-ftype="investment" aria-pressed="false">📈 Investir</button>
+        <button type="button" data-ftype="transfer" aria-pressed="false">⇄ Virement</button>
+        <button type="button" data-ftype="taxPayment" aria-pressed="false">🧾 Impôts</button>
+        <button type="button" data-ftype="refund" aria-pressed="false">↩ Remboursement</button>
+      </div>
+      <select id="fType" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="expense">Dépense</option>
         <option value="income">Revenu</option>
         <option value="refund">Remboursement</option>
@@ -631,21 +721,41 @@
         <option value="taxPayment">Paiement d'impôts</option>
         <option value="transfer">Virement interne → Espèces</option>
       </select>
-      <label for="fCat">Catégorie</label>
+      <!-- 2. Montant, dans la devise du compte source. -->
+      <label for="fAmount">Montant (<span id="fCur">CHF</span>)</label>
+      <input id="fAmount" inputmode="decimal" placeholder="45.50" autocomplete="off" />
+      <p class="caption" id="fCurNote" style="margin:4px 0 0;display:none"></p>
+      <!-- 3. Date — le statut Prévu/Comptabilisé en découle (logique inchangée). -->
+      <label for="fDate">Date</label>
+      <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
+      <p class="caption" id="fStatusNote" style="margin:4px 0 0"></p>
+      <!-- 4. Compte source, 5. catégorie ou destination. -->
+      <label for="fAccount">Compte</label>
+      <select id="fAccount"></select>
+      <label for="fCat" id="fCatLabel">Catégorie</label>
       <select id="fCat"></select>
       <div id="destWrap" style="display:none">
         <label for="fDest">Vers le compte</label>
         <select id="fDest"></select>
+        <p class="caption" id="fTransferNote" style="margin:4px 0 0"></p>
       </div>
+      <!-- 7. Détails avancés repliés : l'intitulé est facultatif (défaut =
+           catégorie), le parcours fréquent reste en trois gestes. -->
+      <details class="f-more" id="fMore">
+        <summary>Détails (facultatif)</summary>
+        <label for="fTitle">Intitulé</label>
+        <input id="fTitle" placeholder="Courses de la semaine" autocomplete="off" />
+      </details>
+      <button type="button" class="btn secondary" id="fDuplicate"
+              style="display:none;margin-top:10px">Dupliquer (copie datée d'aujourd'hui)</button>
+      <button type="button" class="btn destructive" id="fDelete"
+              style="display:none;margin-top:10px">Supprimer ce mouvement</button>
       <div class="error" id="fError" role="alert"></div>
-      <div class="actions">
+      <!-- 8. Bouton principal persistant : jamais caché par le clavier. -->
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="fCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
-      <button type="button" class="btn secondary" id="fDuplicate"
-              style="display:none;margin-top:10px">Dupliquer (copie datée d'aujourd'hui)</button>
-      <button type="button" class="btn secondary" id="fDelete"
-              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce mouvement</button>
     </form>
 
     <form class="sheet" id="accForm" style="display:none">
@@ -1839,22 +1949,23 @@ function renderHome() {
     if (!s.isCurrent) return "";
     const p = monthPriority(y, m, s, report);
     if (!p) return "";
-    return `<div class="card row tx" ${p.nav} role="button" tabindex="0" style="cursor:pointer;border-color:var(--line-strong)">
+    // L3 : carte distincte, texte complet — JAMAIS tronqué (constat L1).
+    return `<div class="card row tx priority-card" ${p.nav} role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${p.icon}</div>
       <div class="meta"><div class="t">${p.text}</div></div>
-      <span style="color:var(--electric);font-weight:700">›</span>
+      <span style="color:var(--brand-bright);font-weight:700" aria-hidden="true">›</span>
     </div>`;
   })();
-  /* (ancienne implémentation inline déplacée dans monthPriority) */
 
-
+  // L3 : montant héros dominant, jamais tronqué (classe `long` dès 7 chiffres).
+  const heroLong = (v) => Math.abs(v) >= 1000000 ? " long" : "";
   const hero = s.isCurrent ? `
     <div class="card hero">
       <p class="card-label">Argent disponible</p>
-      <p class="hero-amount ${s.available < 0 ? "neg" : ""}">${chf(s.available)}</p>
+      <p class="hero-amount${s.available < 0 ? " neg" : ""}${heroLong(s.available)}">${chf(s.available)}</p>
       <span class="caption">${s.daysRemaining} jours restants · ${chf(s.daily)} par jour</span>
       <details>
-        <summary>Détail du calcul</summary>
+        <summary>D'où vient ce montant ?</summary>
         <div class="breakdown">
           <div><span>Argent disponible inclus</span><span>${chf(s.liquid)}</span></div>
           <div><span>Revenus attendus</span><span>${chf(s.plannedIncome + s.recurringIncome, true)}</span></div>
@@ -1864,11 +1975,29 @@ function renderHome() {
           <div><span>Réserve d'impôts manquante</span><span>${chf(-s.taxGap, true)}</span></div>
         </div>
       </details>
+      <button class="btn" data-addtx>＋ Ajouter un mouvement</button>
     </div>` : `
     <div class="card hero">
       <p class="card-label">Ce qui reste du mois</p>
-      <p class="hero-amount ${s.cashFlow < 0 ? "neg" : "pos"}">${chf(s.cashFlow, true)}</p>
+      <p class="hero-amount ${s.cashFlow < 0 ? "neg" : "pos"}${heroLong(s.cashFlow)}">${chf(s.cashFlow, true)}</p>
       <span class="caption">Mois clôturé — revenus ${chf(s.income)}, coût de la vie ${chf(s.living)}</span>
+    </div>`;
+
+  // L3 — les quatre métriques du contrat : Entré, Dépensé, À payer, Mis de
+  // côté. « À payer » ADDITIONNE des valeurs déjà calculées par snapshot()
+  // (charges prévues + réguliers à venir + réserve d'impôts manquante) —
+  // affichage seulement, aucune formule nouvelle.
+  const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
+  const metrics = `<div class="stat-grid">
+      <div class="stat"><span class="card-label">Entré</span><span class="amount pos">${chf(s.income)}</span>
+        <span class="caption">Revenus comptabilisés</span></div>
+      <div class="stat"><span class="card-label">Dépensé</span><span class="amount neg">${chf(s.living)}</span>
+        ${(() => { const pm = shiftMonth({ y, m }, -1); const pl = snapshot(pm.y, pm.m).living;
+          return pl > 0 ? `<span class="caption">Mois dernier : ${chf(pl)}</span>` : `<span class="caption">Coût de la vie</span>`; })()}</div>
+      <div class="stat"><span class="card-label">À payer</span><span class="amount warn">${chf(toPay)}</span>
+        <span class="caption">${toPay > 0 ? "Prévu, factures, réguliers, impôts" : "Rien en attente"}</span></div>
+      <div class="stat"><span class="card-label">Mis de côté</span><span class="amount info">${chf(s.savings + s.invest)}</span>
+        <span class="caption">${s.income > 0 ? "Taux : " + pct(s.savingsRate) : "Épargne + investissements"}</span></div>
     </div>`;
 
   const chartRows = report.lines.filter(l => l.kind === "expense").slice(0, 5).map(l => {
@@ -1942,28 +2071,38 @@ function renderHome() {
       <span style="color:var(--amber);font-weight:700">›</span>
     </div>`).join("");
 
-  return `<h2 class="screen-title">${S.profile.name
+  // L3 — premier viewport du contrat : salutation courte + mois → héros
+  // « Disponible » (avec action universelle) → 4 métriques → UNE priorité →
+  // actions rapides → aperçu Budget → mouvements récents (sections).
+  return `<p class="hello">${S.profile.name
     ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
-    : "Bonjour 👋"}</h2>
+    : "Bonjour 👋"}</p>
     ${monthNav()}
     ${hero}
+    ${metrics}
     ${recommendation}
-    <div class="home-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 6px">
+    <div class="quick-row">
       <button class="btn secondary" data-quickexp>💸 Dépense</button>
       <button class="btn secondary" data-quickinc>💰 Revenu</button>
       <button class="btn secondary" data-quicksend>📤 Épargne</button>
       <button class="btn secondary" data-quickinv>📈 Investir</button>
     </div>
-    <div class="stat-grid">
-      <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(s.income)}</span></div>
-      <div class="stat"><span class="card-label">Coût de la vie</span><span class="amount neg">${chf(s.living)}</span>
-        ${(() => { const pm = shiftMonth({ y, m }, -1); const pl = snapshot(pm.y, pm.m).living;
-          return pl > 0 ? `<span class="caption">Mois dernier : ${chf(pl)}</span>` : ""; })()}</div>
-      <div class="stat"><span class="card-label">Mis de côté</span><span class="amount info">${chf(s.savings + s.invest)}</span>
-        <span class="caption">${s.income > 0 ? "Taux : " + pct(s.savingsRate) : "—"}</span></div>
-      <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
-        <span class="caption">${s.taxGap > 0 ? "Réserve du mois manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
-    </div>
+    ${w("budgetrest", (() => {
+      // Aperçu Budget — widget compact qui mène à l'onglet Budget.
+      const rep = budgetReport(y, m);
+      const expLines = rep.lines.filter(l => l.kind === "expense");
+      if (!expLines.length) return "";
+      const plannedC = expLines.reduce((a, l) => a + toCents(l.planned), 0);
+      const actualC = expLines.reduce((a, l) => a + toCents(l.actual), 0);
+      const remainingB = fromCents(plannedC - actualC);
+      const fr = plannedC > 0 ? Math.min(1, actualC / plannedC) : 0;
+      return `<div class="card row tx" data-gototab="budget" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico t-expense" aria-hidden="true">⏱</div>
+        <div class="meta"><div class="t">Budget restant : ${chf(remainingB)}</div>
+          <div class="track" style="margin-top:6px"><div class="fill ${actualC > plannedC ? "over-fill" : (fr > 0.85 ? "warn-fill" : "")}" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
+        <span style="color:var(--coolgray)" aria-hidden="true">›</span>
+      </div>`;
+    })())}
     ${w("trend6", (() => {
       // Résultat du mois — mini-courbe 6 mois (« ce qui reste »), pédagogique.
       const months = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5));
@@ -1984,22 +2123,6 @@ function renderHome() {
           <circle cx="${px(5).toFixed(1)}" cy="${py(vals[5]).toFixed(1)}" r="3.5" fill="var(--teal)"/>
         </svg>
         <span class="caption">${MONTH_NAMES[months[0].m - 1].slice(0, 3)} → ${MONTH_NAMES[m - 1].slice(0, 3)} · revenus − coût de la vie − mis de côté − impôts</span>
-      </div>`;
-    })())}
-    ${w("budgetrest", (() => {
-      // Budget restant — widget compact qui mène à l'onglet Budget.
-      const rep = budgetReport(y, m);
-      const expLines = rep.lines.filter(l => l.kind === "expense");
-      if (!expLines.length) return "";
-      const plannedC = expLines.reduce((a, l) => a + toCents(l.planned), 0);
-      const actualC = expLines.reduce((a, l) => a + toCents(l.actual), 0);
-      const remainingB = fromCents(plannedC - actualC);
-      const fr = plannedC > 0 ? Math.min(1, actualC / plannedC) : 0;
-      return `<div class="card row tx" data-gototab="budget" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico t-expense" aria-hidden="true">⏱</div>
-        <div class="meta"><div class="t">Budget restant : ${chf(remainingB)}</div>
-          <div class="track" style="margin-top:6px"><div class="fill ${actualC > plannedC ? "over-fill" : (fr > 0.85 ? "warn-fill" : "")}" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
-        <span style="color:var(--coolgray)">›</span>
       </div>`;
     })())}
     ${w("goal", (() => {
@@ -2139,10 +2262,13 @@ function renderBudget() {
     <p class="section-title">${title}</p>` + lines.map(l => {
       const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
+      // L3 : le statut est toujours écrit, jamais porté par la couleur seule.
+      const badge = l.over ? '<span class="badge">Dépassé</span>'
+        : (fr > 0.85 && l.planned > 0 ? '<span class="badge planned">À surveiller</span>' : "");
       return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
-        <div class="bar-row" style="margin:0">
-          <div class="bar-head"><span>${esc(l.cat)}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
-            <span class="vals">${chf(l.actual)} / ${chf(l.planned)}</span></div>
+        <div class="bar-row" style="margin:0;min-width:0;flex:1">
+          <div class="bar-head"><span>${esc(l.cat)}${badge}</span>
+            <span class="vals">réel ${chf(l.actual)} / planifié ${chf(l.planned)}</span></div>
           <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
           <div class="bar-foot">${l.over ? "Dépassement de " + chf(-l.variance) : "Reste " + chf(l.variance)}</div>
         </div>
@@ -2150,7 +2276,8 @@ function renderBudget() {
     }).join("");
 
   const outHTML = !report.outOfBudget.length ? "" : `
-    <p class="section-title">Pas encore classé</p>` + report.outOfBudget.map(([cat, v]) => `
+    <p class="section-title">Pas encore classé</p>
+    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Dépenses réelles de catégories sans ligne budgétaire — elles comptent dans le coût de la vie du mois, rien n'est perdu.</p>` + report.outOfBudget.map(([cat, v]) => `
     <div class="card row tx"><div class="meta"><div class="t">${esc(cat)}</div></div>
       <span class="amount">${chf(v)}</span></div>`).join("");
 
@@ -2171,26 +2298,36 @@ function renderBudget() {
   // coup d'œil — vert/indigo tant que ça tient, ambre dès 85 %, rouge au-delà.
   const ringFraction = totalPlanned > 0 ? totalActual / totalPlanned : 0;
   const ringShown = Math.min(1, Math.max(0, ringFraction));
+  const ringPct = Math.round(ringFraction * 100);
   const ringColor = ringFraction > 1 ? "var(--negative)" : (ringFraction > 0.85 ? "var(--amber)" : "var(--indigo)");
   const ringCirc = 2 * Math.PI * 34;
+  // L3 : l'état du plan est toujours ÉCRIT (jamais la couleur seule).
+  const planState = ringFraction > 1
+    ? '<span class="pill neg">Dépassé</span>'
+    : (ringFraction > 0.85 ? '<span class="pill warn">À surveiller</span>' : '<span class="pill pos">Dans le plan</span>');
   const ring = totalPlanned > 0 ? `
+    <div style="flex:none;text-align:center">
     <svg viewBox="0 0 80 80" width="84" height="84" role="img"
          aria-label="Budget consommé : ${pct(ringShown)} du planifié"
-         style="flex:none;transform:rotate(-90deg)">
+         style="transform:rotate(-90deg)">
       <circle cx="40" cy="40" r="34" fill="none" stroke="var(--line-strong)" stroke-width="9"></circle>
       <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="9"
               stroke-linecap="round" stroke-dasharray="${(ringShown * ringCirc).toFixed(1)} ${ringCirc.toFixed(1)}"></circle>
-      <text x="40" y="44" transform="rotate(90 40 40)" text-anchor="middle"
-            style="font-size:16px;font-weight:800;fill:var(--offwhite)">${Math.round(ringFraction * 100)}%</text>
-    </svg>` : "";
+      <text x="40" y="40" transform="rotate(90 40 40)" text-anchor="middle"
+            style="font-size:15px;font-weight:800;fill:var(--offwhite)">${ringPct}%</text>
+      <text x="40" y="52" transform="rotate(90 40 40)" text-anchor="middle"
+            style="font-size:8px;fill:var(--coolgray)">utilisé</text>
+    </svg>
+    </div>` : "";
   return `<h2 class="screen-title">Budget</h2>
     ${monthNav()}
     <div class="card hero">
-      <div style="display:flex;align-items:center;gap:16px">
-        <div style="min-width:0;flex:1">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="min-width:0;flex:1;flex-basis:200px">
       <p class="card-label">Reste à dépenser (dépenses budgétées)</p>
-      <p class="hero-amount ${remaining < 0 ? "neg" : ""}">${chf(remaining)}</p>
-      <span class="caption">Dépenses : planifié ${chf(totalPlanned)} · réel ${chf(totalActual)} — l'épargne et les impôts sont suivis à part</span>
+      <p class="hero-amount fit-row${remaining < 0 ? " neg" : ""}${Math.abs(remaining) >= 1000000 ? " long" : ""}">${chf(remaining)}</p>
+      <div style="margin:6px 0 4px">${planState}</div>
+      <span class="caption">${ringPct} % du budget utilisé — planifié ${chf(totalPlanned)} · réel ${chf(totalActual)}. L'épargne et les impôts sont suivis à part.</span>
       ${(() => {
         // Comparaison pédagogique : le coût de la vie du mois précédent.
         const pm = shiftMonth(cursor, -1);
@@ -3892,8 +4029,82 @@ function refreshDestOptions(preselect) {
     : `<option value="">— aucun compte en ${sourceCurrency} disponible —</option>`;
   if (preselect && candidates.some(a => a.id === preselect)) select.value = preselect;
 }
-document.getElementById("fType").addEventListener("change", () => { refreshCatOptions(); refreshDestOptions(); });
-document.getElementById("fAccount").addEventListener("change", () => refreshDestOptions());
+/* L3 — chips de type : l'interface tactile du select historique (#fType),
+   qui reste la source de vérité (handlers et tests inchangés). */
+const typeGrid = document.getElementById("typeGrid");
+function syncTypeChips() {
+  const type = document.getElementById("fType").value;
+  typeGrid.querySelectorAll("button[data-ftype]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.ftype === type)));
+  typeGrid.style.opacity = typeGrid.dataset.locked === "1" ? "0.5" : "";
+}
+typeGrid.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-ftype]");
+  if (!btn || typeGrid.dataset.locked === "1") return;
+  const select = document.getElementById("fType");
+  select.value = btn.dataset.ftype;
+  select.dispatchEvent(new Event("change"));
+});
+
+/* L3 — notes en langage simple : devise du compte source, statut dérivé
+   de la date (logique de calcul INCHANGÉE), résumé d'un envoi/virement. */
+function updateSheetNotes() {
+  const type = document.getElementById("fType").value;
+  const accId = document.getElementById("fAccount").value;
+  const cur = accountCurrency(accId);
+  document.getElementById("fCur").textContent = cur;
+  const curNote = document.getElementById("fCurNote");
+  if (cur !== baseCurrency()) {
+    curNote.style.display = "";
+    curNote.textContent = `Compte en ${cur} — converti en ${baseCurrency()} au taux du jour, puis figé pour l'historique.`;
+  } else { curNote.style.display = "none"; curNote.textContent = ""; }
+  const dateMatchNote = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("fDate").value || "");
+  const statusNote = document.getElementById("fStatusNote");
+  if (dateMatchNote) {
+    const isFuture = (+dateMatchNote[1] === NOW.y && +dateMatchNote[2] === NOW.m && +dateMatchNote[3] > NOW.d);
+    statusNote.textContent = isFuture
+      ? "Sera compté comme : Prévu (la date est à venir)."
+      : "Sera compté comme : Comptabilisé.";
+  } else statusNote.textContent = "";
+  const transferNote = document.getElementById("fTransferNote");
+  if (["saving", "investment", "transfer"].includes(type)) {
+    const src = ACCOUNTS.find(a => a.id === accId);
+    const dst = ACCOUNTS.find(a => a.id === document.getElementById("fDest").value);
+    const rawAmt = document.getElementById("fAmount").value.trim().replace(/["'\u2019\u00a0 ]/g, "").replace(",", ".");
+    const amt = /^\d{1,9}(\.\d+)?$/.test(rawAmt) ? parseFloat(rawAmt) : null;
+    const flow = `${src ? esc(src.name) : "?"} → ${dst ? esc(dst.name) : "?"}`;
+    transferNote.textContent = !dst ? "" : (type === "transfer"
+      ? `${amt ? money(amt, cur) + " : " : ""}${flow} — neutre : ni revenu, ni dépense, votre fortune ne bouge pas.`
+      : `${amt ? money(amt, cur) + " : " : ""}${flow} — compté comme « mis de côté », pas comme une dépense.`);
+  } else transferNote.textContent = "";
+}
+
+/* L3 — erreur affichée PRÈS du champ concerné, champ marqué et refocalisé. */
+function fieldError(fieldId, message) {
+  const err = document.getElementById("fError");
+  err.textContent = message;
+  const field = document.getElementById(fieldId);
+  if (field) {
+    field.setAttribute("aria-invalid", "true");
+    field.insertAdjacentElement("afterend", err);
+    field.focus();
+  }
+}
+function clearFieldErrors() {
+  const form = document.getElementById("txForm");
+  form.querySelectorAll('[aria-invalid="true"]').forEach(f => f.removeAttribute("aria-invalid"));
+  const err = document.getElementById("fError");
+  err.textContent = "";
+  form.insertBefore(err, form.querySelector(".actions"));
+}
+
+document.getElementById("fType").addEventListener("change", () => { refreshCatOptions(); refreshDestOptions(); syncTypeChips(); updateSheetNotes(); });
+document.getElementById("fAccount").addEventListener("change", () => { refreshDestOptions(); updateSheetNotes(); });
+document.getElementById("fDate").addEventListener("change", updateSheetNotes);
+document.getElementById("fDest").addEventListener("change", updateSheetNotes);
+document.getElementById("fAmount").addEventListener("input", () => {
+  if (["saving", "investment", "transfer"].includes(document.getElementById("fType").value)) updateSheetNotes();
+});
 
 function refreshAccountOptions(selectedId) {
   const select = document.getElementById("fAccount");
@@ -3936,9 +4147,16 @@ function openTxSheet(tx, presetType) {
       `${cursor.y}-${String(cursor.m).padStart(2, "0")}-${String(isCurrent ? NOW.d : 28).padStart(2, "0")}`;
   }
   refreshDestOptions(tx ? tx.dest : null);
-  document.getElementById("fError").textContent = "";
+  clearFieldErrors();
+  // Chips synchronisées sur le select ; un ajustement fige le type.
+  typeGrid.dataset.locked = (tx && tx.type === "adjustment") ? "1" : "";
+  syncTypeChips();
+  updateSheetNotes();
+  // Détails repliés par défaut ; ouverts en édition (l'intitulé y vit).
+  document.getElementById("fMore").open = !!tx;
   openSheet("txForm");
-  document.getElementById("fTitle").focus();
+  // Parcours fréquent : le clavier numérique s'ouvre sur le montant.
+  document.getElementById("fAmount").focus();
 }
 
 document.getElementById("fab").addEventListener("click", () => openSheet("quickMenu"));
@@ -3967,36 +4185,40 @@ document.getElementById("fDelete").addEventListener("click", () => {
 
 document.getElementById("txForm").addEventListener("submit", (e) => {
   e.preventDefault();
-  const err = document.getElementById("fError");
-  const title = document.getElementById("fTitle").value.trim();
+  // L3 : chaque erreur se place PRÈS du champ concerné, sans jamais
+  // effacer la saisie ; la validation reste identique sur le fond.
+  clearFieldErrors();
+  const rawTitle = document.getElementById("fTitle").value.trim();
   const raw = document.getElementById("fAmount").value.trim()
     .replace(/["'\u2019\u00a0 ]/g, "").replace(",", ".");
   const amount = /^\d{1,9}(\.\d+)?$/.test(raw) ? parseFloat(raw) : NaN;
-  if (!title) { err.textContent = "Donnez un intitulé à ce mouvement."; return; }
-  if (!(amount > 0)) { err.textContent = "Le montant doit être supérieur à zéro. Exemple : 45.50"; return; }
+  if (!(amount > 0)) { fieldError("fAmount", "Le montant doit être supérieur à zéro. Exemple : 45.50"); return; }
 
   const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("fDate").value);
-  if (!dateMatch) { err.textContent = "Choisissez une date."; return; }
+  if (!dateMatch) { fieldError("fDate", "Choisissez une date."); return; }
   const y = Number(dateMatch[1]), m = Number(dateMatch[2]), d = Number(dateMatch[3]);
-  if (y < 2000 || y > 2100) { err.textContent = "Année entre 2000 et 2100."; return; }
+  if (y < 2000 || y > 2100) { fieldError("fDate", "Année entre 2000 et 2100."); return; }
 
   const editingExisting = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   const type = (editingExisting && editingExisting.type === "adjustment")
     ? "adjustment" : document.getElementById("fType").value;
   const sourceId = document.getElementById("fAccount").value;
-  if (!ACCOUNTS.some(a => a.id === sourceId)) { err.textContent = "Choisissez un compte."; return; }
+  if (!ACCOUNTS.some(a => a.id === sourceId)) { fieldError("fAccount", "Choisissez un compte."); return; }
   const sourceCurrency = accountCurrency(sourceId);
   let dest = null;
   if (["saving", "investment", "transfer"].includes(type)) {
     const chosen = document.getElementById("fDest").value;
     const target = ACCOUNTS.find(a => a.id === chosen);
     if (!target || accountCurrency(target.id) !== sourceCurrency || target.id === sourceId) {
-      err.textContent = `Choisissez un compte de destination en ${sourceCurrency} (Comptes → ＋ pour en créer un).`;
+      fieldError("fDest", `Choisissez un compte de destination en ${sourceCurrency} (Comptes → ＋ pour en créer un).`);
       return;
     }
     dest = target.id;
   }
   const cat = type === "transfer" ? null : catSelect.value;
+  // Intitulé facultatif (parcours fréquent en trois gestes) : défaut =
+  // catégorie, sinon le libellé du type. Jamais de mouvement sans nom.
+  const title = rawTitle || cat || TYPE_LABEL[type] || "Mouvement";
   const status = (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted";
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   if (existing) {

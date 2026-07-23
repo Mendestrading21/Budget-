@@ -1,5 +1,28 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L3 (2026-07-23)
+
+L3 « Pilote PWA » exécuté (`/budget-v1 execute L3`) après validation
+humaine de L2 (CI #172 verte, run 30021212918). Trois parcours refondus,
+uniquement eux : **Mois** (premier viewport au contrat — héros « Argent
+disponible » dominant avec action universelle, 4 métriques Entré/Dépensé/
+À payer/Mis de côté depuis les agrégats existants de `snapshot()`,
+priorité multi-ligne jamais tronquée, zone de sécurité FAB à 320 px),
+**Budget** (« X % du budget utilisé » en toutes lettres + pill Dans le
+plan/À surveiller/Dépassé + badges textuels par catégorie + « Pas encore
+classé » expliqué — `budgetReport()` intact), **Ajouter un mouvement**
+(chips de type tactiles sur le `#fType` historique, montant d'abord avec
+devise du compte, statut Prévu/Comptabilisé expliqué (logique inchangée),
+intitulé facultatif replié, erreur près du champ avec `aria-invalid` et
+saisie conservée, résumé de virement neutre, Enregistrer sticky sous
+clavier, fermeture après sauvegarde seule). Suite e2e portée à **53
+parcours verts** (48 conservés + 5 pilote L3), 5 parité ✓, design
+system ✓, zéro erreur console ; 11 captures + README dans
+`docs/obsidian-glass/pilot/l3/` (comparées à la baseline L1). Aucune
+formule financière, migration, clé localStorage, route ni ligne Swift
+modifiée ; service worker inchangé. **L3 = VERIFYING** (validation
+humaine des parcours et captures), **L4 = BLOCKED**.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L2 (2026-07-23)
 
 L2 « Fondations Obsidian » exécuté (`/budget-v1 execute L2`, ADR-022) :

@@ -17,8 +17,8 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 |---|---|---|---|
 | L0 Gouvernance | DONE | branche, skill, constitution, matrice et livraison | vérifier les fichiers distants |
 | L1 Vérité/baseline/P0 | DONE | runs CI 167 (échec constaté) → 168 (correctif vert) → 170 (couverture 18 modèles verte) ; 48 e2e + 5 parité + 206 tests iOS ; manifeste vérifié dans Budget.app ; captures versionnées | — |
-| L2 Fondations | VERIFYING | livré : tokens, primitives, galerie, tests, captures (détail ci-dessous) | CI verte + validation humaine des composants et captures |
-| L3 Pilote PWA | BLOCKED | — | L2 validé |
+| L2 Fondations | DONE | **validation humaine reçue le 23.07.2026** ; CI #172 verte (run 30021212918) : web + parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app | — |
+| L3 Pilote PWA | VERIFYING | livré : 3 parcours refondus, 53 e2e verts, 11 captures + README (détail ci-dessous) | CI verte + validation humaine des trois parcours et des captures |
 | L4 Pilote iOS | BLOCKED | — | validation humaine de L3 |
 | L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
 | L6 Modules financiers | BLOCKED | — | L5 validé |
@@ -28,7 +28,57 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
-## Critères d'acceptation L2 (annoncés avant toute édition, 23.07.2026)
+## Critères d'acceptation L3 (annoncés avant toute édition, 23.07.2026)
+
+**Périmètre strict** : Mois/Accueil, Budget, feuille Ajouter un mouvement —
+aucun autre écran refondu, aucune formule financière, migration, clé
+localStorage, route ou logique Swift modifiée. L4 interdit.
+
+**Mois.** Premier viewport dans l'ordre : salutation courte + mois → carte
+héros « Argent disponible » (montant dominant jamais tronqué, jours
+restants secondaires, explication dépliable, action universelle Ajouter) →
+quatre métriques exactement : Entré, Dépensé, À payer, Mis de côté
+(agrégats DÉJÀ calculés par `snapshot()`, aucune formule nouvelle) → UNE
+priorité non tronquée (multi-ligne) → actions rapides conservées
+(fonctionnalité + Test 26) → aperçu Budget → mouvements récents (sections
+existantes). Corrections baseline L1 : priorité multi-ligne, `.screen`
+avec zone de sécurité FAB (plus de chevauchement à 320 px), densité et
+hiérarchie du premier viewport.
+
+**Budget.** Premier viewport : reste à dépenser + planifié + réel + état
+textuel (pill « Dans le plan / À surveiller / Dépassé ») + anneau avec
+résumé textuel explicite « X % du budget utilisé » (l'aria « Budget
+consommé » du Test 31 est conservée). Chaque catégorie : nom, planifié,
+réel, reste/dépassement, barre, badge textuel « À surveiller »/« Dépassé »
+(jamais couleur seule), montants longs sans troncature. « Pas encore
+classé » réconcilié par une phrase. Comparaison mois précédent conservée
+(« Mois dernier : coût de la vie »). Planifié ≠ réel, épargne/impôts à
+part — formules `budgetReport()` intactes.
+
+**Ajout d'un mouvement.** Ordre : type (chips tactiles ≥ 44 px synchronisés
+sur le `select` existant) → montant + devise du compte source → date →
+compte → catégorie/destination → statut auto affiché (Comptabilisé/Prévu,
+logique inchangée) → détails avancés repliés (intitulé facultatif, défaut =
+catégorie) → Enregistrer sticky jamais caché par le clavier (feuille
+`100dvh` défilante). Erreur près du champ concerné + `aria-invalid` +
+focus ; résumé explicite pour virement/épargne ; parcours fréquent en
+3 gestes hors saisie du montant ; aucun chemin existant supprimé
+(création, édition, duplication, suppression, ajustement, tous types,
+devise étrangère figée).
+
+**Preuves.** Tests L3 ajoutés dans la suite e2e (accueil : ordre, 4
+métriques, priorité non tronquée, 320 px sans chevauchement, montant
+extrême, vide, démo ; budget : résumé %, 3 états, réconciliation, montant
+extrême, aria graphique ; ajout : parcours fréquent, clavier, erreur
+récupérable, reload, édition, virement, devise figée ; a11y : 44 px,
+focus, ordre clavier, labels, reduced motion/transparency, 320/390, zéro
+erreur console). Les 48 parcours existants, 5 fixtures de parité et tests
+design system restent verts SANS affaiblissement. Captures
+`docs/obsidian-glass/pilot/l3/` (11 fichiers exigés) + README. Un commit
+`feat(l3): redesign PWA pilot with Obsidian Glass`, CI complète verte,
+**L3 = VERIFYING** (jamais DONE sans validation humaine), L4 = BLOCKED.
+
+## Critères d'acceptation L2 (archivés, 23.07.2026)
 
 **A — Identité unique.** PWA : `:root` = tokens Obsidian canoniques, bloc
 `html[data-theme="dark"]` et valeurs claires supprimés, apparence toujours
@@ -231,12 +281,58 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   (pas de simulateur dans cet environnement Linux) — raison du VERIFYING
   avec la validation humaine.
 
+## Livraison L3 (23.07.2026) — en VERIFYING
+
+- **Mois** : premier viewport au contrat — salutation courte (`.hello`) +
+  mois, héros « Argent disponible » dominant (classe `long` dès 7 chiffres,
+  jamais tronqué ; jours restants secondaires ; « D'où vient ce montant ? »
+  dépliable ; bouton universel « ＋ Ajouter un mouvement » intégré),
+  4 métriques exactement (Entré, Dépensé, À payer, Mis de côté — « À
+  payer » = somme d'agrégats DÉJÀ calculés par `snapshot()` : charges
+  prévues + réguliers à venir + réserve d'impôts manquante, affichage
+  seul), UNE priorité multi-ligne jamais tronquée (`.priority-card`),
+  actions rapides conservées (Test 26), aperçu Budget, sections
+  mouvements récents inchangées. Zone de sécurité FAB (`.screen`
+  padding-bas 96 px) : plus de chevauchement à 320 px.
+- **Budget** : héros avec pill textuelle « Dans le plan / À surveiller /
+  Dépassé », « X % du budget utilisé » écrit en toutes lettres, anneau
+  avec « utilisé » au centre et aria « Budget consommé » (Test 31
+  conservé), montant `fit-row` qui ne passe jamais sous l'anneau
+  (anneau à la ligne si étroit), lignes « réel X / planifié Y » + badge
+  « À surveiller » dès 85 % (plus jamais couleur seule), « Pas encore
+  classé » expliqué et réconcilié. `budgetReport()` INTACT.
+- **Ajout d'un mouvement** : chips de type tactiles ≥ 44 px synchronisées
+  sur le `#fType` historique (tests/handlers inchangés), montant en
+  premier (focus + clavier décimal, devise du compte source `#fCur` +
+  note de conversion figée), note de statut dérivée de la date (« Sera
+  compté comme : Prévu/Comptabilisé », logique inchangée), résumé
+  explicite épargne/virement (« neutre », « mis de côté »), intitulé
+  FACULTATIF replié (défaut = catégorie), erreur près du champ
+  (`fieldError` + `aria-invalid` + focus, saisie jamais effacée),
+  Enregistrer sticky jamais caché (feuille `100dvh` défilante), feuille
+  fermée uniquement après sauvegarde. Tous les chemins préservés
+  (création, édition, duplication, suppression, ajustement, 7 types,
+  devise figée ADR-021).
+- **Tests** : e2e **53 parcours verts** (48 existants + Tests 44-48 :
+  structure/ordre/4 métriques/priorité entière/montant extrême ;
+  320 px sans chevauchement FAB/vide guidé/démo explicite ; Budget
+  %/états/dépassement réel/extrême ; ajout chips/statut/erreur près du
+  champ/3 gestes/reload/édition/virement/clavier sticky ; a11y focus/
+  transparence réduite/labels SVG/320 px) ; 5 parité ✓ ; design system ✓ ;
+  zéro erreur console. Aucun test affaibli (3 sites e2e ouvrent le pli
+  `fMore` avant de saisir l'intitulé, désormais replié).
+- **Captures** : `docs/obsidian-glass/pilot/l3/` — 11 fichiers exigés +
+  README (états, viewports, méthode, comparaison baseline L1, refus).
+- **Hors ligne** : `index.html` reste mono-fichier auto-suffisant ; service
+  worker et clés localStorage INCHANGÉS ; captures et suites en `file://`.
+- iOS totalement inchangé (L4 = BLOCKED).
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 verify L2
+/budget-v1 verify L3
 ```
 
-L2 reste VERIFYING jusqu'à validation humaine des composants et des
-captures (et CI verte du commit `feat(l2)`). Ne pas lancer L3 sans cette
+L3 reste VERIFYING jusqu'à validation humaine des trois parcours et des
+captures (et CI verte du commit `feat(l3)`). Ne pas lancer L4 sans cette
 validation explicite.

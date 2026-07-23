@@ -109,6 +109,7 @@ await page.click("#fab");
 await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
 await page.click('#quickMenu [data-quick="tx"]');
 await page.waitForSelector("#txForm", { state: "visible" });
+await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Test E2E dépense");
 await page.fill("#fAmount", "42.50");
 await page.click('#txForm button[type="submit"]');
@@ -144,6 +145,7 @@ await page.click("[data-quicksend]");
 await page.waitForSelector("#txForm", { state: "visible" });
 const destOptions = await page.$eval("#fDest", el => el.options.length);
 check(destOptions > 0, "aucune destination proposée pour une épargne");
+await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Épargne E2E");
 await page.fill("#fAmount", "100");
 await page.click('#txForm button[type="submit"]');
@@ -480,6 +482,7 @@ await page.click("#fab");
 await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
 await page.click('#quickMenu [data-quick="tx"]');
 await page.waitForSelector("#txForm", { state: "visible" });
+await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Saisie en cours");
 await page.fill("#fAmount", "12.30");
 // clic sur le fond = dismiss accidentel : confirm auto-accepté → se ferme
@@ -921,6 +924,326 @@ await page.evaluate(() => { // nettoyage complet des fixtures multi-devises
   S.fxRates.EUR = 0.93; saveState();
 });
 
+
+/* ================= PILOTE OBSIDIAN L3 (Tests 44-48) ================= */
+
+// ---------- Test 44 : Mois L3 — ordre, 4 métriques, priorité entière, extrême ----------
+currentTest = "mois L3 structure";
+await goHome();
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+// Ordre du premier viewport : salutation → héros → métriques → priorité.
+const orderIdx = {
+  hello: screenHTML.indexOf('class="hello"'),
+  hero: screenHTML.indexOf("Argent disponible"),
+  metrics: screenHTML.indexOf('class="stat-grid"'),
+  quick: screenHTML.indexOf('class="quick-row"'),
+};
+check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation courte avant le héros");
+check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
+check(orderIdx.metrics < orderIdx.quick, "métriques avant les actions rapides");
+check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
+// Exactement 4 métriques, avec les mots du contrat.
+const statLabels = await page.$$eval(".stat-grid .stat .card-label", els => els.map(e => e.textContent.trim()));
+check(statLabels.length === 4, `exactement 4 métriques (obtenu ${statLabels.length})`);
+for (const label of ["Entré", "Dépensé", "À payer", "Mis de côté"]) {
+  check(statLabels.includes(label), `métrique « ${label} » absente (${statLabels.join(", ")})`);
+}
+// La priorité n'est JAMAIS tronquée (multi-ligne, pas d'ellipse).
+const prio = await page.$(".priority-card .meta .t");
+if (prio) {
+  const ws = await prio.evaluate(el => getComputedStyle(el).whiteSpace);
+  check(ws === "normal", `la priorité doit pouvoir passer à la ligne (white-space=${ws})`);
+  const clipped = await prio.evaluate(el => el.scrollWidth > el.clientWidth + 1);
+  check(!clipped, "le texte de la priorité ne doit pas déborder horizontalement");
+}
+// Montant extrême : le héros reste entier, sans débordement.
+await page.evaluate(() => {
+  addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(NOW.d, 28), title: "Extrême L3",
+    type: "income", cat: "Salaire", acc: "cur", dest: null, status: "posted", amount: 9999999.99 });
+  saveState(); render();
+});
+await page.waitForTimeout(200);
+const heroExtreme = await page.$eval(".hero .hero-amount", el => ({
+  text: el.textContent, long: el.classList.contains("long"),
+  clipped: el.scrollWidth > el.clientWidth + 1,
+}));
+check(heroExtreme.long, "un montant à huit chiffres réduit le corps du héros (classe long)");
+check(!heroExtreme.clipped, "le montant héros extrême ne doit pas être tronqué");
+const noHOverflowX = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+check(noHOverflowX, "aucun débordement horizontal avec un montant extrême");
+await page.evaluate(() => {
+  const i = transactions.findIndex(t => t.title === "Extrême L3");
+  if (i >= 0) transactions.splice(i, 1);
+  saveState(); render();
+});
+
+// ---------- Test 45 : Mois L3 — 320 px sans chevauchement FAB, vide guidé, démo explicite ----------
+currentTest = "mois L3 320px/vide/demo";
+await page.setViewportSize({ width: 320, height: 844 });
+await goHome();
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(200);
+// Aucun chevauchement : le FAB ne recouvre le centre d'AUCUN bouton visible.
+const fabOverlap = await page.evaluate(() => {
+  const screen = document.getElementById("screen");
+  screen.scrollTop = screen.scrollHeight; // tout en bas, là où L1 échouait
+  const fab = document.getElementById("fab").getBoundingClientRect();
+  const hits = [];
+  for (const b of screen.querySelectorAll("button, [role='button']")) {
+    const r = b.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) continue;
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    if (cx >= fab.left && cx <= fab.right && cy >= fab.top && cy <= fab.bottom) {
+      hits.push((b.textContent || b.ariaLabel || "?").trim().slice(0, 20));
+    }
+  }
+  return hits;
+});
+check(fabOverlap.length === 0, `le FAB recouvre : ${fabOverlap.join(", ")}`);
+const noOverflow320 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+check(noOverflow320, "aucun débordement horizontal à 320 px");
+// Cibles ≥ 44 px sur les éléments interactifs du premier viewport.
+const small320 = await page.evaluate(() => {
+  document.getElementById("screen").scrollTop = 0;
+  return [...document.querySelectorAll(".quick-row .btn, .hero .btn, .month-nav button")]
+    .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || "?").trim().slice(0, 18) }))
+    .filter(x => x.h < 43.5);
+});
+check(small320.length === 0, `cibles < 44 px à 320 : ${small320.map(x => `${x.t} (${x.h.toFixed(0)})`).join(", ")}`);
+// État vide guidé : un nouvel utilisateur sans mouvement voit des cartes-guides.
+await page.evaluate(() => localStorage.clear());
+await page.goto(APP_URL);
+await page.waitForSelector('[data-obcountry="CH"]');
+await page.click('[data-obcountry="CH"]');
+await page.waitForSelector('[data-obhh="solo"]', { state: "visible" });
+await page.click('[data-obhh="solo"]');
+await page.waitForSelector("#obName", { state: "visible" });
+await page.fill("#obName", "Léa");
+await page.click('#obForm1 button[type="submit"]');
+await page.waitForSelector("#obSalary", { state: "visible" });
+await page.fill("#obSalary", "4000");
+await page.click('#obForm2 button[type="submit"]');
+await page.waitForSelector("#obOpening", { state: "visible" });
+await page.fill("#obOpening", "1000");
+await page.click('#obForm3 button[type="submit"]');
+await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+await page.click('[data-obgoal="urgence"]');
+await page.waitForSelector("#tabbar button");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Aucune dépense ce mois"), "état vide guidé : dépenses");
+check(screenHTML.includes("Aucune facture ce mois"), "état vide guidé : factures");
+check(screenHTML.includes("Argent disponible"), "le héros existe même sans mouvement");
+const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
+check(demoHidden, "pas de bannière démo pour un vrai départ");
+// Mode démo clairement identifié (chargée depuis les Réglages).
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-resetdemo]");
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.waitForTimeout(250);
+const demoShown = await page.$eval(".demo-banner", el => el.style.display !== "none");
+check(demoShown, "la démo doit afficher la bannière « données fictives »");
+screenHTML = await page.$eval(".demo-banner", el => el.textContent);
+check(screenHTML.includes("données fictives"), "le texte démo doit être explicite");
+await page.setViewportSize({ width: 390, height: 844 });
+
+// ---------- Test 46 : Budget L3 — % explicite, 3 états écrits, réconciliation, extrême ----------
+currentTest = "budget L3";
+// (état démo chargé par le test précédent)
+await page.click(`#tabbar button[aria-label="Budget"]`);
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(/\d+ % du budget utilisé/.test(screenHTML.replace(/&nbsp;/g, " ")), "le pourcentage doit être expliqué : « X % du budget utilisé »");
+check(screenHTML.includes("Budget consommé"), "l'anneau garde son étiquette accessible");
+check(/Dans le plan|À surveiller|Dépassé/.test(screenHTML), "l'état du plan est écrit en toutes lettres");
+check(screenHTML.includes("planifié") && screenHTML.includes("réel"), "planifié et réel visibles");
+const budgetHeroFit = await page.$eval(".hero .hero-amount", el => el.scrollWidth <= el.clientWidth + 1);
+check(budgetHeroFit, "le montant héros Budget ne passe jamais sous l'anneau");
+// État « Dépassé » réel : grosse dépense dans une catégorie budgétée.
+const overCat = await page.evaluate(() => {
+  const key = `${cursor.y}-${cursor.m}`;
+  const line = (S.budgets[key] || [])[0];
+  if (!line) return null;
+  addTx({ id: ++txSeq, y: cursor.y, m: cursor.m, d: 2, title: "Dépassement L3",
+    type: "expense", cat: line.cat, acc: ACCOUNTS[0].id, dest: null, status: "posted",
+    amount: (line.amount || 0) + 500 });
+  saveState(); render();
+  return line.cat;
+});
+check(overCat !== null, "la démo doit fournir une ligne budgétaire");
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Dépassé"), "l'état Dépassé apparaît en texte");
+check(screenHTML.includes("Dépassement de"), "chaque ligne dépassée écrit son dépassement");
+// Montant extrême : le reste à dépenser passe en classe long, sans troncature.
+await page.evaluate(() => {
+  const key = `${cursor.y}-${cursor.m}`;
+  S.budgets[key].push({ cat: "Extrême L3", amount: 11000000 });
+  CATEGORIES["Extrême L3"] = "expense";
+  saveState(); render();
+});
+await page.waitForTimeout(200);
+const budgetHero = await page.$eval(".hero .hero-amount", el => ({
+  long: el.classList.contains("long"), clipped: el.scrollWidth > el.clientWidth + 1 }));
+check(budgetHero.long && !budgetHero.clipped, "montant extrême du Budget entier et réduit");
+await page.evaluate(() => { // nettoyage
+  const key = `${cursor.y}-${cursor.m}`;
+  S.budgets[key] = S.budgets[key].filter(l => l.cat !== "Extrême L3");
+  delete CATEGORIES["Extrême L3"];
+  const i = transactions.findIndex(t => t.title === "Dépassement L3");
+  if (i >= 0) transactions.splice(i, 1);
+  saveState(); render();
+});
+
+// ---------- Test 47 : Ajout L3 — chips, statut, erreurs près du champ, 3 gestes, virement ----------
+currentTest = "ajout L3";
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(150);
+await page.click("[data-addtx]");
+await page.waitForSelector("#txForm", { state: "visible" });
+// Chips de type synchronisées sur le select historique.
+const chipPressed = await page.$eval('#typeGrid button[data-ftype="expense"]', el => el.getAttribute("aria-pressed"));
+check(chipPressed === "true", "la chip Dépense est active par défaut");
+await page.click('#typeGrid button[data-ftype="saving"]');
+await page.waitForTimeout(100);
+const afterChip = await page.evaluate(() => ({
+  type: document.getElementById("fType").value,
+  destVisible: document.getElementById("destWrap").style.display !== "none",
+  note: document.getElementById("fTransferNote").textContent,
+}));
+check(afterChip.type === "saving", "la chip Épargne pilote le select");
+check(afterChip.destVisible, "l'épargne demande une destination");
+check(afterChip.note.includes("mis de côté"), "le résumé explique « mis de côté », pas une dépense");
+// Statut affiché, dérivé de la date (logique inchangée).
+const statusNow = await page.$eval("#fStatusNote", el => el.textContent);
+check(statusNow.includes("Comptabilisé"), "aujourd'hui → Comptabilisé affiché");
+await page.evaluate(() => {
+  const last = new Date(NOW.y, NOW.m, 0).getDate();
+  if (NOW.d < last) {
+    document.getElementById("fDate").value =
+      `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
+    document.getElementById("fDate").dispatchEvent(new Event("change"));
+  }
+});
+const statusFuture = await page.$eval("#fStatusNote", el => el.textContent);
+check(statusFuture.includes("Prévu") || statusFuture.includes("Comptabilisé"), "note de statut toujours présente");
+// Retour à la date du jour (le statut redevient Comptabilisé).
+await page.evaluate(() => {
+  document.getElementById("fDate").value =
+    `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  document.getElementById("fDate").dispatchEvent(new Event("change"));
+});
+// Erreur près du champ : montant invalide → message sous le montant, saisie conservée.
+await page.click('#typeGrid button[data-ftype="expense"]');
+await page.fill("#fAmount", "abc");
+await page.click('#txForm button[type="submit"]');
+await page.waitForTimeout(100);
+const errState = await page.evaluate(() => ({
+  msg: document.getElementById("fError").textContent,
+  nearAmount: document.getElementById("fError").previousElementSibling
+    && ["fAmount", "fCurNote"].includes(document.getElementById("fError").previousElementSibling.id),
+  invalid: document.getElementById("fAmount").getAttribute("aria-invalid") === "true",
+  kept: document.getElementById("fAmount").value === "abc",
+}));
+check(errState.msg.includes("montant"), "message d'erreur en langage simple");
+check(errState.nearAmount, "l'erreur se place près du champ montant");
+check(errState.invalid, "le champ fautif est marqué aria-invalid");
+check(errState.kept, "la saisie n'est JAMAIS effacée après une erreur");
+// Parcours fréquent : montant seul → enregistré avec la catégorie comme nom.
+await page.fill("#fAmount", "12.35");
+const freqCat = await page.$eval("#fCat", el => el.value);
+await page.click('#txForm button[type="submit"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(!(await page.$eval("#sheetBackdrop", el => el.classList.contains("open"))), "la feuille se ferme après sauvegarde réussie");
+check(screenHTML.includes("12.35"), "le mouvement en trois gestes apparaît sur Mois");
+await page.reload();
+await page.waitForSelector("#tabbar button");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("12.35"), "le mouvement en trois gestes survit au rechargement");
+// Édition sans perte : rouvrir, changer le montant, le nom par défaut reste.
+await page.click(`#screen [data-txid] >> text=${freqCat}`);
+await page.waitForSelector("#txForm", { state: "visible" });
+const editPrefill = await page.evaluate(() => ({
+  more: document.getElementById("fMore").open,
+  title: document.getElementById("fTitle").value,
+}));
+check(editPrefill.more, "l'édition déplie les détails (l'intitulé y vit)");
+check(editPrefill.title.length > 0, "l'intitulé par défaut est conservé à l'édition");
+await page.fill("#fAmount", "13.00");
+await page.click('#txForm button[type="submit"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("13.00"), "montant édité sans perte de données");
+await page.evaluate(() => { // nettoyage
+  const i = transactions.findIndex(t => t.amount === 13 && t.title && t.title.length > 0 && t.type === "expense" && t.d === NOW.d);
+  if (i >= 0) transactions.splice(i, 1);
+  saveState(); render();
+});
+// Virement : résumé explicite et neutralité affichée.
+await page.click("#fab");
+await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
+await page.click('#quickMenu [data-quick="tx"]');
+await page.waitForSelector("#txForm", { state: "visible" });
+await page.click('#typeGrid button[data-ftype="transfer"]');
+await page.waitForTimeout(100);
+const transferNote = await page.$eval("#fTransferNote", el => el.textContent);
+check(transferNote.includes("neutre") || transferNote === "", "un virement s'annonce neutre dès qu'une destination existe");
+await page.click("#fCancel");
+// Clavier : hauteur réduite (clavier ouvert simulé) → montant ET Enregistrer visibles.
+await page.setViewportSize({ width: 320, height: 480 });
+await page.click("[data-addtx]");
+await page.waitForSelector("#txForm", { state: "visible" });
+await page.focus("#fAmount");
+const keyboardSafe = await page.evaluate(() => {
+  const amount = document.getElementById("fAmount").getBoundingClientRect();
+  const save = document.querySelector('#txForm button[type="submit"]').getBoundingClientRect();
+  const H = window.innerHeight;
+  return { amountVisible: amount.top >= 0 && amount.bottom <= H,
+           saveVisible: save.top >= 0 && save.bottom <= H, h: H };
+});
+check(keyboardSafe.amountVisible, "clavier ouvert : le montant reste visible");
+check(keyboardSafe.saveVisible, "clavier ouvert : Enregistrer reste visible (barre sticky)");
+await page.click("#fCancel");
+await page.setViewportSize({ width: 390, height: 844 });
+
+// ---------- Test 48 : accessibilité L3 — focus, 44 px, reduced transparency, overflow ----------
+currentTest = "a11y L3";
+await goHome();
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(150);
+// Focus clavier visible sur un élément interactif de l'écran.
+await page.evaluate(() => document.activeElement && document.activeElement.blur());
+await page.keyboard.press("Tab");
+const focusRing = await page.evaluate(() => {
+  const cs = getComputedStyle(document.activeElement);
+  return { style: cs.outlineStyle, width: parseFloat(cs.outlineWidth) };
+});
+check(focusRing.style !== "none" && focusRing.width >= 2, `focus visible ≥ 2px (obtenu ${focusRing.style} ${focusRing.width})`);
+// Transparence réduite : l'app bascule sur le graphite opaque.
+await page.evaluate(() => { document.documentElement.dataset.reducedTransparency = "true"; });
+const rtSurface = await page.evaluate(() =>
+  getComputedStyle(document.documentElement).getPropertyValue("--surface").trim());
+check(rtSurface === "#151B26", `transparence réduite : surface opaque attendue (obtenu ${rtSurface})`);
+await page.evaluate(() => { delete document.documentElement.dataset.reducedTransparency; });
+// Libellés accessibles des graphiques et du FAB.
+const a11yLabels = await page.evaluate(() => ({
+  fab: document.getElementById("fab").getAttribute("aria-label") || "",
+  charts: [...document.querySelectorAll("#screen svg[role='img']")].every(s => (s.getAttribute("aria-label") || "").length > 5),
+}));
+check(a11yLabels.fab.includes("Ajouter"), "le FAB porte un libellé accessible");
+check(a11yLabels.charts, "chaque graphique SVG porte une étiquette accessible");
+// Budget à 320 px : aucun débordement.
+await page.setViewportSize({ width: 320, height: 844 });
+await page.click(`#tabbar button[aria-label="Budget"]`);
+await page.waitForTimeout(200);
+const budget320 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+check(budget320, "Budget sans débordement horizontal à 320 px");
+await page.setViewportSize({ width: 390, height: 844 });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -930,4 +1253,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 48 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 53 parcours verts (48 existants + 5 pilote Obsidian L3), zéro erreur console ✓");
