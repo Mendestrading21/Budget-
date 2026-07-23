@@ -45,6 +45,22 @@ final class DemoTourUITests: XCTestCase {
         visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents")
         visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
         visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
+
+        // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
+        // partie des trois parcours refondus — preuve native exigée.
+        openTab(app, "Accueil")
+        let addMenu = app.buttons["Ajouter — dépense, revenu, épargne, investissement ou virement"]
+        XCTAssertTrue(addMenu.waitForExistence(timeout: 10), "Le ＋ universel doit exister sur l'Accueil")
+        addMenu.tap()
+        let expenseChoice = app.buttons["Dépense"]
+        XCTAssertTrue(expenseChoice.waitForExistence(timeout: 5), "Le menu ＋ doit proposer « Dépense »")
+        expenseChoice.tap()
+        XCTAssertTrue(
+            app.navigationBars["Nouveau mouvement"].waitForExistence(timeout: 10),
+            "La feuille « Nouveau mouvement » doit s'ouvrir"
+        )
+        snap(app, "12-nouveau-mouvement")
+        app.buttons["Annuler"].tap()
     }
 
     @MainActor

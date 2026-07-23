@@ -18,8 +18,8 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L0 Gouvernance | DONE | branche, skill, constitution, matrice et livraison | vérifier les fichiers distants |
 | L1 Vérité/baseline/P0 | DONE | runs CI 167 (échec constaté) → 168 (correctif vert) → 170 (couverture 18 modèles verte) ; 48 e2e + 5 parité + 206 tests iOS ; manifeste vérifié dans Budget.app ; captures versionnées | — |
 | L2 Fondations | DONE | **validation humaine reçue le 23.07.2026** ; CI #172 verte (run 30021212918) : web + parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app | — |
-| L3 Pilote PWA | VERIFYING | livré : 3 parcours refondus, 53 e2e verts, 11 captures + README (détail ci-dessous) | CI verte + validation humaine des trois parcours et des captures |
-| L4 Pilote iOS | BLOCKED | — | validation humaine de L3 |
+| L3 Pilote PWA | DONE | **validation humaine reçue le 23.07.2026** ; CI #173 verte (run 30028514793, SHA 8a82a2e) : 53 parcours web zéro erreur console + 5 parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app (le run manuel #174 confirme) | — |
+| L4 Pilote iOS | VERIFYING | livré : 3 écrans natifs refondus, ObsidianPilotTests, previews, tour Demo enrichi (détail ci-dessous) | CI verte + workflow Demo (captures natives) + validation humaine |
 | L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
 | L6 Modules financiers | BLOCKED | — | L5 validé |
 | L7 Onboarding/Confiance | BLOCKED | — | L6 validé |
@@ -28,7 +28,54 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
-## Critères d'acceptation L3 (annoncés avant toute édition, 23.07.2026)
+## Critères d'acceptation L4 (annoncés avant toute édition, 23.07.2026)
+
+**Périmètre strict** : `HomeTab.swift`, `BudgetTab.swift`,
+`TransactionFormView.swift` + tests/previews. Aucun autre écran, aucune
+ligne PWA, aucun service financier, modèle SwiftData, migration ou
+sauvegarde modifiés. Lot suivant interdit.
+
+**Mois (natif = pilote PWA L3, conventions SwiftUI).** Héros « Argent
+disponible » via `AmountText` hero (jamais tronqué), jours restants +
+« CHF X par jour » en secondaire DANS le héros, « D'où vient ce
+montant ? » dépliable, bouton `PrimaryActionButtonStyle` « ＋ Ajouter un
+mouvement » ; 4 métriques Entré / Dépensé / À payer / Mis de côté —
+« À payer » = `committedCharges + recurringCharges + taxReserveGap`
+(champs DÉJÀ calculés par `MonthlySnapshotService`, somme d'affichage
+pure via un helper testé) ; UNE priorité mise en avant après les
+métriques (la première action), les suivantes restent dans « À faire »
+(aucune fonctionnalité perdue) ; mouvements récents inchangés.
+
+**Budget.** Héros : `AmountText`, `StatusPill` textuelle Dans le plan /
+À surveiller / Dépassé, « X % du budget utilisé » écrit en toutes
+lettres, barre plan/réel avec résumé accessible ; lignes : « réel X /
+planifié Y », `StatusPill` « À surveiller » dès 85 % et « Dépassé »
+(symbole + texte, jamais couleur seule) — `BudgetVarianceService`
+INTACT.
+
+**Ajouter un mouvement.** Ordre du pilote : type → montant (focus
+automatique, `decimalPad`, jamais caché — bouton Enregistrer en barre de
+navigation native) → date → statut (picker natif existant CONSERVÉ,
+déplacé après la date) → comptes → catégorie → résumé explicite
+virement/épargne (« neutre », « mis de côté ») → détails facultatifs
+(intitulé FACULTATIF : défaut = catégorie/type injecté côté vue —
+`TransactionValidationService` byte-identique) ; erreurs typées FR
+conservées ; fond Obsidian ; tous les chemins préservés (création,
+édition, 9 types, ajustement, statuts manuels).
+
+**Preuves.** `BudgetTests/ObsidianPilotTests.swift` : helper « À payer »,
+montant extrême `CHF -9'999'999.99`, construction des trois écrans à
+320 pt / texte accessibilité / transparence réduite forcée, mouvement
+valide + erreur récupérable + virement via le service réel, persistance
+après sauvegarde (contexte neuf), résultats financiers inchangés
+(snapshot avant/après refonte identique par fixtures). Previews
+déterministes par écran (standard, texte agrandi, transparence
+réduite). CI complète verte ; captures NATIVES réelles via le workflow
+Demo (artefact `budget-demo`), jamais fabriquées ; commit
+`feat(l4): redesign iOS pilot with Obsidian Glass` ; **L4 = VERIFYING**
+(jamais DONE sans validation humaine), lot suivant = BLOCKED.
+
+## Critères d'acceptation L3 (archivés, 23.07.2026)
 
 **Périmètre strict** : Mois/Accueil, Budget, feuille Ajouter un mouvement —
 aucun autre écran refondu, aucune formule financière, migration, clé
@@ -327,12 +374,51 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   worker et clés localStorage INCHANGÉS ; captures et suites en `file://`.
 - iOS totalement inchangé (L4 = BLOCKED).
 
+## Livraison L4 (23.07.2026) — en VERIFYING
+
+- **Mois natif** : héros « Argent disponible » (`AmountText` hero, jamais
+  tronqué), jours restants + « CHF X par jour » en secondaire dans le
+  héros, « D'où vient ce montant ? » dépliable, bouton
+  `PrimaryActionButtonStyle` « ＋ Ajouter un mouvement » (feuille sans
+  préréglage) ; 4 métriques Entré / Dépensé / À payer / Mis de côté
+  (« À payer » = `HomePilotDisplay.toPay` : somme d'affichage de
+  composantes DÉJÀ calculées par `MonthlySnapshotService`, testée) ; UNE
+  priorité mise en avant (pill « Priorité » + bord indigo, multi-ligne),
+  les suivantes restent dans « À faire » — aucune fonctionnalité perdue ;
+  mois clôturés : « Ce qui reste du mois ».
+- **Budget natif** : `AmountText` hero, `StatusPill` Dans le plan / À
+  surveiller / Dépassé, « X % du budget utilisé » écrit + barre plan/réel
+  teintée, résumé accessible « Budget consommé : X pour cent » ; lignes
+  « réel X / planifié Y » + `StatusPill` « À surveiller » dès 85 % et
+  « Dépassé » — `BudgetVarianceService` INTACT (fraction affichée via
+  `FinanceMath.safeRatio` existant).
+- **Feuille native** : ordre du pilote (type → montant focalisé
+  `decimalPad` → date + statut natif conservé → comptes avec résumé
+  explicite virement/épargne → catégorie → « Détails (facultatif) » avec
+  intitulé DÉFAUT = catégorie/type injecté côté vue —
+  `TransactionValidationService` byte-identique) ; Enregistrer en barre
+  de navigation (jamais caché par le clavier) ; fond Obsidian ; erreurs
+  typées FR conservées ; tous les chemins préservés (édition, 9 types,
+  ajustement, statuts manuels).
+- **Tests** : `BudgetTests/ObsidianPilotTests.swift` (8 tests — helper
+  « À payer », identité du disponible et séparation épargne/vie
+  inchangées, mouvement valide + persistance via contexte neuf, erreur
+  récupérable sans écriture, virement neutre (fortune constante),
+  montant extrême exact, écrans construits à 320 pt / texte
+  accessibilité / transparence réduite forcée). Previews ajoutées :
+  texte agrandi + transparence réduite (Mois, Budget), texte agrandi +
+  virement (feuille). Total attendu : 222 tests iOS.
+- **Preuve native** : tour Demo enrichi d'une 12e étape « Nouveau
+  mouvement » (FAB → Dépense → capture) ; workflow Demo à déclencher
+  après la CI pour l'artefact `budget-demo` (captures + vidéo réelles).
+- PWA, services financiers, modèles, migrations, sauvegardes : INCHANGÉS.
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 verify L3
+/budget-v1 verify L4
 ```
 
-L3 reste VERIFYING jusqu'à validation humaine des trois parcours et des
-captures (et CI verte du commit `feat(l3)`). Ne pas lancer L4 sans cette
+L4 reste VERIFYING jusqu'à validation humaine des trois écrans natifs et
+des captures du workflow Demo. Ne pas lancer le lot suivant sans cette
 validation explicite.

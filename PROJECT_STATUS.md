@@ -1,5 +1,29 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L4 (2026-07-23)
+
+L4 « Pilote iOS » exécuté (`/budget-v1 execute L4`) après validation
+humaine de L3 (CI #173, run 30028514793). Trois écrans natifs refondus
+avec les fondations L2, uniquement eux : **HomeTab** (héros « Argent
+disponible » `AmountText` + jours restants secondaires + action
+universelle `PrimaryActionButtonStyle`, 4 métriques Entré/Dépensé/À
+payer/Mis de côté — « À payer » = `HomePilotDisplay.toPay`, somme
+d'affichage testée de composantes existantes de `MonthlySnapshotService`
+—, UNE priorité mise en avant avec pill, le reste dans « À faire »),
+**BudgetTab** (`StatusPill` Dans le plan/À surveiller/Dépassé, « X % du
+budget utilisé » écrit, barre plan/réel, lignes « réel/planifié » avec
+pills — `BudgetVarianceService` intact), **TransactionFormView** (ordre
+pilote, montant focalisé `decimalPad`, statut natif conservé, résumé
+virement/épargne, intitulé facultatif défaut = catégorie injecté côté
+vue, `TransactionValidationService` byte-identique, Enregistrer en barre
+de navigation). `ObsidianPilotTests` (8 tests : agrégat À payer,
+résultats financiers inchangés, persistance contexte neuf, erreur
+récupérable, virement neutre, extrême, 320 pt/a11y/transparence
+réduite) + 8 previews déterministes + 12e étape du tour Demo
+(« Nouveau mouvement »). PWA, formules, modèles, migrations,
+sauvegardes : INCHANGÉS. **L4 = VERIFYING** (CI + workflow Demo +
+validation humaine), lot suivant BLOCKED.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L3 (2026-07-23)
 
 L3 « Pilote PWA » exécuté (`/budget-v1 execute L3`) après validation

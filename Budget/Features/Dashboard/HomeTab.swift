@@ -2,6 +2,16 @@ import SwiftUI
 import SwiftData
 import Charts
 
+/// Agrégats d'AFFICHAGE du pilote Obsidian (L4) — aucune formule
+/// financière nouvelle : « À payer » additionne trois composantes déjà
+/// calculées par `MonthlySnapshotService` (mêmes valeurs que le détail du
+/// héros). Vérifié par `ObsidianPilotTests`.
+enum HomePilotDisplay {
+    static func toPay(_ available: AvailableBreakdown) -> Decimal {
+        available.committedCharges + available.recurringCharges + available.taxReserveGap
+    }
+}
+
 /// Accueil: the monthly dashboard. Answers within the first viewport:
 /// what is available, what came in, what went out, what is reserved,
 /// and what requires action. All values derive from persisted data via
@@ -23,6 +33,9 @@ struct HomeTab: View {
     @State private var saveErrorMessage: String?
     /// Priority action → prefilled movement form (production-completion P2).
     @State private var prefilledCreateType: TransactionType?
+    /// Action universelle du héros (pilote L4) : la même feuille, sans type
+    /// prérempli.
+    @State private var isPresentingUniversalCreate = false
 
     private var currentAnchor: Date { monthAnchor ?? appContainer.dateProvider.now }
 
@@ -112,15 +125,20 @@ struct HomeTab: View {
                         // month containing "now". Other months get a recap.
                         if snapshot.interval.contains(appContainer.dateProvider.now) {
                             availableHeroCard(snapshot)
-                            dailyBudgetRow(snapshot)
                         } else {
                             monthRecapCard(snapshot)
                         }
                         statGrid(snapshot)
+                        // Pilote L4 (parité PWA L3) : UNE priorité mise en
+                        // avant juste après les métriques ; les suivantes
+                        // restent dans « À faire » — rien n'est perdu.
+                        if let first = actions.first {
+                            priorityEntry(first, highlighted: true)
+                        }
                         monthCheckCard(forecast: forecast, interval: snapshot.interval)
                         forecastSection(forecast: forecast)
                         flowsChartCard
-                        priorityActionsSection(actions: actions)
+                        priorityActionsSection(actions: Array(actions.dropFirst()))
                         recentSection(recent: recent)
                     }
                     .padding(BudgetSpacing.screenMargin)
@@ -138,6 +156,9 @@ struct HomeTab: View {
         }
         .sheet(item: $prefilledCreateType) { type in
             TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: type)
+        }
+        .sheet(isPresented: $isPresentingUniversalCreate) {
+            TransactionFormView(mode: .create(prefilledAccount: nil))
         }
         }
     }
@@ -179,12 +200,15 @@ struct HomeTab: View {
     private func monthRecapCard(_ snapshot: MonthSnapshot) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Flux net du mois")
+                Text("Ce qui reste du mois")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chfSigned(snapshot.cashFlow))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(snapshot.cashFlow < 0 ? BudgetColor.negative : BudgetColor.positive)
+                AmountText(
+                    amount: snapshot.cashFlow,
+                    role: .hero,
+                    signed: true,
+                    emphasis: snapshot.cashFlow < 0 ? .negative : .positive
+                )
                 if let comparison = snapshot.previousMonth {
                     Text("Revenus \(FinanceFormatting.chfSigned(comparison.incomeDelta)) et coût de la vie \(FinanceFormatting.chfSigned(comparison.livingExpensesDelta)) par rapport au mois précédent")
                         .font(BudgetFont.caption)
@@ -192,19 +216,27 @@ struct HomeTab: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Flux net du mois : \(FinanceFormatting.chfSigned(snapshot.cashFlow))")
+            .accessibilityLabel("Ce qui reste du mois : \(FinanceFormatting.chfSigned(snapshot.cashFlow))")
         }
     }
 
     private func availableHeroCard(_ snapshot: MonthSnapshot) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Vraiment disponible")
+                Text("Argent disponible")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(snapshot.available.total))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(snapshot.available.total < 0 ? BudgetColor.negative : .primary)
+                AmountText(
+                    amount: snapshot.available.total,
+                    role: .hero,
+                    emphasis: snapshot.available.total < 0 ? .negative : .neutral
+                )
+                // Jours restants : visibles mais SECONDAIRES (contrat pilote).
+                if snapshot.daysRemaining > 0 {
+                    Text("\(snapshot.daysRemaining) jours restants · \(FinanceFormatting.chf(snapshot.dailyAvailableBudget)) par jour")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 DisclosureGroup {
                     VStack(spacing: BudgetSpacing.micro) {
@@ -217,14 +249,23 @@ struct HomeTab: View {
                     }
                     .padding(.top, BudgetSpacing.micro)
                 } label: {
-                    Text("Détail du calcul")
+                    Text("D'où vient ce montant ?")
                         .font(BudgetFont.caption)
-                        .foregroundStyle(BudgetColor.electricBlue)
+                        .foregroundStyle(BudgetColor.brandBright)
                 }
-                .tint(BudgetColor.electricBlue)
+                .tint(BudgetColor.brandBright)
+
+                // Action universelle du contrat, dans le héros.
+                Button {
+                    isPresentingUniversalCreate = true
+                } label: {
+                    Label("Ajouter un mouvement", systemImage: "plus")
+                }
+                .buttonStyle(PrimaryActionButtonStyle())
+                .accessibilityHint("Ouvre la feuille de création d'un mouvement")
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Vraiment disponible ce mois : \(FinanceFormatting.chf(snapshot.available.total))")
+            .accessibilityLabel("Argent disponible ce mois : \(FinanceFormatting.chf(snapshot.available.total))")
         }
     }
 
@@ -240,46 +281,24 @@ struct HomeTab: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func dailyBudgetRow(_ snapshot: MonthSnapshot) -> some View {
-        GlassCard(style: .row) {
-            HStack {
-                Label {
-                    Text(snapshot.daysRemaining > 0
-                         ? "\(snapshot.daysRemaining) jour(s) restant(s)"
-                         : "Mois terminé")
-                        .font(BudgetFont.body)
-                } icon: {
-                    Image(systemName: "calendar")
-                        .foregroundStyle(BudgetColor.indigo)
-                }
-                Spacer()
-                if snapshot.daysRemaining > 0 {
-                    VStack(alignment: .trailing, spacing: 0) {
-                        Text(FinanceFormatting.chf(snapshot.dailyAvailableBudget))
-                            .font(BudgetFont.amount)
-                        Text("par jour")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(
-                snapshot.daysRemaining > 0
-                    ? "\(snapshot.daysRemaining) jours restants, budget quotidien \(FinanceFormatting.chf(snapshot.dailyAvailableBudget))"
-                    : "Mois terminé"
-            )
-        }
-    }
-
     // MARK: - Stat cards
 
+    /// Les quatre métriques du contrat pilote : Entré, Dépensé, À payer,
+    /// Mis de côté — mêmes mots que le pilote PWA L3. « À payer » est un
+    /// agrégat d'affichage de composantes déjà calculées (HomePilotDisplay).
     private func statGrid(_ snapshot: MonthSnapshot) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
-            statCard("Revenus", snapshot.totalIncome, icon: "arrow.down.circle", tint: BudgetColor.positive)
-            statCard("Coût de la vie", snapshot.totalLivingExpenses, icon: "arrow.up.circle", tint: BudgetColor.negative)
-            statCard("Épargne + invest.", snapshot.totalSavings + snapshot.totalInvestments, icon: "building.columns", tint: BudgetColor.electricBlue, detail: snapshot.totalIncome > 0 ? "Taux : \(FinanceFormatting.percent(snapshot.savingsRate))" : nil)
-            statCard("Impôts payés", snapshot.taxProvision.paid, icon: "doc.text", tint: BudgetColor.warning, detail: snapshot.taxProvision.gap > 0 ? "Réserve manquante : \(FinanceFormatting.chf(snapshot.taxProvision.gap))" : "Réserve du mois couverte")
+        let toPay = HomePilotDisplay.toPay(snapshot.available)
+        return LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
+            statCard("Entré", snapshot.totalIncome, icon: "arrow.down.circle", tint: BudgetColor.positive,
+                     detail: "Revenus comptabilisés")
+            statCard("Dépensé", snapshot.totalLivingExpenses, icon: "arrow.up.circle", tint: BudgetColor.negative,
+                     detail: snapshot.previousMonth.map {
+                         "Mois dernier : \(FinanceFormatting.chfSigned($0.livingExpensesDelta)) d'écart"
+                     } ?? "Coût de la vie")
+            statCard("À payer", toPay, icon: "clock", tint: BudgetColor.warning,
+                     detail: toPay > 0 ? "Prévu, réguliers et impôts" : "Rien en attente")
+            statCard("Mis de côté", snapshot.totalSavings + snapshot.totalInvestments, icon: "building.columns", tint: BudgetColor.brandBright,
+                     detail: snapshot.totalIncome > 0 ? "Taux : \(FinanceFormatting.percent(snapshot.savingsRate))" : "Épargne + investissements")
         }
     }
 
@@ -326,7 +345,7 @@ struct HomeTab: View {
                     } label: {
                         Text("Gérer")
                             .font(BudgetFont.caption.weight(.semibold))
-                            .foregroundStyle(BudgetColor.electricBlue)
+                            .foregroundStyle(BudgetColor.brandBright)
                     }
                 }
                 ForEach(occurrences) { occurrence in
@@ -352,7 +371,7 @@ struct HomeTab: View {
                             } label: {
                                 Image(systemName: "checkmark.circle")
                                     .font(.title3)
-                                    .foregroundStyle(BudgetColor.electricBlue)
+                                    .foregroundStyle(BudgetColor.brandBright)
                             }
                             .accessibilityLabel("Comptabiliser \(occurrence.title)")
                         }
@@ -467,7 +486,7 @@ struct HomeTab: View {
                 }
                 .chartForegroundStyleScale([
                     "Planifié": BudgetColor.indigo,
-                    "Réel": BudgetColor.electricBlue,
+                    "Réel": BudgetColor.brandBright,
                 ])
                 .chartXAxis {
                     AxisMarks { _ in
@@ -658,44 +677,66 @@ struct HomeTab: View {
                     .font(BudgetFont.sectionTitle)
                     .foregroundStyle(.secondary)
                 ForEach(actions) { action in
-                    if action.id == "income" || action.id == "savings" {
-                        // « Ajoutez vos revenus » / « Planifiez une épargne »
-                        // ouvrent directement le formulaire prérempli.
-                        Button {
-                            prefilledCreateType = action.id == "income" ? .income : .saving
-                        } label: {
-                            priorityActionRow(action)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        NavigationLink {
-                            if action.id == "cancellation" {
-                                RecurringListView()
-                            } else if action.id == "taxDueDate" || action.id == "tax" {
-                                TaxesView()
-                            } else if action.id == "goal" {
-                                GoalsListView()
-                            } else {
-                                TransactionsListView()
-                            }
-                        } label: {
-                            priorityActionRow(action)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    priorityEntry(action, highlighted: false)
                 }
             }
         }
     }
 
-    private func priorityActionRow(_ action: PriorityAction) -> some View {
+    /// Une entrée de priorité — la même navigation qu'avant le pilote,
+    /// factorisée pour servir la carte mise en avant ET la liste « À faire ».
+    @ViewBuilder
+    private func priorityEntry(_ action: PriorityAction, highlighted: Bool) -> some View {
+        if action.id == "income" || action.id == "savings" {
+            // « Ajoutez vos revenus » / « Planifiez une épargne »
+            // ouvrent directement le formulaire prérempli.
+            Button {
+                prefilledCreateType = action.id == "income" ? .income : .saving
+            } label: {
+                priorityActionRow(action, highlighted: highlighted)
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink {
+                if action.id == "cancellation" {
+                    RecurringListView()
+                } else if action.id == "taxDueDate" || action.id == "tax" {
+                    TaxesView()
+                } else if action.id == "goal" {
+                    GoalsListView()
+                } else {
+                    TransactionsListView()
+                }
+            } label: {
+                priorityActionRow(action, highlighted: highlighted)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func priorityActionRow(_ action: PriorityAction, highlighted: Bool = false) -> some View {
         GlassCard(style: .row) {
-            HStack {
-                Label(action.title, systemImage: action.systemImage)
-                    .font(BudgetFont.body)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
+                if highlighted {
+                    // Pill + symbole + texte : jamais la couleur seule.
+                    StatusPill(text: "Priorité", kind: .neutral)
+                }
+                HStack {
+                    // Multi-ligne : le texte complet, jamais tronqué.
+                    Label(action.title, systemImage: action.systemImage)
+                        .font(BudgetFont.body)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .overlay {
+            if highlighted {
+                RoundedRectangle(cornerRadius: BudgetRadius.control, style: .continuous)
+                    .strokeBorder(BudgetColor.strokeActive, lineWidth: 1)
             }
         }
     }
@@ -714,7 +755,7 @@ struct HomeTab: View {
                 } label: {
                     Text("Tout voir")
                         .font(BudgetFont.caption.weight(.semibold))
-                        .foregroundStyle(BudgetColor.electricBlue)
+                        .foregroundStyle(BudgetColor.brandBright)
                 }
             }
             if recent.isEmpty {
@@ -739,4 +780,24 @@ struct HomeTab: View {
         .environment(AppRouter())
         .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
+}
+
+#Preview("Dashboard — texte agrandi") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return HomeTab()
+        .environment(preview)
+        .environment(AppRouter())
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+        .environment(\.dynamicTypeSize, .accessibility3)
+}
+
+#Preview("Dashboard — transparence réduite") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return HomeTab()
+        .environment(preview)
+        .environment(AppRouter())
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+        .environment(\.obsidianForcedReducedTransparency, true)
 }
