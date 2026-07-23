@@ -516,6 +516,16 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   « 13-compte-detail » asserté (l'état archivé, natif seulement, est
   couvert par test — documenté).
 - Formules, migrations, clés localStorage, structures : INCHANGÉES.
+- **Preuves finales (23.07.2026)** : CI #177 verte sur `f4ea4d0`
+  (run 30043810568 — 56 e2e + 5 parité + design system, **231 tests iOS
+  0 échec**, `ObsidianMovementsAccountsTests passed`, builds Debug +
+  Release, manifeste dans Budget.app) ; workflow **Demo vert**
+  (run 30044319681) — tour de **13 étapes assertées** (dont
+  `13-compte-detail`), artefact `budget-demo` **47,2 Mo** (captures +
+  vidéo + .ipa), téléchargeable jusqu'au 21.10.2026 :
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30044319681>.
+  (Egress de session : `*.blob.core.windows.net` refusé — captures
+  natives à inspecter depuis le run, comme en L4.)
 
 ## Prochaine commande exacte
 
