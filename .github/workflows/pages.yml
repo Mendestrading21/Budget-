@@ -9,7 +9,7 @@ name: Pages
 on:
   push:
     branches:
-      - claude/execute-tbkhsd
+      - codex/budget-leader-refonte
     paths:
       - "webapp/**"
       - ".github/workflows/pages.yml"
