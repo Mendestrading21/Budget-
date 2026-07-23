@@ -43,6 +43,13 @@
     --surface-3: #E9EDF6;
     --badge-ink: #3730A3;
     --hero-surface: rgba(255, 255, 255, 0.92);
+    --teal: #0D9488;
+    --tint-income: rgba(11, 138, 87, 0.14);
+    --tint-expense: rgba(210, 59, 85, 0.12);
+    --tint-save: rgba(13, 148, 136, 0.14);
+    --tint-goal: rgba(124, 58, 237, 0.12);
+    --tint-info: rgba(37, 99, 235, 0.12);
+    --tint-neutral: rgba(16, 22, 35, 0.06);
   }
   /* Horizon — mode sombre premium : l'identité verre historique, intacte */
   html[data-theme="dark"] {
@@ -67,6 +74,13 @@
     --surface-3: rgba(30, 35, 51, 0.9);
     --badge-ink: #C9D2FF;
     --hero-surface: rgba(20, 27, 45, 0.72);
+    --teal: #2DD4BF;
+    --tint-income: rgba(57, 217, 138, 0.16);
+    --tint-expense: rgba(255, 102, 122, 0.14);
+    --tint-save: rgba(45, 212, 191, 0.15);
+    --tint-goal: rgba(139, 92, 246, 0.16);
+    --tint-info: rgba(90, 167, 255, 0.14);
+    --tint-neutral: rgba(255, 255, 255, 0.08);
   }
 
   /* Le prototype assume l'identité canonique sombre de l'app,
@@ -184,9 +198,13 @@
     transition: transform 0.12s ease;
   }
   .card.row:active { transform: scale(0.985); }
+  .btn { transition: transform 0.12s ease, filter 0.12s ease; }
+  .btn:active { transform: scale(0.97); filter: brightness(1.06); }
   @media (prefers-reduced-motion: reduce) {
     .card.row { transition: none; }
     .card.row:active { transform: none; }
+    .btn { transition: none; }
+    .btn:active { transform: none; filter: none; }
   }
 
   .card-label {
@@ -315,11 +333,17 @@
     flex: none;
     width: 44px; height: 44px;
     display: grid; place-items: center;
-    border-radius: 11px;
-    background: rgba(75, 92, 255, 0.16);
+    border-radius: 12px;
+    background: var(--tint-info);
     color: var(--electric);
     font-size: 15px;
   }
+  /* Teintes par nature : l'icône oriente avant même la lecture. */
+  .ico.t-income { background: var(--tint-income); }
+  .ico.t-expense { background: var(--tint-expense); }
+  .ico.t-save { background: var(--tint-save); }
+  .ico.t-goal { background: var(--tint-goal); }
+  .ico.t-neutral { background: var(--tint-neutral); }
   .tx .meta { flex: 1; min-width: 0; }
   .tx .meta .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tx .meta .s { font-size: 11px; color: var(--coolgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -401,6 +425,15 @@
     animation: rise 0.28s ease;
   }
   @keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* Entrée d'écran Horizon : les premières cartes se posent en douceur. */
+  @keyframes settle { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .screen-enter > .card { animation: settle 0.26s ease backwards; }
+  .screen-enter > .card:nth-child(1) { animation-delay: 0.02s; }
+  .screen-enter > .card:nth-child(2) { animation-delay: 0.06s; }
+  .screen-enter > .card:nth-child(3) { animation-delay: 0.10s; }
+  .screen-enter > .card:nth-child(4) { animation-delay: 0.14s; }
+  .screen-enter > .card:nth-child(n+5) { animation-delay: 0.18s; }
+  @media (prefers-reduced-motion: reduce) { .screen-enter > .card { animation: none; } }
   @media (prefers-reduced-motion: reduce) {
     .sheet { animation: none; }
     .fill { transition: none; }
@@ -1460,6 +1493,7 @@ let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si a
 let lockMessage = "";
 let editingTxId = null;
 let moreSearch = "";
+let lastNavKey = null; // dernière destination rendue (animation d'entrée)
 let moreFilter = "all"; // all | expense | income | saving | transfer
 function fold(value) {
   return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -1476,6 +1510,14 @@ const TABS = [
   ["home", "Accueil"], ["movements", "Mouvements"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
 ];
 
+/* Teinte de pastille par nature de mouvement (design system Horizon). */
+function icoClass(type) {
+  if (type === "income" || type === "refund") return "ico t-income";
+  if (type === "expense" || type === "taxPayment") return "ico t-expense";
+  if (type === "saving" || type === "investment") return "ico t-save";
+  if (type === "transfer" || type === "adjustment") return "ico t-neutral";
+  return "ico";
+}
 const TYPE_ICON = { income: "⬇", expense: "⬆", saving: "🏛", investment: "📈", transfer: "⇄", taxPayment: "🧾", refund: "↩", adjustment: "⚖" };
 const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", investment: "Investissement",
                      transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement",
@@ -1493,14 +1535,16 @@ function monthNav() {
 
 function txRow(t) {
   const inflow = t.type === "income" || t.type === "refund" || (t.type === "adjustment" && t.up);
-  const neutral = t.type === "transfer";
+  // Épargne/investissement : l'argent change de poche, il ne se perd pas —
+  // jamais de rouge (règle design). Virement : neutre.
+  const neutral = t.type === "transfer" || t.type === "saving" || t.type === "investment";
   const cls = neutral ? "info" : inflow ? "pos" : "neg";
-  const sign = neutral ? "" : inflow ? "+" : "−";
+  const sign = t.type === "transfer" ? "" : inflow ? "+" : "−";
   const destAccount = t.dest ? ACCOUNTS.find(a => a.id === t.dest) : null;
   const destName = destAccount ? " → " + esc(destAccount.name) : "";
   const plannedBadge = t.status === "planned" ? '<span class="badge planned">Prévu</span>' : "";
   return `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
-    <div class="ico" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
+    <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
     <div class="meta">
       <div class="t">${esc(t.title)}${plannedBadge}</div>
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${destName}</div>
@@ -1546,10 +1590,10 @@ function renderHome() {
   const goalsCurrent = activeGoals.reduce((a, g) => a + Math.min(goalCurrent(g), g.target), 0);
 
   const txMini = t => `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
-    <div class="ico" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
+    <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
     <div class="meta"><div class="t">${esc(t.title)}</div>
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
-    <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (t.type === "transfer" ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
+    <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (["transfer", "saving", "investment"].includes(t.type) ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
   // Toute ligne du portefeuille mène quelque part : sous-vue dédiée si
   // target, sinon l'onglet Comptes (A03-N3 : plus d'asymétrie tactile).
@@ -2997,6 +3041,11 @@ function render() {
     return;
   }
   document.querySelectorAll(".curlabel").forEach(el => { el.textContent = baseCurrency(); });
+  // Entrée d'écran Horizon : les cartes se posent en douceur quand on
+  // CHANGE de destination (pas à chaque re-rendu du même écran).
+  const navKey = `${activeTab}|${moreView || ""}|${accountView || ""}`;
+  screen.classList.toggle("screen-enter", navKey !== lastNavKey);
+  lastNavKey = navKey;
   screen.innerHTML = locked ? renderLockScreen() : RENDERERS[activeTab]();
   document.getElementById("tabbar").innerHTML = TABS.map(([id, label]) =>
     `<button class="${id === activeTab ? "active" : ""}" data-tab="${id}" aria-label="${label}" ${locked ? "disabled" : ""}>${ICONS[id]}<span>${label}</span></button>`
