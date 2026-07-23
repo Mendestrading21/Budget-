@@ -2085,7 +2085,7 @@ function renderAccountDetail(a) {
     <div class="card">
       <p class="card-label">Solde — 12 derniers mois</p>
       <svg viewBox="0 0 300 100" style="width:100%;height:96px" role="img" aria-label="Courbe du solde sur douze mois">
-        <polyline points="${px}" fill="none" stroke="#5AA7FF" stroke-width="2.5" stroke-linecap="round"/>
+        <polyline points="${px}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
     </div>
     <button class="btn secondary" data-editacc="${esc(a.id)}">Modifier ou mettre à jour</button>
@@ -2370,10 +2370,10 @@ function renderNetWorth() {
     ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
       + assetsTotal + pensionTotal - liabTotal);
   const CLASS_LINES = [
-    { label: "Argent disponible", color: "#FFB24D", series: classSeries(["current", "cash"]) },
-    { label: "Épargne", color: "#39D98A", series: classSeries(["savings"]) },
-    { label: "Bourse", color: "#8B5CF6", series: classSeries(["brokerage"]) },
-    { label: "Prévoyance", color: "#FF667A", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
+    { label: "Argent disponible", color: "var(--amber)", series: classSeries(["current", "cash"]) },
+    { label: "Épargne", color: "var(--positive)", series: classSeries(["savings"]) },
+    { label: "Bourse", color: "var(--violet)", series: classSeries(["brokerage"]) },
+    { label: "Prévoyance", color: "var(--negative)", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
   ].filter(l => l.series.some(v => Math.abs(v) >= 0.005));
   const allValues = points.concat(...CLASS_LINES.map(l => l.series));
   const min = Math.min(...allValues) * 0.995, max = Math.max(...allValues) * 1.005;
@@ -2445,10 +2445,10 @@ function renderNetWorth() {
         </linearGradient></defs>
         <polygon points="0,100 ${px.join(" ")} 300,100" fill="url(#nw)"/>
         ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>`).join("")}
-        <polyline points="${px.join(" ")}" fill="none" stroke="#5AA7FF" stroke-width="2.5" stroke-linecap="round"/>
+        <polyline points="${px.join(" ")}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
       <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">
-        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:#5AA7FF;display:inline-block"></span>Fortune nette ${chf(net)}</span>
+        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Fortune nette ${chf(net)}</span>
         ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:${l.color};display:inline-block"></span>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
       </div>
     </div>
@@ -3363,8 +3363,8 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   const entry = e.target.closest("[data-more]");
-  if (entry) { activeTab = "more"; moreView = entry.dataset.more; render(); scrollTop(); pushNav(); return; }
-  if (e.target.closest("[data-back]")) { moreView = null; render(); scrollTop(); return; }
+  if (entry) { activeTab = "more"; moreView = entry.dataset.more; assistantQ = null; render(); scrollTop(); pushNav(); return; }
+  if (e.target.closest("[data-back]")) { moreView = null; assistantQ = null; render(); scrollTop(); return; }
   if (e.target.closest("[data-togglelock]")) {
     // Activer = définir un code ; désactiver = saisir le code (règle Phase 12).
     openCodeSheet(S.faceIDEnabled ? "disable" : "set");
@@ -4842,6 +4842,8 @@ function openWidgetSheet() {
       <span>${label}</span>
     </label>`).join("");
   openSheet("widgetForm");
+  const first = document.querySelector('#widgetChoices [data-wkey]');
+  if (first) first.focus();
 }
 document.getElementById("widgetForm").addEventListener("submit", (e) => {
   e.preventDefault();
