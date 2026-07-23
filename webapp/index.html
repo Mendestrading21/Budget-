@@ -860,6 +860,17 @@
       </div>
     </form>
 
+    <form class="sheet" id="widgetForm" style="display:none">
+      <h3>Personnaliser mon écran</h3>
+      <p class="caption" style="margin:0 0 6px">L'essentiel (disponible, priorité, actions) reste toujours visible. Cochez ce que vous voulez voir en plus — votre choix est mémorisé sur cet appareil.</p>
+      <div id="widgetChoices"></div>
+      <div class="actions">
+        <button type="button" class="btn secondary" id="wCancel">Annuler</button>
+        <button type="submit" class="btn">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="wRestore" style="margin-top:10px">Restaurer la disposition recommandée</button>
+    </form>
+
     <form class="sheet" id="docForm" style="display:none">
       <h3>Nouveau document</h3>
       <label for="dName">Nom</label>
@@ -1555,6 +1566,9 @@ function txRow(t) {
 
 function renderHome() {
   const { y, m } = cursor;
+  // R4 — widgets personnalisables : l'essentiel reste, le reste se choisit.
+  const hiddenW = (S.homeWidgets && Array.isArray(S.homeWidgets.hidden)) ? S.homeWidgets.hidden : [];
+  const w = (key, html) => hiddenW.includes(key) ? "" : html;
   const isCurrent = (y === NOW.y && m === NOW.m);
   const s = snapshot(y, m);
   const report = budgetReport(y, m);
@@ -1748,7 +1762,7 @@ function renderHome() {
       <div class="stat"><span class="card-label">Impôts payés</span><span class="amount warn">${chf(s.taxes)}</span>
         <span class="caption">${s.taxGap > 0 ? "Réserve du mois manquante : " + chf(s.taxGap) : "Réserve du mois couverte"}</span></div>
     </div>
-    ${(() => {
+    ${w("trend6", (() => {
       // Résultat du mois — mini-courbe 6 mois (« ce qui reste »), pédagogique.
       const months = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5));
       const vals = months.map(mm => snapshot(mm.y, mm.m).cashFlow);
@@ -1769,8 +1783,8 @@ function renderHome() {
         </svg>
         <span class="caption">${MONTH_NAMES[months[0].m - 1].slice(0, 3)} → ${MONTH_NAMES[m - 1].slice(0, 3)} · revenus − coût de la vie − mis de côté − impôts</span>
       </div>`;
-    })()}
-    ${(() => {
+    })())}
+    ${w("budgetrest", (() => {
       // Budget restant — widget compact qui mène à l'onglet Budget.
       const rep = budgetReport(y, m);
       const expLines = rep.lines.filter(l => l.kind === "expense");
@@ -1785,8 +1799,8 @@ function renderHome() {
           <div class="track" style="margin-top:6px"><div class="fill ${actualC > plannedC ? "over-fill" : (fr > 0.85 ? "warn-fill" : "")}" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
         <span style="color:var(--coolgray)">›</span>
       </div>`;
-    })()}
-    ${(() => {
+    })())}
+    ${w("goal", (() => {
       // Objectif prioritaire — progression et action directe.
       const g = GOALS.find(x => !x.achieved && x.priority) || GOALS.find(x => !x.achieved);
       if (!g) return "";
@@ -1798,8 +1812,8 @@ function renderHome() {
           <div class="track" style="margin-top:6px"><div class="fill" style="width:${(fr * 100).toFixed(1)}%;background:linear-gradient(90deg,var(--violet),var(--indigo))"></div></div></div>
         <span style="color:var(--coolgray)">›</span>
       </div>`;
-    })()}
-    ${checkCard}
+    })())}
+    ${w("check", checkCard)}
     ${(() => {
       const prev = shiftMonth({ y, m }, -1);
       if ((S.monthChecks || {})[`${prev.y}-${prev.m}`]) return "";
@@ -1813,7 +1827,7 @@ function renderHome() {
         <span style="color:var(--electric);font-weight:700">›</span>
       </div>`;
     })()}
-    ${alertCards}
+    ${w("alerts", alertCards)}
 
     <p class="section-title">💰 Salaire et revenus</p>
     ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
@@ -1847,20 +1861,20 @@ function renderHome() {
     ${sends.slice(-3).reverse().map(txMini).join("")}
     ${sends.length === 0 ? `<div class="card row"><span class="caption">Aucun envoi ce mois.</span></div>` : ""}
 
-    <div class="card" style="margin-top:14px">
+    ${w("budgetbars", `<div class="card" style="margin-top:14px">
       <p class="card-label">Budget vs réel — principales dépenses</p>
       ${chartRows || `<span class="caption">Pas encore de budget pour ce mois — l'onglet Budget en crée un.</span>`}
-    </div>
-    ${s.upcomingRecurrings.length ? `
+    </div>`)}
+    ${w("upcoming", s.upcomingRecurrings.length ? `
     <p class="section-title">À venir ce mois</p>
     ${s.upcomingRecurrings.map(r => `<div class="card row tx">
       <div class="ico" aria-hidden="true">${r.icon}</div>
       <div class="meta"><div class="t">${esc(r.title)}<span class="badge planned">Prévu</span></div>
         <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · paiement régulier mensuel</div></div>
       <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(r.amount)}</span>
-    </div>`).join("")}` : ""}
+    </div>`).join("")}` : "")}
 
-    <details class="home-fold">
+    ${w("wealth", `<details class="home-fold">
     <summary class="section-title" style="cursor:pointer;list-style:none">🌍 Mon patrimoine — ${chf(net)}</summary>
     <div class="card hero">
       <p class="card-label">Fortune nette totale</p>
@@ -1883,7 +1897,8 @@ function renderHome() {
       <div class="meta"><div class="t">Objectifs</div><div class="s">${activeGoals.length} actif${activeGoals.length > 1 ? "s" : ""}</div></div>
       <span class="amount">${goalsTarget > 0 ? pct(Math.min(1, goalsCurrent / goalsTarget)) : "—"}</span>
     </div>
-    </details>`;
+    </details>`)}
+    <button class="btn secondary" data-customize style="margin:6px 0 2px">🎛 Personnaliser mon écran</button>`;
 }
 
 /* ---------- Onglet « Mouvements » : liste complète, recherche, filtres (P2) ---------- */
@@ -3353,6 +3368,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("dName").focus();
     return;
   }
+  if (e.target.closest("[data-customize]")) { openWidgetSheet(); return; }
   if (e.target.closest("[data-toggletheme]")) {
     // Cycle : Clair → Sombre → Système → Clair.
     S.theme = S.theme === "dark" ? "system" : (S.theme === "system" ? "light" : "dark");
@@ -3498,7 +3514,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm", "widgetForm"];
 let openSheetId = null;
 let openSheetSnapshot = "";
 // Empreinte des champs d'une feuille : sert à détecter une saisie en cours.
@@ -4658,6 +4674,46 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
   saveState();
   backdrop.classList.remove("open");
   toast(`Solde mis à jour à ${money(wanted, account.currency || baseCurrency())}`, true);
+  render();
+});
+
+
+/* ---------- Personnalisation de l'écran Mois (R4) ---------- */
+const HOME_WIDGETS = [
+  ["trend6", "Ce qui reste — courbe 6 mois"],
+  ["budgetrest", "Budget restant"],
+  ["goal", "Objectif prioritaire"],
+  ["check", "Check du mois"],
+  ["alerts", "Échéances d'assurance"],
+  ["budgetbars", "Budget vs réel"],
+  ["upcoming", "À venir ce mois"],
+  ["wealth", "Mon patrimoine"],
+];
+function openWidgetSheet() {
+  const hidden = (S.homeWidgets && Array.isArray(S.homeWidgets.hidden)) ? S.homeWidgets.hidden : [];
+  document.getElementById("widgetChoices").innerHTML = HOME_WIDGETS.map(([k, label]) => `
+    <label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:14px;font-weight:400;margin:10px 0;cursor:pointer">
+      <input type="checkbox" data-wkey="${k}" ${hidden.includes(k) ? "" : "checked"} style="width:auto;margin:0" />
+      <span>${label}</span>
+    </label>`).join("");
+  openSheet("widgetForm");
+}
+document.getElementById("widgetForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const hidden = [...document.querySelectorAll("#widgetChoices [data-wkey]")]
+    .filter(cb => !cb.checked).map(cb => cb.dataset.wkey);
+  S.homeWidgets = { hidden };
+  saveState();
+  backdrop.classList.remove("open");
+  toast(hidden.length ? "Écran personnalisé — l'essentiel reste toujours visible" : "Tous les widgets sont affichés");
+  render();
+});
+document.getElementById("wCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("wRestore").addEventListener("click", () => {
+  S.homeWidgets = { hidden: [] };
+  saveState();
+  backdrop.classList.remove("open");
+  toast("Disposition recommandée restaurée");
   render();
 });
 

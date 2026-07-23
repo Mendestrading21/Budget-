@@ -723,6 +723,29 @@ check(screenHTML.includes('data-more="goals"'), "l'objectif prioritaire doit men
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
 check(tabLabel === "Mois", "l'onglet d'accueil s'appelle « Mois »");
 
+// ---------- Test 36 : Horizon R4 — widgets personnalisables et persistés ----------
+currentTest = "widgets personnalisables";
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(250);
+await page.click("[data-customize]");
+await page.waitForSelector("#widgetForm", { state: "visible" });
+await page.uncheck('#widgetChoices [data-wkey="trend6"]');
+await page.click('#widgetForm button[type="submit"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(!screenHTML.includes("Ce qui reste, 6 derniers mois"), "un widget masqué doit disparaître de l'écran Mois");
+await page.reload();
+await page.waitForSelector("#tabbar button");
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(!screenHTML.includes("Ce qui reste, 6 derniers mois"), "le masquage doit survivre au rechargement");
+check(screenHTML.includes("Argent disponible"), "l'essentiel (héros) reste toujours visible");
+await page.click("[data-customize]");
+await page.waitForSelector("#widgetForm", { state: "visible" });
+await page.click("#wRestore");
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Ce qui reste, 6 derniers mois"), "la disposition recommandée doit tout restaurer");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -732,4 +755,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 40 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 41 parcours verts, zéro erreur console ✓");
