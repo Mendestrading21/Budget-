@@ -13,7 +13,16 @@ CI activée sur `codex/**`. Lots livrés ici, un commit chacun, suites vertes :
 - Anneau plan/réel sur le héros Budget (indigo / ambre ≥85 % / rouge >100 %,
   pourcentage au centre, aria-label), vérifié par captures clair/sombre.
 
-État : 39 parcours e2e + 5 fixtures de parité verts, zéro erreur console.
+État : refonte Horizon PWA R1→R7 livrée (skill budget-horizon installé,
+8 références + 13 images) : design system vivant (pastilles teintées,
+teal, tactile, entrée d'écran), écran « Mois » au blueprint (courbe
+6 mois, budget restant, objectif prioritaire), hub Plus par intentions,
+widgets personnalisables persistés, fraîcheur des soldes, composition
+du patrimoine, bienvenue réécrite + objectif optionnel, Assistant local
+déterministe. 42 parcours e2e + 5 fixtures de parité verts, zéro erreur
+console. Reste : R8/R9 natif (tokens v2 + écrans, CI macOS), lot K
+durcissement (audit final agent), retrait contrôlé (rien à retirer
+identifié).
 CI GitHub Actions : **7/7 runs verts sur la branche (143→149)** — web e2e +
 parité + build/tests iOS macOS + Release à chaque commit ; tous les
 constats d'audit (P0/P1/NITs) sont soldés. Reste : G02 (effort dédié),
