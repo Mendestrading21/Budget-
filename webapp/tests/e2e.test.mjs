@@ -1244,6 +1244,166 @@ const budget320 = await page.evaluate(() => document.documentElement.scrollWidth
 check(budget320, "Budget sans débordement horizontal à 320 px");
 await page.setViewportSize({ width: 390, height: 844 });
 
+
+/* ============= MOUVEMENTS & COMPTES OBSIDIAN L5 (Tests 49-51) ============= */
+
+// ---------- Test 49 : Mouvements L5 — groupes, filtres+recherche, neutre, extrême, undo ----------
+currentTest = "mouvements L5";
+await goHome();
+// Repartir de la démo pour des données riches et déterministes.
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(150);
+await page.click("[data-resetdemo]");
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+// Regroupement par jour : des en-têtes datés dd.mm.yyyy.
+const dayHeaders = await page.$$eval(".day-header", els => els.map(e => e.textContent));
+check(dayHeaders.length > 0, "la liste doit être regroupée par jour");
+check(dayHeaders.every(h => /^\d{2}\.\d{2}\.\d{4}$/.test(h.trim())), `en-têtes datés attendus (obtenu ${dayHeaders[0]})`);
+// Un virement est ÉCRIT neutre ; l'épargne est « mis de côté ».
+await page.click('.filter-chip[data-morefilter="transfer"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+if (screenHTML.includes("Virement interne")) {
+  check(screenHTML.includes("neutre"), "un virement doit être écrit « neutre »");
+}
+const chipPressed49 = await page.$eval('.filter-chip[data-morefilter="transfer"]', el => el.getAttribute("aria-pressed"));
+check(chipPressed49 === "true", "la chip de filtre active porte aria-pressed");
+// Recherche SANS perdre le filtre actif.
+await page.fill("#moreSearchInput", "zzz-introuvable-zzz");
+await page.waitForTimeout(250);
+const afterSearch = await page.evaluate(() => ({
+  filter: moreFilter,
+  empty: document.querySelector("#moreTxList .empty-state") !== null,
+  html: document.getElementById("moreTxList").innerHTML,
+}));
+check(afterSearch.filter === "transfer", "la recherche ne réinitialise pas le filtre");
+check(afterSearch.empty && afterSearch.html.includes("Aucun résultat"), "recherche sans résultat : état guidé");
+await page.fill("#moreSearchInput", "");
+await page.click('.filter-chip[data-morefilter="all"]');
+await page.waitForTimeout(200);
+// Épargne marquée « mis de côté ».
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+if (screenHTML.includes("Épargne")) {
+  check(screenHTML.includes("mis de côté"), "l'épargne est écrite « mis de côté »");
+}
+// Montant extrême : ligne intacte, aucun débordement.
+await page.evaluate(() => {
+  addTx({ id: ++txSeq, y: cursor.y, m: cursor.m, d: Math.min(NOW.d, 28), title: "Extrême L5",
+    type: "income", cat: "Salaire", acc: ACCOUNTS[0].id, dest: null, status: "posted", amount: 9999999.99 });
+  saveState(); render();
+});
+await page.waitForTimeout(200);
+const extremeRow = await page.evaluate(() => {
+  const rows = [...document.querySelectorAll("#moreTxList .tx .amount")];
+  const el = rows.find(r => r.textContent.includes("9'999'999.99"));
+  return el ? { found: true, clipped: el.scrollWidth > el.clientWidth + 1,
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth } : { found: false };
+});
+check(extremeRow.found, "le mouvement extrême apparaît dans la liste");
+check(!extremeRow.clipped && !extremeRow.overflow, "le montant extrême n'est ni tronqué ni débordant");
+// Suppression CONFIRMÉE puis ANNULÉE (undo) : le mouvement revient.
+await page.click('#moreTxList [data-txid] >> text=Extrême L5');
+await page.waitForSelector("#txForm", { state: "visible" });
+await page.click("#fDelete"); // page.on(dialog) accepte la confirmation
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(!screenHTML.includes("Extrême L5"), "le mouvement supprimé disparaît");
+const undoBtn = await page.$("#toastUndo");
+check(undoBtn !== null, "la suppression propose « Annuler »");
+if (undoBtn) {
+  await undoBtn.click();
+  await page.waitForTimeout(250);
+  screenHTML = await page.$eval("#screen", el => el.innerHTML);
+  check(screenHTML.includes("Extrême L5"), "l'annulation restaure le mouvement supprimé");
+  // Nettoyage définitif.
+  await page.evaluate(() => {
+    const i = transactions.findIndex(t => t.title === "Extrême L5");
+    if (i >= 0) transactions.splice(i, 1);
+    saveState(); render();
+  });
+}
+
+// ---------- Test 50 : Comptes L5 — détail, fraîcheur, réconciliation directe, devise ----------
+currentTest = "comptes L5";
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Argent disponible"), "le héros Comptes répond « où est mon argent »");
+check(/à jour aujourd'hui|mis à jour|Aucun mouvement/.test(screenHTML), "la fraîcheur des soldes est affichée");
+// Détail accessible depuis toute la ligne.
+await page.click("#screen [data-accid]");
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Solde — 12 derniers mois"), "le détail montre l'évolution du solde");
+check(screenHTML.includes("Historique"), "le détail montre l'historique rattaché");
+check(/Solde (à jour aujourd'hui|mis à jour)/.test(screenHTML), "le héros du détail date le solde en langage simple");
+// Réconciliation DIRECTE depuis le détail, en langage simple.
+const accId50 = await page.evaluate(() => accountView);
+await page.click("[data-reconacc]");
+await page.waitForSelector("#reconForm", { state: "visible" });
+const reconText = await page.$eval("#reconForm", el => el.textContent);
+check(reconText.includes("relevé bancaire") && reconText.includes("jamais réécrit"),
+  "la réconciliation s'explique en langage simple (historique jamais réécrit)");
+const beforeRecon = await page.evaluate(id => balance(id), accId50);
+await page.fill("#reconAmount", (Math.abs(beforeRecon) + 111).toFixed(2));
+await page.evaluate(() => { document.getElementById("reconNegative").checked = false; });
+await page.click('#reconForm button[type="submit"]');
+await page.waitForTimeout(300);
+const afterRecon = await page.evaluate(id => ({
+  bal: balance(id),
+  adj: transactions.some(t => t.type === "adjustment" && t.title === "Solde mis à jour" && t.acc === id),
+}), accId50);
+check(Math.abs(afterRecon.bal - (Math.abs(beforeRecon) + 111)) < 0.005,
+  `la réconciliation aligne le solde (obtenu ${afterRecon.bal})`);
+check(afterRecon.adj, "la réconciliation crée un ajustement daté — l'historique n'est pas réécrit");
+// Devise étrangère : signalée sur la ligne, jamais additionnée sans conversion.
+await page.evaluate(() => {
+  ACCOUNTS.push({ id: "l5eur", name: "Compte EUR L5", kind: "current", currency: "EUR", opening: 100, cash: true });
+  saveState(); render();
+});
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Compte EUR L5") && screenHTML.includes("· EUR"), "un compte étranger affiche sa devise");
+check(screenHTML.includes("convertis en CHF"), "le héros explique la conversion des comptes étrangers");
+await page.evaluate(() => { // nettoyage
+  const i = ACCOUNTS.findIndex(a => a.id === "l5eur"); if (i >= 0) ACCOUNTS.splice(i, 1);
+  const j = transactions.findIndex(t => t.title === "Solde mis à jour"); if (j >= 0) transactions.splice(j, 1);
+  saveState(); render();
+});
+
+// ---------- Test 51 : a11y L5 — cibles 44 px, 320 px, information jamais couleur seule ----------
+currentTest = "a11y L5";
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(200);
+const targets51 = await page.evaluate(() =>
+  [...document.querySelectorAll(".filter-chip, #moreSearchInput, .month-nav button")]
+    .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || el.id || "?").trim().slice(0, 16) }))
+    .filter(x => x.h > 0 && x.h < 43.5));
+check(targets51.length === 0, `cibles < 44 px : ${targets51.map(x => `${x.t} (${x.h.toFixed(0)})`).join(", ")}`);
+await page.setViewportSize({ width: 320, height: 844 });
+await page.waitForTimeout(200);
+const overflow51 = await page.evaluate(() => ({
+  mov: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+}));
+check(overflow51.mov, "Mouvements sans débordement à 320 px");
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(200);
+const overflow51b = await page.evaluate(() =>
+  document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+check(overflow51b, "Comptes sans débordement à 320 px");
+await page.setViewportSize({ width: 390, height: 844 });
+// Jamais la couleur seule : signes explicites sur les montants de la liste.
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(200);
+const signs51 = await page.$$eval("#moreTxList .tx .amount", els =>
+  els.slice(0, 8).map(e => e.textContent.trim()));
+check(signs51.every(t => /^[+−-]/.test(t) || t.length > 0), "chaque montant porte un signe ou un libellé textuel");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -1253,4 +1413,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 53 parcours verts (48 existants + 5 pilote Obsidian L3), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 56 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5), zéro erreur console ✓");

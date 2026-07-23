@@ -61,6 +61,18 @@ final class DemoTourUITests: XCTestCase {
         )
         snap(app, "12-nouveau-mouvement")
         app.buttons["Annuler"].tap()
+
+        // L5 : le DÉTAIL d'un compte (solde, fraîcheur, historique,
+        // réconciliation accessible) fait partie du lot — preuve native.
+        openTab(app, "Comptes")
+        let firstAccount = app.scrollViews.buttons.firstMatch
+        XCTAssertTrue(firstAccount.waitForExistence(timeout: 10), "La liste des comptes doit proposer au moins un compte")
+        firstAccount.tap()
+        XCTAssertTrue(
+            app.buttons["Actions"].waitForExistence(timeout: 10),
+            "Le détail du compte doit s'ouvrir avec son menu Actions"
+        )
+        snap(app, "13-compte-detail")
     }
 
     @MainActor

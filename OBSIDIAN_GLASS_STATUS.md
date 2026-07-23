@@ -19,8 +19,8 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L1 Vérité/baseline/P0 | DONE | runs CI 167 (échec constaté) → 168 (correctif vert) → 170 (couverture 18 modèles verte) ; 48 e2e + 5 parité + 206 tests iOS ; manifeste vérifié dans Budget.app ; captures versionnées | — |
 | L2 Fondations | DONE | **validation humaine reçue le 23.07.2026** ; CI #172 verte (run 30021212918) : web + parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app | — |
 | L3 Pilote PWA | DONE | **validation humaine reçue le 23.07.2026** ; CI #173 verte (run 30028514793, SHA 8a82a2e) : 53 parcours web zéro erreur console + 5 parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app (le run manuel #174 confirme) | — |
-| L4 Pilote iOS | VERIFYING | livré : 3 écrans natifs refondus, ObsidianPilotTests, previews, tour Demo enrichi (détail ci-dessous) | CI verte + workflow Demo (captures natives) + validation humaine |
-| L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
+| L4 Pilote iOS | DONE | **validation humaine reçue le 23.07.2026** ; commit `99cbb75` ; CI #175 verte (run 30038788928 : 222 tests iOS 0 échec, ObsidianPilotTests passed, Debug+Release, manifeste) ; workflow Demo vert (run 30039344152, artefact budget-demo 36,5 Mo, tour 12 étapes asserté). Risque visuel NON bloquant conservé : la capture native détaillée de la feuille « Ajouter un mouvement » n'a pas été inspectée séparément par le propriétaire | — |
+| L5 Mouvements/Comptes | VERIFYING | livré : 4 parcours refondus (PWA + iOS), 56 e2e verts, 9 tests natifs L5, 12 captures PWA + README, tour Demo 13 étapes (détail ci-dessous) | CI verte + workflow Demo + validation humaine |
 | L6 Modules financiers | BLOCKED | — | L5 validé |
 | L7 Onboarding/Confiance | BLOCKED | — | L6 validé |
 | L8 Widgets/Mouvement | BLOCKED | — | L7 validé |
@@ -28,7 +28,58 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
-## Critères d'acceptation L4 (annoncés avant toute édition, 23.07.2026)
+## Critères d'acceptation L5 (annoncés avant toute édition, 23.07.2026)
+
+**Périmètre strict** : Mouvements et Comptes, PWA
+(`renderMovements`/`renderMoreTxList`/`txRow`/`renderAccounts`/
+`renderAccountDetail` + CSS) et iOS (`TransactionsListView`,
+`AccountsTab`, `AccountDetailView`, boutons Dupliquer/Supprimer visibles
+dans `TransactionFormView` en édition) + tests + captures + tour Demo.
+Aucun module L6, aucune formule, migration, clé localStorage, structure
+SwiftData ou sauvegarde modifiée.
+
+**Mouvements PWA.** Recherche 44 px stylée tokens ; chips de filtres
+`aria-pressed` (état actif = teinte de marque, plus de gradient) ;
+regroupement par JOUR avec en-têtes datés ; virement marqué « neutre » en
+toutes lettres dans la ligne ; états vide/sans-résultat via
+`.empty-state` ; montants extrêmes non tronqués ; undo de suppression
+existant CONSERVÉ (pushUndo/toast Annuler).
+
+**Mouvements iOS.** `TransactionRow` : StatusPill « Prévu », caption
+« · neutre » pour les virements, teinte épargne = marque ; liste en
+`LazyVStack` (performance) ; `EmptyState` L2 ; swipe actions (dupliquer /
+supprimer) UNIQUEMENT avec équivalents visibles ajoutés : boutons
+« Dupliquer » et « Supprimer » dans la feuille d'édition (parité web),
+suppression toujours confirmée ; duplication factorisée
+`TransactionDuplication.copy` (testée).
+
+**Comptes PWA.** Détail : bouton direct « Mettre le solde à jour… »
+(`data-reconacc`, même feuille de réconciliation, langage simple
+existant) + fraîcheur du solde dans le héros ; liste : fraîcheur déjà
+affichée, devise étrangère signalée, aucune addition non convertie
+(conversion explicite existante `toCHF`).
+
+**Comptes iOS.** `AccountRow` : StatusPill « Dette » / « Archivé »
+(jamais couleur/opacité seules) ; `AccountDetailView` : `AmountText`
+héros, StatusPill « Archivé », caption « Dernier mouvement le X »
+(fraîcheur) quand pas de réconciliation ; `MovementRow` : `AmountText`
+signé ; `EmptyState` L2 ; natif V1 mono-devise CHF (ADR-017) — aucune
+addition multi-devises possible, documenté.
+
+**Preuves.** e2e Tests 49-51 (groupes par jour, recherche+filtre
+combinés, sans résultat, « neutre », extrême, undo, réconciliation
+directe, devise étrangère, fraîcheur, 44 px, 320 px) — suite portée à
+56 parcours, rien d'affaibli ; `ObsidianMovementsAccountsTests` natifs
+(duplication fidèle, suppression persistée, archivage sans perte,
+réconciliation horodatée, fraîcheur, prévu≠comptabilisé, extrême/texte
+long, écrans construits 320 pt/a11y/transparence réduite, garde CHF) ;
+tour Demo enrichi « 13-compte-detail » asserté ; captures PWA
+`docs/obsidian-glass/movements-accounts/l5/` + README (l'état
+« archivé » n'existe que côté natif — documenté) ; un commit
+`feat(l5): redesign movements and accounts with Obsidian Glass` ; CI
+complète + Demo verts ; **L5 = VERIFYING**, L6 = BLOCKED.
+
+## Critères d'acceptation L4 (archivés, 23.07.2026)
 
 **Périmètre strict** : `HomeTab.swift`, `BudgetTab.swift`,
 `TransactionFormView.swift` + tests/previews. Aucun autre écran, aucune
@@ -424,10 +475,52 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   ci-dessus (aucune capture fabriquée).
 - PWA, services financiers, modèles, migrations, sauvegardes : INCHANGÉS.
 
+## Livraison L5 (23.07.2026) — en VERIFYING
+
+- **Mouvements PWA** : recherche 44 px aux tokens, chips de filtres
+  `aria-pressed` (teinte de marque, gradient supprimé), regroupement par
+  JOUR avec en-têtes datés, « · neutre » (virement) et « · mis de côté »
+  (épargne/investissement) ÉCRITS avant la destination, états
+  vide/sans-résultat en `.empty-state` guidés, undo de suppression
+  conservé, montants extrêmes intacts.
+- **Mouvements iOS** : `LazyVStack` (performance longues listes),
+  `StatusPill` « Prévu », nature écrite dans la ligne et le libellé
+  VoiceOver, épargne en teinte de marque, `EmptyState` L2 ; pas de swipe
+  hors `List` (geste mort évité) — équivalents VISIBLES ajoutés :
+  boutons « Dupliquer (copie modifiable) » et « Supprimer ce mouvement »
+  (confirmé) dans la feuille d'édition ; duplication factorisée
+  `TransactionDuplication.copy` testée.
+- **Comptes PWA** : détail avec bouton PRIMAIRE « Mettre le solde à
+  jour… » (`data-reconacc`, même feuille de réconciliation en langage
+  simple), fraîcheur du solde datée dans le héros, devise du compte dans
+  l'en-tête, montant extrême géré (`long`).
+- **Comptes iOS** : héros « Argent disponible » en `AmountText`,
+  `StatusPill` « Dette »/« Archivé » (plus jamais couleur/opacité
+  seules, VoiceOver enrichi), fraîcheur « Dernier mouvement le X » quand
+  pas de réconciliation, `MovementRow` en `AmountText` signé,
+  `EmptyState` L2 ; V1 natif mono-devise CHF (ADR-017) — aucune addition
+  multi-devises possible, gardé par test.
+- **Tests** : e2e **56 parcours verts** (48 + 5 L3 + Tests 49-51 :
+  groupes/chips/recherche-filtre combinés/sans résultat/neutre/extrême/
+  undo restaurant le mouvement ; détail compte/fraîcheur/réconciliation
+  directe créant un ajustement daté/devise étrangère ; 44 px/320 px/
+  signes textuels) ; 5 parité ✓ ; design system ✓ ; natif :
+  `ObsidianMovementsAccountsTests` (9 tests — duplication fidèle champ à
+  champ, suppression persistée contexte neuf, archivage sans perte de
+  solde ni d'historique, réconciliation horodatée sans réécriture,
+  fraîcheur par dernier mouvement, prévu hors totaux réels, garde CHF,
+  écrans 320 pt/a11y/transparence réduite, lignes extrêmes) — total
+  attendu 231 tests iOS.
+- **Preuves** : 12 captures PWA + README dans
+  `docs/obsidian-glass/movements-accounts/l5/` ; tour Demo enrichi
+  « 13-compte-detail » asserté (l'état archivé, natif seulement, est
+  couvert par test — documenté).
+- Formules, migrations, clés localStorage, structures : INCHANGÉES.
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 verify L4
+/budget-v1 verify L5
 ```
 
 L4 reste VERIFYING jusqu'à validation humaine des trois écrans natifs et

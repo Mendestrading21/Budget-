@@ -593,6 +593,48 @@
     outline-color: var(--negative);
   }
 
+  /* ---------- L5 : recherche et filtres Mouvements ---------- */
+  .search-field {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    background: var(--field);
+    border: 1px solid var(--stroke);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 11px;
+    margin-bottom: 8px;
+  }
+  .search-field:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .filter-chip {
+    min-height: 44px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--stroke);
+    background: var(--glass-fallback);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .filter-chip[aria-pressed="true"] {
+    border-color: var(--stroke-active);
+    background: var(--brand-tint);
+    color: var(--brand-bright);
+  }
+  .day-header {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin: 12px 0 6px;
+  }
+
   .empty-state {
     text-align: center;
     padding: 28px 18px;
@@ -1858,11 +1900,15 @@ function txRow(t) {
   const destAccount = t.dest ? ACCOUNTS.find(a => a.id === t.dest) : null;
   const destName = destAccount ? " → " + esc(destAccount.name) : "";
   const plannedBadge = t.status === "planned" ? '<span class="badge planned">Prévu</span>' : "";
+  // L5 : la neutralité d'un virement est ÉCRITE, jamais déduite de la
+  // seule couleur ; épargne/investissement sont marqués « mis de côté ».
+  const natureNote = t.type === "transfer" ? " · neutre"
+    : (t.type === "saving" || t.type === "investment") ? " · mis de côté" : "";
   return `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
     <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
     <div class="meta">
       <div class="t">${esc(t.title)}${plannedBadge}</div>
-      <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${destName}</div>
+      <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${natureNote}${destName}</div>
     </div>
     <span class="amount ${cls}">${sign}${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
@@ -2228,15 +2274,17 @@ function renderHome() {
 
 /* ---------- Onglet « Mouvements » : liste complète, recherche, filtres (P2) ---------- */
 function renderMovements() {
+  // L5 : recherche 44 px aux tokens Obsidian, chips de filtres avec état
+  // aria-pressed (teinte de marque, plus de gradient) — réversibles d'un tap.
   return `<h2 class="screen-title">Mouvements</h2>
     ${monthNav()}
-    <input id="moreSearchInput" type="search" placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
-      aria-label="Rechercher un mouvement" autocomplete="off"
-      style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:14px;padding:10px 12px;border-radius:11px;margin-bottom:8px" />
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" role="group" aria-label="Filtrer par type">
+    <input id="moreSearchInput" type="search" class="search-field"
+      placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
+      aria-label="Rechercher un mouvement" autocomplete="off" />
+    <div class="filter-row" role="group" aria-label="Filtrer par type">
       ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Épargne"], ["transfer", "Virements"]]
-        .map(([id, label]) => `<button type="button" class="btn secondary" data-morefilter="${id}"
-          style="width:auto;padding:7px 12px;font-size:12px;${moreFilter === id ? "background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;border:none" : ""}">${label}</button>`).join("")}
+        .map(([id, label]) => `<button type="button" class="filter-chip" data-morefilter="${id}"
+          aria-pressed="${moreFilter === id}">${label}</button>`).join("")}
     </div>
     <div id="moreTxList">${renderMoreTxList()}</div>`;
 }
@@ -2388,9 +2436,10 @@ function renderAccountDetail(a) {
       <h2 class="screen-title" style="margin:0;font-size:24px">${esc(a.name)}</h2>
     </div>
     <div class="card hero">
-      <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}</p>
-      <p class="hero-amount ${bal < 0 ? "neg" : ""}">${money(bal, a.currency || baseCurrency())}</p>
-      ${c ? `<span class="caption">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
+      <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
+      <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
+      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${f} — dérivé du solde d'ouverture et des mouvements comptabilisés</span>` : ""; })()}
+      ${c ? `<span class="caption" style="display:block">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
@@ -2400,7 +2449,8 @@ function renderAccountDetail(a) {
         <polyline points="${px}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>
       </svg>
     </div>
-    <button class="btn secondary" data-editacc="${esc(a.id)}">Modifier ou mettre à jour</button>
+    <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
+    <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
     <p class="section-title">Historique</p>
     ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucun mouvement sur ce compte.</span></div>`}`;
 }
@@ -3290,18 +3340,32 @@ function renderMoreTxList() {
     return a + (t.type === "income" || t.type === "refund" ? txCHF(t) : -txCHF(t));
   }, 0);
   if (monthTx.length) {
-    return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>` + monthTx.map(txRow).join("");
+    // L5 : regroupement chronologique par JOUR, en-têtes datés — même
+    // lecture que la liste native.
+    const byDay = [];
+    for (const t of monthTx) {
+      const last = byDay[byDay.length - 1];
+      if (last && last.d === t.d) last.items.push(t);
+      else byDay.push({ d: t.d, items: [t] });
+    }
+    return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}</p>`
+      + byDay.map(g => `<p class="day-header">${String(g.d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}</p>`
+        + g.items.map(txRow).join("")).join("");
   }
   // État vide guidé : une recherche infructueuse invite à l'élargir ; un
   // mois réellement vide propose directement d'ajouter un mouvement.
   if (moreSearch || moreFilter !== "all") {
-    return `<div class="card row"><span class="caption">Aucun résultat pour cette recherche.</span></div>`;
+    return `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">🔍</span>
+      <p class="t">Aucun résultat</p>
+      <p>Modifiez la recherche ou touchez « Tous » pour élargir les filtres.</p>
+    </div>`;
   }
-  return `<div class="card" style="text-align:center;padding:22px 16px">
-      <div style="font-size:30px;margin-bottom:6px" aria-hidden="true">📝</div>
-      <p style="font-size:14px;font-weight:600;margin:0 0 4px">Rien ce mois-ci</p>
-      <p class="caption" style="margin:0 0 12px">Ajoutez une dépense, un revenu, un envoi vers l'épargne…</p>
-      <button class="btn" data-addtx style="max-width:260px;margin:0 auto">＋ Ajouter un mouvement</button>
+  return `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">📝</span>
+      <p class="t">Rien ce mois-ci</p>
+      <p>Ajoutez une dépense, un revenu, un envoi vers l'épargne…</p>
+      <button class="btn" data-addtx style="max-width:260px;margin:12px auto 0">＋ Ajouter un mouvement</button>
     </div>`;
 }
 
@@ -3635,6 +3699,23 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (editAccBtn) {
     const account = ACCOUNTS.find(a => a.id === editAccBtn.dataset.editacc);
     if (account) openAccSheet(account);
+    return;
+  }
+  // L5 : réconciliation DIRECTE depuis le détail du compte — même feuille,
+  // même langage simple, sans passer par la feuille d'édition.
+  const reconAccBtn = e.target.closest("[data-reconacc]");
+  if (reconAccBtn) {
+    const account = ACCOUNTS.find(a => a.id === reconAccBtn.dataset.reconacc);
+    if (account) {
+      editingAccId = account.id;
+      document.getElementById("reconForm").reset();
+      const current = balance(account.id);
+      document.getElementById("reconAmount").value = Math.abs(current).toFixed(2);
+      document.getElementById("reconNegative").checked = current < 0;
+      document.getElementById("reconError").textContent = "";
+      openSheet("reconForm");
+      document.getElementById("reconAmount").focus();
+    }
     return;
   }
   if (e.target.closest("[data-addacc]")) { openAccSheet(null); return; }

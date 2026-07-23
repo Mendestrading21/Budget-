@@ -1,5 +1,21 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L5 (2026-07-23)
+
+L5 « Mouvements et Comptes » exécuté (`/budget-v1 execute L5`) après
+validation humaine de L4. PWA : groupes par jour, chips de filtres
+aria-pressed, « neutre »/« mis de côté » écrits, états vides guidés,
+réconciliation directe depuis le détail de compte (« Mettre le solde à
+jour… »), fraîcheur datée. iOS : LazyVStack, StatusPill Prévu/Dette/
+Archivé, AmountText, EmptyState, boutons visibles Dupliquer/Supprimer
+dans la feuille d'édition (pas de swipe hors List),
+TransactionDuplication.copy factorisé, fraîcheur au dernier mouvement.
+Suites : 56 e2e + 5 parité + design verts ;
+ObsidianMovementsAccountsTests (9 tests natifs, total 231 attendu) ;
+12 captures PWA + README (`docs/obsidian-glass/movements-accounts/l5/`) ;
+tour Demo 13 étapes. Formules, migrations, persistance : INCHANGÉES.
+**L5 = VERIFYING**, L6 = BLOCKED.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L4 (2026-07-23)
 
 L4 « Pilote iOS » exécuté (`/budget-v1 execute L4`) après validation

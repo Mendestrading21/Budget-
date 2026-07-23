@@ -37,6 +37,8 @@ struct TransactionFormView: View {
     /// Parcours fréquent (pilote L4) : le clavier décimal s'ouvre sur le
     /// montant dès la création.
     @FocusState private var amountFocused: Bool
+    /// L5 : suppression toujours CONFIRMÉE — jamais en un geste.
+    @State private var isConfirmingDelete = false
 
     private let validationService = TransactionValidationService()
 
@@ -160,6 +162,24 @@ struct TransactionFormView: View {
                         }
                     }
                 }
+
+                // L5 : équivalents VISIBLES des actions de liste (parité
+                // web) — duplication et suppression, en édition seulement.
+                if let transaction = editedTransaction {
+                    Section {
+                        Button {
+                            duplicate(transaction)
+                        } label: {
+                            Label("Dupliquer (copie modifiable)", systemImage: "plus.square.on.square")
+                        }
+                        Button(role: .destructive) {
+                            isConfirmingDelete = true
+                        } label: {
+                            Label("Supprimer ce mouvement", systemImage: "trash")
+                                .foregroundStyle(BudgetColor.negative)
+                        }
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .background { BudgetScreenBackground() }
@@ -173,7 +193,43 @@ struct TransactionFormView: View {
                     Button("Enregistrer") { save() }
                 }
             }
+            .confirmationDialog(
+                "Supprimer ce mouvement ?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Supprimer", role: .destructive) {
+                    if let transaction = editedTransaction { delete(transaction) }
+                }
+            } message: {
+                if let transaction = editedTransaction {
+                    Text("« \(transaction.title) » — \(FinanceFormatting.chf(transaction.amount)) sera définitivement supprimé.")
+                }
+            }
             .onAppear(perform: populate)
+        }
+    }
+
+    /// Duplication depuis la feuille : copie fidèle horodatée, enregistrée
+    /// puis feuille refermée — la copie apparaît dans la liste.
+    private func duplicate(_ transaction: BudgetTransaction) {
+        let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
+        modelContext.insert(copy)
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            saveErrorMessage = "La duplication a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }
+    }
+
+    private func delete(_ transaction: BudgetTransaction) {
+        modelContext.delete(transaction)
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            saveErrorMessage = "La suppression a échoué. Réessayez ; aucune donnée n'a été perdue."
         }
     }
 
