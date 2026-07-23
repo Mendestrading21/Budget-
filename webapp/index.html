@@ -1583,6 +1583,23 @@ function txRow(t) {
   </div>`;
 }
 
+/* LA priorité du mois — partagée entre l'écran Mois et l'Assistant.
+   Retourne { icon, text, nav } ou null si tout est en ordre sans objectif. */
+function monthPriority(y, m, s, report) {
+  const prev = shiftMonth({ y, m }, -1);
+  const prevOpen = !(S.monthChecks || {})[`${prev.y}-${prev.m}`]
+    && monthCheckItems(prev.y, prev.m).some(c => !c.done);
+  const lateBills = (S.bills || []).filter(billIsOverdue);
+  const overCats = report.lines.filter(l => l.kind === "expense" && l.over);
+  const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
+  if (prevOpen) return { icon: "⏪", text: `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`, nav: `data-gotomonth="${prev.y}-${prev.m}"`, why: "le mois précédent contient des éléments non validés" };
+  if (lateBills.length) return { icon: "🧾", text: `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`, nav: 'data-more="bills"', why: "une facture en retard coûte des rappels et de la charge mentale" };
+  if (s.taxGap > 0) return { icon: "📮", text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts de ce mois.`, nav: 'data-more="taxes"', why: "la réserve d'impôts du mois n'est pas encore couverte" };
+  if (overCats.length) return { icon: "⚖️", text: `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`, nav: 'data-gototab="budget"', why: "une enveloppe dépasse son montant planifié" };
+  if (goal) return { icon: "🎯", text: `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`, nav: 'data-more="goals"', why: "rien d'urgent : le surplus peut nourrir votre objectif prioritaire" };
+  return null;
+}
+
 function renderHome() {
   const { y, m } = cursor;
   // R4 — widgets personnalisables : l'essentiel reste, le reste se choisit.
@@ -1645,25 +1662,16 @@ function renderHome() {
   // facture en retard > réserve d'impôts > budget dépassé > objectif.
   const recommendation = (() => {
     if (!s.isCurrent) return "";
-    const prev = shiftMonth({ y, m }, -1);
-    const prevOpen = !(S.monthChecks || {})[`${prev.y}-${prev.m}`]
-      && monthCheckItems(prev.y, prev.m).some(c => !c.done);
-    const lateBills = (S.bills || []).filter(billIsOverdue);
-    const overCats = report.lines.filter(l => l.kind === "expense" && l.over);
-    const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
-    let icon, text, nav;
-    if (prevOpen) { icon = "⏪"; text = `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`; nav = `data-gotomonth="${prev.y}-${prev.m}"`; }
-    else if (lateBills.length) { icon = "🧾"; text = `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`; nav = 'data-more="bills"'; }
-    else if (s.taxGap > 0) { icon = "📮"; text = `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts de ce mois.`; nav = 'data-more="taxes"'; }
-    else if (overCats.length) { icon = "⚖️"; text = `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`; nav = 'data-gototab="budget"'; }
-    else if (goal) { icon = "🎯"; text = `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`; nav = 'data-more="goals"'; }
-    else return "";
-    return `<div class="card row tx" ${nav} role="button" tabindex="0" style="cursor:pointer;border-color:var(--line-strong)">
-      <div class="ico" aria-hidden="true">${icon}</div>
-      <div class="meta"><div class="t">${text}</div></div>
+    const p = monthPriority(y, m, s, report);
+    if (!p) return "";
+    return `<div class="card row tx" ${p.nav} role="button" tabindex="0" style="cursor:pointer;border-color:var(--line-strong)">
+      <div class="ico" aria-hidden="true">${p.icon}</div>
+      <div class="meta"><div class="t">${p.text}</div></div>
       <span style="color:var(--electric);font-weight:700">›</span>
     </div>`;
   })();
+  /* (ancienne implémentation inline déplacée dans monthPriority) */
+
 
   const hero = s.isCurrent ? `
     <div class="card hero">
@@ -2845,6 +2853,72 @@ function renderSettings() {
 
 // Menu « Plus » regroupé par intention (blueprint B07) : Aujourd'hui,
 // Patrimoine, Données, Réglages. Le sous-titre peut être dynamique (fn).
+/* ---------- Assistant local (blueprint Horizon) ----------
+   Réponses DÉTERMINISTES calculées depuis les données locales : résultat,
+   raison, hypothèses, action. Jamais d'invention, jamais de réseau. */
+let assistantQ = null;
+function renderAssistant() {
+  const s = snapshot(NOW.y, NOW.m);
+  const report = budgetReport(NOW.y, NOW.m);
+  const weekDays = Math.min(7, Math.max(1, s.daysRemaining));
+  const weekBudget = round2(s.daily * weekDays);
+  const prio = monthPriority(NOW.y, NOW.m, s, report);
+  const QA = {
+    week: {
+      q: "Combien puis-je dépenser cette semaine ?",
+      icon: "🛒",
+      result: s.available > 0 ? `≈ ${chf(weekBudget)} sur ${weekDays} jour${weekDays > 1 ? "s" : ""}` : "Prudence : le disponible du mois est à zéro ou négatif",
+      why: `Votre argent disponible (${chf(s.available)}) réparti sur les ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""} restants du mois donne ${chf(s.daily)} par jour.`,
+      hyp: "Compte les revenus attendus, les charges prévues, les paiements réguliers à venir et la réserve d'impôts manquante — pas l'épargne ni le patrimoine.",
+      action: ["Voir le budget", 'data-gototab="budget"'],
+    },
+    why: {
+      q: "Pourquoi ai-je ce montant disponible ?",
+      icon: "🔍",
+      result: chf(s.available),
+      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − réserve d'impôts manquante ${chf(-s.taxGap, true)}.`,
+      hyp: "L'épargne et les investissements ne sont pas des dépenses ; les virements internes sont neutres.",
+      action: ["Voir le détail sur Mois", 'data-gototab="home"'],
+    },
+    tax: {
+      q: "Combien garder pour mes impôts ?",
+      icon: "📮",
+      result: s.taxGap > 0 ? `Encore ${chf(s.taxGap)} ce mois` : "Votre réserve du mois est couverte ✓",
+      why: `Recommandé ce mois : ${chf(s.taxRecommended)} (${pct(S.taxRate ?? 0.30)} des revenus) · déjà payé : ${chf(s.taxes)} · réserve constituée : ${chf(Math.max(0, S.taxReserve ?? 0))}.`,
+      hyp: "Estimation d'organisation personnelle basée sur votre taux réglable — pas un conseil fiscal.",
+      action: ["Ouvrir Impôts", 'data-more="taxes"'],
+    },
+    prio: {
+      q: "Quelle est ma priorité ce mois-ci ?",
+      icon: "🧭",
+      result: prio ? prio.text : "Tout est en ordre — rien d'urgent ce mois.",
+      why: prio ? `Parce que ${prio.why}.` : "Aucun retard, réserve d'impôts couverte, budget respecté.",
+      hyp: "Une seule priorité à la fois : rattrapage > factures en retard > impôts > dépassement > objectif.",
+      action: prio ? ["Y aller", prio.nav] : ["Voir mes objectifs", 'data-more="goals"'],
+    },
+  };
+  const card = (key, qa) => assistantQ === key ? `
+    <div class="card">
+      <div class="tx" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
+        <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
+        <div class="meta"><div class="t">${qa.q}</div></div>
+        <span style="color:var(--coolgray)">˅</span>
+      </div>
+      <p style="font-size:16px;font-weight:800;margin:12px 0 6px">${qa.result}</p>
+      <p style="font-size:13px;margin:0 0 6px;line-height:1.5">${qa.why}</p>
+      <p class="caption" style="margin:0 0 10px">${qa.hyp}</p>
+      <button class="btn secondary" ${qa.action[1]} style="width:auto;padding:9px 14px;font-size:13px">${qa.action[0]} ›</button>
+    </div>` : `
+    <div class="card row tx" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
+      <div class="meta"><div class="t">${qa.q}</div></div>
+      <span style="color:var(--coolgray)">›</span>
+    </div>`;
+  return backBar("Assistant") + `
+    <p class="caption" style="margin:0 0 10px">Des réponses calculées depuis VOS données, sur cet appareil — avec la raison et les hypothèses, jamais une promesse.</p>
+    ${Object.entries(QA).map(([k, qa]) => card(k, qa)).join("")}`;
+}
+
 // Hub « Plus » par intentions (blueprint Horizon).
 const MORE_GROUPS = [
   ["À organiser", [
@@ -2869,11 +2943,12 @@ const MORE_GROUPS = [
     ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
   ]],
   ["Application", [
+    ["assistant", "💬", "Assistant", "Vos questions, vos données, des réponses expliquées"],
     ["settings", "⚙️", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
-                         recurring: renderRecurring, importcsv: renderImport, settings: renderSettings,
+                         recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
                          year: renderYearReview };
 
 function renderMore() {
@@ -3437,6 +3512,8 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-customize]")) { openWidgetSheet(); return; }
+  const assistBtn = e.target.closest("[data-assistq]");
+  if (assistBtn) { assistantQ = assistantQ === assistBtn.dataset.assistq ? null : assistBtn.dataset.assistq; render(); return; }
   if (e.target.closest("[data-toggletheme]")) {
     // Cycle : Clair → Sombre → Système → Clair.
     S.theme = S.theme === "dark" ? "system" : (S.theme === "system" ? "light" : "dark");

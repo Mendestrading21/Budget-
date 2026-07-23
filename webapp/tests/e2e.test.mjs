@@ -751,6 +751,24 @@ await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Ce qui reste, 6 derniers mois"), "la disposition recommandée doit tout restaurer");
 
+// ---------- Test 37 : Horizon R7 — assistant local déterministe ----------
+currentTest = "assistant";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="assistant"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Combien puis-je dépenser cette semaine ?"), "l'assistant doit proposer ses questions");
+await page.click('[data-assistq="week"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("par jour"), "la réponse doit expliquer la raison du calcul");
+check(screenHTML.includes("pas l'épargne ni le patrimoine"), "les hypothèses doivent être visibles");
+await page.click('[data-assistq="prio"]');
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Parce que") || screenHTML.includes("Aucun retard"), "la priorité doit être justifiée");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -760,4 +778,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 41 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 42 parcours verts, zéro erreur console ✓");
