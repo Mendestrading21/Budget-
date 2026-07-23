@@ -31,9 +31,12 @@ final class BackupServiceTests: XCTestCase {
         try context.save()
     }
 
+    /// Comptage COMPLET : les 18 modèles persistants du schéma — aucune
+    /// entité ne peut disparaître d'une restauration sans casser un test.
     private func counts(in someContext: ModelContext) throws -> [String: Int] {
         [
             "households": try someContext.fetch(FetchDescriptor<Household>()).count,
+            "members": try someContext.fetch(FetchDescriptor<HouseholdMember>()).count,
             "accounts": try someContext.fetch(FetchDescriptor<Account>()).count,
             "categories": try someContext.fetch(FetchDescriptor<BudgetCategory>()).count,
             "transactions": try someContext.fetch(FetchDescriptor<BudgetTransaction>()).count,
@@ -49,6 +52,7 @@ final class BackupServiceTests: XCTestCase {
             "liabilities": try someContext.fetch(FetchDescriptor<Liability>()).count,
             "snapshots": try someContext.fetch(FetchDescriptor<NetWorthSnapshot>()).count,
             "documents": try someContext.fetch(FetchDescriptor<FinancialDocument>()).count,
+            "importBatches": try someContext.fetch(FetchDescriptor<ImportBatch>()).count,
         ]
     }
 
@@ -178,6 +182,20 @@ final class BackupServiceTests: XCTestCase {
         mutate: (inout [String: Any]) -> Void,
         file: StaticString = #filePath, line: UInt = #line
     ) throws {
+        // Sentinelle ImportBatch : présente AVANT la sauvegarde altérée,
+        // elle doit survivre au rollback — comme le membre du ménage démo.
+        let sentinelBatch = ImportBatch(fileName: "sentinelle.csv", importedAt: now,
+                                        totalRows: 1, importedCount: 1, duplicateCount: 0,
+                                        invalidCount: 0, createdCategories: 0)
+        context.insert(sentinelBatch)
+        try context.save()
+        let sentinelBatchID = sentinelBatch.id
+        let sentinelMemberID = try XCTUnwrap(
+            context.fetch(FetchDescriptor<HouseholdMember>()).first,
+            "Le magasin d'essai doit contenir au moins un membre du ménage",
+            file: file, line: line
+        ).id
+
         var json = try JSONSerialization.jsonObject(
             with: service.makeBackup(context: context, now: now)
         ) as! [String: Any]
@@ -185,6 +203,10 @@ final class BackupServiceTests: XCTestCase {
         let tampered = try JSONSerialization.data(withJSONObject: json)
 
         let before = try counts(in: context)
+        XCTAssertGreaterThan(before["members"] ?? 0, 0,
+                             "Au moins un HouseholdMember contrôlé", file: file, line: line)
+        XCTAssertGreaterThan(before["importBatches"] ?? 0, 0,
+                             "Au moins un ImportBatch contrôlé", file: file, line: line)
         XCTAssertThrowsError(
             try service.restore(data: tampered, context: context, documentFileStore: nil),
             file: file, line: line
@@ -195,12 +217,19 @@ final class BackupServiceTests: XCTestCase {
             XCTAssertEqual(raw, "pas-un-montant", file: file, line: line)
         }
         XCTAssertEqual(try counts(in: context), before,
-                       "Toutes les entités survivent, aucune n'est perdue", file: file, line: line)
+                       "Les 18 modèles survivent, aucune entité n'est perdue", file: file, line: line)
         // Un contexte NEUF lit le store réellement persisté : la
         // transaction annulée ne doit y avoir laissé aucune trace.
         let freshContext = ModelContext(container)
         XCTAssertEqual(try counts(in: freshContext), before,
                        "Le store persistant est intact après rollback", file: file, line: line)
+        // Le membre et l'ImportBatch sentinelle existent toujours, à l'identique.
+        XCTAssertTrue(try freshContext.fetch(FetchDescriptor<HouseholdMember>())
+            .contains { $0.id == sentinelMemberID },
+                      "Le membre du ménage survit au rollback", file: file, line: line)
+        XCTAssertTrue(try freshContext.fetch(FetchDescriptor<ImportBatch>())
+            .contains { $0.id == sentinelBatchID && $0.fileName == "sentinelle.csv" },
+                      "L'ImportBatch sentinelle survit au rollback", file: file, line: line)
         let zeroAmounts = try freshContext.fetch(FetchDescriptor<BudgetTransaction>())
             .filter { $0.amount == .zero }.count
         XCTAssertEqual(zeroAmounts, 0, "Aucun montant coercé vers zéro", file: file, line: line)
