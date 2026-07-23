@@ -796,6 +796,131 @@ await page.evaluate(() => { // nettoyage
   S.fxRates.EUR = 0.93; saveState();
 });
 
+// ---------- Test 39 : P0 Obsidian — la migration estampille l'historique ----------
+currentTest = "migration estampille l'historique";
+await page.evaluate(() => {
+  // État v1 d'époque : compte EUR + mouvement SANS estampille, écrit brut.
+  const s = JSON.parse(localStorage.getItem("budget-app-state-v1"));
+  s.accounts.push({ id: "eurmig", name: "Ancien EUR", kind: "current", opening: 0, cash: true, currency: "EUR" });
+  s.transactions.push({ id: 990001, y: NOW.y, m: NOW.m, d: 2, title: "Ancien EUR",
+    amount: 100, type: "expense", cat: null, acc: "eurmig", dest: null, status: "posted" });
+  s.fxRates.EUR = 0.93;
+  localStorage.setItem("budget-app-state-v1", JSON.stringify(s));
+});
+await page.reload();
+await page.waitForSelector("#tabbar button");
+const migStamp = await page.evaluate(() => {
+  const t = transactions.find(x => x.id === 990001);
+  return { fx: t.fx, fxBase: t.fxBase };
+});
+check(migStamp.fx === 0.93 && migStamp.fxBase === "CHF",
+  `la migration estampille l'historique avec le taux du moment (${JSON.stringify(migStamp)})`);
+const migPersisted = await page.evaluate(() => {
+  const t = JSON.parse(localStorage.getItem("budget-app-state-v1")).transactions.find(x => x.id === 990001);
+  return t.fx === 0.93 && t.fxBase === "CHF";
+});
+check(migPersisted, "l'état migré est sauvegardé immédiatement");
+const migAvant = await page.evaluate(() => snapshot(NOW.y, NOW.m).living);
+const migApres = await page.evaluate(() => { S.fxRates.EUR = 0.40; saveState(); return snapshot(NOW.y, NOW.m).living; });
+check(Math.abs(migAvant - migApres) < 0.005,
+  `après migration, un taux modifié ne réécrit plus l'historique (avant ${migAvant}, après ${migApres})`);
+await page.evaluate(() => { // nettoyage
+  const i = transactions.findIndex(x => x.id === 990001); if (i >= 0) transactions.splice(i, 1);
+  const a = ACCOUNTS.findIndex(x => x.id === "eurmig"); if (a >= 0) ACCOUNTS.splice(a, 1);
+  S.fxRates.EUR = 0.93; saveState();
+});
+
+// ---------- Test 40 : P0 Obsidian — l'édition ré-estampille au taux du jour ----------
+currentTest = "édition ré-estampille";
+await page.evaluate(() => {
+  ACCOUNTS.push({ id: "euredit", name: "Compte EUR édition", kind: "current", opening: 0, cash: true, currency: "EUR" });
+  addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 3, title: "Édition EUR",
+    amount: 50, type: "expense", cat: null, acc: "euredit", dest: null, status: "posted" });
+  S.fxRates.EUR = 0.80; saveState(); // le taux évolue APRÈS la création
+});
+await page.evaluate(() => { openTxSheet(transactions.find(t => t.title === "Édition EUR")); });
+await page.fill("#fAmount", "60");
+await page.evaluate(() => document.getElementById("txForm").requestSubmit());
+await page.waitForTimeout(120);
+const editStamp = await page.evaluate(() => {
+  const t = transactions.find(x => x.title === "Édition EUR");
+  return { amount: t.amount, fx: t.fx, fxBase: t.fxBase };
+});
+check(editStamp.amount === 60 && editStamp.fx === 0.80 && editStamp.fxBase === "CHF",
+  `modifier un mouvement re-fige le taux du jour de la modification (${JSON.stringify(editStamp)})`);
+
+// ---------- Test 41 : P0 Obsidian — passage d'un compte EUR à un compte CHF ----------
+currentTest = "édition change de devise";
+await page.evaluate(() => { openTxSheet(transactions.find(t => t.title === "Édition EUR")); });
+await page.evaluate(() => {
+  const chf = ACCOUNTS.find(a => (a.currency || baseCurrency()) === baseCurrency());
+  document.getElementById("fAccount").value = chf.id;
+  document.getElementById("fAccount").dispatchEvent(new Event("change"));
+});
+await page.evaluate(() => document.getElementById("txForm").requestSubmit());
+await page.waitForTimeout(120);
+const chfStamp = await page.evaluate(() => {
+  const t = transactions.find(x => x.title === "Édition EUR");
+  return { curIsBase: accountCurrency(t.acc) === baseCurrency(),
+           noFx: t.fx === undefined, noFxBase: t.fxBase === undefined };
+});
+check(chfStamp.curIsBase && chfStamp.noFx && chfStamp.noFxBase,
+  `un mouvement déplacé sur un compte CHF perd son estampille de change (${JSON.stringify(chfStamp)})`);
+
+// ---------- Test 42 : P0 Obsidian — aucun destAmount périmé après édition ----------
+currentTest = "destAmount jamais périmé";
+await page.evaluate(() => {
+  const chf = ACCOUNTS.find(a => (a.currency || baseCurrency()) === baseCurrency());
+  addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 4, title: "Virement EURCHF",
+    amount: 100, type: "transfer", cat: null, acc: "euredit", dest: chf.id, status: "posted" });
+  saveState();
+});
+const virAvant = await page.evaluate(() => transactions.find(t => t.title === "Virement EURCHF").destAmount);
+check(virAvant === 80, `un virement inter-devises fige le montant crédité à la création (${virAvant})`);
+await page.evaluate(() => { openTxSheet(transactions.find(t => t.title === "Virement EURCHF")); });
+await page.evaluate(() => {
+  document.getElementById("fType").value = "expense";
+  document.getElementById("fType").dispatchEvent(new Event("change"));
+});
+await page.evaluate(() => document.getElementById("txForm").requestSubmit());
+await page.waitForTimeout(120);
+const virApres = await page.evaluate(() => {
+  const t = transactions.find(x => x.title === "Virement EURCHF");
+  return { type: t.type, destGone: t.dest == null, destAmountGone: t.destAmount === undefined };
+});
+check(virApres.type === "expense" && virApres.destGone && virApres.destAmountGone,
+  `retirer la destination ne conserve aucun destAmount périmé (${JSON.stringify(virApres)})`);
+
+// ---------- Test 43 : P0 Obsidian — une sauvegarde restaurée est normalisée ----------
+currentTest = "sauvegarde restaurée normalisée";
+await page.evaluate(() => {
+  // Sauvegarde d'époque restaurée : aucun champ fx/fxBase/destAmount
+  // nulle part (le flux de restauration réel écrit l'état puis recharge).
+  const s = JSON.parse(localStorage.getItem("budget-app-state-v1"));
+  for (const t of s.transactions) { delete t.fx; delete t.fxBase; delete t.destAmount; }
+  localStorage.setItem("budget-app-state-v1", JSON.stringify(s));
+});
+await page.reload();
+await page.waitForSelector("#tabbar button");
+const restoreNorm = await page.evaluate(() => {
+  const foreignSansEstampille = transactions.filter(t => {
+    const cur = accountCurrency(t.acc);
+    return cur !== baseCurrency() && !(t.fx > 0 && t.fxBase === baseCurrency());
+  }).length;
+  const destSansMontant = transactions.filter(t =>
+    t.dest && accountCurrency(t.dest) !== accountCurrency(t.acc) && t.destAmount == null).length;
+  return { foreignSansEstampille, destSansMontant };
+});
+check(restoreNorm.foreignSansEstampille === 0 && restoreNorm.destSansMontant === 0,
+  `une sauvegarde restaurée est entièrement estampillée au chargement (${JSON.stringify(restoreNorm)})`);
+await page.evaluate(() => { // nettoyage complet des fixtures multi-devises
+  for (const title of ["Édition EUR", "Virement EURCHF"]) {
+    const i = transactions.findIndex(x => x.title === title); if (i >= 0) transactions.splice(i, 1);
+  }
+  const a = ACCOUNTS.findIndex(x => x.id === "euredit"); if (a >= 0) ACCOUNTS.splice(a, 1);
+  S.fxRates.EUR = 0.93; saveState();
+});
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -805,4 +930,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 43 parcours verts, zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 48 parcours verts, zéro erreur console ✓");

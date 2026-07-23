@@ -350,16 +350,22 @@ struct BackupService {
 
         // Entities only — document files never travel in the JSON backup,
         // so deleting them here would irreversibly orphan every restored
-        // fileReference. Nothing is committed before the rebuild succeeds:
-        // any failure below rolls back and leaves the store as it was.
+        // fileReference. Wipe, rebuild and save form ONE transaction: a
+        // failure at ANY step rolls back and leaves the store as it was.
         do {
             try wipeEntities(context: context)
+            try rebuild(from: file, context: context)
+            try context.save()
         } catch {
             context.rollback()
             throw error
         }
+    }
 
-        // Recreate in dependency order, resolving relationships by UUID.
+    /// Recreates every entity in dependency order, resolving relationships
+    /// by UUID. Must only run inside restore()'s wipe/rebuild/save
+    /// transaction — it never saves and never rolls back itself.
+    private func rebuild(from file: BackupFile, context: ModelContext) throws {
         var members: [UUID: HouseholdMember] = [:]
         for dto in file.members {
             let member = HouseholdMember(
@@ -411,7 +417,7 @@ struct BackupService {
                 createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
                 owner: dto.ownerID.flatMap { members[$0] }
             )
-            account.reconciledBalance = dto.reconciledBalance.map(decimal)
+            account.reconciledBalance = try dto.reconciledBalance.map(decimal)
             account.reconciledAt = dto.reconciledAt
             accounts[dto.id] = account
             context.insert(account)
@@ -478,7 +484,7 @@ struct BackupService {
         for dto in file.taxProvisions {
             let provision = TaxProvision(
                 id: dto.id, year: dto.year,
-                estimatedAnnualTaxOverride: dto.override_.map(decimal),
+                estimatedAnnualTaxOverride: try dto.override_.map(decimal),
                 reservedAmount: try decimal(dto.reserved), arrearsAmount: try decimal(dto.arrears),
                 dueDates: dto.dueDates, notes: dto.notes
             )
@@ -505,7 +511,7 @@ struct BackupService {
                 policyNumber: dto.policyNumber, kind: InsuranceKind(rawValue: dto.kind) ?? .other,
                 premiumAmount: try decimal(dto.premium),
                 premiumUnit: RecurrenceUnit(rawValue: dto.unit) ?? .month,
-                premiumIntervalCount: dto.count, deductible: dto.deductible.map(decimal),
+                premiumIntervalCount: dto.count, deductible: try dto.deductible.map(decimal),
                 startDate: dto.startDate, renewalDate: dto.renewalDate,
                 cancellationDeadline: dto.cancellationDeadline, noticePeriodDays: dto.noticePeriodDays,
                 coverageSummary: dto.coverageSummary, documentReference: dto.documentReference,
@@ -519,7 +525,7 @@ struct BackupService {
                 id: dto.id, pillar: PensionPillar(rawValue: dto.pillar) ?? .pillar3a,
                 institutionName: dto.institution, currentValue: try decimal(dto.currentValue),
                 annualContribution: try decimal(dto.annualContribution),
-                projectedValueAtRetirement: dto.projected.map(decimal),
+                projectedValueAtRetirement: try dto.projected.map(decimal),
                 retirementAge: dto.retirementAge, sourceDocumentDate: dto.sourceDate,
                 sourceReference: dto.sourceReference, isActive: dto.isActive, note: dto.note,
                 owner: dto.ownerID.flatMap { members[$0] }
@@ -566,13 +572,6 @@ struct BackupService {
                 duplicateCount: dto.duplicateCount, invalidCount: dto.invalidCount,
                 createdCategories: dto.createdCategories
             ))
-        }
-
-        do {
-            try context.save()
-        } catch {
-            context.rollback()
-            throw error
         }
     }
 

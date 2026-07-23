@@ -5,6 +5,7 @@ on:
     branches:
       - "claude/**"
       - "codex/**"
+      - "refonte/**"
       - "version/**"
       - main
   pull_request:
@@ -53,6 +54,9 @@ jobs:
       - name: Version d'Xcode
         run: xcodebuild -version
 
+      - name: Manifeste de confidentialité valide (plutil)
+        run: plutil -lint Budget/PrivacyInfo.xcprivacy
+
       - name: Simulateurs disponibles
         run: xcrun simctl list devices available | head -40
 
@@ -80,7 +84,7 @@ jobs:
 
       # Vérification d'archive (Phase 14) : le build Release doit passer
       # aussi proprement que le Debug — sans signature, faute de compte
-      # développeur en CI.
+      # développeur en CI. derivedDataPath connu pour inspecter le produit.
       - name: Build Release (vérification d'archive)
         run: |
           set -o pipefail
@@ -89,8 +93,20 @@ jobs:
             -scheme Budget \
             -configuration Release \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -derivedDataPath DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      # P0-4 Obsidian L1 : le manifeste doit exister DANS le produit
+      # Release compilé (les groupes synchronisés Xcode 16 l'embarquent) —
+      # échec de CI sinon.
+      - name: Manifeste de confidentialité présent dans Budget.app (Release)
+        run: |
+          APP="DerivedData/Build/Products/Release-iphonesimulator/Budget.app"
+          test -d "$APP" || { echo "::error::Budget.app introuvable sous $APP"; exit 1; }
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::PrivacyInfo.xcprivacy ABSENT du produit Release"; exit 1; }
+          plutil -lint "$APP/PrivacyInfo.xcprivacy"
+          echo "PrivacyInfo.xcprivacy présent et valide dans Budget.app ✓"
 
       - name: Publier le bundle de résultats en cas d'échec
         if: failure()

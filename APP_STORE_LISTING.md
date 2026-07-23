@@ -9,6 +9,7 @@ conseil financier).
 
 | Champ | Valeur |
 |---|---|
+| Bundle ID (canonique) | `ch.budgetapp.Budget` |
 | Nom (30 car. max) | **Budget — Finances du foyer** |
 | Alternatives | « Budget Suisse », « Budget : le foyer serein » |
 | Sous-titre (30 car. max) | **Le tableau de bord suisse** |
@@ -101,7 +102,13 @@ si demandé. Mode sombre, l'identité canonique.
 6. **Foyer / Onboarding** — écran de bienvenue ou vue ménage.
    Accroche : « Vos données restent sur votre iPhone. »
 
-## URLs (placeholders — à créer avant la soumission)
+## URLs (RELEASE_BLOCKER — placeholders à créer avant la soumission)
+
+> **Statut : BLOQUEUR HUMAIN OUVERT.** Les trois URLs ci-dessous sont des
+> placeholders volontaires (`VOTRE-DOMAINE`). Elles ne doivent PAS être
+> inventées par un outil : le propriétaire crée les pages réelles, puis
+> remplace les URLs ici et dans App Store Connect. La soumission est
+> impossible sans la page de confidentialité.
 
 - Support : `https://VOTRE-DOMAINE/budget/support` (une page avec une
   adresse e-mail suffit ; l'adresse e.mendestrading@gmail.com peut servir
@@ -138,7 +145,10 @@ sync arrive).
 
 ## Reste à faire avec le compte Apple Developer (~99 $/an)
 
-1. Créer l'App ID `com.mendes.budget` (ou ajuster le bundle ID du projet).
+1. Créer l'App ID `ch.budgetapp.Budget` — l'identité CANONIQUE de l'app,
+   celle du projet Xcode (les cibles de test gardent leurs identifiants
+   dédiés `ch.budgetapp.BudgetTests` et `ch.budgetapp.BudgetUITests`,
+   comme il se doit ; elles ne sont jamais soumises à l'App Store).
 2. App Store Connect : créer la fiche, coller les textes ci-dessus.
 3. Captures d'écran en mode démo (checklist ci-dessus).
 4. Héberger les deux pages support/confidentialité.

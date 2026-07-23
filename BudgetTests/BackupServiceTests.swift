@@ -170,31 +170,89 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertGreaterThan(try context.fetch(FetchDescriptor<Household>()).count, 0, "Rien n'est effacé sur échec de lecture")
     }
 
-    func testRestoreRejectsCorruptAmountWithoutCoercingToZero() throws {
-        // P0 Obsidian L1 : un montant illisible ne doit JAMAIS devenir zéro —
-        // la restauration refuse et le store reste intact.
-        try populateSampleStore()
+    /// P0 Obsidian L1 : quel que soit le champ corrompu, la restauration
+    /// échoue d'un seul bloc — chaque entité survit (comptage complet),
+    /// le store PERSISTANT reste intact (vérifié via un contexte neuf) et
+    /// aucun montant n'est coercé vers zéro.
+    private func assertRestoreRejectsTamperedBackup(
+        mutate: (inout [String: Any]) -> Void,
+        file: StaticString = #filePath, line: UInt = #line
+    ) throws {
         var json = try JSONSerialization.jsonObject(
             with: service.makeBackup(context: context, now: now)
         ) as! [String: Any]
-        var transactions = json["transactions"] as! [[String: Any]]
-        XCTAssertFalse(transactions.isEmpty)
-        transactions[0]["amount"] = "pas-un-montant"
-        json["transactions"] = transactions
+        mutate(&json)
         let tampered = try JSONSerialization.data(withJSONObject: json)
 
-        let countBefore = try context.fetch(FetchDescriptor<BudgetTransaction>()).count
-        XCTAssertThrowsError(try service.restore(data: tampered, context: context, documentFileStore: nil)) { error in
+        let before = try counts(in: context)
+        XCTAssertThrowsError(
+            try service.restore(data: tampered, context: context, documentFileStore: nil),
+            file: file, line: line
+        ) { error in
             guard case BackupError.corruptAmount(let raw) = error else {
-                return XCTFail("Erreur attendue : corruptAmount, reçu \(error)")
+                return XCTFail("Erreur attendue : corruptAmount, reçu \(error)", file: file, line: line)
             }
-            XCTAssertEqual(raw, "pas-un-montant")
+            XCTAssertEqual(raw, "pas-un-montant", file: file, line: line)
         }
-        // Transactionnel : rien n'a été effacé, aucun zéro n'a été écrit.
-        XCTAssertEqual(try context.fetch(FetchDescriptor<BudgetTransaction>()).count, countBefore)
-        let zeroAmounts = try context.fetch(FetchDescriptor<BudgetTransaction>())
+        XCTAssertEqual(try counts(in: context), before,
+                       "Toutes les entités survivent, aucune n'est perdue", file: file, line: line)
+        // Un contexte NEUF lit le store réellement persisté : la
+        // transaction annulée ne doit y avoir laissé aucune trace.
+        let freshContext = ModelContext(container)
+        XCTAssertEqual(try counts(in: freshContext), before,
+                       "Le store persistant est intact après rollback", file: file, line: line)
+        let zeroAmounts = try freshContext.fetch(FetchDescriptor<BudgetTransaction>())
             .filter { $0.amount == .zero }.count
-        XCTAssertEqual(zeroAmounts, 0, "Aucun montant coercé vers zéro")
+        XCTAssertEqual(zeroAmounts, 0, "Aucun montant coercé vers zéro", file: file, line: line)
+    }
+
+    func testRestoreRejectsCorruptAmountWithoutCoercingToZero() throws {
+        // Champ OBLIGATOIRE corrompu (transaction.amount).
+        try populateSampleStore()
+        try assertRestoreRejectsTamperedBackup { json in
+            var transactions = json["transactions"] as! [[String: Any]]
+            XCTAssertFalse(transactions.isEmpty)
+            transactions[0]["amount"] = "pas-un-montant"
+            json["transactions"] = transactions
+        }
+    }
+
+    func testRestoreRejectsCorruptOptionalAmount() throws {
+        // Champ OPTIONNEL corrompu (account.reconciledBalance) : le chemin
+        // Optional.map(decimal) doit propager l'erreur, pas l'avaler.
+        try populateSampleStore()
+        let account = try XCTUnwrap(context.fetch(FetchDescriptor<Account>()).first)
+        account.reconciledBalance = Decimal("123.45")
+        try context.save()
+        try assertRestoreRejectsTamperedBackup { json in
+            var accounts = json["accounts"] as! [[String: Any]]
+            let index = accounts.firstIndex { $0["reconciledBalance"] != nil }
+            XCTAssertNotNil(index)
+            accounts[index!]["reconciledBalance"] = "pas-un-montant"
+            json["accounts"] = accounts
+        }
+        // Le solde réconcilié d'origine est toujours là, valeur exacte.
+        let freshContext = ModelContext(container)
+        let restored = try XCTUnwrap(freshContext.fetch(FetchDescriptor<Account>())
+            .first { $0.reconciledBalance != nil })
+        XCTAssertEqual(restored.reconciledBalance, Decimal("123.45"))
+    }
+
+    func testRestoreRejectsCorruptAmountInLateEntity() throws {
+        // Entité reconstruite TARDIVEMENT (NetWorthSnapshot, en fin de
+        // reconstruction) : l'erreur doit annuler aussi tout ce qui a été
+        // reconstruit avant elle.
+        try populateSampleStore()
+        context.insert(NetWorthSnapshot(date: now, accountsTotal: Decimal("100.00"),
+                                        assetsTotal: .zero, pensionTotal: .zero,
+                                        liabilitiesTotal: .zero, netWorth: Decimal("100.00")))
+        try context.save()
+        try assertRestoreRejectsTamperedBackup { json in
+            var snapshots = json["netWorthSnapshots"] as! [[String: Any]]
+            XCTAssertFalse(snapshots.isEmpty)
+            snapshots[0]["netWorth"] = "pas-un-montant"
+            json["netWorthSnapshots"] = snapshots
+        }
     }
 
     // MARK: - Complete deletion

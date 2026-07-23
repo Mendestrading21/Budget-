@@ -22,25 +22,43 @@ code courant :
 ### Decision
 
 1. Natif : `decimal(_:)` devient `throws` et lève `BackupError.corruptAmount`
-   avec le montant fautif ; la restauration transactionnelle (ADR-014) annule
-   tout et laisse les données actuelles intactes. Aucune coercition vers zéro.
-2. PWA : chaque mouvement en devise ≠ devise de base est estampillé À LA
-   CRÉATION avec `fx` (taux du jour) et `fxBase` (devise de base au moment de
-   la saisie) via le nouveau point d'entrée unique `addTx()` ; les virements
-   inter-devises figent aussi `destAmount`. `txCHF()` et les lectures de crédit
-   destination privilégient la valeur estampillée et ne retombent sur le taux
-   actuel que pour l'historique antérieur non estampillé (comportement inchangé
-   pour les données existantes, aucune migration destructive).
-3. Ces champs (`fx`, `fxBase`, `destAmount`) sont additifs dans l'état v1 ; ils
-   ne cassent ni les sauvegardes existantes ni les fixtures de parité.
+   avec le montant fautif — y compris sur les quatre champs OPTIONNELS
+   (`reconciledBalance`, `override_`, `deductible`, `projected`, via
+   `try Optional.map(decimal)`). La restauration entière (suppression,
+   reconstruction, sauvegarde) forme UNE transaction : toute erreur à
+   n'importe quelle étape appelle `context.rollback()` et relance l'erreur ;
+   les fichiers de documents ne sont jamais touchés (ADR-014). Aucune
+   coercition vers zéro, jamais.
+2. PWA : l'estampillage financier passe par UNE seule fonction, `stampTx()`,
+   utilisée par tous les chemins de création (`addTx()`) ET de modification.
+   Elle purge d'abord `fx`/`fxBase`/`destAmount` (jamais d'estampille
+   périmée), fige `fx` (taux du jour, repli 1:1 EXPLICITE si aucun taux
+   valide — le mouvement ne dépend jamais d'un futur taux) et `fxBase`
+   pour toute devise source ≠ devise de base, et fige `destAmount` quand la
+   destination est dans une autre devise.
+3. Migration additive au chargement : `stampAllTransactions(state)` détecte
+   les mouvements historiques sans estampille (y compris ceux d'une
+   sauvegarde JSON restaurée, qui recharge la page), les estampille UNE
+   seule fois avec les taux présents au moment de la migration, calcule les
+   `destAmount` manquants, purge les `destAmount` orphelins, puis l'état
+   migré est immédiatement persisté. Identifiants, champs et sauvegardes
+   préservés — rien de destructif.
+4. Ces champs (`fx`, `fxBase`, `destAmount`) sont additifs dans l'état v1 ;
+   ils ne cassent ni les sauvegardes existantes ni les fixtures de parité.
 
 ### Verification
 
-`BudgetTests/BackupServiceTests.testRestoreRejectsCorruptAmountWithoutCoercingToZero`
-(sauvegarde altérée → erreur dédiée, store intact, zéro montant à zéro) ;
-e2e Test 38 « changer un taux ne change pas l'historique » (mouvement EUR
-estampillé, taux divisé par deux, coût de la vie inchangé à 0.005 près) ;
-suites : 43 parcours e2e + 5 fixtures de parité verts.
+Natif (`BudgetTests/BackupServiceTests`) : montant obligatoire corrompu,
+montant OPTIONNEL corrompu (`reconciledBalance`), montant corrompu dans une
+entité reconstruite tardivement (`NetWorthSnapshot`) — chaque cas vérifie le
+comptage complet de TOUTES les entités avant/après, l'intégrité du store
+persistant via un `ModelContext` neuf, et zéro montant coercé.
+PWA (e2e Tests 38-43) : nouveau mouvement EUR + changement de taux ; ancien
+mouvement non estampillé + rechargement/migration + changement de taux
+(persistance immédiate vérifiée) ; édition ré-estampillée au taux du jour ;
+passage d'un compte EUR à un compte CHF (estampille retirée) ; destination
+retirée sans `destAmount` périmé ; sauvegarde restaurée entièrement
+normalisée au chargement. Suites : 48 parcours e2e + 5 fixtures de parité.
 
 
 ## ADR-020 — Obsidian Glass : identité sombre unique et skill canonique

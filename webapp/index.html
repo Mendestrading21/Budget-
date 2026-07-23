@@ -1013,22 +1013,59 @@ function txCHF(t) {
   if (t.fx > 0 && t.fxBase === baseCurrency()) return t.amount * t.fx;
   return toCHF(t.amount, cur);
 }
-/* P0 change historique : tout nouveau mouvement passe par addTx, qui fige
-   le taux du jour (t.fx, t.fxBase) et le montant crédité côté destination
-   (t.destAmount). Modifier un taux ensuite n'altère plus jamais le passé.
-   Les mouvements anciens sans estampille gardent l'ancien comportement. */
-function addTx(t) {
+/* P0 change historique : l'estampillage financier d'un mouvement passe par
+   UNE seule fonction, utilisée à la création (addTx) ET à la modification.
+   Elle purge d'abord les anciennes valeurs, puis fige le taux du jour
+   (t.fx, t.fxBase — repli 1:1 EXPLICITE si aucun taux valide, pour que le
+   mouvement ne dépende jamais d'un futur taux) et le montant crédité côté
+   destination (t.destAmount). Modifier un taux ensuite n'altère plus le passé. */
+function stampTx(t) {
+  delete t.fx; delete t.fxBase; delete t.destAmount;
   const srcCur = accountCurrency(t.acc);
   if (srcCur && srcCur !== baseCurrency()) {
     const r = (S.fxRates || {})[srcCur];
-    if (r > 0) { t.fx = r; t.fxBase = baseCurrency(); }
+    t.fx = r > 0 ? r : 1;
+    t.fxBase = baseCurrency();
   }
   if (t.dest) {
     const destCur = accountCurrency(t.dest);
     if (destCur !== srcCur) t.destAmount = round2(convertAmount(t.amount, srcCur, destCur));
   }
-  transactions.push(t);
   return t;
+}
+function addTx(t) {
+  transactions.push(stampTx(t));
+  return t;
+}
+/* Migration additive au chargement : les mouvements historiques SANS
+   estampille (y compris ceux d'une sauvegarde JSON restaurée) sont figés
+   une seule fois avec les taux présents au moment de la migration, jamais
+   retouchés ensuite. Identifiants, champs et sauvegardes préservés. */
+function stampAllTransactions(state) {
+  const base = state.baseCurrency || "CHF";
+  const currencyOf = id => {
+    const account = (state.accounts || []).find(a => a.id === id);
+    return (account && account.currency) || base;
+  };
+  const rateOf = c => { const r = (state.fxRates || {})[c]; return r > 0 ? r : 1; };
+  let stamped = 0;
+  for (const t of state.transactions || []) {
+    const srcCur = currencyOf(t.acc);
+    if (srcCur !== base && !(t.fx > 0 && t.fxBase === base)) {
+      t.fx = rateOf(srcCur); t.fxBase = base; stamped++;
+    }
+    if (t.dest) {
+      const destCur = currencyOf(t.dest);
+      if (destCur !== srcCur && t.destAmount == null) {
+        const inBase = srcCur === base ? t.amount : t.amount * rateOf(srcCur);
+        t.destAmount = round2(destCur === base ? inBase : inBase / rateOf(destCur));
+        stamped++;
+      }
+    } else if (t.destAmount != null) {
+      delete t.destAmount; stamped++; // destination disparue : rien de périmé
+    }
+  }
+  return stamped;
 }
 
 /* E05 : un montant saisi dans la devise du compte SOURCE se convertit
@@ -1308,6 +1345,11 @@ if (!S) {
   }
 }
 txSeq = S.transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
+
+/* P0 change historique : tout état chargé (ancien utilisateur, sauvegarde
+   JSON restaurée) passe par la normalisation d'estampillage, puis l'état
+   migré est immédiatement persisté. */
+if (stampAllTransactions(S) > 0) saveState();
 
 // Alias STABLES vers l'état : toute mutation doit se faire EN PLACE
 // (push/splice/length=0), jamais par réaffectation.
@@ -3867,6 +3909,9 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
       title, amount: Math.round(amount * 100) / 100,
       y, m, d, status, type, cat: type === "adjustment" ? null : cat, dest, acc: sourceId,
     });
+    // P0 change historique : une modification ré-estampille (purge puis
+    // re-fige fx/fxBase/destAmount) — jamais d'estampille périmée.
+    stampTx(existing);
     toast("Mouvement modifié");
   } else {
     addTx({

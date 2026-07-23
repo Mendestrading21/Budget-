@@ -16,8 +16,8 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | Lot | Statut | Preuve | Prochaine condition |
 |---|---|---|---|
 | L0 Gouvernance | DONE | branche, skill, constitution, matrice et livraison | vérifier les fichiers distants |
-| L1 Vérité/baseline/P0 | DONE | ADR-021, test restore corrompu, e2e Test 38, captures `l1-*.png`, 43 e2e + 5 parité verts | validation humaine du rapport L1 |
-| L2 Fondations | READY | — | validation humaine de L1 |
+| L1 Vérité/baseline/P0 | VERIFYING | corrections en cours (try manquants, transaction unique, migration fx, CI refonte/**, captures versionnées) | CI complète verte sur refonte/** |
+| L2 Fondations | BLOCKED | — | L1 validé |
 | L3 Pilote PWA | BLOCKED | — | L2 validé |
 | L4 Pilote iOS | BLOCKED | — | validation humaine de L3 |
 | L5 Mouvements/Comptes | BLOCKED | — | L4 validé |
@@ -36,28 +36,40 @@ Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
   travail Obsidian est `refonte/budget-obsidian-glass-v1` (L0 = docs
   uniquement, vérifié). Changer la branche par défaut est interdit pendant L1
   → action humaine listée dans les risques.
-- [x] **P0-2 restauration native** — CONFIRMÉ puis CORRIGÉ : `decimal()`
-  transformait tout montant illisible en zéro ; désormais
-  `BackupError.corruptAmount` annule la restauration (transactionnelle
-  ADR-014). Test `testRestoreRejectsCorruptAmountWithoutCoercingToZero`.
-- [x] **P0-3 historique PWA figé** — CONFIRMÉ puis CORRIGÉ : les mouvements en
-  devise étrangère étaient convertis au taux ACTUEL ; désormais `addTx()`
-  estampille `fx`/`fxBase`/`destAmount` à la création (ADR-021). e2e Test 38.
-- [x] **P0-4 PrivacyInfo.xcprivacy** — CONFIRMÉ puis CORRIGÉ : absent du dépôt
-  (find + pbxproj = 0 occurrence) ; créé dans `Budget/` (aucune collecte,
-  aucun tracking, UserDefaults raison CA92.1 pour le verrouillage). Le projet
-  utilise des groupes synchronisés Xcode 16 (`PBXFileSystemSynchronizedRootGroup`,
-  path = Budget) : le fichier est inclus au produit automatiquement ; la CI
-  macOS (build Release) sert de vérification.
-- [x] **P0-5 URLs / bundle ID / métadonnées** — cohérents : bundle
-  `ch.budgetapp.Budget` identique app/tests/UITests ; zéro URL codée en dur
-  dans le code Swift ; les URLs d'`APP_STORE_LISTING.md` sont des
-  placeholders explicitement marqués « à créer avant la soumission » (action
-  humaine, pas un défaut du code).
+- [x] **P0-2 restauration native** — CONFIRMÉ puis CORRIGÉ (2 passes) :
+  `decimal()` transformait tout montant illisible en zéro ; désormais
+  `throws BackupError.corruptAmount`, y compris sur les quatre champs
+  optionnels (`try Optional.map(decimal)` — la première passe ne compilait
+  pas, run CI 167 rouge). La restauration entière (suppression +
+  reconstruction + sauvegarde) est UNE transaction avec `rollback()` ; les
+  fichiers de documents ne sont jamais touchés. Tests : montant obligatoire,
+  optionnel et entité tardive corrompus ; comptages complets avant/après ;
+  store persistant vérifié via un `ModelContext` neuf ; zéro coercition.
+- [x] **P0-3 historique PWA figé** — CONFIRMÉ puis CORRIGÉ (2 passes) :
+  les mouvements en devise étrangère étaient convertis au taux ACTUEL.
+  Désormais `stampTx()` (fonction unique, création ET édition, purge avant
+  recalcul, repli 1:1 explicite) + migration additive `stampAllTransactions`
+  au chargement qui estampille TOUT l'historique (y compris une sauvegarde
+  restaurée) une seule fois puis persiste immédiatement (ADR-021).
+  e2e Tests 38-43.
+- [x] **P0-4 PrivacyInfo.xcprivacy** — CONFIRMÉ puis CORRIGÉ : absent du
+  dépôt ; créé dans `Budget/` (aucune collecte, aucun tracking, UserDefaults
+  raison CA92.1). Vérification rendue DÉTERMINISTE en CI : `plutil -lint`
+  du manifeste source, build Release avec `derivedDataPath` connu, présence
+  de `Budget.app/PrivacyInfo.xcprivacy` exigée dans le produit compilé
+  (échec de CI sinon).
+- [x] **P0-5 URLs / bundle ID / métadonnées** — cohérence TECHNIQUE corrigée :
+  identité canonique `ch.budgetapp.Budget` (les cibles de test ont leurs
+  identifiants dédiés `ch.budgetapp.BudgetTests`/`BudgetUITests`, jamais
+  soumis) ; `APP_STORE_LISTING.md` corrigé (il indiquait encore
+  `com.mendes.budget`) ; zéro URL codée en dur dans le Swift. RESTE OUVERT
+  (RELEASE_BLOCKER humain) : les URLs support/confidentialité
+  `VOTRE-DOMAINE` à créer avant toute soumission — jamais inventées ici.
 
 ## Baseline L1 (captures et mesures)
 
-- Captures (scratchpad session, thème clair Horizon actuel + sombre) :
+- Captures VERSIONNÉES dans `docs/obsidian-glass/baseline/l1/` (README avec
+  écran, largeur, thème, commit observé, date et méthode) :
   `l1-390-mois.png`, `l1-390-budget.png`, `l1-390-txform.png`,
   `l1-390-mois-sombre.png`, `l1-320-mois.png`, `l1-320-budget.png`.
 - Rendu (reload → tabbar interactive) : ~180 ms à 390 px, ~137 ms à 320 px.

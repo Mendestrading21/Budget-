@@ -2,17 +2,24 @@
 
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L1 (2026-07-23)
 
-L1 « Vérité, baseline et P0 » exécuté (`/budget-v1 execute L1`). Les cinq P0
-revalidés sur le code réel : P0-2 (restauration native coerçait les montants
-illisibles à zéro) et P0-3 (historique PWA recalculé au taux actuel) CONFIRMÉS
-et corrigés avec tests (ADR-021) ; P0-4 corrigé (`Budget/PrivacyInfo.xcprivacy`
-créé, inclus via groupes synchronisés Xcode 16) ; P0-1 et P0-5 constatés sans
-défaut de code (branche par défaut obsolète et URLs App Store = actions
-humaines). Baseline : captures 390/320 px clair+sombre, ~180 ms de rendu,
-zéro erreur console, aucun débordement. Suites : 43 parcours e2e + 5 fixtures
-de parité verts. Détail : `OBSIDIAN_GLASS_STATUS.md`. Prochaine étape après
-validation humaine : `/budget-v1 execute L2` (fondations, sans refonte
-d'écrans).
+L1 « Vérité, baseline et P0 » exécuté (`/budget-v1 execute L1`), puis passe
+corrective `fix(l1)` après contrôle humain : la première passe ne compilait
+pas côté iOS (4 `try` manquants sur `Optional.map(decimal)`, run CI 167
+rouge). Corrections : restauration native en UNE transaction
+(wipe+rebuild+save, rollback sur toute erreur, fichiers de documents jamais
+touchés) avec tests renforcés (champ obligatoire/optionnel/entité tardive
+corrompus, comptages complets, store persistant vérifié via contexte neuf) ;
+PWA : `stampTx()` unique (création ET édition, purge avant recalcul, repli
+1:1 explicite) + migration additive `stampAllTransactions` au chargement,
+persistée immédiatement (ADR-021, e2e 38-43) ; CI déclenchée sur `refonte/**`
+avec vérification déterministe de `PrivacyInfo.xcprivacy` dans le produit
+Release (plutil + derivedDataPath connu, échec sinon) ;
+`APP_STORE_LISTING.md` corrigé (`ch.budgetapp.Budget` canonique,
+URLs = RELEASE_BLOCKER humain) ; captures baseline versionnées dans
+`docs/obsidian-glass/baseline/l1/`. Suites locales : 48 parcours e2e +
+5 fixtures de parité verts. Détail : `OBSIDIAN_GLASS_STATUS.md`. Prochaine
+étape après validation humaine : `/budget-v1 execute L2` (fondations, sans
+refonte d'écrans).
 
 ## Branche `codex/budget-leader-refonte` (2026-07-22)
 
