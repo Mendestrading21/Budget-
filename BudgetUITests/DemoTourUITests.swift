@@ -183,11 +183,14 @@ final class DemoTourUITests: XCTestCase {
         var visibleElements = 0
         func sweep(_ query: XCUIElementQuery, cap: Int, kind: String) {
             for element in query.allElementsBoundByIndex.prefix(cap) {
-                let frame = element.frame
-                guard !frame.isEmpty, frame.intersects(viewport) else { continue }
+                // Seule la partie VISIBLE compte : ce qui dépasse sous le
+                // bord du viewport est coupé par le ScrollView (jamais
+                // rendu) — le cadre d'accessibilité, lui, n'est pas coupé.
+                let visible = element.frame.intersection(viewport)
+                guard !visible.isEmpty else { continue }
                 visibleElements += 1
                 XCTAssertFalse(
-                    frame.intersects(fabFrame),
+                    visible.intersects(fabFrame),
                     "\(kind) « \(element.label.prefix(48)) » recouvert par le ＋ (\(screen), \(phase))"
                 )
             }
@@ -212,10 +215,10 @@ final class DemoTourUITests: XCTestCase {
         for id in ids {
             let element = scroll.descendants(matching: .any).matching(identifier: id).firstMatch
             XCTAssertTrue(element.exists, "élément « \(id) » introuvable (\(screen), \(phase))")
-            let frame = element.frame
-            if !frame.isEmpty, frame.intersects(viewport) {
+            let visible = element.frame.intersection(viewport)
+            if !visible.isEmpty {
                 XCTAssertFalse(
-                    frame.intersects(fabFrame),
+                    visible.intersects(fabFrame),
                     "« \(id) » est recouvert par le ＋ (\(screen), \(phase))"
                 )
             }
@@ -242,7 +245,7 @@ final class DemoTourUITests: XCTestCase {
             "le dernier élément « \(prefix) » reste inatteignable après défilement (\(screen))"
         )
         XCTAssertFalse(
-            frame.intersects(app.buttons[Self.fabLabel].frame),
+            frame.intersection(scroll.frame).intersects(app.buttons[Self.fabLabel].frame),
             "le dernier élément « \(prefix) » est recouvert par le ＋ (\(screen))"
         )
     }
