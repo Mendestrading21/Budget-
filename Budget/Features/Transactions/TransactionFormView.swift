@@ -34,6 +34,10 @@ struct TransactionFormView: View {
     @State private var adjustmentIncreasesBalance = true
     @State private var errors: [TransactionValidationError] = []
     @State private var saveErrorMessage: String?
+    /// L8 : incrémenté à chaque enregistrement RÉUSSI — déclenche un
+    /// retour haptique de succès, géré par le système (réglages
+    /// utilisateur respectés). Jamais décoratif.
+    @State private var saveSuccessCount = 0
     /// Parcours fréquent (pilote L4) : le clavier décimal s'ouvre sur le
     /// montant dès la création.
     @FocusState private var amountFocused: Bool
@@ -184,6 +188,7 @@ struct TransactionFormView: View {
             .scrollContentBackground(.hidden)
             .background { BudgetScreenBackground() }
             .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
+            .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -354,6 +359,7 @@ struct TransactionFormView: View {
                 modelContext.insert(transaction)
             }
             try modelContext.save()
+            saveSuccessCount += 1
             dismiss()
         } catch {
             saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."

@@ -1,5 +1,30 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L8 (2026-07-24)
+
+L8 « Widgets, graphiques et micro-interactions » exécuté
+(`/budget-v1 execute L8`) après validation humaine définitive de L7.
+PWA : courbes Patrimoine 12 mois et « Solde — 12 derniers mois » du
+détail de compte SÉLECTIONNABLES — 12 boutons transparents pleine
+hauteur par courbe (aria-label « Voir {mois} {année} : {montant} »,
+aria-pressed, focus-visible), règle + point Indigo vif sur le mois
+choisi, étiquette textuelle aria-live dont la valeur vient TOUJOURS de
+la série existante (rien de recalculé), focus clavier restauré après
+re-rendu ; aucune animation ajoutée. iOS : `chartXSelection` sur
+l'Évolution du Patrimoine (RuleMark + PointMark, étiquette statique
+testée `swissDate + chf + « de fortune nette »`), haptique
+`.sensoryFeedback(.success)` UNIQUEMENT après un enregistrement de
+mouvement réussi. Performance : 10 000 mouvements semés → rendu < 4 s,
+DOM borné par le mois (< 1 500 lignes), navigation < 4 s. Suites :
+**69 e2e** + 5 parité + design verts ; natifs `ObsidianMotionTests`
+(étiquette fr-CH positive/négative, Patrimoine 320 pt transparence
+réduite ; total 254 attendu) ; 5 captures inspectées + README
+(`docs/obsidian-glass/widgets-motion/l8/` — cibles ≈ 30 × 96 px en
+continuum de balayage documentées, personnalisation des widgets natifs
+volontairement non ajoutée). Formules, migrations, clés localStorage,
+format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
+**L8 = VERIFYING**, L9 = BLOCKED.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L7 (2026-07-24)
 
 L7 « Onboarding et confiance » exécuté (`/budget-v1 execute L7`) après

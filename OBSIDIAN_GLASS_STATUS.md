@@ -23,10 +23,52 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L5 Mouvements/Comptes | DONE | **validation humaine reçue le 23.07.2026** ; commit `f4ea4d0` ; CI #177 verte (run 30043810568 : 56 e2e + 5 parité + design, 231 tests iOS 0 échec) ; Demo vert (run 30044319681, tour 13 étapes, artefact 47,2 Mo). Risques visuels NON bloquants conservés : capture `13-compte-detail` non retrouvée par le propriétaire ; intitulés longs encore tronqués dans les listes ; texte « Versé cette année / total » du compte Épargne à clarifier ; FAB pouvant masquer légèrement le bas selon la hauteur visible | — |
 | L6 Modules financiers | DONE | **validation humaine reçue le 24.07.2026** (12 captures initiales/finales inspectées : zone d'exclusion du ＋ opérante sur les 6 modules, Loyer/Évolution/échéances/cartes/contrats/texte Prévoyance dégagés — la bande vide au-dessus du ＋ est VOLONTAIRE, ne jamais revenir à `contentMargins` seul) ; commits `edbae61` + `a7c6ea4` + `3b6e6b9` + `e135371` + `2bbf921` ; CI #183 (run 30082992805), #184 (run 30084041557), #185 (run 30085561460) vertes : 60 e2e + 5 parité + design, **242 tests iOS 0 échec** ; Demo vert (run 30084639539, 12 captures assertées, artefact 83,4 Mo). Historique transparent conservé : deux refus visuels (＋ masquant, libellés tronqués puis état initial non protégé) et un faux positif de test (cadre non coupé, corrigé en `e135371` sans toucher aux vues) | — |
 | L7 Onboarding/Confiance | DONE | **validation humaine définitive reçue le 24.07.2026** (preuves PWA et iOS inspectées). 1er refus humain le 24.07.2026 (défauts non attrapés par les tests : ＋ PWA recouvrant du contenu — padding ≠ exclusion de viewport —, ＋ parfois enterré, toasts parasites, import sans mapping/compte visibles, documents sans modification, textes destructifs discordants, bannière démo iOS sur la navigation, métadonnées tronquées, titres sombres, zone noire Réglages, onboarding natif non capturé) → **correctif `fix(l7)`** : viewport PWA s'arrêtant AU-DESSUS du ＋ (`.fab-clear`, vérifié par rectangles réels), assistant d'import complet (mapping modifiable, compte OBLIGATOIRE choisi, aperçu, confirmation distincte), édition des documents, concordance exacte des noms d'actions, bannière démo dans sa propre bande, métadonnées multilignes (type/année/fournisseur/membre/date), contraste des titres (token explicite), fond derrière la zone du ＋, tour natif onboarding+confiance (19 captures ios-l7-*, résumé de restauration réel, import natif parcouru) ; suites locales : **67 e2e** + 5 parité + design verts, captures PWA régénérées SANS toast. **Preuves finales** : commits `f26b10a` (applicatif) + `e93143a`/`48e8bea`/`6868073`/`3d9d118`/`59b4bfd` (stabilisation du tour + parité « intitulé » révélée par le tour) ; CI #193 verte (run 30102710240 : 67 e2e + 5 parité + design, **251 tests iOS 0 échec**) ; **Demo VERT** (run 30103337603 : tour principal 18 étapes + tour onboarding/confiance — 19 captures ios-l7-*, import natif parcouru avec choix réel du compte, résumé de restauration réel, dialogue destructif annulé — artefact budget-demo 181,1 Mo, expire 22.10.2026). Runs Demo intermédiaires 30096455731/30097749294/30099755053/30101791573 échoués sur le TOUR (pop du hub, label VoiceOver, en-tête « intitulé » non reconnu = vrai défaut de parité corrigé, compte volontairement non présélectionné, label du Picker) — chaque cause documentée | — |
-| L8 Widgets/Mouvement | BLOCKED | — | commande explicite `/budget-v1 execute L8` (L7 validé le 24.07.2026) |
+| L8 Widgets/Mouvement | VERIFYING | livraison ci-dessous (24.07.2026) : sélection de graphiques PWA (Patrimoine + détail de compte, 12 zones accessibles/courbe, marqueur + étiquette aria-live issue des séries EXISTANTES), `chartXSelection` + règle + point + étiquette fr-CH sur l'Évolution native, haptique `.success` UNIQUEMENT à l'enregistrement réussi d'un mouvement, performance 10k prouvée (DOM borné par le mois) ; suites locales : **69 e2e** + 5 parité + design verts, zéro erreur console ; natifs : `ObsidianMotionTests` (étiquette fr-CH positive/négative, Patrimoine 320 pt transparence réduite) ; 5 captures inspectées + README dans `docs/obsidian-glass/widgets-motion/l8/` | CI + Demo verts puis validation humaine |
 | L9 Audit final | BLOCKED | — | L8 validé |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
+
+## Critères d'acceptation L8 (annoncés avant toute édition, 24.07.2026)
+
+**Périmètre strict** : sélection/étiquettes de graphiques, micro-
+interactions sobres, haptique native, performance des listes — PWA
+(`renderNetWorth`, `renderAccountDetail`) et iOS (`NetWorthView`,
+`TransactionFormView`). Aucune formule, migration, clé localStorage,
+format de sauvegarde ; aucun écran hors périmètre ; zone d'exclusion du
+＋ intacte ; AUCUNE animation infinie.
+
+1. **Sélection de graphiques (PWA)** : la courbe Patrimoine 12 mois et
+   la courbe « Solde — 12 derniers mois » du détail de compte deviennent
+   SÉLECTIONNABLES — un bouton accessible par mois (clavier + VoiceOver,
+   aria-label datant le mois), marqueur sur le point choisi et étiquette
+   TEXTUELLE « mois année : CHF … » (aria-live) — la valeur vient des
+   séries EXISTANTES, rien de recalculé.
+2. **Sélection de graphique (iOS)** : la courbe Évolution du Patrimoine
+   reçoit `chartXSelection` — règle verticale + étiquette date/CHF
+   (FinanceFormatting), résumé accessible inchangé.
+3. **Haptique sobre (iOS)** : `sensoryFeedback(.success)` déclenché
+   UNIQUEMENT à l'enregistrement réussi d'un mouvement — géré par le
+   système (respecte les réglages), jamais décoratif.
+4. **Performance** : 10 000 mouvements semés en mémoire → l'écran
+   Mouvements reste réactif (DOM borné par le mois affiché, rendu
+   < 4 s en CI, zéro erreur console) — prouvé par test.
+5. **Micro-interactions** : rien d'infini — entrées de cartes et
+   compteur héros EXISTANTS conservés avec leurs gardes
+   `prefers-reduced-motion` (vérifiées par test) ; états de succès
+   sobres existants (toasts, « payée ✓ ») documentés, aucun gadget
+   ajouté.
+6. **Tests** : e2e 63-64 (sélection Patrimoine/compte : étiquette =
+   valeur exacte de la série, clavier, 320 px, transparence réduite ;
+   performance 10k + DOM borné) — suite portée à 69 parcours, rien
+   d'affaibli ; natifs : sélection Patrimoine construite, formatage de
+   l'étiquette testé, écrans 320/a11y.
+7. **Captures** : `docs/obsidian-glass/widgets-motion/l8/` + README
+   (sélection Patrimoine 390/320, sélection compte, transparence
+   réduite) ; un commit
+   `feat(l8): add chart selection and sober motion with Obsidian Glass` ;
+   CI + Demo verts ; **L8 = VERIFYING**, L9 = BLOCKED. Personnalisation
+   des widgets natifs volontairement NON ajoutée (le délivrable la dit
+   « éventuelle » ; la PWA l'a déjà, décision documentée).
 
 ## Critères d'acceptation L7 (annoncés avant toute édition, 24.07.2026)
 
@@ -786,11 +828,52 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   (Egress de session : `*.blob.core.windows.net` refusé — captures
   natives à inspecter depuis le run, comme en L4.)
 
+## Livraison L8 (24.07.2026) — sélection de graphiques et mouvement sobre
+
+- **PWA** (`webapp/index.html`) : les courbes Patrimoine 12 mois et
+  « Solde — 12 derniers mois » du détail de compte sont SÉLECTIONNABLES —
+  12 boutons transparents pleine hauteur par courbe (`.chart-select
+  .zones`, un par mois, `aria-label` « Voir {mois} {année} : {montant} »,
+  `aria-pressed`, anneau focus-visible `--brand-bright`), règle verticale
+  + point Indigo vif sur le mois choisi, étiquette TEXTUELLE
+  `aria-live="polite"` (« avril 2026 : CHF … de fortune nette » /
+  « … : solde CHF … ») dont la valeur vient TOUJOURS de la série
+  existante (`points[i]` / `series[i]` — rien de recalculé) ; focus
+  clavier restauré après re-rendu (`focus({ preventScroll: true })`).
+  État initial : invite textuelle, aucune sélection imposée. Aucune
+  animation ajoutée, a fortiori aucune infinie.
+- **iOS** : `NetWorthView` — `chartXSelection` sur l'Évolution
+  (Chart restructuré `ForEach` + `RuleMark`/`PointMark` sur le point le
+  plus proche), étiquette `trendSelectionLabel` STATIQUE testée
+  (`FinanceFormatting.swissDate` + `chf` + « de fortune nette »), invite
+  sinon ; résumé accessible inchangé. `TransactionFormView` —
+  `sensoryFeedback(.success, trigger:)` incrémenté UNIQUEMENT après un
+  `modelContext.save()` réussi (création ET édition), jamais décoratif.
+- **Performance** : test 64 — 10 000 mouvements semés en mémoire,
+  `render()` de Mouvements < 4 s, DOM borné par le mois (< 1 500 lignes),
+  navigation de mois < 4 s, nettoyage complet et curseur restauré.
+- **Tests** : e2e 63 (invite, 12 zones, aria-pressed, étiquette = valeur
+  exacte de l'aria-label de la zone, marqueur SVG, focus conservé,
+  détail de compte, 320 px + transparence réduite sans débordement,
+  reduced motion = `animation: none`) + 64 (perf 10k) — suite portée à
+  **69 parcours verts** ; parité 5 fixtures ; design system vert ;
+  natifs `ObsidianMotionTests` : étiquette fr-CH exacte (positive ET
+  fortune nette négative jamais maquillée), Patrimoine restructuré
+  construit à 320 pt en transparence réduite.
+- **Captures** (inspectées une à une) : `docs/obsidian-glass/
+  widgets-motion/l8/` — avant/après sélection Patrimoine 390, détail de
+  compte 390, 320 px, transparence réduite + README (patron, cibles ≈
+  30 × 96 px en continuum de balayage documentées vs 44 pt, décision
+  de NE PAS ajouter la personnalisation des widgets natifs).
+- Formules, migrations, clés localStorage, format de sauvegarde,
+  structures SwiftData : INCHANGÉS. Zone d'exclusion du ＋ : INTACTE.
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 execute L8
+/budget-v1 verify L8
 ```
 
-L1 à L7 sont DONE (validation humaine de L7 reçue le 24.07.2026).
-L8 et L9 restent BLOCKED : ne lancer L8 que sur commande explicite.
+L1 à L7 sont DONE. L8 est VERIFYING : CI + Demo doivent être verts et la
+validation humaine des preuves reste requise avant L8 = DONE. L9 reste
+BLOCKED : ne le lancer que sur commande explicite.

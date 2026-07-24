@@ -24,6 +24,8 @@ struct NetWorthView: View {
     /// Profil d'hypothèses du « chemin » — un réglage d'affichage, pas
     /// une donnée financière : UserDefaults suffit.
     @AppStorage("projectionProfile") private var projectionProfileRaw = WealthProjectionService.Profile.balanced.rawValue
+    /// L8 : date sélectionnée sur la courbe Évolution (chartXSelection).
+    @State private var trendSelection: Date?
 
     private var projectionProfile: WealthProjectionService.Profile {
         WealthProjectionService.Profile(rawValue: projectionProfileRaw) ?? .balanced
@@ -205,37 +207,68 @@ struct NetWorthView: View {
 
     // MARK: - Trend
 
+    /// Point de la série le plus proche de la sélection — la valeur
+    /// affichée vient TOUJOURS des instantanés existants.
+    private func nearestTrendPoint(in points: [NetWorthSnapshot]) -> NetWorthSnapshot? {
+        guard let trendSelection else { return nil }
+        return points.min(by: {
+            abs($0.date.timeIntervalSince(trendSelection)) < abs($1.date.timeIntervalSince(trendSelection))
+        })
+    }
+
+    /// Étiquette textuelle de la sélection (testée) : date suisse + CHF.
+    static func trendSelectionLabel(date: Date, netWorth: Decimal) -> String {
+        "\(FinanceFormatting.swissDate(date)) : \(FinanceFormatting.chf(netWorth)) de fortune nette"
+    }
+
     @ViewBuilder
     private var trendCard: some View {
         let points = service.trend(snapshots: snapshots)
+        let selected = nearestTrendPoint(in: points)
         if points.count >= 2 {
             GlassCard {
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                     Text("Évolution")
                         .font(BudgetFont.cardLabel)
                         .foregroundStyle(.secondary)
-                    Chart(points) { point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(LinearGradient.budgetChartLine)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-
-                        AreaMark(
-                            x: .value("Date", point.date),
-                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [BudgetColor.indigo.opacity(0.22), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
+                    Chart {
+                        ForEach(points) { point in
+                            LineMark(
+                                x: .value("Date", point.date),
+                                y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
                             )
-                        )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(LinearGradient.budgetChartLine)
+                            .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                            AreaMark(
+                                x: .value("Date", point.date),
+                                y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
+                            )
+                            .interpolationMethod(.catmullRom)
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [BudgetColor.indigo.opacity(0.22), .clear],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        }
+                        // L8 : sélection — règle + point, valeurs issues
+                        // des instantanés EXISTANTS, aucune animation.
+                        if let selected {
+                            RuleMark(x: .value("Sélection", selected.date))
+                                .foregroundStyle(BudgetColor.textTertiary.opacity(0.6))
+                                .lineStyle(StrokeStyle(lineWidth: 1))
+                            PointMark(
+                                x: .value("Sélection", selected.date),
+                                y: .value("CHF", NSDecimalNumber(decimal: selected.netWorth).doubleValue)
+                            )
+                            .foregroundStyle(BudgetColor.brandBright)
+                            .symbolSize(70)
+                        }
                     }
+                    .chartXSelection(value: $trendSelection)
                     .chartYAxis {
                         AxisMarks(position: .leading) { _ in
                             AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
@@ -251,6 +284,16 @@ struct NetWorthView: View {
                     .accessibilityLabel("Évolution de la fortune nette")
                     .accessibilityValue(trendAccessibilitySummary(points: points))
                     .accessibilityIdentifier("networth.chart.evolution")
+                    if let selected {
+                        Text(Self.trendSelectionLabel(date: selected.date, netWorth: selected.netWorth))
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityAddTraits(.updatesFrequently)
+                    } else {
+                        Text("Glissez sur la courbe pour lire un mois précis.")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(BudgetColor.textTertiary)
+                    }
                 }
             }
         }

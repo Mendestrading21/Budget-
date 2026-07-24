@@ -1920,6 +1920,124 @@ for (const name62 of ["Effacer les opérations", "Réinitialiser complètement l
 check(!screenHTML.includes("« Tout supprimer »") && !screenHTML.includes("« Réinitialiser la démo »"),
   "plus aucun ancien nom d'action ne subsiste dans les textes");
 
+/* ============= WIDGETS & MOUVEMENT OBSIDIAN L8 (Tests 63-64) ============= */
+
+// ---------- Test 63 : sélection de graphiques — étiquette exacte, clavier, 320, transparence réduite ----------
+currentTest = "sélection graphique L8";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Touchez la courbe"), "l'invite de sélection est affichée avant tout choix");
+const zones63 = await page.evaluate(() => document.querySelectorAll("[data-nwsel]").length);
+check(zones63 === 12, `12 zones accessibles sur la courbe Patrimoine (obtenu ${zones63})`);
+const expected63 = await page.$eval('[data-nwsel="5"]', el => el.getAttribute("aria-label"));
+await page.click('[data-nwsel="5"]');
+await page.waitForTimeout(200);
+const sel63 = await page.evaluate(() => ({
+  pressed: document.querySelector('[data-nwsel="5"]').getAttribute("aria-pressed"),
+  caption: [...document.querySelectorAll("#screen .caption")].map(c => c.textContent).find(t => t.includes("fortune nette") && t.includes(":")) || "",
+  marker: document.querySelector("#screen svg circle[stroke]") !== null,
+  focused: document.activeElement === document.querySelector('[data-nwsel="5"]'),
+}));
+const amount63 = expected63.split(" : ")[1];
+check(sel63.pressed === "true", "la zone choisie porte aria-pressed");
+check(sel63.caption.includes(amount63), `l'étiquette montre la valeur EXACTE de la série (${amount63})`);
+check(sel63.marker, "un marqueur apparaît sur le point choisi");
+check(sel63.focused, "le focus clavier est conservé après la sélection");
+// Détail de compte : même sélection sur la courbe du solde.
+await page.click(`#tabbar button[aria-label="Comptes"]`);
+await page.waitForTimeout(200);
+await page.click("#screen [data-accid]");
+await page.waitForTimeout(250);
+const expectedAcc63 = await page.$eval('[data-accsel="8"]', el => el.getAttribute("aria-label"));
+await page.click('[data-accsel="8"]');
+await page.waitForTimeout(200);
+const selAcc63 = await page.evaluate(() =>
+  [...document.querySelectorAll("#screen .caption")].map(c => c.textContent).find(t => t.includes(": solde")) || "");
+check(selAcc63.includes(expectedAcc63.split(" : ")[1]),
+  "l'étiquette du solde mensuel vient de la série existante");
+// 320 px + transparence réduite : la sélection reste lisible, zéro débordement.
+await page.setViewportSize({ width: 320, height: 844 });
+await page.evaluate(() => { document.documentElement.setAttribute("data-reduced-transparency", "true"); });
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(250);
+await page.click('[data-nwsel="3"]');
+await page.waitForTimeout(200);
+const narrow63 = await page.evaluate(() => ({
+  overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  caption: [...document.querySelectorAll("#screen .caption")].some(c => c.textContent.includes("fortune nette") && c.textContent.includes(":")),
+}));
+check(!narrow63.overflow && narrow63.caption, "sélection lisible à 320 px en transparence réduite");
+await page.evaluate(() => { document.documentElement.removeAttribute("data-reduced-transparency"); });
+await page.setViewportSize({ width: 390, height: 844 });
+// Reduced motion : l'entrée des cartes est désactivée (garde existante).
+await page.emulateMedia({ reducedMotion: "reduce" });
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(150);
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(200);
+const motion63 = await page.evaluate(() => {
+  const card = document.querySelector("#screen .card");
+  return card ? getComputedStyle(card).animationName : "aucune-carte";
+});
+check(motion63 === "none", `reduced motion : aucune animation d'entrée (obtenu ${motion63})`);
+await page.emulateMedia({ reducedMotion: null });
+
+// ---------- Test 64 : performance — 10 000 mouvements, DOM borné par le mois ----------
+currentTest = "performance 10k L8";
+const seeded64 = await page.evaluate(() => {
+  const before = transactions.length;
+  for (let i = 0; i < 10000; i++) {
+    transactions.push({
+      id: ++txSeq, y: 2025, m: (i % 12) + 1, d: (i % 28) + 1,
+      title: "Perf L8 " + i, type: i % 2 ? "expense" : "income",
+      cat: null, acc: ACCOUNTS[0].id, dest: null, status: "posted",
+      amount: 10 + (i % 90),
+    });
+  }
+  return { before, after: transactions.length };
+});
+check(seeded64.after === seeded64.before + 10000, "10 000 mouvements semés en mémoire");
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(200);
+const perf64 = await page.evaluate(() => {
+  cursor = { y: 2025, m: 6 };
+  const t0 = performance.now();
+  render();
+  const elapsed = performance.now() - t0;
+  return {
+    elapsed,
+    domRows: document.querySelectorAll("#moreTxList .tx").length,
+    total: transactions.length,
+  };
+});
+check(perf64.elapsed < 4000, `rendu du mois < 4 s avec 10 000 mouvements (obtenu ${Math.round(perf64.elapsed)} ms)`);
+check(perf64.domRows > 0 && perf64.domRows < 1500,
+  `le DOM est borné par le MOIS affiché (${perf64.domRows} lignes rendues pour ${perf64.total} mouvements)`);
+// Navigation de mois fluide puis nettoyage complet.
+const nav64 = await page.evaluate(() => {
+  const t0 = performance.now();
+  cursor = { y: 2025, m: 5 };
+  render();
+  return performance.now() - t0;
+});
+check(nav64 < 4000, `changement de mois < 4 s (obtenu ${Math.round(nav64)} ms)`);
+await page.evaluate(() => {
+  for (let i = transactions.length - 1; i >= 0; i--) {
+    if (typeof transactions[i].title === "string" && transactions[i].title.startsWith("Perf L8 ")) {
+      transactions.splice(i, 1);
+    }
+  }
+  cursor = { y: NOW.y, m: NOW.m };
+  render();
+});
+const cleaned64 = await page.evaluate(() => transactions.some(t => typeof t.title === "string" && t.title.startsWith("Perf L8 ")));
+check(!cleaned64, "les mouvements de performance sont retirés (aucune trace)");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -1929,4 +2047,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 67 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 69 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 2 widgets/mouvement L8), zéro erreur console ✓");

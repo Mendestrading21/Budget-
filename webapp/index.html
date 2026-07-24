@@ -185,6 +185,19 @@
   .screen.fab-clear {
     margin-bottom: 88px;
   }
+  /* L8 : sélection de graphique — zones de balayage pleine hauteur par
+     mois (clavier + lecteur d'écran), marqueur et étiquette TEXTUELLE.
+     Aucune animation : l'état sélectionné est instantané. */
+  .chart-select { position: relative; }
+  .chart-select .zones { position: absolute; inset: 0; display: flex; }
+  .chart-select .zones button {
+    flex: 1; opacity: 0; border: 0; background: transparent;
+    cursor: pointer; padding: 0; border-radius: 8px;
+  }
+  .chart-select .zones button:focus-visible {
+    opacity: 1; outline: 2px solid var(--brand-bright); outline-offset: -2px;
+    background: rgba(115, 103, 255, 0.10);
+  }
   .screen::-webkit-scrollbar { display: none; }
 
   .demo-banner {
@@ -2436,7 +2449,8 @@ function renderAccountDetail(a) {
   const series = MONTHS12.map(mm => balanceAt(a.id, mm.y, mm.m));
   const mn = Math.min(...series) * 0.995, mx = Math.max(...series) * 1.005;
   const rg = Math.max(mx - mn, 1);
-  const px = series.map((v, i) => `${(i / 11 * 300).toFixed(1)},${(90 - (v - mn) / rg * 80).toFixed(1)}`).join(" ");
+  const pxArr = series.map((v, i) => `${(i / 11 * 300).toFixed(1)},${(90 - (v - mn) / rg * 80).toFixed(1)}`);
+  const px = pxArr.join(" ");
   return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
       <button class="btn secondary" data-accback style="width:auto;padding:8px 14px;font-size:13px">‹ Comptes</button>
       <h2 class="screen-title" style="margin:0;font-size:24px">${esc(a.name)}</h2>
@@ -2451,9 +2465,22 @@ function renderAccountDetail(a) {
     </div>
     <div class="card">
       <p class="card-label">Solde — 12 derniers mois</p>
+      <div class="chart-select">
       <svg viewBox="0 0 300 100" style="width:100%;height:96px" role="img" aria-label="Courbe du solde sur douze mois">
         <polyline points="${px}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>
+        ${accChartSel !== null && pxArr[accChartSel] ? (() => {
+          const [sx, sy] = pxArr[accChartSel].split(",");
+          return `<line x1="${sx}" y1="4" x2="${sx}" y2="96" stroke="var(--coolgray)" stroke-width="1" opacity="0.6"/>
+          <circle cx="${sx}" cy="${sy}" r="4.5" fill="var(--brand-bright)" stroke="var(--bg)" stroke-width="1.5"/>`;
+        })() : ""}
       </svg>
+      <div class="zones" role="group" aria-label="Choisir un mois sur la courbe du solde">
+        ${MONTHS12.map((mm, i) => `<button type="button" data-accsel="${i}" aria-pressed="${accChartSel === i}"
+          aria-label="Voir ${MONTH_NAMES[mm.m - 1]} ${mm.y} : ${money(series[i], a.currency || baseCurrency())}"></button>`).join("")}
+      </div>
+      </div>
+      ${accChartSel !== null ? `<p class="caption" aria-live="polite" style="margin-top:8px"><strong>${MONTH_NAMES[MONTHS12[accChartSel].m - 1]} ${MONTHS12[accChartSel].y}</strong> : solde <strong>${money(series[accChartSel], a.currency || baseCurrency())}</strong></p>`
+        : `<p class="caption" style="margin-top:8px">Touchez la courbe pour lire le solde d'un mois précis.</p>`}
     </div>
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
     <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
@@ -2815,6 +2842,7 @@ function renderNetWorth() {
     </div>
     <div class="card">
       <p class="card-label">Évolution sur 12 mois — soldes réels de fin de mois, par classe</p>
+      <div class="chart-select">
       <svg viewBox="0 0 300 100" style="width:100%;height:110px" role="img"
            aria-label="Courbe de la fortune nette, de ${chf(points[0])} à ${chf(net)}">
         <defs><linearGradient id="nw" x1="0" y1="0" x2="0" y2="1">
@@ -2823,7 +2851,19 @@ function renderNetWorth() {
         <polygon points="0,100 ${px.join(" ")} 300,100" fill="url(#nw)"/>
         ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>`).join("")}
         <polyline points="${px.join(" ")}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>
+        ${nwChartSel !== null && px[nwChartSel] ? (() => {
+          const [sx, sy] = px[nwChartSel].split(",");
+          return `<line x1="${sx}" y1="4" x2="${sx}" y2="96" stroke="var(--coolgray)" stroke-width="1" opacity="0.6"/>
+          <circle cx="${sx}" cy="${sy}" r="4.5" fill="var(--brand-bright)" stroke="var(--bg)" stroke-width="1.5"/>`;
+        })() : ""}
       </svg>
+      <div class="zones" role="group" aria-label="Choisir un mois sur la courbe">
+        ${MONTHS12.map((mm, i) => `<button type="button" data-nwsel="${i}" aria-pressed="${nwChartSel === i}"
+          aria-label="Voir ${MONTH_NAMES[mm.m - 1]} ${mm.y} : ${chf(points[i])}"></button>`).join("")}
+      </div>
+      </div>
+      ${nwChartSel !== null ? `<p class="caption" aria-live="polite" style="margin-top:8px"><strong>${MONTH_NAMES[MONTHS12[nwChartSel].m - 1]} ${MONTHS12[nwChartSel].y}</strong> : <strong>${chf(points[nwChartSel])}</strong> de fortune nette</p>`
+        : `<p class="caption" style="margin-top:8px">Touchez la courbe (ou parcourez-la au clavier) pour lire un mois précis.</p>`}
       <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">
         <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Fortune nette ${chf(net)}</span>
         ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:${l.color};display:inline-block"></span>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
@@ -4025,6 +4065,20 @@ document.getElementById("screen").addEventListener("click", (e) => {
     startImportDraft(paste.value, "collage");
     return;
   }
+  const nwSel = e.target.closest("[data-nwsel]");
+  if (nwSel) {
+    nwChartSel = parseInt(nwSel.dataset.nwsel, 10);
+    render();
+    document.querySelector(`[data-nwsel="${nwChartSel}"]`)?.focus({ preventScroll: true });
+    return;
+  }
+  const accSel = e.target.closest("[data-accsel]");
+  if (accSel) {
+    accChartSel = parseInt(accSel.dataset.accsel, 10);
+    render();
+    document.querySelector(`[data-accsel="${accChartSel}"]`)?.focus({ preventScroll: true });
+    return;
+  }
   if (e.target.closest("[data-impcancel]")) {
     importDraft = null;
     toast("Import annulé — rien n'a été écrit");
@@ -5079,6 +5133,9 @@ document.getElementById("iDelete").addEventListener("click", () => {
    décomptes, confirmation DISTINCTE. Rien n'est écrit avant, annuler à
    n'importe quelle étape ne modifie rien. */
 let importDraft = null;
+/* L8 : mois sélectionné sur les courbes (Patrimoine, détail de compte). */
+let nwChartSel = null;
+let accChartSel = null;
 function startImportDraft(content, fileName) {
   const analysis = analyzeCSV(content);
   if (!analysis.rows.length) { toast("Rien à importer dans ce contenu"); return; }
