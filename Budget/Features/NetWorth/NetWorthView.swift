@@ -24,9 +24,6 @@ struct NetWorthView: View {
     /// Profil d'hypothèses du « chemin » — un réglage d'affichage, pas
     /// une donnée financière : UserDefaults suffit.
     @AppStorage("projectionProfile") private var projectionProfileRaw = WealthProjectionService.Profile.balanced.rawValue
-    /// L8 : date sous le doigt pendant le geste (chartXSelection) — le
-    /// système la remet à nil quand le doigt se lève.
-    @State private var trendSelection: Date?
     /// L8 correctif : dernière lecture CONSERVÉE après le geste — le mois
     /// choisi reste affiché quand le doigt se lève (même contrat que la
     /// PWA), et l'état est injectable pour les preuves de rendu.
@@ -288,11 +285,29 @@ struct NetWorthView: View {
                             .symbolSize(70)
                         }
                     }
-                    .chartXSelection(value: $trendSelection)
-                    // L8 correctif : le geste terminé (le système remet la
-                    // sélection à nil), la DERNIÈRE lecture reste affichée.
-                    .onChange(of: trendSelection) { _, newValue in
-                        if let newValue { heldTrendSelection = newValue }
+                    // L8 correctif : geste de lecture EXPLICITE — un
+                    // toucher ou un glissement sur la courbe choisit la
+                    // date via l'échelle du graphique (proxy.value(atX:)),
+                    // et la dernière lecture reste affichée au lever du
+                    // doigt. Déterministe pour un doigt réel comme pour le
+                    // tour automatisé (chartXSelection ne recevait pas les
+                    // gestes synthétisés — constaté aux runs Demo).
+                    .chartOverlay { proxy in
+                        GeometryReader { geo in
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            guard let plotFrame = proxy.plotFrame else { return }
+                                            let x = value.location.x - geo[plotFrame].origin.x
+                                            if let date: Date = proxy.value(atX: x) {
+                                                heldTrendSelection = date
+                                            }
+                                        }
+                                )
+                        }
                     }
                     .chartYAxis {
                         AxisMarks(position: .leading) { _ in
