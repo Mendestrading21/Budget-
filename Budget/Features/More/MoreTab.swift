@@ -30,8 +30,8 @@ struct MoreTab: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(BudgetScreenBackground())
             .obsidianFABClearance()
+            .background(BudgetScreenBackground())
             .navigationTitle("Plus")
         }
     }
@@ -42,7 +42,9 @@ struct MoreTab: View {
         } header: {
             Text(title)
                 .font(BudgetFont.sectionTitle)
-                .foregroundStyle(.secondary)
+                // Les en-têtes de List assombrissent .secondary — couleur
+                // de token EXPLICITE pour rester lisible (contraste ≥ 4.5).
+                .foregroundStyle(BudgetColor.textSecondary)
                 .textCase(nil)
         }
         .listRowBackground(BudgetColor.glassFallback.opacity(0.6))

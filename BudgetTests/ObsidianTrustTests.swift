@@ -145,6 +145,30 @@ final class ObsidianTrustTests: XCTestCase {
         XCTAssertTrue(methodology.contains("pas des conseils financiers"), "aucun conseil financier promis")
     }
 
+    // MARK: - Correctif L7 : métadonnées de documents jamais tronquées
+
+    @MainActor
+    func testDocumentMetadataWrapsInsteadOfTruncating() {
+        func height<V: View>(_ view: V, width: CGFloat) -> CGFloat {
+            UIHostingController(rootView: view)
+                .sizeThatFits(in: CGSize(width: width, height: 10_000)).height
+        }
+        let width: CGFloat = 320 - 2 * BudgetSpacing.screenMargin
+        let short = FinancialDocument(title: "RC", kind: .insurancePolicy, addedAt: now, updatedAt: now)
+        let long = FinancialDocument(
+            title: "Certificat de prévoyance professionnelle complet",
+            kind: .pensionCertificate,
+            year: 2026,
+            provider: "Fondation collective de la Banque Cantonale Vaudoise",
+            fileSizeBytes: 240_000,
+            addedAt: now, updatedAt: now
+        )
+        let hShort = height(DocumentRow(document: short, fileURL: nil), width: width)
+        let hLong = height(DocumentRow(document: long, fileURL: nil), width: width)
+        XCTAssertGreaterThanOrEqual(hLong, hShort + 10,
+            "type, année, fournisseur et date passent à la ligne — jamais remplacés par une ellipse")
+    }
+
     // MARK: - Construction des écrans dans les états exigés
 
     @MainActor

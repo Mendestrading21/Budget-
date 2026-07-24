@@ -1738,6 +1738,188 @@ const targets59 = await page.evaluate(() =>
 check(targets59.length === 0, `cibles < 44 px dans Plus : ${targets59.map(x => x.t).join(", ")}`);
 await page.setViewportSize({ width: 390, height: 844 });
 
+/* ============= CORRECTIF L7 (Tests 60-62) ============= */
+
+// ---------- Test 60 : zone d'EXCLUSION du ＋ PWA — viewport, éléments visibles, symbole ----------
+currentTest = "exclusion FAB L7";
+async function assertFabExclusion(tag) {
+  const check60 = await page.evaluate(() => {
+    const fabEl = document.getElementById("fab");
+    const fab = fabEl.getBoundingClientRect();
+    const screenR = document.getElementById("screen").getBoundingClientRect();
+    // Balayage des RECTANGLES VISIBLES (rognés au viewport), pas des
+    // centres de boutons : cartes, textes, boutons, montants, titres.
+    const bad = [];
+    const nodes = document.querySelectorAll("#screen .card, #screen .card *, #screen .section-title, #screen .btn, #screen .screen-title");
+    for (const el of nodes) {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const top = Math.max(r.top, screenR.top);
+      const bottom = Math.min(r.bottom, screenR.bottom);
+      if (bottom <= top) continue; // entièrement coupé hors viewport
+      const left = Math.max(r.left, screenR.left);
+      const right = Math.min(r.right, screenR.right);
+      const intersects = !(right <= fab.left || left >= fab.right || bottom <= fab.top || top >= fab.bottom);
+      if (intersects) bad.push((el.className || el.tagName).toString().slice(0, 30));
+    }
+    return {
+      bad: bad.slice(0, 5),
+      viewportClear: screenR.bottom <= fab.top + 0.5,
+      plusVisible: getComputedStyle(fabEl).display !== "none" && fabEl.textContent.trim() === "+"
+        && fab.width >= 44 && fab.height >= 44,
+      zIndex: getComputedStyle(fabEl).zIndex,
+      noHScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+  check(check60.viewportClear, `${tag} : le viewport s'arrête AU-DESSUS du ＋ (exclusion permanente)`);
+  check(check60.bad.length === 0, `${tag} : éléments visibles sous le ＋ : ${check60.bad.join(", ")}`);
+  check(check60.plusVisible, `${tag} : le symbole ＋ est présent, visible et ≥ 44 px`);
+  check(check60.zIndex === "5", `${tag} : le ＋ n'est jamais enterré (z-index)`);
+  check(check60.noHScroll, `${tag} : aucun débordement horizontal`);
+}
+for (const [w, tag60] of [[390, "390"], [320, "320"]]) {
+  await page.setViewportSize({ width: w, height: 844 });
+  for (const view60 of ["plus-hub", "settings", "importcsv"]) {
+    await page.click(`#tabbar button[aria-label="Plus"]`);
+    await page.waitForTimeout(150);
+    if (view60 !== "plus-hub") {
+      await page.click(`#screen [data-more="${view60}"]`);
+      await page.waitForTimeout(200);
+    }
+    await assertFabExclusion(`${tag60}/${view60} à l'ouverture`);
+    await page.evaluate(() => { document.getElementById("screen").scrollTop = 999999; });
+    await page.waitForTimeout(150);
+    await assertFabExclusion(`${tag60}/${view60} après défilement`);
+  }
+}
+await page.setViewportSize({ width: 390, height: 844 });
+
+// ---------- Test 61 : import CSV L7 — mapping, compte CHOISI, aperçu, confirmation, idempotence, rollback ----------
+currentTest = "import L7";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="importcsv"]');
+await page.waitForTimeout(200);
+const csv61 = "date;montant;intitulé\n05.06.2026;-45.50;Courses import L7\n06.06.2026;-12.00;Café import L7\npas-une-date;abc;Ligne invalide L7";
+const before61 = await page.evaluate(() => transactions.length);
+await page.fill("#importPaste", csv61);
+await page.click("[data-importpaste]");
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("Aperçu avant écriture") && screenHTML.includes("RIEN n'est encore importé"),
+  "l'aperçu s'affiche AVANT toute écriture");
+check(screenHTML.includes("impMapDate") && screenHTML.includes("impAccount"),
+  "la correspondance des colonnes ET le compte de destination sont modifiables");
+check(screenHTML.includes("2 prêtes") && screenHTML.includes("1 invalide"),
+  "les décomptes prêtes/doublons/invalides sont affichés");
+const noWrite61 = await page.evaluate(() => transactions.length);
+check(noWrite61 === before61, "AUCUNE écriture avant la confirmation finale");
+// Annuler ne modifie rien.
+await page.click("[data-impcancel]");
+await page.waitForTimeout(200);
+check(await page.evaluate(() => transactions.length) === before61 && await page.evaluate(() => importDraft === null),
+  "annuler l'aperçu ne modifie rien");
+// Recommencer, choisir un AUTRE compte, confirmer.
+await page.fill("#importPaste", csv61);
+await page.click("[data-importpaste]");
+await page.waitForTimeout(250);
+const otherAccount61 = await page.evaluate(() => {
+  const other = ACCOUNTS.find(a => a.id !== defaultCashAccount());
+  document.getElementById("impAccount").value = other.id;
+  document.getElementById("impAccount").dispatchEvent(new Event("change", { bubbles: true }));
+  return other.id;
+});
+await page.waitForTimeout(250);
+await page.click("[data-impconfirm]");
+await page.waitForTimeout(300);
+const after61 = await page.evaluate(id => ({
+  count: transactions.length,
+  imported: transactions.filter(t => t.title.includes("import L7")),
+  allInChosen: transactions.filter(t => t.title.includes("import L7")).every(t => t.acc === id),
+  report: S.lastImport,
+}), otherAccount61);
+check(after61.count === before61 + 2, "2 lignes prêtes écrites après confirmation");
+check(after61.allInChosen, "l'import va dans le compte CHOISI, jamais d'office dans le compte par défaut");
+check(after61.report && after61.report.invalids.length === 1, "la ligne invalide est dans la file de réparation");
+// Idempotence : réimporter le MÊME contenu → 0 prête.
+await page.fill("#importPaste", csv61);
+await page.click("[data-importpaste]");
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("0 prête") && screenHTML.includes("2 doublons"),
+  "réimporter le même fichier ne propose AUCUN doublon");
+await page.click("[data-impcancel]");
+await page.waitForTimeout(200);
+// Persistance réelle puis rollback limité au lot.
+const persisted61 = await page.evaluate(() => JSON.parse(localStorage.getItem(APP_STATE_KEY)).transactions.some(t => t.title.includes("import L7")));
+check(persisted61, "l'import confirmé est PERSISTÉ");
+await page.click("[data-rollbackimport]");
+await page.waitForTimeout(300);
+const rolled61 = await page.evaluate(() => ({
+  gone: !transactions.some(t => t.title.includes("import L7")),
+  count: transactions.length,
+}));
+check(rolled61.gone && rolled61.count === before61, "le rollback retire UNIQUEMENT le lot importé");
+
+// ---------- Test 62 : documents L7 — modification réelle + concordance des actions destructives ----------
+currentTest = "documents L7";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="importcsv"]');
+await page.waitForTimeout(200);
+await page.click("[data-adddoc]");
+await page.waitForTimeout(200);
+await page.fill("#dName", "Certificat test L7");
+await page.click('#docForm button[type="submit"]');
+await page.waitForTimeout(250);
+const added62 = await page.evaluate(() => S.documents.find(d => d.name === "Certificat test L7"));
+check(!!added62, "l'ajout de métadonnées fonctionne");
+// MODIFICATION réelle : nom et type.
+await page.click(`[data-editdoc="${added62.id}"]`);
+await page.waitForTimeout(200);
+const sheetTitle62 = await page.$eval("#docSheetTitle", el => el.textContent);
+check(sheetTitle62 === "Modifier le document", "la feuille passe en mode modification");
+await page.fill("#dName", "Certificat MODIFIÉ L7");
+await page.selectOption("#dKind", "Impôts");
+await page.click('#docForm button[type="submit"]');
+await page.waitForTimeout(250);
+const edited62 = await page.evaluate(id => {
+  const doc = S.documents.find(d => d.id === id);
+  const saved = JSON.parse(localStorage.getItem(APP_STATE_KEY)).documents.find(d => d.id === id);
+  return { name: doc.name, kind: doc.kind, savedName: saved?.name };
+}, added62.id);
+check(edited62.name === "Certificat MODIFIÉ L7" && edited62.kind === "Impôts",
+  "nom ET type sont réellement modifiés");
+check(edited62.savedName === "Certificat MODIFIÉ L7", "la modification est persistée");
+// Annulation d'édition : rien ne change.
+await page.click(`[data-editdoc="${added62.id}"]`);
+await page.waitForTimeout(200);
+await page.fill("#dName", "Ne doit pas rester");
+await page.click("#dCancel");
+await page.waitForTimeout(200);
+check(await page.evaluate(id => S.documents.find(d => d.id === id).name, added62.id) === "Certificat MODIFIÉ L7",
+  "annuler l'édition ne modifie rien");
+// Suppression (confirm auto-accepté) : métadonnées retirées.
+await page.click(`[data-deldoc="${added62.id}"]`);
+await page.waitForTimeout(250);
+check(await page.evaluate(id => !S.documents.some(d => d.id === id), added62.id),
+  "la suppression retire les métadonnées du document nommé");
+// Concordance EXACTE : les textes utilisent les noms des boutons visibles.
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(120);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+for (const name62 of ["Effacer les opérations", "Réinitialiser complètement l'application", "Charger la démonstration"]) {
+  const buttonCount = await page.evaluate(label =>
+    [...document.querySelectorAll("#screen .btn")].filter(b => b.textContent.includes(label)).length, name62);
+  check(buttonCount === 1, `le bouton « ${name62} » existe`);
+  check(screenHTML.includes(`« ${name62} »`),
+    `l'explication de confidentialité utilise EXACTEMENT « ${name62} »`);
+}
+check(!screenHTML.includes("« Tout supprimer »") && !screenHTML.includes("« Réinitialiser la démo »"),
+  "plus aucun ancien nom d'action ne subsiste dans les textes");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -1747,4 +1929,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 64 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 67 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7), zéro erreur console ✓");

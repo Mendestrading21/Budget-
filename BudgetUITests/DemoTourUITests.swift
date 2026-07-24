@@ -92,6 +92,173 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "13-compte-detail")
     }
 
+    /// L7 (2e passe) : preuves natives manquantes — le VRAI premier
+    /// lancement (onboarding, store vide en mémoire) puis les surfaces de
+    /// confiance en démo : documents, import complet, résumé de
+    /// restauration, confidentialité, méthodologie, dialogue destructif
+    /// ouvert puis ANNULÉ. Chaque capture est précédée d'assertions.
+    @MainActor
+    func testOnboardingAndTrustSurfacesTour() throws {
+        let app = XCUIApplication()
+
+        // ===== Phase 1 : premier lancement RÉEL (aucune donnée) =====
+        app.launchArguments = ["-onboardingTour"]
+        app.launch()
+        let contains = { (needle: String) in NSPredicate(format: "label CONTAINS %@", needle) }
+
+        XCTAssertTrue(app.staticTexts["Budget"].waitForExistence(timeout: 30), "écran de bienvenue absent")
+        XCTAssertTrue(app.staticTexts.matching(contains("restent sur cet appareil")).firstMatch.exists,
+                      "la promesse de confidentialité RÉELLE doit ouvrir le parcours")
+        snap(app, "ios-l7-onboarding-bienvenue")
+        app.buttons["Continuer"].tap()
+
+        let householdField = app.textFields["Famille Martin"]
+        XCTAssertTrue(householdField.waitForExistence(timeout: 10), "étape ménage absente")
+        householdField.tap()
+        householdField.typeText("Famille Démo")
+        snap(app, "ios-l7-onboarding-menage")
+        app.buttons["Continuer"].tap()
+
+        XCTAssertTrue(app.staticTexts.matching(contains("canton")).firstMatch.waitForExistence(timeout: 10)
+                      || app.staticTexts["Où habitez-vous ?"].waitForExistence(timeout: 5),
+                      "étape localisation absente")
+        app.buttons["Continuer"].tap()
+
+        XCTAssertTrue(app.staticTexts.matching(contains("point de départ d'organisation")).firstMatch
+            .waitForExistence(timeout: 10),
+            "le taux doit être présenté comme un point de départ d'organisation, jamais officiel")
+        snap(app, "ios-l7-onboarding-fiscal")
+        app.buttons["Continuer"].tap()
+
+        let balanceField = app.textFields["2'500.00"]
+        XCTAssertTrue(balanceField.waitForExistence(timeout: 10), "étape premier compte absente")
+        balanceField.tap()
+        balanceField.typeText("2500")
+        snap(app, "ios-l7-onboarding-compte")
+        app.buttons["Continuer"].tap()
+
+        // Étape facultative : montant INVALIDE → erreur visible, rien créé.
+        let salaryField = app.textFields["5'500.00"]
+        XCTAssertTrue(salaryField.waitForExistence(timeout: 10), "étape revenus/logement absente")
+        salaryField.tap()
+        salaryField.typeText("abc")
+        app.buttons["Créer mon ménage"].tap()
+        XCTAssertTrue(app.staticTexts.matching(contains("montant valide")).firstMatch.waitForExistence(timeout: 5),
+                      "un salaire invalide doit afficher une erreur près du champ")
+        snap(app, "ios-l7-onboarding-erreur")
+        salaryField.tap()
+        salaryField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3))
+        salaryField.typeText("5500")
+        snap(app, "ios-l7-onboarding-revenus-logement")
+        app.buttons["Créer mon ménage"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Accueil"].waitForExistence(timeout: 30),
+                      "la finalisation doit ouvrir l'app")
+        app.terminate()
+
+        // ===== Phase 2 : surfaces de confiance (démo + crochets UI) =====
+        app.launchArguments = ["-demoTour", "-uiTestImportCSV", "-uiTestRestorePrompt"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Accueil"].waitForExistence(timeout: 60), "démo absente")
+
+        openTab(app, "Plus")
+        XCTAssertTrue(app.staticTexts["À organiser"].waitForExistence(timeout: 10), "groupes du hub absents")
+        snap(app, "ios-l7-plus")
+
+        // Documents : registre rempli + fichier ABSENT écrit.
+        visitMoreEntry(app, label: "Documents", shot: "ios-l7-documents-rempli")
+        XCTAssertTrue(app.staticTexts["Fichier absent"].waitForExistence(timeout: 10),
+                      "un document sans fichier doit le DIRE")
+        // La bannière démo occupe SA bande : jamais sur la navigation.
+        let demoBanner = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'Mode démonstration'")).firstMatch
+        let navBar = app.navigationBars.firstMatch
+        if demoBanner.exists, navBar.exists {
+            XCTAssertFalse(
+                demoBanner.frame.intersects(navBar.frame),
+                "la bannière démo ne doit jamais chevaucher la barre de navigation"
+            )
+        }
+        snap(app, "ios-l7-document-fichier-absent")
+
+        // Import CSV : mapping → compte → aperçu → confirmation → rapport.
+        openTab(app, "Plus")
+        var importEntry = app.buttons["Import CSV"].firstMatch
+        if !importEntry.waitForExistence(timeout: 5) { importEntry = app.staticTexts["Import CSV"].firstMatch }
+        if !importEntry.isHittable { app.swipeUp() }
+        XCTAssertTrue(importEntry.waitForExistence(timeout: 10), "entrée Import CSV introuvable")
+        importEntry.tap()
+        XCTAssertTrue(app.staticTexts.matching(contains("colonnes détectées")).firstMatch.waitForExistence(timeout: 15),
+                      "l'étape de correspondance doit détecter les colonnes")
+        snap(app, "ios-l7-import-mapping")
+        app.buttons["Continuer"].tap()
+        XCTAssertTrue(app.buttons["Vérifier les lignes"].waitForExistence(timeout: 10),
+                      "l'étape du compte de destination doit suivre")
+        app.buttons["Vérifier les lignes"].tap()
+        XCTAssertTrue(app.staticTexts["Prêt à importer"].waitForExistence(timeout: 10),
+                      "l'aperçu doit précéder toute écriture")
+        snap(app, "ios-l7-import-avant-confirmation")
+        let importButton = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Importer '")).firstMatch
+        XCTAssertTrue(importButton.exists, "le bouton de confirmation distinct doit exister")
+        importButton.tap()
+        XCTAssertTrue(app.staticTexts["Import terminé"].waitForExistence(timeout: 15),
+                      "le rapport doit suivre l'écriture réelle")
+        snap(app, "ios-l7-import-rapport")
+
+        // Réglages : le résumé RÉEL de restauration s'affiche d'abord.
+        openTab(app, "Plus")
+        var settingsEntry = app.buttons["Réglages"].firstMatch
+        if !settingsEntry.waitForExistence(timeout: 5) { settingsEntry = app.staticTexts["Réglages"].firstMatch }
+        if !settingsEntry.isHittable { app.swipeUp() }
+        settingsEntry.tap()
+        XCTAssertTrue(app.staticTexts.matching(contains("Sauvegarde du")).firstMatch.waitForExistence(timeout: 15),
+                      "le résumé réel (date, contenu, portée) doit précéder la restauration")
+        XCTAssertTrue(app.staticTexts.matching(contains("Non contenu")).firstMatch.exists,
+                      "le résumé doit dire ce que la sauvegarde ne contient PAS")
+        snap(app, "ios-l7-restauration-resume")
+        app.buttons["Annuler"].tap()
+
+        XCTAssertTrue(app.buttons["Restaurer une sauvegarde…"].waitForExistence(timeout: 10),
+                      "Réglages doit rester intact après l'annulation")
+        snap(app, "ios-l7-reglages")
+        XCTAssertTrue(
+            app.staticTexts.matching(contains("verrouille à chaque passage")).firstMatch.exists
+            || app.staticTexts.matching(contains("Aucune méthode d'authentification")).firstMatch.exists,
+            "la sécurité doit annoncer la méthode RÉELLEMENT disponible"
+        )
+        snap(app, "ios-l7-securite")
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts.matching(contains("pas les fichiers de documents")).firstMatch
+            .waitForExistence(timeout: 5),
+            "la limite des fichiers de documents doit être écrite")
+        snap(app, "ios-l7-sauvegarde")
+
+        app.buttons["Confidentialité"].tap()
+        XCTAssertTrue(app.staticTexts.matching(contains("Aucune connexion bancaire")).firstMatch
+            .waitForExistence(timeout: 10), "la confidentialité doit exclure toute promesse bancaire")
+        snap(app, "ios-l7-confidentialite")
+        app.buttons["Fermer"].tap()
+
+        app.buttons["Méthodologie des calculs"].tap()
+        XCTAssertTrue(app.staticTexts.matching(contains("Estimé = payé + encore dû")).firstMatch
+            .waitForExistence(timeout: 10), "la méthodologie doit documenter les formules du code")
+        snap(app, "ios-l7-methodologie")
+        app.buttons["Fermer"].tap()
+
+        let deleteButton = app.buttons["Supprimer toutes les données"]
+        if !deleteButton.waitForExistence(timeout: 5) { app.swipeUp() }
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 10), "l'action de suppression doit exister")
+        deleteButton.tap()
+        XCTAssertTrue(app.buttons["Continuer vers la confirmation finale"].waitForExistence(timeout: 5),
+                      "la double confirmation doit exister")
+        XCTAssertTrue(app.buttons["D'abord créer une sauvegarde"].exists,
+                      "la sauvegarde doit être proposée avant la suppression")
+        snap(app, "ios-l7-suppression-annulee")
+        let cancelDelete = app.buttons["Annuler"]
+        if cancelDelete.waitForExistence(timeout: 3) { cancelDelete.tap() } else { app.tap() }
+        XCTAssertTrue(app.buttons["Supprimer toutes les données"].waitForExistence(timeout: 5),
+                      "l'annulation ne supprime rien")
+    }
+
     @MainActor
     private func openTab(_ app: XCUIApplication, _ label: String) {
         let tab = app.tabBars.buttons[label]

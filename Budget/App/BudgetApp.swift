@@ -46,12 +46,20 @@ struct BudgetApp: App {
             Color.clear
                 .task {
                     do {
-                        let container = try AppContainer()
-                        // Tour automatisé (workflow Demo) : démarre
-                        // directement en mode démo — store in-memory,
-                        // jamais les vraies données.
-                        if ProcessInfo.processInfo.arguments.contains("-demoTour") {
-                            container.isDemoMode = true
+                        let container: AppContainer
+                        if ProcessInfo.processInfo.arguments.contains("-onboardingTour") {
+                            // Tour d'onboarding (workflow Demo) : store
+                            // in-memory VIDE — le vrai premier lancement,
+                            // sans jamais toucher aux données réelles.
+                            container = try AppContainer(inMemory: true)
+                        } else {
+                            container = try AppContainer()
+                            // Tour automatisé (workflow Demo) : démarre
+                            // directement en mode démo — store in-memory,
+                            // jamais les vraies données.
+                            if ProcessInfo.processInfo.arguments.contains("-demoTour") {
+                                container.isDemoMode = true
+                            }
                         }
                         appContainer = container
                     } catch {

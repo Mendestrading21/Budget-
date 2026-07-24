@@ -35,7 +35,26 @@ struct MainTabView: View {
 
     var body: some View {
         @Bindable var router = router
-        TabView(selection: $router.selectedTab) {
+        // L7 : la bannière démo occupe SA PROPRE bande au-dessus du
+        // TabView — elle ne peut plus chevaucher la navigation, le titre
+        // ou le bouton Retour des écrans poussés.
+        VStack(spacing: 0) {
+            if appContainer.isDemoMode {
+                DemoModeBanner()
+            }
+            tabs
+        }
+        .overlay(alignment: .bottomTrailing) {
+            quickCreateButton
+        }
+        .sheet(item: $quickCreateType) { type in
+            TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: type)
+        }
+    }
+
+    private var tabs: some View {
+        @Bindable var router = router
+        return TabView(selection: $router.selectedTab) {
             HomeTab()
                 .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
                 .tag(AppTab.home)
@@ -57,17 +76,6 @@ struct MainTabView: View {
                 .tag(AppTab.more)
         }
         .tint(BudgetColor.indigo)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if appContainer.isDemoMode {
-                DemoModeBanner()
-            }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            quickCreateButton
-        }
-        .sheet(item: $quickCreateType) { type in
-            TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: type)
-        }
     }
 
     /// Floating creation menu, always reachable above the tab bar.

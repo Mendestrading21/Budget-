@@ -20,6 +20,24 @@ Suites : 64 e2e + 5 parité + design verts ; ObsidianTrustTests (7 tests)
 ouvert puis ANNULÉ). Formules, migrations, persistance, format de
 sauvegarde : INCHANGÉS. **L7 = VERIFYING**, L8 = BLOCKED.
 
+**Correctif L7 (2026-07-24)** — 1er refus visuel : ＋ PWA recouvrant du
+contenu (padding ≠ exclusion), toasts parasites, import sans
+mapping/compte visibles, documents non modifiables, textes destructifs
+discordants, bannière démo iOS sur la navigation, métadonnées tronquées,
+titres sombres, zone noire Réglages, onboarding natif non capturé →
+`fix(l7): complete trust flows and protect floating actions` : viewport
+PWA `.fab-clear` s'arrêtant au-dessus du ＋ (rectangles réels testés,
+＋ z-indexé toujours visible), assistant d'import complet en mémoire
+(mapping modifiable, compte obligatoire, aperçu, confirmation distincte,
+rollback), édition des métadonnées de documents, concordance exacte des
+actions destructives, bannière démo dans sa propre bande (VStack), fond
+appliqué APRÈS la zone du ＋, métadonnées Documents multilignes
+(+membre+date), contraste des titres du hub (token), tour natif
+onboarding+confiance (19 captures ios-l7-*, résumé de restauration réel
+via BackupService.summary, import natif parcouru, suppression annulée).
+Suites : 67 e2e + 5 parité + design ; +1 test natif (250 attendus) ;
+captures PWA régénérées sans toast. L7 reste VERIFYING.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L6 (2026-07-23)
 
 L6 « Modules financiers » exécuté (`/budget-v1 execute L6`) après

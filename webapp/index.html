@@ -175,10 +175,15 @@
   .screen {
     flex: 1;
     overflow-y: auto;
-    /* Zone de sécurité : le contenu défile toujours AU-DESSUS du FAB —
-       plus aucun chevauchement à 320 px (constat baseline L1). */
-    padding: 14px 18px calc(96px + env(safe-area-inset-bottom));
+    padding: 14px 18px 20px;
     scrollbar-width: none;
+  }
+  /* L7 : zone d'EXCLUSION permanente du ＋ — le viewport de défilement
+     s'ARRÊTE au-dessus du bouton flottant (marge du conteneur, pas un
+     simple padding de contenu) : rien ne peut être rendu sous le ＋,
+     à l'ouverture comme en cours de défilement. */
+  .screen.fab-clear {
+    margin-bottom: 88px;
   }
   .screen::-webkit-scrollbar { display: none; }
 
@@ -465,6 +470,7 @@
   }
   .fab {
     position: absolute;
+    z-index: 5; /* toujours AU-DESSUS du contenu, sous les feuilles (10) */
     right: 20px; bottom: calc(92px + env(safe-area-inset-bottom));
     width: 50px; height: 50px;
     border-radius: 17px;
@@ -1137,7 +1143,7 @@
     </form>
 
     <form class="sheet" id="docForm" style="display:none">
-      <h3>Nouveau document</h3>
+      <h3 id="docSheetTitle">Nouveau document</h3>
       <label for="dName">Nom</label>
       <input id="dName" placeholder="Certificat LPP 2026" autocomplete="off" />
       <label for="dKind">Type</label>
@@ -2962,9 +2968,9 @@ function existingFingerprints() {
   return new Set(transactions.map(t => importFingerprint(t.y, t.m, t.d, t.amount, t.title)));
 }
 /* Analyse complète d'un texte CSV → lignes évaluées, sans rien écrire. */
-function analyzeCSV(textContent) {
+function analyzeCSV(textContent, mappingOverride) {
   const rawLines = textContent.split(/\r?\n/).filter(l => l.trim() !== "");
-  if (!rawLines.length) return { rows: [], header: null };
+  if (!rawLines.length) return { rows: [], header: null, columns: { date: 0, amount: 1, title: 2, cat: -1 } };
   const delimiter = detectDelimiter(rawLines.slice(0, 5).join("\n"));
   const first = splitCSVLine(rawLines[0], delimiter).map(f => f.toLowerCase());
   const headerScore = first.filter(f => /date|montant|amount|intitul|libell|titre|description|cat/.test(f)).length;
@@ -2978,6 +2984,9 @@ function analyzeCSV(textContent) {
       else if (/cat/.test(name)) columns.cat = index;
     });
   }
+  // L7 : la correspondance des colonnes est MODIFIABLE par l'utilisateur
+  // avant toute écriture — l'auto-détection n'est qu'un point de départ.
+  if (mappingOverride) Object.assign(columns, mappingOverride);
   const seen = existingFingerprints();
   const rows = [];
   for (let i = hasHeader ? 1 : 0; i < rawLines.length; i++) {
@@ -3008,9 +3017,9 @@ function analyzeCSV(textContent) {
     };
     rows.push({ line: i + 1, raw, ...evaluate() });
   }
-  return { rows, delimiter, hasHeader };
+  return { rows, delimiter, hasHeader, columns };
 }
-function applyImport(analysis, fileName) {
+function applyImport(analysis, fileName, accountId) {
   const batchId = "batch-" + Date.now().toString(36);
   let imported = 0;
   for (const row of analysis.rows) {
@@ -3019,7 +3028,9 @@ function applyImport(analysis, fileName) {
     addTx({
       id: ++txSeq, y, m, d, title, amount, type,
       cat: cat || (type === "expense" ? null : null),
-      acc: defaultCashAccount(), dest: null,
+      // L7 : import dans le compte CHOISI par l'utilisateur — le compte
+      // par défaut n'est qu'une pré-sélection, jamais une décision.
+      acc: accountId || defaultCashAccount(), dest: null,
       status: (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted",
       importBatch: batchId,
     });
@@ -3059,8 +3070,53 @@ function renderImport() {
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
       <textarea id="importPaste" rows="4" placeholder="date;montant;intitulé&#10;05.06.2026;-45.50;Courses"
         style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:11px"></textarea>
-      <button type="button" class="btn" data-importpaste style="margin-top:10px">Analyser et importer le collage</button>
+      <button type="button" class="btn" data-importpaste style="margin-top:10px">Analyser le collage</button>
     </div>
+    ${(() => {
+      if (!importDraft) return "";
+      const analysis = analyzeCSV(importDraft.content, importDraft.mapping);
+      const ready = analysis.rows.filter(r => r.state === "ready").length;
+      const dupes = analysis.rows.filter(r => r.state === "duplicate").length;
+      const bad = analysis.rows.length - ready - dupes;
+      const firstData = analysis.rows[0] ? splitCSVLine(analysis.rows[0].raw, analysis.delimiter) : [];
+      const columnCount = Math.max(firstData.length, 3);
+      const colOptions = (selected, allowNone) => {
+        let html = allowNone ? `<option value="-1" ${selected < 0 ? "selected" : ""}>— aucune —</option>` : "";
+        for (let i = 0; i < columnCount; i++) {
+          const sample = (firstData[i] || "").slice(0, 14);
+          html += `<option value="${i}" ${selected === i ? "selected" : ""}>Colonne ${i + 1}${sample ? ` · « ${esc(sample)} »` : ""}</option>`;
+        }
+        return html;
+      };
+      const selStyle = "width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-size:13px;padding:10px 12px;border-radius:11px";
+      const stateLabel = { ready: '<span class="pill pos">Prête</span>', duplicate: '<span class="pill">Doublon</span>', invalid: '<span class="pill neg">Invalide</span>' };
+      return `<div class="card" style="border-color:var(--stroke-active)">
+        <p class="card-label">Aperçu avant écriture — ${esc(importDraft.fileName)}</p>
+        <p class="caption" style="margin:2px 0 10px">RIEN n'est encore importé. Vérifiez la correspondance des colonnes, choisissez le compte, puis confirmez.</p>
+        <div style="display:grid;gap:8px">
+          <label class="caption" for="impMapDate">Date</label>
+          <select id="impMapDate" style="${selStyle}">${colOptions(importDraft.mapping.date, false)}</select>
+          <label class="caption" for="impMapAmount">Montant (négatif = dépense)</label>
+          <select id="impMapAmount" style="${selStyle}">${colOptions(importDraft.mapping.amount, false)}</select>
+          <label class="caption" for="impMapTitle">Intitulé</label>
+          <select id="impMapTitle" style="${selStyle}">${colOptions(importDraft.mapping.title, false)}</select>
+          <label class="caption" for="impMapCat">Catégorie (facultative)</label>
+          <select id="impMapCat" style="${selStyle}">${colOptions(importDraft.mapping.cat, true)}</select>
+          <label class="caption" for="impAccount">Compte de destination (obligatoire)</label>
+          <select id="impAccount" style="${selStyle}">${ACCOUNTS.map(acct =>
+            `<option value="${esc(acct.id)}" ${acct.id === importDraft.accountId ? "selected" : ""}>${esc(acct.name)}${acct.currency && acct.currency !== baseCurrency() ? ` (${acct.currency})` : ""}</option>`).join("")}</select>
+        </div>
+        <div style="margin:12px 0 6px"><span class="pill pos">${ready} prête${ready > 1 ? "s" : ""}</span> <span class="pill">${dupes} doublon${dupes > 1 ? "s" : ""}</span> <span class="pill neg">${bad} invalide${bad > 1 ? "s" : ""}</span></div>
+        ${analysis.rows.slice(0, 6).map(r => `<div class="card row" style="margin:6px 0;padding:10px 12px">
+          <div class="meta" style="min-width:0"><div class="t" style="font-size:12.5px">${r.tx ? `${String(r.tx.d).padStart(2, "0")}.${String(r.tx.m).padStart(2, "0")}.${r.tx.y} · ${esc(r.tx.title)}` : esc(r.raw.slice(0, 40))} ${stateLabel[r.state] || ""}</div>
+          ${r.reason ? `<div class="s neg">${esc(r.reason)}</div>` : ""}</div>
+          ${r.tx ? `<span class="amount ${r.tx.type === "income" ? "pos" : "neg"}">${r.tx.type === "income" ? "+" : "−"}${chf(r.tx.amount)}</span>` : ""}
+        </div>`).join("")}
+        ${analysis.rows.length > 6 ? `<p class="caption">… et ${analysis.rows.length - 6} autres lignes analysées.</p>` : ""}
+        <button type="button" class="btn" data-impconfirm ${ready === 0 ? "disabled" : ""} style="margin-top:10px">Confirmer l'import (${ready} mouvement${ready > 1 ? "s" : ""})</button>
+        <button type="button" class="btn secondary" data-impcancel style="margin-top:8px">Annuler — rien n'est écrit</button>
+      </div>`;
+    })()}
     ${report ? `
     <div class="card">
       <p class="card-label">Dernier import — ${esc(report.fileName)}</p>
@@ -3080,9 +3136,9 @@ function renderImport() {
     </div>`).join("")}` : ""}` : ""}
     <p class="section-title">Documents (métadonnées)</p>
     ${S.documents.length === 0 ? `<div class="card row"><span class="caption">Aucun document. Certificats, polices, décomptes — les fichiers eux-mêmes restent dans l'app native.</span></div>` : ""}
-    ${S.documents.map(doc => `<div class="card row tx">
+    ${S.documents.map(doc => `<div class="card row tx" data-editdoc="${esc(doc.id)}" role="button" tabindex="0" style="cursor:pointer" aria-label="Modifier ${esc(doc.name)}">
       <div class="ico" aria-hidden="true">📄</div>
-      <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)}</div></div>
+      <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · métadonnées seulement</div></div>
       <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
@@ -3163,7 +3219,9 @@ const PRIVACY = [
   "Le verrouillage par code protège l'AFFICHAGE sur cet appareil — ce n'est pas un chiffrement. L'app iOS native, elle, s'appuie sur Face ID et le chiffrement iOS.",
   "Les documents sont des métadonnées uniquement (nom et type) : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
-  "« Tout supprimer » efface vos mouvements, objectifs, paiements réguliers, patrimoine, factures et documents ; les comptes, budgets et réglages restent. « Réinitialiser la démo » remet tout à zéro.",
+  "« Effacer les opérations » efface vos mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
+  "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, mouvements, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
+  "« Charger la démonstration » remplace vos données actuelles par des données fictives après confirmation ; votre prénom est conservé.",
 ]
 const METHODOLOGY = [
   "Vraiment disponible = argent disponible inclus + revenus attendus (prévus et réguliers) − charges engagées (prévues et régulières) − réserve d'impôts manquante.",
@@ -3709,6 +3767,7 @@ function render() {
   banner.style.display = (!locked && !onboarding && S.isDemo) ? "flex" : "none";
   document.getElementById("tabbar").style.display = onboarding ? "none" : "";
   if (onboarding) {
+    screen.classList.remove("fab-clear");
     screen.innerHTML = renderOnboarding();
     document.getElementById("fab").style.display = "none";
     bindOnboarding();
@@ -3731,6 +3790,7 @@ function render() {
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; render(); pushNav(); };
   document.getElementById("fab").style.display = locked ? "none" : "grid";
+  screen.classList.toggle("fab-clear", !locked);
   animateHeroAmount();
 }
 
@@ -3962,7 +4022,23 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-importpaste]")) {
     const paste = document.getElementById("importPaste");
     if (!paste || !paste.value.trim()) { toast("Collez d'abord du contenu CSV"); return; }
-    runImport(paste.value, "collage");
+    startImportDraft(paste.value, "collage");
+    return;
+  }
+  if (e.target.closest("[data-impcancel]")) {
+    importDraft = null;
+    toast("Import annulé — rien n'a été écrit");
+    render();
+    return;
+  }
+  if (e.target.closest("[data-impconfirm]")) {
+    if (!importDraft) return;
+    const analysis = analyzeCSV(importDraft.content, importDraft.mapping);
+    if (!analysis.rows.some(r => r.state === "ready")) { toast("Aucune ligne prête à importer"); return; }
+    const report = applyImport(analysis, importDraft.fileName, importDraft.accountId);
+    importDraft = null;
+    toast(`Import : ${report.imported} importées, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
+    render();
     return;
   }
   if (e.target.closest("[data-rollbackimport]")) {
@@ -3976,7 +4052,8 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   const delDoc = e.target.closest("[data-deldoc]");
   if (delDoc) {
-    if (!confirm("Supprimer ce document ?")) return;
+    const doc = S.documents.find(d => d.id === delDoc.dataset.deldoc);
+    if (!confirm(`Supprimer « ${doc ? doc.name : "ce document"} » ?\nSeules ses informations (métadonnées) sont supprimées — la version web ne stocke aucun fichier.`)) return;
     pushUndo();
     const index = S.documents.findIndex(d => d.id === delDoc.dataset.deldoc);
     if (index >= 0) S.documents.splice(index, 1);
@@ -3984,7 +4061,23 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-adddoc]")) {
+    editingDocId = null;
     document.getElementById("docForm").reset();
+    document.getElementById("docSheetTitle").textContent = "Nouveau document";
+    document.getElementById("dError").textContent = "";
+    openSheet("docForm");
+    document.getElementById("dName").focus();
+    return;
+  }
+  const editDocRow = e.target.closest("[data-editdoc]");
+  if (editDocRow && !e.target.closest("[data-deldoc]")) {
+    const doc = S.documents.find(d => d.id === editDocRow.dataset.editdoc);
+    if (!doc) return;
+    editingDocId = doc.id;
+    document.getElementById("docForm").reset();
+    document.getElementById("docSheetTitle").textContent = "Modifier le document";
+    document.getElementById("dName").value = doc.name;
+    document.getElementById("dKind").value = doc.kind;
     document.getElementById("dError").textContent = "";
     openSheet("docForm");
     document.getElementById("dName").focus();
@@ -4066,6 +4159,16 @@ document.getElementById("screen").addEventListener("change", (e) => {
   if (e.target && e.target.id === "restoreFile" && e.target.files && e.target.files[0]) {
     restoreFromFile(e.target.files[0]);
     e.target.value = "";
+  }
+  if (importDraft && ["impMapDate", "impMapAmount", "impMapTitle", "impMapCat", "impAccount"].includes(e.target && e.target.id)) {
+    const value = e.target.value;
+    if (e.target.id === "impAccount") importDraft.accountId = value;
+    else {
+      const key = { impMapDate: "date", impMapAmount: "amount", impMapTitle: "title", impMapCat: "cat" }[e.target.id];
+      importDraft.mapping[key] = parseInt(value, 10);
+    }
+    render();
+    return;
   }
   if (e.target && e.target.id === "importFile" && e.target.files && e.target.files[0]) {
     const file = e.target.files[0];
@@ -4971,26 +5074,23 @@ document.getElementById("iDelete").addEventListener("click", () => {
 
 
 /* ---------- Import CSV : fichier / collage / rollback (W4) ---------- */
-function runImport(content, fileName) {
+/* L7 : le parcours d'import est VISIBLE et entièrement en mémoire —
+   détection, correspondance modifiable, compte de destination, aperçu,
+   décomptes, confirmation DISTINCTE. Rien n'est écrit avant, annuler à
+   n'importe quelle étape ne modifie rien. */
+let importDraft = null;
+function startImportDraft(content, fileName) {
   const analysis = analyzeCSV(content);
   if (!analysis.rows.length) { toast("Rien à importer dans ce contenu"); return; }
-  // A04-N4 : une VRAIE confirmation avant toute écriture — le résumé
-  // d'analyse d'abord, l'écriture seulement après accord explicite.
-  const ready = analysis.rows.filter(r => r.state === "ready").length;
-  const dupes = analysis.rows.filter(r => r.state === "duplicate").length;
-  const bad = analysis.rows.length - ready - dupes;
-  if (!ready) { toast(`Rien de nouveau : ${dupes} doublon${dupes > 1 ? "s" : ""}, ${bad} invalide${bad > 1 ? "s" : ""}`); return; }
-  if (!confirm(`Importer ${ready} opération${ready > 1 ? "s" : ""} ?`
-    + (dupes ? `\n${dupes} doublon${dupes > 1 ? "s" : ""} ignoré${dupes > 1 ? "s" : ""}.` : "")
-    + (bad ? `\n${bad} ligne${bad > 1 ? "s" : ""} invalide${bad > 1 ? "s" : ""} listée${bad > 1 ? "s" : ""} après import.` : "")
-    + "\nRien n'est écrit si vous annulez ; l'import reste annulable en un geste.")) {
-    toast("Import annulé — rien n'a été écrit");
-    return;
-  }
-  const report = applyImport(analysis, fileName);
-  toast(`Import : ${report.imported} importées, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
+  importDraft = {
+    content, fileName: fileName || "collage",
+    mapping: { ...analysis.columns },
+    accountId: defaultCashAccount(),
+  };
   render();
 }
+// Compatibilité : l'ancien point d'entrée ouvre désormais le parcours.
+function runImport(content, fileName) { startImportDraft(content, fileName); }
 
 /* ---------- Feuille assurance (W4) ---------- */
 let editingInsId = null;
@@ -5154,12 +5254,21 @@ document.getElementById("codeForm").addEventListener("submit", (e) => {
 
 /* ---------- Feuille document (W4) ---------- */
 document.getElementById("dCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+let editingDocId = null;
 document.getElementById("docForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("dError");
   const name = document.getElementById("dName").value.trim();
   if (!name) { err.textContent = "Donnez un nom au document."; return; }
-  S.documents.push({ id: "doc-" + Date.now().toString(36), name, kind: document.getElementById("dKind").value });
+  const kind = document.getElementById("dKind").value;
+  if (editingDocId) {
+    const doc = S.documents.find(d => d.id === editingDocId);
+    if (doc) { doc.name = name; doc.kind = kind; }
+    editingDocId = null;
+    saveState(); backdrop.classList.remove("open"); toast("Document modifié"); render();
+    return;
+  }
+  S.documents.push({ id: "doc-" + Date.now().toString(36), name, kind });
   saveState(); backdrop.classList.remove("open"); toast("Document ajouté"); render();
 });
 

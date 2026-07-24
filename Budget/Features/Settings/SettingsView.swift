@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var isShowingPrivacy = false
     @State private var isShowingMethodology = false
+    @State private var didAutoPromptRestore = false
 
     private var backupService: BackupService { BackupService() }
     private var lockManager: AppLockManager { appContainer.lockManager }
@@ -45,8 +46,8 @@ struct SettingsView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(BudgetScreenBackground())
         .obsidianFABClearance()
+        .background(BudgetScreenBackground())
         .navigationTitle("Réglages")
         .fileImporter(
             isPresented: $isRestoring,
@@ -95,6 +96,20 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isShowingMethodology) {
             InfoSheet(title: "Méthodologie", paragraphs: Self.methodologyParagraphs)
+        }
+        .onAppear {
+            // Preuve UI (workflow Demo) : ouvre le VRAI résumé de
+            // restauration construit par BackupService depuis les données
+            // de démo. Inactif en dehors du tour automatisé.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestRestorePrompt"),
+               !didAutoPromptRestore,
+               let data = try? backupService.makeBackup(context: modelContext, now: appContainer.dateProvider.now),
+               let summary = try? backupService.summary(of: data) {
+                didAutoPromptRestore = true
+                pendingRestoreSummary = summary
+                pendingRestoreData = data
+                isConfirmingRestore = true
+            }
         }
     }
 
