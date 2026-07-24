@@ -21,12 +21,60 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L3 Pilote PWA | DONE | **validation humaine reçue le 23.07.2026** ; CI #173 verte (run 30028514793, SHA 8a82a2e) : 53 parcours web zéro erreur console + 5 parité + design system + build Debug + 214 tests iOS 0 échec + build Release + manifeste dans Budget.app (le run manuel #174 confirme) | — |
 | L4 Pilote iOS | DONE | **validation humaine reçue le 23.07.2026** ; commit `99cbb75` ; CI #175 verte (run 30038788928 : 222 tests iOS 0 échec, ObsidianPilotTests passed, Debug+Release, manifeste) ; workflow Demo vert (run 30039344152, artefact budget-demo 36,5 Mo, tour 12 étapes asserté). Risque visuel NON bloquant conservé : la capture native détaillée de la feuille « Ajouter un mouvement » n'a pas été inspectée séparément par le propriétaire | — |
 | L5 Mouvements/Comptes | DONE | **validation humaine reçue le 23.07.2026** ; commit `f4ea4d0` ; CI #177 verte (run 30043810568 : 56 e2e + 5 parité + design, 231 tests iOS 0 échec) ; Demo vert (run 30044319681, tour 13 étapes, artefact 47,2 Mo). Risques visuels NON bloquants conservés : capture `13-compte-detail` non retrouvée par le propriétaire ; intitulés longs encore tronqués dans les listes ; texte « Versé cette année / total » du compte Épargne à clarifier ; FAB pouvant masquer légèrement le bas selon la hauteur visible | — |
-| L6 Modules financiers | VERIFYING | commits `edbae61` + `a7c6ea4` + **2e passe `3b6e6b9`/`e135371`** (2e refus visuel : le ＋ recouvrait encore du contenu à l'état INITIAL → zone d'EXCLUSION permanente `fabExclusionHeight` 80 pt, le viewport s'arrête au-dessus du ＋) ; CI #183/#184 vertes (runs 30082992805, 30084041557 : 60 e2e + 5 parité + design, **242 tests iOS 0 échec**) ; Demo vert (run 30084639539 : assertions AVANT chaque capture initiale + après défilement, balayage textes/boutons/images/éléments identifiés, preuves nommées Loyer/Évolution/footer Prévoyance/dernières échéance-carte-contrat, **12 captures natives** `-initial`/`-fin`, artefact budget-demo 83,4 Mo, expire 22.10.2026) — 1er run Demo 30083365151 échoué sur faux positif du test (cadre non coupé), corrigé en `e135371` sans toucher aux vues | nouvelle validation humaine des 12 captures |
-| L7 Onboarding/Confiance | BLOCKED | — | L6 validé |
-| L8 Widgets/Mouvement | BLOCKED | — | L7 validé |
+| L6 Modules financiers | DONE | **validation humaine reçue le 24.07.2026** (12 captures initiales/finales inspectées : zone d'exclusion du ＋ opérante sur les 6 modules, Loyer/Évolution/échéances/cartes/contrats/texte Prévoyance dégagés — la bande vide au-dessus du ＋ est VOLONTAIRE, ne jamais revenir à `contentMargins` seul) ; commits `edbae61` + `a7c6ea4` + `3b6e6b9` + `e135371` + `2bbf921` ; CI #183 (run 30082992805), #184 (run 30084041557), #185 (run 30085561460) vertes : 60 e2e + 5 parité + design, **242 tests iOS 0 échec** ; Demo vert (run 30084639539, 12 captures assertées, artefact 83,4 Mo). Historique transparent conservé : deux refus visuels (＋ masquant, libellés tronqués puis état initial non protégé) et un faux positif de test (cadre non coupé, corrigé en `e135371` sans toucher aux vues) | — |
+| L7 Onboarding/Confiance | VERIFYING | commit `feat(l7)` ; 64 e2e + 5 parité + design verts en local ; natifs `ObsidianTrustTests` (7 tests) + OnboardingViewModelTests adaptés ; 19 captures + README ; tour Demo enrichi 16-documents + 17-suppression-annulee ; CI + Demo en attente de confirmation | validation humaine des surfaces de confiance |
+| L8 Widgets/Mouvement | BLOCKED | — | L7 validé (jamais démarré sans validation humaine explicite) |
 | L9 Audit final | BLOCKED | — | L8 validé |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
+
+## Critères d'acceptation L7 (annoncés avant toute édition, 24.07.2026)
+
+**Périmètre strict** : onboarding, hub Plus, Documents, import/export CSV,
+sauvegarde/restauration, Réglages, verrouillage, confidentialité/
+méthodologie, actions destructives — PWA et iOS. Aucune formule, migration,
+structure SwiftData, clé localStorage, format de sauvegarde (sans défaut
+confirmé), module L6 ni fonctionnalité L8. Zone d'exclusion du ＋ conservée.
+
+1. **Vérité des plateformes** : différences PWA/iOS écrites dans
+   l'interface (localStorage de CE navigateur vs SwiftData local ;
+   code = protection d'affichage vs Face ID/Touch ID ; documents =
+   métadonnées seules vs fichiers copiés dans le conteneur) ; aucune
+   promesse de chiffrement/synchronisation/banque inexistante ; retrait
+   des formulations non sourcées (« prudent et courant en Suisse »).
+2. **Onboarding** ≤ 6 étapes, une décision par étape, Retour PARTOUT en
+   conservant les saisies, provision fiscale présentée comme estimation
+   d'organisation MODIFIABLE (jamais un taux officiel), revenus/logement
+   FACULTATIFS via les modèles existants (RecurringTransaction),
+   création finale ATOMIQUE (iOS : un seul save transactionnel ; PWA :
+   état écrit seulement à la fin), erreur près du champ, démo clairement
+   fictive.
+3. **Hub Plus** par intentions (À organiser / À prévoir / À construire /
+   Mes données / Application) sur les DEUX plateformes, toutes les
+   destinations existantes conservées et vivantes, sous-titre par ligne,
+   cibles 44 pt, identifiants d'accessibilité.
+4. **Restauration** : résumé RÉEL avant confirmation (date, version de
+   schéma, décomptes, portée exacte, absents — dont fichiers de
+   documents et verrouillage) ; sauvegarde illisible/version
+   future/devise non supportée (iOS)/montant invalide → REFUS, données
+   intactes ; liens d'export obsolètes purgés ; option « sauvegarder
+   d'abord » avant suppression totale.
+5. **Actions destructives** nommant exactement ce qui part et ce qui
+   reste, double confirmation pour la suppression totale, undo 6 s PWA
+   conservé, jamais de réussite mensongère.
+6. **Tests** : e2e 56-59 (onboarding retour/estimation/atomicité, hub
+   sans lien mort, résumé de restauration, textes d'honnêteté, a11y) —
+   suite portée à 64 parcours, rien d'affaibli ; natifs
+   `ObsidianTrustTests` (finalisation atomique, aucun écrit partiel,
+   résumé de sauvegarde, textes de confidentialité exacts, écrans
+   construits 320/a11y/transparence réduite) ; tour Demo enrichi
+   (Documents asserté + dialogue destructif ouvert PUIS ANNULÉ).
+7. **Captures** : ~20 PWA réelles dans
+   `docs/obsidian-glass/onboarding-trust/l7/` + README (différences
+   PWA/iOS, données réellement stockées, limites, refus volontaires) ;
+   iOS via Demo asserté. Un commit
+   `feat(l7): redesign onboarding and trust surfaces with Obsidian
+   Glass` ; CI + Demo verts ; **L7 = VERIFYING**, L8 = BLOCKED.
 
 ## Validation visuelle L6 : SECOND REFUS (24.07.2026, run 30080804863 inspecté)
 
@@ -741,9 +789,9 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 verify L6
+/budget-v1 verify L7
 ```
 
-L6 reste VERIFYING jusqu'à validation humaine des 7 modules financiers
-(PWA + iOS via l'artefact Demo). Ne pas lancer L7 sans cette validation
+L7 reste VERIFYING jusqu'à validation humaine des surfaces de confiance
+(PWA + iOS via l'artefact Demo). Ne pas lancer L8 sans cette validation
 explicite.

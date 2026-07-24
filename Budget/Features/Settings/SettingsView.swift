@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var backupURL: URL?
     @State private var isRestoring = false
     @State private var pendingRestoreData: Data?
+    @State private var pendingRestoreSummary: BackupService.Summary?
     @State private var isConfirmingRestore = false
     @State private var isConfirmingDeleteAll = false
     @State private var isConfirmingDeleteAllSecond = false
@@ -43,6 +44,9 @@ struct SettingsView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(BudgetScreenBackground())
+        .obsidianFABClearance()
         .navigationTitle("Réglages")
         .fileImporter(
             isPresented: $isRestoring,
@@ -57,20 +61,28 @@ struct SettingsView: View {
             titleVisibility: .visible
         ) {
             Button("Remplacer toutes mes données", role: .destructive) { runRestore() }
-            Button("Annuler", role: .cancel) { pendingRestoreData = nil }
+            Button("Annuler", role: .cancel) {
+                pendingRestoreData = nil
+                pendingRestoreSummary = nil
+            }
         } message: {
-            Text("Toutes les données actuelles seront remplacées par le contenu de la sauvegarde. Cette action est irréversible.")
+            // L7 : résumé RÉEL — date, version, contenu, portée exacte et
+            // ce que la sauvegarde ne contient PAS.
+            Text(restoreSummaryMessage)
         }
         .confirmationDialog(
             "Supprimer toutes les données ?",
             isPresented: $isConfirmingDeleteAll,
             titleVisibility: .visible
         ) {
+            Button("D'abord créer une sauvegarde") {
+                generateBackup()
+            }
             Button("Continuer vers la confirmation finale", role: .destructive) {
                 isConfirmingDeleteAllSecond = true
             }
         } message: {
-            Text("Comptes, mouvements, budgets, objectifs, documents : tout sera effacé de cet appareil.")
+            Text("Comptes, mouvements, budgets, objectifs, documents (fichiers compris) : tout sera effacé de cet appareil. Rien d'autre n'est touché.")
         }
         .alert("Dernière confirmation", isPresented: $isConfirmingDeleteAllSecond) {
             Button("Tout supprimer définitivement", role: .destructive) { runDeleteAll() }
@@ -219,6 +231,18 @@ struct SettingsView: View {
         }
     }
 
+    /// Message de confirmation construit depuis la VRAIE sauvegarde.
+    private var restoreSummaryMessage: String {
+        guard let summary = pendingRestoreSummary else {
+            return "Toutes les données actuelles seront remplacées par le contenu de la sauvegarde. Cette action est irréversible."
+        }
+        return "Sauvegarde du \(FinanceFormatting.swissDate(summary.exportedAt)) (schéma \(summary.schemaVersion)). "
+            + "Contenu : \(summary.transactions) mouvements, \(summary.accounts) comptes, \(summary.goals) objectifs, "
+            + "\(summary.recurrings) récurrents, \(summary.documents) documents (métadonnées). "
+            + "La restauration REMPLACE toutes les données actuelles de cet appareil — irréversible. "
+            + "Non contenu : les fichiers des documents et le réglage de verrouillage."
+    }
+
     private func prepareRestore(_ result: Result<[URL], Error>) {
         guard case .success(let urls) = result, let url = urls.first else { return }
         let needsAccess = url.startAccessingSecurityScopedResource()
@@ -229,6 +253,15 @@ struct SettingsView: View {
             errorMessage = "Le fichier de sauvegarde n'a pas pu être lu."
             return
         }
+        // Refus AVANT toute confirmation (illisible / version future) :
+        // les données actuelles restent intactes.
+        do {
+            pendingRestoreSummary = try backupService.summary(of: data)
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? "Cette sauvegarde est illisible — vos données actuelles sont intactes."
+            return
+        }
         pendingRestoreData = data
         isConfirmingRestore = true
     }
@@ -236,6 +269,7 @@ struct SettingsView: View {
     private func runRestore() {
         guard let data = pendingRestoreData else { return }
         pendingRestoreData = nil
+        pendingRestoreSummary = nil
         do {
             try backupService.restore(
                 data: data,

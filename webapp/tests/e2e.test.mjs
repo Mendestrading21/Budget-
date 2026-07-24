@@ -1599,6 +1599,145 @@ const targets55 = await page.evaluate(() =>
 check(targets55.length === 0, `boutons de module < 44 px : ${targets55.map(x => `${x.t} (${x.h.toFixed(0)})`).join(", ")}`);
 await page.setViewportSize({ width: 390, height: 844 });
 
+/* ============= ONBOARDING & CONFIANCE OBSIDIAN L7 (Tests 56-59) ============= */
+
+// ---------- Test 56 : onboarding L7 — promesse honnête, Retour, estimation fiscale, atomicité ----------
+currentTest = "onboarding L7";
+const ctx56 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const p56 = await ctx56.newPage();
+p56.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[onboarding L7] ${msg.text()}`); });
+p56.on("pageerror", err => consoleErrors.push(`[onboarding L7] pageerror: ${err.message}`));
+await p56.goto(APP_URL);
+await p56.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
+let ob56 = await p56.$eval("body", el => el.innerHTML);
+check(ob56.includes("CE navigateur") && ob56.includes("Aucune connexion bancaire"),
+  "l'étape 1 énonce la promesse de confidentialité RÉELLE (stockage local, pas de banque)");
+await p56.click('[data-obcountry="CH"]');
+await p56.click('[data-obhh="solo"]');
+await p56.fill("#obName", "Testeur");
+await p56.click('#obForm1 button[type="submit"]');
+await p56.waitForSelector("#obTaxPct");
+const tax56 = await p56.$eval("#obTaxPct", el => el.value);
+check(tax56 === "30", `l'estimation fiscale par défaut est affichée (obtenu ${tax56})`);
+ob56 = await p56.$eval("body", el => el.innerHTML);
+check(ob56.includes("jamais un taux officiel"),
+  "le taux est présenté comme une estimation d'organisation, jamais un taux officiel");
+await p56.fill("#obTaxPct", "25");
+await p56.fill("#obSalary", "5000");
+await p56.click('#obForm2 button[type="submit"]');
+await p56.waitForSelector("#obOpening");
+// Aucune écriture AVANT la fin du parcours (atomicité PWA).
+const partial56 = await p56.evaluate(() => localStorage.getItem(APP_STATE_KEY));
+check(partial56 === null, "aucun état n'est écrit avant la validation finale du parcours");
+// Retour : les saisies salaire ET taux sont CONSERVÉES.
+await p56.click("[data-obback]");
+await p56.waitForSelector("#obSalary");
+const back56 = await p56.evaluate(() => ({
+  salary: document.getElementById("obSalary").value,
+  tax: document.getElementById("obTaxPct").value,
+}));
+check(back56.salary === "5000" && back56.tax === "25",
+  `Retour conserve salaire et taux saisis (obtenu ${back56.salary} / ${back56.tax})`);
+await p56.click('#obForm2 button[type="submit"]');
+await p56.waitForSelector("#obOpening");
+await p56.fill("#obOpening", "1000");
+await p56.click('#obForm3 button[type="submit"]');
+await p56.waitForSelector("[data-obskipgoal]");
+await p56.click("[data-obskipgoal]");
+await p56.waitForSelector("#tabbar button", { timeout: 10000 });
+const final56 = await p56.evaluate(() => ({
+  taxRate: S.taxRate,
+  salary: RECURRINGS.find(r => r.type === "income")?.amount,
+  accounts: ACCOUNTS.length,
+  saved: localStorage.getItem(APP_STATE_KEY) !== null,
+}));
+check(final56.taxRate === 0.25, `le taux CHOISI est appliqué (obtenu ${final56.taxRate})`);
+check(final56.salary === 5000, "le salaire facultatif devient un paiement régulier existant");
+check(final56.accounts >= 2 && final56.saved, "la finalisation crée les comptes et écrit l'état UNE fois");
+await ctx56.close();
+
+// ---------- Test 57 : hub Plus L7 — groupes par intention, AUCUN lien mort ----------
+currentTest = "hub Plus L7";
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+for (const group57 of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
+  check(screenHTML.includes(group57), `le groupe « ${group57} » est présent`);
+}
+const rows57 = await page.evaluate(() =>
+  [...document.querySelectorAll('#screen [data-more], #screen [data-gototab]')]
+    .map(el => ({ h: el.getBoundingClientRect().height, sub: el.querySelector(".s")?.textContent || "" })));
+check(rows57.length >= 10, `toutes les destinations sont listées (obtenu ${rows57.length})`);
+check(rows57.every(r => r.h >= 43.5), "chaque ligne du hub fait au moins 44 px");
+check(rows57.every(r => r.sub.trim().length > 0), "chaque ligne explique ce qu'on y fait");
+for (const dest57 of ["bills", "recurring", "taxes", "insurance", "networth", "goals", "year", "importcsv", "assistant", "settings"]) {
+  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.waitForTimeout(120);
+  await page.click(`#screen [data-more="${dest57}"]`);
+  await page.waitForTimeout(200);
+  const alive57 = await page.evaluate(() => document.getElementById("screen").innerHTML.length > 500);
+  check(alive57, `la destination « ${dest57} » rend un écran réel (pas de lien mort)`);
+}
+
+// ---------- Test 58 : confiance L7 — résumé de restauration, textes honnêtes, suppression annoncée ----------
+currentTest = "confiance L7";
+const summary58 = await page.evaluate(() => restoreSummaryText({
+  version: 1, exportedAt: "2026-07-24T10:00:00Z",
+  state: { transactions: [1, 2], accounts: [1], goals: [], recurrings: [1], documents: [] },
+}));
+check(summary58.includes("24.07.2026") && summary58.includes("2 mouvements") && summary58.includes("1 comptes"),
+  "le résumé de restauration montre la date et le contenu RÉELS");
+check(summary58.includes("REMPLACE") && summary58.includes("code de verrouillage") && summary58.includes("fichiers de documents"),
+  "le résumé annonce la portée exacte et ce que la sauvegarde ne contient PAS");
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(120);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(250);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("pas un chiffrement"), "le verrouillage est décrit honnêtement (protection d'affichage)");
+check(screenHTML.includes("localStorage") || screenHTML.includes("navigateur"),
+  "le stockage local réel est expliqué dans les réglages");
+check(screenHTML.includes("aucun fichier n'est stocké"),
+  "les documents web sont décrits comme métadonnées SEULEMENT");
+// Suppression des opérations : ce qui est annoncé conservé l'est VRAIMENT.
+const before58 = await page.evaluate(() => ({ accounts: ACCOUNTS.length, budgets: Object.keys(S.budgets || {}).length }));
+await page.evaluate(() => deleteAllData()); // les deux confirms sont auto-acceptés
+await page.waitForTimeout(300);
+const after58 = await page.evaluate(() => ({
+  tx: transactions.length, goals: GOALS.length, accounts: ACCOUNTS.length,
+  budgets: Object.keys(S.budgets || {}).length, undo: document.getElementById("toastUndo") !== null,
+}));
+check(after58.tx === 0 && after58.goals === 0, "les opérations annoncées sont bien effacées");
+check(after58.accounts === before58.accounts && after58.budgets === before58.budgets,
+  "les comptes et budgets annoncés conservés le sont VRAIMENT");
+check(after58.undo, "l'effacement propose l'annulation (undo 6 s)");
+await page.click("#toastUndo");
+await page.waitForTimeout(300);
+const undone58 = await page.evaluate(() => transactions.length);
+check(undone58 > 0, "l'annulation restaure les opérations effacées");
+
+// ---------- Test 59 : a11y L7 — 320 px sur onboarding-surfaces, cibles 44 px ----------
+currentTest = "a11y L7";
+await page.setViewportSize({ width: 320, height: 844 });
+for (const view59 of ["settings", "importcsv"]) {
+  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.waitForTimeout(120);
+  await page.click(`#screen [data-more="${view59}"]`);
+  await page.waitForTimeout(200);
+  const ok59 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+  check(ok59, `« ${view59} » sans débordement à 320 px`);
+}
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+const plus59 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+check(plus59, "hub Plus sans débordement à 320 px");
+const targets59 = await page.evaluate(() =>
+  [...document.querySelectorAll("#screen .btn, #screen [data-more]")]
+    .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || "?").trim().slice(0, 18) }))
+    .filter(x => x.h > 0 && x.h < 43.5));
+check(targets59.length === 0, `cibles < 44 px dans Plus : ${targets59.map(x => x.t).join(", ")}`);
+await page.setViewportSize({ width: 390, height: 844 });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -1608,4 +1747,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 60 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 64 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7), zéro erreur console ✓");

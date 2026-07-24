@@ -3438,6 +3438,7 @@ let obSalaryDay = 25;
 let obSalaryPhase = 1;
 let obOpeningVal = 0;
 let obGoal = null; // préréglage d'objectif choisi à la bienvenue
+let obTaxRate = null; // estimation de provision fiscale choisie (fraction)
 let obSalaryDay2 = 25;
 let obAccounts = { savings: true, pension: false, brokerage: false };
 
@@ -3455,6 +3456,13 @@ function renderOnboarding() {
       <h1 style="margin:10px 0 6px;font-size:30px;letter-spacing:-0.5px">Budget</h1>
       <p class="caption" style="max-width:280px;margin:0 auto">Vos finances, chez vous. Rien ne quitte cet appareil.</p>
     </div>
+    <div class="card" style="margin-bottom:4px">
+      <div class="caption" style="display:grid;gap:6px">
+        <span>🔒 Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne.</span>
+        <span>🏦 Aucune connexion bancaire : vous saisissez ou importez vous-même.</span>
+        <span>📥 Une sauvegarde = un fichier que VOUS téléchargez et gardez.</span>
+      </div>
+    </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
     <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
@@ -3468,7 +3476,8 @@ function renderOnboarding() {
     </div>
     <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
     <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
-    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>`);
+    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>
+    <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>`);
   if (obStep === 3) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">👋</div>
@@ -3478,10 +3487,12 @@ function renderOnboarding() {
     <form id="obForm1" class="ob-form">
       <label for="obName">Prénom</label>
       <input id="obName" autocomplete="given-name" value="${esc(obName)}" />
+      <div class="error" id="obNameError" role="alert"></div>
       ${obHousehold !== "solo" ? `
       <label for="obPartner">${obHousehold === "couple" ? "Prénom de votre moitié" : "Prénom de l'autre parent"}</label>
       <input id="obPartner" autocomplete="off" value="${esc(obPartner)}" />` : ""}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
     </form>`);
   if (obStep === 4) return shell(`
     <div style="text-align:center;margin-bottom:10px">
@@ -3491,12 +3502,17 @@ function renderOnboarding() {
     </div>
     <form id="obForm2" class="ob-form">
       <label for="obSalary">Salaire mensuel net (${obBase})</label>
-      <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" />
+      <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" value="${(() => { const v = obSalaryPhase === 2 ? obSalary2 : obSalary; return v ? String(v) : ""; })()}" />
       <label for="obSalaryDay">Jour de versement</label>
       <select id="obSalaryDay">${Array.from({ length: 28 }, (_, i) =>
         `<option value="${i + 1}" ${i + 1 === obSalaryDay ? "selected" : ""}>Le ${i + 1} du mois</option>`).join("")}</select>
+      ${obSalaryPhase === 2 ? "" : `
+      <label for="obTaxPct">Part mise de côté pour les impôts (%)</label>
+      <input id="obTaxPct" inputmode="numeric" maxlength="3" value="${Math.round((obTaxRate ?? COUNTRIES[obCountry].taxRate) * 100)}" />
+      <p class="caption" style="margin:4px 0 0">Une estimation pour votre organisation — jamais un taux officiel ni un conseil fiscal. Modifiable à tout moment dans Impôts.</p>`}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
       <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
     </form>`);
   if (obStep === 6) return shell(`
     <div style="text-align:center;margin-bottom:10px">
@@ -3507,7 +3523,8 @@ function renderOnboarding() {
     <button type="button" class="btn secondary" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
     <button type="button" class="btn secondary" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
     <button type="button" class="btn secondary" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
-    <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>`);
+    <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>
+    <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>`);
   const accToggle = (key, label, icon) => `
     <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
       style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:13px 16px">
@@ -3527,10 +3544,27 @@ function renderOnboarding() {
       ${accToggle("brokerage", "Bourse / titres", "📈")}
       <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
       <button class="btn secondary" type="button" data-obdemo style="margin-top:8px">Explorer avec des données d'exemple</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
     </form>`);
 }
 
 function bindOnboarding() {
+  // L7 : lire le taux d'impôts saisi (estimation MODIFIABLE, jamais
+  // officielle) avant de quitter l'étape salaire, quel que soit le chemin.
+  const captureTaxRate = () => {
+    const field = document.getElementById("obTaxPct");
+    if (!field) return;
+    const pct = parseInt(field.value, 10);
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) obTaxRate = pct / 100;
+  };
+  // Retour : revient d'une étape en CONSERVANT toutes les saisies.
+  document.querySelectorAll("[data-obback]").forEach(btn => btn.addEventListener("click", () => {
+    captureTaxRate();
+    if (obStep === 4 && obSalaryPhase === 2) { obSalaryPhase = 1; }
+    else if (obStep === 6) { obStep = 5; }
+    else { obStep = Math.max(1, obStep - 1); }
+    render(); scrollTop();
+  }));
   document.querySelectorAll("[data-obcountry]").forEach(btn => btn.addEventListener("click", () => {
     obCountry = btn.dataset.obcountry;
     obBase = COUNTRIES[obCountry].currency;
@@ -3545,7 +3579,11 @@ function bindOnboarding() {
   if (form1) form1.addEventListener("submit", (e) => {
     e.preventDefault();
     const name = document.getElementById("obName").value.trim().slice(0, 30);
-    if (!name) { document.getElementById("obName").focus(); return; }
+    if (!name) {
+      document.getElementById("obNameError").textContent = "Indiquez un prénom pour continuer.";
+      document.getElementById("obName").focus();
+      return;
+    }
     obName = name;
     const partnerInput = document.getElementById("obPartner");
     obPartner = partnerInput ? partnerInput.value.trim().slice(0, 30) : "";
@@ -3556,6 +3594,7 @@ function bindOnboarding() {
   if (form2) {
     form2.addEventListener("submit", (e) => {
       e.preventDefault();
+      captureTaxRate();
       const amount = parseAmountField(document.getElementById("obSalary").value);
       if (obSalaryPhase === 2) {
         obSalary2 = amount > 0 ? amount : null;
@@ -3569,6 +3608,7 @@ function bindOnboarding() {
       render(); scrollTop();
     });
     form2.querySelector("[data-obskip]").addEventListener("click", () => {
+      captureTaxRate();
       if (obSalaryPhase === 2) { obSalary2 = null; obStep = 5; }
       else if (obPartner) { obSalary = null; obSalaryPhase = 2; }
       else { obSalary = null; obStep = 5; }
@@ -3608,7 +3648,7 @@ function finishOnboarding() {
   const opening = obOpeningVal;
   S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
-  S.taxRate = COUNTRIES[obCountry].taxRate;
+  S.taxRate = obTaxRate ?? COUNTRIES[obCountry].taxRate;
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
   ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: "", kind: "current",
@@ -4443,6 +4483,22 @@ function rescueNoticeAtBoot() {
     + "Télécharger une copie de secours maintenant ? (récupérable aussi dans Réglages)");
   if (ok) downloadRescued();
 }
+// L7 : résumé HONNÊTE affiché avant toute restauration — date, contenu,
+// portée exacte du remplacement et ce que la sauvegarde ne contient PAS.
+function restoreSummaryText(payload) {
+  const st = payload.state || {};
+  const when = payload.exportedAt ? new Date(payload.exportedAt) : null;
+  const date = when && !isNaN(when.getTime())
+    ? `${String(when.getDate()).padStart(2, "0")}.${String(when.getMonth() + 1).padStart(2, "0")}.${when.getFullYear()}`
+    : "date inconnue";
+  const n = k => (Array.isArray(st[k]) ? st[k].length : 0);
+  return `Sauvegarde du ${date} (version ${payload.version}).\n\n`
+    + `Contenu : ${n("transactions")} mouvements, ${n("accounts")} comptes, ${n("goals")} objectifs, `
+    + `${n("recurrings")} paiements réguliers, ${n("documents")} documents (métadonnées seulement).\n\n`
+    + `La restauration REMPLACE toutes les données actuelles de ce navigateur.\n`
+    + `Non contenu dans la sauvegarde : le code de verrouillage (il sera désactivé) `
+    + `et les fichiers de documents (la version web n'en stocke jamais).\n\nContinuer ?`;
+}
 function restoreFromFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -4460,7 +4516,7 @@ function restoreFromFile(file) {
       toast("Sauvegarde d'une autre version — rien n'a été modifié");
       return;
     }
-    if (!confirm("La restauration REMPLACE toutes les données actuelles. Continuer ?")) return;
+    if (!confirm(restoreSummaryText(payload))) return;
     try {
       localStorage.setItem(APP_STATE_KEY, JSON.stringify(payload.state));
       location.reload();

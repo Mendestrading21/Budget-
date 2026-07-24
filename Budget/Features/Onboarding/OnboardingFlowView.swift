@@ -68,6 +68,7 @@ struct OnboardingFlowView: View {
         case .location: locationStep
         case .taxRate: taxRateStep
         case .firstAccount: firstAccountStep
+        case .income: incomeStep
         }
     }
 
@@ -176,7 +177,7 @@ struct OnboardingFlowView: View {
                     .accessibilityValue(FinanceFormatting.percent(model.taxProvisionRate))
 
                     Label {
-                        Text("30 % du revenu imposable est un point de départ prudent et courant en Suisse. C'est une estimation d'organisation : ajustez-la à votre situation, elle reste modifiable.")
+                        Text("30 % est un simple point de départ d'organisation — ni un taux officiel, ni une recommandation fiscale. Ajustez-le à votre situation : il reste modifiable à tout moment dans Impôts.")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
                     } icon: {
@@ -214,24 +215,74 @@ struct OnboardingFlowView: View {
         }
     }
 
+    private var incomeStep: some View {
+        VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
+            stepTitle("Revenus et logement", subtitle: "Facultatif — deux repères qui remplissent vos prévisions tout seuls.")
+            GlassCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
+                    labeledField("Salaire mensuel net (CHF, facultatif)") {
+                        TextField("5'500.00", text: Bindable(model).salaryText)
+                            .keyboardType(.decimalPad)
+                    }
+                    labeledField("Jour de versement") {
+                        Picker("Jour de versement", selection: Bindable(model).salaryDay) {
+                            ForEach(1...28, id: \.self) { day in
+                                Text("Le \(day) du mois").tag(day)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(BudgetColor.indigo)
+                    }
+                    labeledField("Loyer ou charge de logement (CHF, facultatif)") {
+                        TextField("1'800.00", text: Bindable(model).rentText)
+                            .keyboardType(.decimalPad)
+                    }
+                    labeledField("Jour de paiement") {
+                        Picker("Jour de paiement", selection: Bindable(model).rentDay) {
+                            ForEach(1...28, id: \.self) { day in
+                                Text("Le \(day) du mois").tag(day)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(BudgetColor.indigo)
+                    }
+                    Text("Créés comme paiements réguliers — modifiables ou supprimables à tout moment.")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     // MARK: - Controls
 
     private var controls: some View {
         VStack(spacing: BudgetSpacing.small) {
             Button {
                 saveErrorMessage = nil
-                if model.step == .firstAccount {
+                if model.step == .income {
                     finish()
                 } else {
                     model.advance()
                 }
             } label: {
-                Text(model.step == .firstAccount ? "Créer mon ménage" : "Continuer")
+                Text(model.step == .income ? "Créer mon ménage" : "Continuer")
                     .font(BudgetFont.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(LinearGradient.budgetAccent, in: RoundedRectangle(cornerRadius: BudgetRadius.control))
                     .foregroundStyle(.white)
+            }
+
+            if model.step == .income {
+                Button("Passer cette étape") {
+                    saveErrorMessage = nil
+                    model.skipIncome()
+                    finish()
+                }
+                .font(BudgetFont.body)
+                .foregroundStyle(BudgetColor.electricBlue)
+                .accessibilityHint("Termine sans salaire ni loyer — vous pourrez les ajouter plus tard.")
             }
 
             if model.step == .welcome {
@@ -255,7 +306,11 @@ struct OnboardingFlowView: View {
 
     private func finish() {
         do {
-            try model.finish(context: modelContext, now: appContainer.dateProvider.now)
+            try model.finish(
+                context: modelContext,
+                calendar: appContainer.calendar,
+                now: appContainer.dateProvider.now
+            )
             // RootView's @Query sees the new household and swaps to the app.
         } catch {
             saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."

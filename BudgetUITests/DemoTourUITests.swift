@@ -52,8 +52,11 @@ final class DemoTourUITests: XCTestCase {
         visitFinancialModule(app, label: "Récurrents et abonnements", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
                              namedProofs: ["recurring.row.Loyer"])
-        visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
+        visitSettingsWithDestructiveProof(app)
         visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
+        // L7 : le registre des documents fait partie des surfaces de
+        // confiance — asserté et capturé comme le reste.
+        visitMoreEntry(app, label: "Documents", shot: "16-documents")
         visitFinancialModule(app, label: "Assurances", base: "14-assurances",
                              lastProofPrefix: "insurance.row")
         visitFinancialModule(app, label: "Prévoyance", base: "15-prevoyance",
@@ -115,6 +118,38 @@ final class DemoTourUITests: XCTestCase {
         entry.tap()
         _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
         snap(app, shot)
+    }
+
+    /// L7 : Réglages capturé, PUIS le dialogue de suppression totale est
+    /// OUVERT (preuve qu'il nomme la portée exacte et propose la
+    /// sauvegarde d'abord), capturé et ANNULÉ — les données de
+    /// démonstration restent intactes pour la suite du tour.
+    @MainActor
+    private func visitSettingsWithDestructiveProof(_ app: XCUIApplication) {
+        visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
+        let deleteButton = app.buttons["Supprimer toutes les données"]
+        if !deleteButton.waitForExistence(timeout: 5) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 10),
+                      "Réglages doit proposer la suppression totale")
+        deleteButton.tap()
+        let backupFirst = app.buttons["D'abord créer une sauvegarde"]
+        let continueButton = app.buttons["Continuer vers la confirmation finale"]
+        XCTAssertTrue(continueButton.waitForExistence(timeout: 5),
+                      "la première confirmation doit exister (double confirmation)")
+        XCTAssertTrue(backupFirst.exists,
+                      "la suppression totale doit proposer de sauvegarder d'abord")
+        snap(app, "17-suppression-annulee")
+        // ANNULER — aucune donnée de démonstration n'est détruite.
+        let cancel = app.buttons["Annuler"]
+        if cancel.waitForExistence(timeout: 3) {
+            cancel.tap()
+        } else {
+            app.tap() // fermeture du dialogue par tap extérieur
+        }
+        XCTAssertTrue(app.buttons["Supprimer toutes les données"].waitForExistence(timeout: 5),
+                      "l'annulation ramène aux Réglages sans rien supprimer")
     }
 
     private static let fabLabel = "Ajouter — dépense, revenu, épargne, investissement ou virement"

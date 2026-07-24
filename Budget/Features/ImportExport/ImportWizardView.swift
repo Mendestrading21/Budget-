@@ -75,6 +75,7 @@ struct ImportWizardView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Import CSV")
         .navigationBarTitleDisplayMode(.inline)

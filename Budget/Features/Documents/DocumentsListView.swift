@@ -63,6 +63,7 @@ struct DocumentsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
@@ -83,6 +84,7 @@ struct DocumentsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -145,6 +147,11 @@ struct DocumentRow: View {
                             .foregroundStyle(BudgetColor.electricBlue)
                     }
                     .accessibilityLabel("Partager \(document.title)")
+                } else if !document.fileReference.isEmpty {
+                    // L7 : fichier attendu mais introuvable — état ÉCRIT,
+                    // jamais un bouton de partage qui disparaît en silence.
+                    StatusPill(text: "Fichier absent", kind: .warning)
+                        .accessibilityLabel("Le fichier de \(document.title) est absent — seules les informations restent.")
                 }
             }
         }

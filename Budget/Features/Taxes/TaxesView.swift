@@ -301,7 +301,7 @@ struct TaxesView: View {
     private func amountSheet(for kind: SheetKind) -> some View {
         let (title, footer, initial): (String, String, Decimal?) = switch kind {
         case .rate:
-            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un point de départ prudent courant en Suisse.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
+            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un simple point de départ d'organisation — ni un taux officiel, ni une recommandation.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
         case .reserved:
             ("Réserve constituée", "Argent déjà mis de côté pour les impôts \(String(currentYear)).", provision?.reservedAmount)
         case .arrears:

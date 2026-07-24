@@ -327,6 +327,40 @@ struct BackupService {
 
     /// Replaces every entity with the backup's content. Stored document
     /// FILES are deliberately never touched: they do not travel in the
+    /// L7 : résumé HONNÊTE d'une sauvegarde AVANT restauration — la
+    /// confirmation affiche la date, la version et le contenu réels.
+    /// Lève les mêmes refus que `restore` (illisible, version future)
+    /// SANS toucher aux données.
+    struct Summary: Equatable {
+        let exportedAt: Date
+        let schemaVersion: Int
+        let accounts: Int
+        let transactions: Int
+        let goals: Int
+        let recurrings: Int
+        let documents: Int
+    }
+
+    func summary(of data: Data) throws -> Summary {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let file = try? decoder.decode(BackupFile.self, from: data) else {
+            throw BackupError.unreadable
+        }
+        guard file.schemaVersion <= Self.currentSchemaVersion else {
+            throw BackupError.newerSchema(found: file.schemaVersion, supported: Self.currentSchemaVersion)
+        }
+        return Summary(
+            exportedAt: file.exportedAt,
+            schemaVersion: file.schemaVersion,
+            accounts: file.accounts.count,
+            transactions: file.transactions.count,
+            goals: file.goals.count,
+            recurrings: file.recurrings.count,
+            documents: file.documents.count
+        )
+    }
+
     /// JSON, so a still-present file stays reachable via its restored
     /// `fileReference`.
     func restore(data: Data, context: ModelContext, documentFileStore: DocumentFileStoring?) throws {

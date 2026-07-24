@@ -1,5 +1,25 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L7 (2026-07-24)
+
+L7 « Onboarding et confiance » exécuté (`/budget-v1 execute L7`) après
+validation humaine de L6. PWA : promesse de confidentialité concrète à
+l'étape 1, Retour partout (saisies conservées), part d'impôts MODIFIABLE
+présentée comme estimation (« jamais un taux officiel »), erreur près du
+champ, résumé RÉEL avant restauration (date, contenu, portée, absents).
+iOS : hub Plus par intentions (5 groupes, sous-titres, zone FAB), étape
+facultative « Revenus et logement » (RecurringTransaction, save
+atomique, Passer), résumé de restauration via BackupService.summary
+(refus illisible/version future AVANT confirmation), « D'abord créer une
+sauvegarde » dans le dialogue de suppression, pill « Fichier absent »
+sur les documents sans fichier, formulations non sourcées retirées.
+Suites : 64 e2e + 5 parité + design verts ; ObsidianTrustTests (7 tests)
++ OnboardingViewModelTests adaptés (total 249 attendu) ; 19 captures PWA
++ README (`docs/obsidian-glass/onboarding-trust/l7/`) ; tour Demo 18
+étapes (+16-documents, +17-suppression-annulee, dialogue destructif
+ouvert puis ANNULÉ). Formules, migrations, persistance, format de
+sauvegarde : INCHANGÉS. **L7 = VERIFYING**, L8 = BLOCKED.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L6 (2026-07-23)
 
 L6 « Modules financiers » exécuté (`/budget-v1 execute L6`) après
