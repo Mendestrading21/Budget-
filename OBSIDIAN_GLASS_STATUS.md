@@ -28,6 +28,52 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
+## Validation visuelle L6 : REFUSÉE provisoirement (24.07.2026)
+
+Le propriétaire a examiné les vraies captures natives et REFUSE la
+validation pour défauts de lisibilité : le ＋ flottant masque du contenu
+financier en bas des modules, et des libellés essentiels sont tronqués
+(stats fiscales, noms d'objectifs/récurrents, assureur/contrat,
+institution de prévoyance). **L6 reste VERIFYING** ; passe corrective
+iOS uniquement, commit `fix(l6): prevent overlays and preserve financial
+labels`.
+
+## Critères d'acceptation L6-correctif (annoncés avant toute édition, 24.07.2026)
+
+**Périmètre strict** : iOS uniquement — `RootView` (tokens du ＋
+flottant), les 6 écrans modules (`GoalsTab`, `TaxesView`,
+`NetWorthView`, `PensionView`, `InsuranceListView`,
+`RecurringListView`), `DesignTokens`, tests, tour Demo. Aucune formule,
+migration, persistance, donnée, PWA ni module L7.
+
+1. Le ＋ flottant ne masque plus aucun montant, texte, graphique ou
+   action : chaque contenu défilant des 6 modules réserve une zone
+   inférieure `fabClearance` (diamètre + décalage du ＋ + espacement,
+   au-delà de la tab bar/safe area), le dernier élément défile
+   entièrement au-dessus du ＋.
+2. Libellés essentiels JAMAIS tronqués (retour à la ligne, pas
+   d'ellipse) : « Estimation annuelle », « Réserve constituée », noms
+   d'objectifs, noms de récurrents, assureur + contrat, institution +
+   position de prévoyance. Stats fiscales en colonnes ADAPTATIVES
+   (1 colonne à 320 pt).
+3. Montants jamais comprimés/tronqués/recouverts : `fixedSize` sur les
+   colonnes de montants, suppression du `minimumScaleFactor` des stats
+   fiscales (le montant passe à la ligne plutôt que rétrécir).
+4. Montants projetés du Patrimoine arrondis au centime à l'AFFICHAGE via
+   `FinanceMath.roundedToCents` + `FinanceFormatting.chf` — aucun calcul
+   modifié.
+5. Libellés VoiceOver complets conservés (accessibilityLabel explicites
+   inchangés).
+6. Tests : contrat géométrique du ＋ (clearance ≥ zone occupée),
+   non-troncature prouvée par hauteur de rendu (texte long > texte
+   court), écrans 320/390/Dynamic Type accessibilité/CHF
+   -9'999'999.99 ; tour Demo enrichi d'assertions RÉELLES : dernier
+   élément atteignable après défilement et AUCUNE intersection
+   ＋/contenu financier sur les modules visités.
+7. Captures natives régénérées par le workflow Demo (06-objectifs,
+   07-impots, 08-patrimoine, 09-recurrents, 14-assurances,
+   15-prevoyance) ; CI complète verte ; L6 = VERIFYING, L7 = BLOCKED.
+
 ## Critères d'acceptation L6 (annoncés avant toute édition, 23.07.2026)
 
 **Périmètre strict** : les 7 modules financiers — Factures/charges

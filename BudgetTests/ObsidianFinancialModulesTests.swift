@@ -185,6 +185,131 @@ final class ObsidianFinancialModulesTests: XCTestCase {
                        "réserve manquante = encore dû − réservé, sans double comptage")
     }
 
+    // MARK: - Correctif L6 : le ＋ flottant ne masque jamais le contenu
+
+    func testFABTokensReserveTheFloatingButtonZone() {
+        // Le ＋ culmine à `fabBottomOffset + fabDiameter` du bord inférieur
+        // de l'écran ; une tab bar compacte (49 pt, sans home indicator)
+        // en absorbe le moins. La zone réservée en bas des contenus
+        // défilants doit couvrir ce dépassement PLUS un espacement de
+        // lecture — sinon le dernier montant reste sous le bouton.
+        let compactTabBar: CGFloat = 49
+        let fabTopFromScreenBottom = BudgetSpacing.fabBottomOffset + BudgetSpacing.fabDiameter
+        XCTAssertGreaterThanOrEqual(
+            BudgetSpacing.fabClearance,
+            fabTopFromScreenBottom - compactTabBar + BudgetSpacing.medium,
+            "fabClearance doit dépasser la zone du ＋ d'au moins 16 pt"
+        )
+        XCTAssertGreaterThanOrEqual(BudgetSpacing.fabDiameter, 44, "cible tactile minimale")
+    }
+
+    // MARK: - Correctif L6 : libellés essentiels sans troncature
+
+    @MainActor
+    private func fittedHeight<V: View>(_ view: V, width: CGFloat) -> CGFloat {
+        let controller = UIHostingController(rootView: view)
+        return controller.sizeThatFits(in: CGSize(width: width, height: 10_000)).height
+    }
+
+    /// Un libellé long doit AUGMENTER la hauteur de la ligne (retour à la
+    /// ligne) au lieu d'être tronqué par une ellipse : à hauteur égale, le
+    /// texte serait coupé.
+    @MainActor
+    func testEssentialLabelsWrapInsteadOfTruncating() throws {
+        let width: CGFloat = 320 - 2 * BudgetSpacing.screenMargin
+
+        let shortContract = InsuranceContract(
+            insurerName: "CSS", policyName: "RC", kind: .liability,
+            premiumAmount: Decimal("300.00"), premiumUnit: .year
+        )
+        let longContract = InsuranceContract(
+            insurerName: "Compagnie d'assurance générale de la Suisse romande et italienne réunie",
+            policyName: "Complémentaire hospitalisation demi-privée pour toute la famille",
+            kind: .healthComplementary,
+            premiumAmount: Decimal("9999999.99"), premiumUnit: .year
+        )
+        context.insert(shortContract)
+        context.insert(longContract)
+
+        let shortPension = PensionAsset(pillar: .pillar2, institutionName: "BCV", currentValue: Decimal("1000.00"))
+        let longPension = PensionAsset(
+            pillar: .pillar2,
+            institutionName: "Fondation collective de prévoyance professionnelle de la Banque Cantonale Vaudoise",
+            currentValue: Decimal("9999999.99")
+        )
+        context.insert(shortPension)
+        context.insert(longPension)
+
+        let shortRecurring = RecurringTransaction(
+            title: "Loyer", amount: Decimal("1500.00"), type: .expense, firstOccurrence: now
+        )
+        let longRecurring = RecurringTransaction(
+            title: "Abonnement demi-tarif et assurance ménage combinés de tout le foyer familial",
+            amount: Decimal("9999999.99"), type: .expense, firstOccurrence: now
+        )
+        context.insert(shortRecurring)
+        context.insert(longRecurring)
+        try context.save()
+
+        let hShortContract = fittedHeight(
+            InsuranceRow(contract: shortContract, monthly: Decimal("25.00"), now: now), width: width
+        )
+        let hLongContract = fittedHeight(
+            InsuranceRow(contract: longContract, monthly: Decimal("833333.35"), now: now), width: width
+        )
+        XCTAssertGreaterThanOrEqual(hLongContract, hShortContract + 10,
+            "assureur et contrat longs doivent passer à la ligne, jamais d'ellipse")
+
+        let hShortPension = fittedHeight(PensionRow(asset: shortPension), width: width)
+        let hLongPension = fittedHeight(PensionRow(asset: longPension), width: width)
+        XCTAssertGreaterThanOrEqual(hLongPension, hShortPension + 10,
+            "l'institution de prévoyance longue doit passer à la ligne")
+
+        let hShortRecurring = fittedHeight(
+            RecurringRow(recurring: shortRecurring, monthlyEquivalent: Decimal("1500.00"), nextDate: now, now: now),
+            width: width
+        )
+        let hLongRecurring = fittedHeight(
+            RecurringRow(recurring: longRecurring, monthlyEquivalent: Decimal("9999999.99"), nextDate: now, now: now),
+            width: width
+        )
+        XCTAssertGreaterThanOrEqual(hLongRecurring, hShortRecurring + 10,
+            "le nom d'un récurrent long doit passer à la ligne")
+    }
+
+    @MainActor
+    func testGoalCardWrapsLongNameAndExtremeAmounts() {
+        let width: CGFloat = 320 - 2 * BudgetSpacing.screenMargin
+        func report(for goal: FinancialGoal, current: Decimal, target: Decimal) -> GoalReport {
+            GoalReport(
+                goalID: goal.id, currentAmount: current, targetAmount: target,
+                progressFraction: Decimal("0.5"), remainingAmount: target - current,
+                monthsRemaining: 10, requiredMonthlyContribution: Decimal("100.00"),
+                plannedMonthlyContribution: Decimal("100.00"),
+                scheduleStatus: .onTrack, projectedCompletionDate: nil
+            )
+        }
+        let shortGoal = FinancialGoal(name: "Vélo", kind: .custom, targetAmount: Decimal("1000.00"))
+        let longGoal = FinancialGoal(
+            name: "Fonds de rénovation complète de la salle de bains et de la cuisine du chalet",
+            kind: .custom, targetAmount: Decimal("9999999.99")
+        )
+        context.insert(shortGoal)
+        context.insert(longGoal)
+        let hShort = fittedHeight(
+            GoalCard(goal: shortGoal, report: report(for: shortGoal, current: Decimal("500.00"), target: Decimal("1000.00"))),
+            width: width
+        )
+        // Nom long ET montants extrêmes signés : tout reste affiché, la
+        // carte grandit au lieu de tronquer ou de comprimer.
+        let hLong = fittedHeight(
+            GoalCard(goal: longGoal, report: report(for: longGoal, current: Decimal("-9999999.99"), target: Decimal("9999999.99"))),
+            width: width
+        )
+        XCTAssertGreaterThanOrEqual(hLong, hShort + 10,
+            "le nom d'objectif long et le montant CHF -9'999'999.99 doivent passer à la ligne")
+    }
+
     // MARK: - Construction des écrans dans les états exigés
 
     @MainActor

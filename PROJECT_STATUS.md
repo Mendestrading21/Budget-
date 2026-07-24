@@ -18,6 +18,18 @@ natifs, total 239 attendu) ; 16 captures PWA + README
 (+ 14-assurances, 15-prevoyance). Formules, migrations, persistance :
 INCHANGÉES. **L6 = VERIFYING**, L7 = BLOCKED.
 
+**Correctif L6 (2026-07-24)** — validation visuelle refusée (＋ flottant
+masquant du contenu, libellés tronqués) → passe `fix(l6)` : zone
+`fabClearance` (96 pt) réservée sous les 10 contenus défilants des 6
+modules, libellés essentiels multilignes (plus d'ellipse), montants
+`fixedSize` (jamais comprimés), stats fiscales en colonnes adaptatives
+(1 colonne à 320 pt), projection Patrimoine arrondie au centime à
+l'affichage (`FinanceMath.roundedToCents`, aucun calcul modifié),
+VoiceOver inchangé. Tests : contrat géométrique du ＋, non-troncature
+par hauteur de rendu, extrêmes 320 pt ; tour Demo asserte l'absence
+d'intersection ＋/contenu et le dernier élément visible après
+défilement sur les 6 modules. L6 reste VERIFYING.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L5 (2026-07-23)
 
 L5 « Mouvements et Comptes » exécuté (`/budget-v1 execute L5`) après

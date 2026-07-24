@@ -88,8 +88,9 @@ struct NetWorthView: View {
                             .font(BudgetFont.body)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(FinanceFormatting.chf(projected(years: years)))
+                        Text(FinanceFormatting.chf(FinanceMath.roundedToCents(projected(years: years))))
                             .font(BudgetFont.body.weight(.bold).monospacedDigit())
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Text("Au rythme de vos versements de l'année, hypothèses annualisées par classe — une simulation, jamais une promesse.")
@@ -122,6 +123,7 @@ struct NetWorthView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Patrimoine")
         .toolbar {

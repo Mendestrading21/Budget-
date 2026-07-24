@@ -103,6 +103,7 @@ struct PensionView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
@@ -118,6 +119,7 @@ struct PensionView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -133,7 +135,7 @@ struct PensionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(asset.pillar.shortName) · \(asset.institutionName)")
                         .font(BudgetFont.body.weight(.medium))
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let owner = asset.owner {
                         Text(owner.firstName)
                             .font(BudgetFont.caption)
@@ -149,6 +151,7 @@ struct PensionRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(asset.currentValue))
                         .font(BudgetFont.amount)
+                        .fixedSize()
                     if asset.annualContribution > 0 {
                         Text("+\(FinanceFormatting.chf(asset.annualContribution)) / an")
                             .font(BudgetFont.caption)

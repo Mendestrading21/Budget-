@@ -69,6 +69,7 @@ struct TaxesView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Impôts")
         .toolbar {
@@ -153,7 +154,9 @@ struct TaxesView: View {
     }
 
     private func stateGrid(_ report: TaxYearReport) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
+        // Colonnes adaptatives : deux colonnes à 390 pt, UNE seule à
+        // 320 pt — libellés et montants gardent toute leur largeur.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: BudgetSpacing.medium)], spacing: BudgetSpacing.medium) {
             stateCard("Estimation annuelle", report.estimatedTax, icon: "function",
                       detail: report.isOverridden ? "Corrigée manuellement" : "Revenus × \(FinanceFormatting.percent(report.rate))")
             stateCard("Déjà payé", report.paid, icon: "checkmark.circle", tint: BudgetColor.positive,
@@ -172,12 +175,11 @@ struct TaxesView: View {
                 Label(title, systemImage: icon)
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(FinanceFormatting.chf(amount))
                     .font(BudgetFont.amount)
                     .foregroundStyle(tint)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let detail {
                     Text(detail)
                         .font(BudgetFont.caption)

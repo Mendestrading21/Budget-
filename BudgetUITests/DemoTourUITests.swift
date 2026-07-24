@@ -39,15 +39,17 @@ final class DemoTourUITests: XCTestCase {
         openTab(app, "Plus")
         snap(app, "05-plus")
 
-        visitMoreEntry(app, label: "Objectifs", shot: "06-objectifs")
-        visitMoreEntry(app, label: "Impôts", shot: "07-impots")
-        visitMoreEntry(app, label: "Patrimoine", shot: "08-patrimoine")
-        visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents")
+        // Correctif L6 : sur chaque module financier, on descend tout en
+        // bas et on PROUVE que le ＋ flottant ne recouvre aucun contenu.
+        visitMoreEntry(app, label: "Objectifs", shot: "06-objectifs", checkFABClearance: true)
+        visitMoreEntry(app, label: "Impôts", shot: "07-impots", checkFABClearance: true)
+        visitMoreEntry(app, label: "Patrimoine", shot: "08-patrimoine", checkFABClearance: true)
+        visitMoreEntry(app, label: "Récurrents et abonnements", shot: "09-recurrents", checkFABClearance: true)
         visitMoreEntry(app, label: "Réglages", shot: "10-reglages")
         visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
         // L6 : les deux modules financiers restants, assertés eux aussi.
-        visitMoreEntry(app, label: "Assurances", shot: "14-assurances")
-        visitMoreEntry(app, label: "Prévoyance", shot: "15-prevoyance")
+        visitMoreEntry(app, label: "Assurances", shot: "14-assurances", checkFABClearance: true)
+        visitMoreEntry(app, label: "Prévoyance", shot: "15-prevoyance", checkFABClearance: true)
 
         // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
         // partie des trois parcours refondus — preuve native exigée.
@@ -91,7 +93,7 @@ final class DemoTourUITests: XCTestCase {
     /// returns to the list. Missing entries fail the test — the tour must
     /// cover what the app claims to ship.
     @MainActor
-    private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String) {
+    private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String, checkFABClearance: Bool = false) {
         openTab(app, "Plus")
         var entry = app.buttons[label].firstMatch
         if !entry.waitForExistence(timeout: 5) {
@@ -104,6 +106,45 @@ final class DemoTourUITests: XCTestCase {
         entry.tap()
         _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
         snap(app, shot)
+        if checkFABClearance {
+            assertScrolledContentClearsFAB(app, screen: label)
+        }
+    }
+
+    /// Correctif L6 : descend au bout du contenu défilant, puis vérifie
+    /// que le DERNIER contenu financier visible est atteignable et que
+    /// RIEN (montant, texte, action) n'intersecte le ＋ flottant.
+    @MainActor
+    private func assertScrolledContentClearsFAB(_ app: XCUIApplication, screen: String) {
+        let fab = app.buttons["Ajouter — dépense, revenu, épargne, investissement ou virement"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 5), "＋ flottant absent sur « \(screen) »")
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5), "contenu défilant absent sur « \(screen) »")
+        for _ in 0..<5 { scroll.swipeUp() }
+        let fabFrame = fab.frame
+        let viewport = scroll.frame
+        // Visibilité GÉOMÉTRIQUE (pas `isHittable`, qui exclurait
+        // précisément les éléments recouverts par le ＋).
+        var visibleTexts = 0
+        for text in scroll.staticTexts.allElementsBoundByIndex.prefix(60) {
+            let frame = text.frame
+            guard !frame.isEmpty, frame.intersects(viewport) else { continue }
+            visibleTexts += 1
+            XCTAssertFalse(
+                frame.intersects(fabFrame),
+                "« \(text.label.prefix(48)) » est recouvert par le ＋ sur « \(screen) »"
+            )
+        }
+        for button in scroll.buttons.allElementsBoundByIndex.prefix(20) {
+            let frame = button.frame
+            guard !frame.isEmpty, frame.intersects(viewport) else { continue }
+            XCTAssertFalse(
+                frame.intersects(fabFrame),
+                "l'action « \(button.label.prefix(48)) » est recouverte par le ＋ sur « \(screen) »"
+            )
+        }
+        XCTAssertGreaterThan(visibleTexts, 0,
+            "le dernier contenu doit rester visible après défilement sur « \(screen) »")
     }
 
     @MainActor

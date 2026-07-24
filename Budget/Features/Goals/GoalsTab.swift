@@ -102,6 +102,7 @@ struct GoalsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private func section(_ title: String, goals: [FinancialGoal]) -> some View {
@@ -129,6 +130,7 @@ struct GoalsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -156,7 +158,7 @@ struct GoalCard: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(goal.name)
                             .font(BudgetFont.body.weight(.semibold))
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                         if let account = goal.linkedAccount {
                             Text("Lié au compte \(account.name)")
                                 .font(BudgetFont.caption)
@@ -166,6 +168,7 @@ struct GoalCard: View {
                     Spacer()
                     Label(report.scheduleStatus.displayName, systemImage: statusIcon)
                         .font(BudgetFont.caption.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(statusColor.opacity(0.18), in: Capsule())
@@ -179,6 +182,7 @@ struct GoalCard: View {
                     Text("\(FinanceFormatting.chf(report.currentAmount)) / \(FinanceFormatting.chf(report.targetAmount))")
                         .font(BudgetFont.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text(FinanceFormatting.percent(report.progressFraction))
                         .font(BudgetFont.caption.weight(.semibold).monospacedDigit())

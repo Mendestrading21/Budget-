@@ -185,6 +185,27 @@ enum BudgetSpacing {
     static let heroPadding: CGFloat = 24
     /// Padding interne d'une carte standard.
     static let cardPadding: CGFloat = 18
+
+    /// Diamètre du ＋ flottant global (cible ≥ 44 pt).
+    static let fabDiameter: CGFloat = 52
+    /// Décalage du ＋ au-dessus du bord inférieur de l'écran.
+    static let fabBottomOffset: CGFloat = 62
+    /// Zone à réserver en bas de tout contenu défilant survolé par le ＋ :
+    /// le ＋ culmine à `fabBottomOffset + fabDiameter` du bord de l'écran ;
+    /// une tab bar compacte (49 pt, sans home indicator) en absorbe le
+    /// moins — il faut donc au minimum 114 − 49 = 65 pt, plus un
+    /// espacement de lecture. 96 pt garantit que le dernier montant
+    /// défile entièrement au-dessus du ＋ sur tous les iPhone.
+    static let fabClearance: CGFloat = 96
+}
+
+extension View {
+    /// Réserve la zone du ＋ flottant en bas d'un contenu défilant : le
+    /// dernier élément peut toujours défiler au-dessus du bouton, aucun
+    /// montant ni action n'est recouvert.
+    func obsidianFABClearance() -> some View {
+        contentMargins(.bottom, BudgetSpacing.fabClearance, for: .scrollContent)
+    }
 }
 
 enum BudgetRadius {

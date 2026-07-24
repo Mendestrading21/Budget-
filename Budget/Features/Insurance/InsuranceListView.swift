@@ -92,6 +92,7 @@ struct InsuranceListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
@@ -107,6 +108,7 @@ struct InsuranceListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -129,11 +131,11 @@ struct InsuranceRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(contract.policyName)
                         .font(BudgetFont.body.weight(.medium))
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("\(contract.insurerName) · \(contract.kind.displayName)\(contract.member.map { " · \($0.firstName)" } ?? "")")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let deductible = contract.deductible {
                         Text("Franchise \(FinanceFormatting.chf(deductible))")
                             .font(BudgetFont.caption)
@@ -149,6 +151,7 @@ struct InsuranceRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(contract.premiumAmount))
                         .font(BudgetFont.amount)
+                        .fixedSize()
                     Text(contract.frequencyLabel)
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)

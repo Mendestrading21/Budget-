@@ -102,7 +102,7 @@ struct MainTabView: View {
             Image(systemName: "plus")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 52, height: 52)
+                .frame(width: BudgetSpacing.fabDiameter, height: BudgetSpacing.fabDiameter)
                 .background(
                     LinearGradient(
                         colors: [BudgetColor.indigo, BudgetColor.violet],
@@ -114,7 +114,7 @@ struct MainTabView: View {
         }
         .accessibilityLabel("Ajouter — dépense, revenu, épargne, investissement ou virement")
         .padding(.trailing, BudgetSpacing.screenMargin)
-        .padding(.bottom, 62)
+        .padding(.bottom, BudgetSpacing.fabBottomOffset)
     }
 }
 

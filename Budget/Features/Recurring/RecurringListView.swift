@@ -108,6 +108,7 @@ struct RecurringListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
@@ -123,6 +124,7 @@ struct RecurringListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -148,7 +150,7 @@ struct RecurringRow: View {
                     HStack(spacing: BudgetSpacing.micro) {
                         Text(recurring.title)
                             .font(BudgetFont.body.weight(.medium))
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                         if recurring.isProfessional {
                             Text("Pro")
                                 .font(BudgetFont.caption.weight(.semibold))
@@ -172,6 +174,7 @@ struct RecurringRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(recurring.amount))
                         .font(BudgetFont.amount)
+                        .fixedSize()
                         .foregroundStyle(recurring.type == .income ? BudgetColor.positive : .primary)
                     Text(recurring.frequencyLabel)
                         .font(BudgetFont.caption)
