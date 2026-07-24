@@ -201,11 +201,18 @@ final class DemoTourUITests: XCTestCase {
                       "l'étape du compte de destination doit suivre")
         // Le compte de destination est un CHOIX explicite (pas de
         // pré-sélection) : le tour choisit réellement « Compte ménage ».
-        let accountPicker = app.buttons["Choisir…"].firstMatch
+        // Le Picker .menu expose son bouton avec un label variable selon
+        // l'OS — requête par prédicat, avec repli sur le label du Picker.
+        var accountPicker = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS 'Choisir'")).firstMatch
+        if !accountPicker.waitForExistence(timeout: 5) {
+            accountPicker = app.buttons["Compte"].firstMatch
+        }
         XCTAssertTrue(accountPicker.waitForExistence(timeout: 5),
                       "le compte de destination doit être un choix explicite")
         accountPicker.tap()
-        let householdAccount = app.buttons["Compte ménage"].firstMatch
+        let householdAccount = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label BEGINSWITH 'Compte ménage'")).firstMatch
         XCTAssertTrue(householdAccount.waitForExistence(timeout: 5),
                       "les comptes actifs doivent être proposés")
         householdAccount.tap()
