@@ -145,6 +145,14 @@ final class ObsidianTrustTests: XCTestCase {
         XCTAssertTrue(methodology.contains("pas des conseils financiers"), "aucun conseil financier promis")
     }
 
+    // MARK: - Correctif L7 : le mapping natif reconnaît « intitulé »
+
+    func testCSVMappingRecognizesIntituleHeader() {
+        let mapping = CSVImportService().suggestMapping(headers: ["date", "montant", "intitulé"])
+        XCTAssertNotNil(mapping.titleIndex, "« intitulé » — l'en-tête des exemples de l'app — doit être reconnu")
+        XCTAssertTrue(mapping.isUsable, "date + montant + intitulé suffisent à un import utilisable")
+    }
+
     // MARK: - Correctif L7 : métadonnées de documents jamais tronquées
 
     @MainActor

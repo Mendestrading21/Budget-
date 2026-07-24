@@ -138,7 +138,7 @@ struct CSVImportService {
         return ColumnMapping(
             dateIndex: index(matching: ["date", "jour"]),
             amountIndex: index(matching: ["montant", "amount", "chf", "prix", "somme"]),
-            titleIndex: index(matching: ["nom", "name", "titre", "title", "description", "libellé", "libelle"]),
+            titleIndex: index(matching: ["nom", "name", "titre", "title", "description", "libellé", "libelle", "intitul"]),
             categoryIndex: index(matching: ["catégorie", "categorie", "category", "tags"]),
             typeIndex: index(matching: ["type", "sens"]),
             noteIndex: index(matching: ["note", "commentaire", "remarque"])

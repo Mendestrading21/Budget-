@@ -193,15 +193,20 @@ final class DemoTourUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(contains("colonnes détectées")).firstMatch.waitForExistence(timeout: 15),
                       "l'étape de correspondance doit détecter les colonnes")
         snap(app, "ios-l7-import-mapping")
-        app.buttons["Continuer"].tap()
-        XCTAssertTrue(app.buttons["Vérifier les lignes"].waitForExistence(timeout: 10),
+        let mapContinue = app.buttons["Continuer"]
+        if !mapContinue.isHittable { app.swipeUp() }
+        mapContinue.tap()
+        let verifyButton = app.buttons["Vérifier les lignes"]
+        XCTAssertTrue(verifyButton.waitForExistence(timeout: 10),
                       "l'étape du compte de destination doit suivre")
-        app.buttons["Vérifier les lignes"].tap()
+        if !verifyButton.isHittable { app.swipeUp() }
+        verifyButton.tap()
         XCTAssertTrue(app.staticTexts["Prêt à importer"].waitForExistence(timeout: 10),
                       "l'aperçu doit précéder toute écriture")
         snap(app, "ios-l7-import-avant-confirmation")
         let importButton = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Importer '")).firstMatch
         XCTAssertTrue(importButton.exists, "le bouton de confirmation distinct doit exister")
+        if !importButton.isHittable { app.swipeUp() }
         importButton.tap()
         XCTAssertTrue(app.staticTexts["Import terminé"].waitForExistence(timeout: 15),
                       "le rapport doit suivre l'écriture réelle")
