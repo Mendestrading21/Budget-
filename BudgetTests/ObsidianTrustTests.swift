@@ -148,7 +148,7 @@ final class ObsidianTrustTests: XCTestCase {
     // MARK: - Correctif L7 : le mapping natif reconnaît « intitulé »
 
     func testCSVMappingRecognizesIntituleHeader() {
-        let mapping = CSVImportService().suggestMapping(headers: ["date", "montant", "intitulé"])
+        let mapping = CSVImportService(calendar: calendar).suggestMapping(headers: ["date", "montant", "intitulé"])
         XCTAssertNotNil(mapping.titleIndex, "« intitulé » — l'en-tête des exemples de l'app — doit être reconnu")
         XCTAssertTrue(mapping.isUsable, "date + montant + intitulé suffisent à un import utilisable")
     }
