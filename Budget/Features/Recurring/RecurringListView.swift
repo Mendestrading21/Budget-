@@ -185,6 +185,7 @@ struct RecurringRow: View {
         .opacity(recurring.isActive ? 1 : 0.55)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("recurring.row.\(recurring.title)")
     }
 
     private var subtitle: String {

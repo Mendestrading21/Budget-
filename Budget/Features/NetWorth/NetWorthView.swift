@@ -250,6 +250,7 @@ struct NetWorthView: View {
                     .frame(height: 160)
                     .accessibilityLabel("Évolution de la fortune nette")
                     .accessibilityValue(trendAccessibilitySummary(points: points))
+                    .accessibilityIdentifier("networth.chart.evolution")
                 }
             }
         }

@@ -188,17 +188,17 @@ final class ObsidianFinancialModulesTests: XCTestCase {
     // MARK: - Correctif L6 : le ＋ flottant ne masque jamais le contenu
 
     func testFABTokensReserveTheFloatingButtonZone() {
-        // Le ＋ culmine à `fabBottomOffset + fabDiameter` du bord inférieur
-        // de l'écran ; une tab bar compacte (49 pt, sans home indicator)
-        // en absorbe le moins. La zone réservée en bas des contenus
-        // défilants doit couvrir ce dépassement PLUS un espacement de
-        // lecture — sinon le dernier montant reste sous le bouton.
+        // Zone d'exclusion PERMANENTE : le viewport d'un module s'arrête à
+        // `tabBar + fabExclusionHeight` du bord de l'écran ; le ＋ culmine
+        // à `fabBottomOffset + fabDiameter`. Une tab bar compacte (49 pt,
+        // sans home indicator) est le pire cas — l'exclusion doit placer
+        // le bord du viewport AU-DESSUS du ＋, avec un espacement.
         let compactTabBar: CGFloat = 49
         let fabTopFromScreenBottom = BudgetSpacing.fabBottomOffset + BudgetSpacing.fabDiameter
         XCTAssertGreaterThanOrEqual(
-            BudgetSpacing.fabClearance,
-            fabTopFromScreenBottom - compactTabBar + BudgetSpacing.medium,
-            "fabClearance doit dépasser la zone du ＋ d'au moins 16 pt"
+            compactTabBar + BudgetSpacing.fabExclusionHeight,
+            fabTopFromScreenBottom + BudgetSpacing.small,
+            "le viewport doit s'arrêter au-dessus du ＋ (exclusion permanente), pas seulement défiler"
         )
         XCTAssertGreaterThanOrEqual(BudgetSpacing.fabDiameter, 44, "cible tactile minimale")
     }

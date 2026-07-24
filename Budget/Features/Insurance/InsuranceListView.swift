@@ -165,6 +165,7 @@ struct InsuranceRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(contract.policyName), \(contract.insurerName), \(FinanceFormatting.chf(contract.premiumAmount)) \(contract.frequencyLabel)\(deadlineIsClose ? ", résiliable prochainement" : "")")
+        .accessibilityIdentifier("insurance.row.\(contract.policyName)")
     }
 }
 

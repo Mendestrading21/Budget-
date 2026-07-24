@@ -199,6 +199,7 @@ struct GoalCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("goals.card.\(goal.name)")
     }
 
     private var statusIcon: String {

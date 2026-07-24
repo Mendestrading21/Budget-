@@ -28,7 +28,53 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
 
-## Validation visuelle L6 : REFUSÉE provisoirement (24.07.2026)
+## Validation visuelle L6 : SECOND REFUS (24.07.2026, run 30080804863 inspecté)
+
+Défauts encore visibles dans les captures INITIALES (avant défilement) :
+le ＋ recouvre le graphique Évolution (08-patrimoine), une partie du
+montant du Loyer (09-recurrents), le texte explicatif inférieur
+(15-prevoyance) et une ligne d'échéance (07-impots). Cause confirmée :
+`contentMargins(for: .scrollContent)` ne crée qu'une marge de FIN de
+défilement, pas une zone d'exclusion permanente du viewport — et le tour
+Demo capturait AVANT de contrôler, en ne balayant que textes/boutons
+après défilement.
+
+## Critères d'acceptation L6-correctif 2 (annoncés avant toute édition, 24.07.2026)
+
+**Périmètre strict** : iOS uniquement — zone d'exclusion, identifiants
+d'accessibilité, tests, tour Demo. Aucune PWA, formule, donnée,
+migration, persistance ni fonctionnalité L7.
+
+1. VRAIE zone d'exclusion permanente : le viewport des 10 contenus
+   défilants des 6 modules s'arrête AU-DESSUS du cadre du ＋
+   (rétrécissement réel de la mise en page, `padding(.bottom,
+   fabExclusionHeight)` sur le ScrollView — pas seulement
+   `contentMargins`, conservé uniquement comme marge de fin).
+2. Dans l'état INITIAL comme après défilement complet, AUCUN élément
+   (texte, montant, bouton, carte, ligne, graphique, légende, message
+   informatif, dernier élément de liste) n'intersecte le cadre réel
+   du ＋.
+3. Tour Demo : assertion d'absence d'intersection AVANT la première
+   capture ; nouvelle assertion après défilement complet ; capture prise
+   seulement après réussite de l'assertion initiale ; balayage textes +
+   boutons + images + éléments identifiés ; JAMAIS `isHittable` comme
+   preuve ; identifiants explicites ajoutés (graphique Patrimoine,
+   lignes financières, texte informatif Prévoyance) ; preuves nommées :
+   montant Loyer, graphique Évolution, texte info Prévoyance, dernière
+   échéance Impôts, dernière carte Objectifs, dernier contrat
+   Assurances.
+4. 12 captures natives : `-initial` et `-fin` pour 06-objectifs,
+   07-impots, 08-patrimoine, 09-recurrents, 14-assurances,
+   15-prevoyance.
+5. Acquis conservés : libellés multilignes, montants non comprimés,
+   colonnes fiscales adaptatives, projections arrondies à l'affichage,
+   VoiceOver, formules et données intactes.
+6. `git diff --check`, suites web complètes, tests iOS, builds
+   Debug/Release, manifeste, workflow Demo ; un seul commit applicatif
+   `fix(l6): reserve permanent FAB exclusion zone` ; L6 = VERIFYING,
+   L7 = BLOCKED.
+
+## Validation visuelle L6 : premier refus (24.07.2026)
 
 Le propriétaire a examiné les vraies captures natives et REFUSE la
 validation pour défauts de lisibilité : le ＋ flottant masque du contenu

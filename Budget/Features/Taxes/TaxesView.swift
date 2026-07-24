@@ -248,6 +248,7 @@ struct TaxesView: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("taxes.duedate.\(dueDate.label)")
     }
 
     private func assumptionsCard(_ report: TaxYearReport) -> some View {

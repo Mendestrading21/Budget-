@@ -190,21 +190,25 @@ enum BudgetSpacing {
     static let fabDiameter: CGFloat = 52
     /// Décalage du ＋ au-dessus du bord inférieur de l'écran.
     static let fabBottomOffset: CGFloat = 62
-    /// Zone à réserver en bas de tout contenu défilant survolé par le ＋ :
-    /// le ＋ culmine à `fabBottomOffset + fabDiameter` du bord de l'écran ;
-    /// une tab bar compacte (49 pt, sans home indicator) en absorbe le
-    /// moins — il faut donc au minimum 114 − 49 = 65 pt, plus un
-    /// espacement de lecture. 96 pt garantit que le dernier montant
-    /// défile entièrement au-dessus du ＋ sur tous les iPhone.
-    static let fabClearance: CGFloat = 96
+    /// Hauteur de la zone d'EXCLUSION permanente sous les contenus
+    /// défilants survolés par le ＋. Le ＋ culmine à
+    /// `fabBottomOffset + fabDiameter` = 114 pt du bord de l'écran ; une
+    /// tab bar compacte (49 pt, sans home indicator) en absorbe le
+    /// moins. 49 + 80 = 129 pt ≥ 114 + 8 : le viewport s'arrête toujours
+    /// AU-DESSUS du ＋, sur tous les iPhone — rien ne peut être rendu ni
+    /// masqué dessous, avant comme après défilement.
+    static let fabExclusionHeight: CGFloat = 80
 }
 
 extension View {
-    /// Réserve la zone du ＋ flottant en bas d'un contenu défilant : le
-    /// dernier élément peut toujours défiler au-dessus du bouton, aucun
-    /// montant ni action n'est recouvert.
+    /// Zone d'exclusion PERMANENTE du ＋ flottant : rétrécit réellement le
+    /// viewport du contenu défilant (padding, pas une simple marge de
+    /// défilement) — aucun élément ne peut apparaître sous le ＋, dans
+    /// l'état initial comme après défilement. Une petite marge de fin de
+    /// défilement complète le confort de lecture.
     func obsidianFABClearance() -> some View {
-        contentMargins(.bottom, BudgetSpacing.fabClearance, for: .scrollContent)
+        contentMargins(.bottom, BudgetSpacing.medium, for: .scrollContent)
+            .padding(.bottom, BudgetSpacing.fabExclusionHeight)
     }
 }
 

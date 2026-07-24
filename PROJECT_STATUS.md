@@ -30,6 +30,21 @@ par hauteur de rendu, extrêmes 320 pt ; tour Demo asserte l'absence
 d'intersection ＋/contenu et le dernier élément visible après
 défilement sur les 6 modules. L6 reste VERIFYING.
 
+**Correctif L6, 2e passe (2026-07-24)** — second refus visuel : le ＋
+recouvrait encore graphique Évolution, montant Loyer, texte Prévoyance
+et une échéance Impôts dans l'ÉTAT INITIAL (contentMargins ne protège
+que la fin de défilement, et le tour capturait avant de contrôler) →
+`fix(l6)` : zone d'exclusion PERMANENTE (`padding(.bottom,
+fabExclusionHeight = 80)` sur les 10 ScrollView — le viewport s'arrête
+au-dessus du ＋, contentMargins conservé en simple marge de fin) ;
+identifiants d'accessibilité (graphique Patrimoine, lignes financières,
+texte info Prévoyance) ; tour Demo : assertion AVANT la première
+capture puis après défilement complet (textes + boutons + images +
+éléments identifiés, jamais isHittable), preuves nommées (Loyer,
+Évolution, footer Prévoyance, dernière échéance/carte/contrat), 12
+captures `-initial`/`-fin`. Acquis de la 1re passe conservés. L6 reste
+VERIFYING.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L5 (2026-07-23)
 
 L5 « Mouvements et Comptes » exécuté (`/budget-v1 execute L5`) après

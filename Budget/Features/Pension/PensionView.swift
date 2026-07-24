@@ -100,6 +100,7 @@ struct PensionView: View {
                         .foregroundStyle(BudgetColor.informative)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("pension.info.footer")
             }
             .padding(BudgetSpacing.screenMargin)
         }
@@ -163,6 +164,7 @@ struct PensionRow: View {
         .opacity(asset.isActive ? 1 : 0.55)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(asset.pillar.displayName), \(asset.institutionName), \(FinanceFormatting.chf(asset.currentValue))")
+        .accessibilityIdentifier("pension.row.\(asset.institutionName)")
     }
 }
 
