@@ -378,8 +378,16 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "ios-l8-patrimoine-avant-selection")
         let start = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
         let end = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
-        start.press(forDuration: 0.2, thenDragTo: end)
+        // Geste LENT avec maintien : le défilement ne peut pas capter le
+        // toucher et Swift Charts reçoit la sélection PENDANT le drag.
+        start.press(forDuration: 0.6, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.4)
         let label = app.staticTexts.matching(identifier: "networth.chart.selectionLabel").firstMatch
+        if !label.waitForExistence(timeout: 3) {
+            // Second essai : appui long au centre — même une lecture
+            // momentanée reste affichée (dernière lecture conservée).
+            chart.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5))
+                .press(forDuration: 0.8)
+        }
         XCTAssertTrue(label.waitForExistence(timeout: 5),
                       "l'étiquette de sélection doit rester affichée après le geste")
         let text = label.label
