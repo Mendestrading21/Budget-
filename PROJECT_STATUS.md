@@ -25,6 +25,27 @@ volontairement non ajoutée). Formules, migrations, clés localStorage,
 format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
 **L8 = VERIFYING**, L9 = BLOCKED.
 
+**Correctif L8 (2026-07-24)** — validation humaine refusée (échelle
+cassée sur séries constantes négatives, cibles < 44 pt, sélection
+fuyant entre comptes, perf partielle, sélection native jamais
+parcourue, ＋ natif recouvrant en défilement, README survendu) →
+`fix(l8): make chart interaction accessible and prove native
+selection` : `chartYScale` commune sûre (capture solde constant −100 à
+l'appui), scrubber `role="slider"` pleine courbe (glissement Pointer
+Events réel, clavier ←/→/Home/End, ≥ 44 pt mesuré, aria-valuetext,
+région live persistante), sélection par compte `{id, i}`, Mouvements
+paginés (200 lignes fixes, « Afficher X de plus (Y encore repliés) »),
+perf 10k répartis ET concentrés jusqu'à la peinture (temps loggés),
+sélection native parcourue au tour Demo (glissement réel, étiquette
+`networth.chart.selectionLabel` vérifiée, valeur accessible = sélection,
+lecture conservée après le geste, captures ios-l8-*), rendu 320/a11y3/
+transparence réduite attaché à l'artefact, haptique testable
+(vibration physique = contrôle humain L9), zone d'exclusion du ＋
+restaurée sur TOUS les écrans défilants + `.clipped()` + assertions à
+chaque position intermédiaire. Suites : **71 e2e** + 5 parité + design ;
+natifs 258 attendus (`ObsidianMotionTests` 7 tests, exécutés aussi par
+le Demo) ; 6 captures + README honnête. L8 reste VERIFYING.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L7 (2026-07-24)
 
 L7 « Onboarding et confiance » exécuté (`/budget-v1 execute L7`) après

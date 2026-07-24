@@ -208,6 +208,7 @@ extension View {
     /// défilement complète le confort de lecture.
     func obsidianFABClearance() -> some View {
         contentMargins(.bottom, BudgetSpacing.medium, for: .scrollContent)
+            .clipped() // ceinture : rien ne peut être DESSINÉ sous la bande
             .padding(.bottom, BudgetSpacing.fabExclusionHeight)
     }
 }

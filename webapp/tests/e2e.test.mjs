@@ -1920,77 +1920,260 @@ for (const name62 of ["Effacer les opérations", "Réinitialiser complètement l
 check(!screenHTML.includes("« Tout supprimer »") && !screenHTML.includes("« Réinitialiser la démo »"),
   "plus aucun ancien nom d'action ne subsiste dans les textes");
 
-/* ============= WIDGETS & MOUVEMENT OBSIDIAN L8 (Tests 63-64) ============= */
+/* ============= WIDGETS & MOUVEMENT OBSIDIAN L8 — correctif (Tests 63-66) ============= */
 
-// ---------- Test 63 : sélection de graphiques — étiquette exacte, clavier, 320, transparence réduite ----------
-currentTest = "sélection graphique L8";
-await page.click(`#tabbar button[aria-label="Plus"]`);
-await page.waitForTimeout(150);
-await page.click('#screen [data-more="networth"]');
-await page.waitForTimeout(250);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Touchez la courbe"), "l'invite de sélection est affichée avant tout choix");
-const zones63 = await page.evaluate(() => document.querySelectorAll("[data-nwsel]").length);
-check(zones63 === 12, `12 zones accessibles sur la courbe Patrimoine (obtenu ${zones63})`);
-const expected63 = await page.$eval('[data-nwsel="5"]', el => el.getAttribute("aria-label"));
-await page.click('[data-nwsel="5"]');
-await page.waitForTimeout(200);
-const sel63 = await page.evaluate(() => ({
-  pressed: document.querySelector('[data-nwsel="5"]').getAttribute("aria-pressed"),
-  caption: [...document.querySelectorAll("#screen .caption")].map(c => c.textContent).find(t => t.includes("fortune nette") && t.includes(":")) || "",
-  marker: document.querySelector("#screen svg circle[stroke]") !== null,
-  focused: document.activeElement === document.querySelector('[data-nwsel="5"]'),
-}));
-const amount63 = expected63.split(" : ")[1];
-check(sel63.pressed === "true", "la zone choisie porte aria-pressed");
-check(sel63.caption.includes(amount63), `l'étiquette montre la valeur EXACTE de la série (${amount63})`);
-check(sel63.marker, "un marqueur apparaît sur le point choisi");
-check(sel63.focused, "le focus clavier est conservé après la sélection");
-// Détail de compte : même sélection sur la courbe du solde.
+// ---------- Test 63 : scrubber de courbe — slider accessible, glissement réel, clavier, valeurs de fixture ----------
+currentTest = "scrubber de courbe L8";
+// Fixture INDÉPENDANTE : compte connu 1'234.56, une dépense de 234.56 il y
+// a trois mois → les valeurs attendues sont des LITTÉRAUX du test, jamais
+// extraites de l'aria-label contrôlé.
+await page.evaluate(() => {
+  ACCOUNTS.push({ id: "acc-l8-fixture", name: "Compte fixture L8", inst: "", kind: "current", opening: 1234.56, cash: false, currency: null });
+  const em = shiftMonth(NOW, -3);
+  transactions.push({ id: ++txSeq, y: em.y, m: em.m, d: 10, title: "Fixture L8 dépense", type: "expense", cat: null, acc: "acc-l8-fixture", dest: null, status: "posted", amount: 234.56 });
+});
 await page.click(`#tabbar button[aria-label="Comptes"]`);
 await page.waitForTimeout(200);
-await page.click("#screen [data-accid]");
+await page.click('[data-accid="acc-l8-fixture"]');
 await page.waitForTimeout(250);
-const expectedAcc63 = await page.$eval('[data-accsel="8"]', el => el.getAttribute("aria-label"));
-await page.click('[data-accsel="8"]');
+// Région live PERSISTANTE : présente AVANT toute sélection, avec l'invite.
+const live63 = await page.evaluate(() => {
+  const cap = document.querySelector('[data-chartcaption="acc"]');
+  if (cap) cap.dataset.livemark = "1"; // marque le nœud : il doit être MIS À JOUR, jamais recréé
+  const scrub = document.querySelector('[data-chart="acc"] .scrub');
+  const r = scrub ? scrub.getBoundingClientRect() : { width: 0, height: 0 };
+  return {
+    capBefore: cap ? cap.textContent : "",
+    ariaLive: cap ? cap.getAttribute("aria-live") : null,
+    role: scrub ? scrub.getAttribute("role") : null,
+    valuemin: scrub ? scrub.getAttribute("aria-valuemin") : null,
+    valuemax: scrub ? scrub.getAttribute("aria-valuemax") : null,
+    valuetext: scrub ? scrub.getAttribute("aria-valuetext") : null,
+    w: r.width, h: r.height,
+    markerHidden: document.querySelector('[data-chart="acc"] [data-scrubdot]')?.getAttribute("visibility") === "hidden",
+  };
+});
+check(live63.ariaLive === "polite" && live63.capBefore.includes("Touchez la courbe"),
+  "la région live existe AVANT la sélection, avec l'invite");
+check(live63.role === "slider" && live63.valuemin === "0" && live63.valuemax === "11",
+  "le scrubber est un slider accessible (aria-valuemin/max)");
+check(live63.valuetext !== null && live63.valuetext.includes("Aucun mois choisi"),
+  "aria-valuetext honnête avant toute sélection");
+check(live63.w >= 44 && live63.h >= 44,
+  `cible interactive réelle ≥ 44 px (obtenu ${Math.round(live63.w)}×${Math.round(live63.h)} px)`);
+check(live63.markerHidden, "aucun marqueur avant la sélection");
+// GLISSEMENT réel (Pointer Events) : enfoncer à 10 %, glisser à 50 % puis
+// 99 % — la sélection suit PENDANT le geste.
+const box63 = await page.evaluate(() => {
+  const r = document.querySelector('[data-chart="acc"] .scrub').getBoundingClientRect();
+  return { x: r.left, y: r.top, w: r.width, h: r.height };
+});
+await page.mouse.move(box63.x + box63.w * 0.10, box63.y + box63.h / 2);
+await page.mouse.down();
+await page.waitForTimeout(60);
+const drag63a = await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"));
+await page.mouse.move(box63.x + box63.w * 0.50, box63.y + box63.h / 2, { steps: 4 });
+await page.waitForTimeout(60);
+const drag63b = await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"));
+await page.mouse.move(box63.x + box63.w * 0.99, box63.y + box63.h / 2, { steps: 4 });
+await page.mouse.up();
+await page.waitForTimeout(60);
+const drag63c = await page.evaluate(() => ({
+  now: document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"),
+  valuetext: document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuetext"),
+  cap: document.querySelector('[data-chartcaption="acc"]').textContent,
+}));
+check(drag63a === "1", `l'appui initial sélectionne le mois visé (obtenu ${drag63a}, attendu 1)`);
+check(drag63b === "6", `le glissement met à jour PENDANT le geste (obtenu ${drag63b}, attendu 6)`);
+check(drag63c.now === "11", `la fin du glissement atteint le dernier mois (obtenu ${drag63c.now})`);
+check(drag63c.cap.includes("CHF 1'000.00") && drag63c.cap.includes("solde"),
+  `l'étiquette du mois courant vaut la FIXTURE 1'234.56 − 234.56 = CHF 1'000.00 (obtenu « ${drag63c.cap} »)`);
+check(drag63c.valuetext.includes("CHF 1'000.00"), "aria-valuetext annonce la même valeur de fixture");
+// Marqueur : règle et point EXACTEMENT aux coordonnées du mois choisi.
+const marker63 = await page.evaluate(() => {
+  const wrap = document.querySelector('[data-chart="acc"]');
+  const pts = JSON.parse(wrap.dataset.pts);
+  const [ex, ey] = pts[11].split(",");
+  const dot = wrap.querySelector("[data-scrubdot]");
+  const rule = wrap.querySelector("[data-scrubrule]");
+  return {
+    ok: dot.getAttribute("cx") === ex && dot.getAttribute("cy") === ey
+      && rule.getAttribute("x1") === ex && rule.getAttribute("x2") === ex,
+    visible: dot.getAttribute("visibility") !== "hidden",
+  };
+});
+check(marker63.ok && marker63.visible, "règle et point aux coordonnées exactes du mois choisi");
+// CLAVIER : Origine, flèches, Fin — focus conservé, valeurs de fixture.
+await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').focus());
+await page.keyboard.press("Home");
+await page.waitForTimeout(50);
+const key63a = await page.evaluate(() => ({
+  now: document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"),
+  cap: document.querySelector('[data-chartcaption="acc"]').textContent,
+}));
+check(key63a.now === "0", "Origine (Home) choisit le premier mois");
+check(key63a.cap.includes("CHF 1'234.56"),
+  `avant la dépense, l'étiquette vaut l'ouverture de la fixture (obtenu « ${key63a.cap} »)`);
+await page.keyboard.press("ArrowRight");
+await page.waitForTimeout(50);
+const key63b = await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"));
+check(key63b === "1", "flèche droite avance d'un mois");
+await page.keyboard.press("ArrowLeft");
+await page.waitForTimeout(50);
+const key63c = await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"));
+check(key63c === "0", "flèche gauche recule d'un mois");
+await page.keyboard.press("End");
+await page.waitForTimeout(50);
+const key63d = await page.evaluate(() => ({
+  now: document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"),
+  focused: document.activeElement === document.querySelector('[data-chart="acc"] .scrub'),
+  liveSame: document.querySelector('[data-chartcaption="acc"]').dataset.livemark === "1",
+  cap: document.querySelector('[data-chartcaption="acc"]').textContent,
+}));
+check(key63d.now === "11", "Fin (End) choisit le dernier mois");
+check(key63d.focused, "le focus clavier reste sur le scrubber après toutes les interactions");
+check(key63d.liveSame, "la région live est MISE À JOUR en place — jamais recréée");
+check(key63d.cap.includes("CHF 1'000.00"), "l'étiquette clavier lit la même valeur de fixture");
+
+// ---------- Test 64 : échelle d'affichage sûre — constantes négatives, nulles, mixtes, extrêmes ----------
+currentTest = "échelle de courbe L8";
+const scale64 = await page.evaluate(() => {
+  const inFrame = arr => {
+    const f = chartYScale(arr);
+    return arr.every(v => { const y = f(v); return Number.isFinite(y) && y >= 0 && y <= 100; });
+  };
+  return {
+    negConst: inFrame(Array(12).fill(-100)),
+    negCenter: chartYScale(Array(12).fill(-100))(-100),
+    zeroConst: inFrame(Array(12).fill(0)),
+    posConst: inFrame(Array(12).fill(2500)),
+    nearConst: inFrame([...Array(11).fill(-999.99), -1000.01]),
+    mixed: inFrame([-5000, 12000, 0, -300, 7.5, 999999]),
+    extreme: inFrame([1e12, -1e12, 0]),
+  };
+});
+check(scale64.negConst, "série constante NÉGATIVE : toutes les coordonnées dans le cadre");
+check(Math.abs(scale64.negCenter - 50) < 1, `série constante : ligne centrée (y ≈ 50, obtenu ${scale64.negCenter.toFixed(1)})`);
+check(scale64.zeroConst && scale64.posConst, "séries constantes nulle et positive dans le cadre");
+check(scale64.nearConst && scale64.mixed && scale64.extreme,
+  "séries presque constantes, mixtes et extrêmes : coordonnées finies dans le cadre");
+// En DOM : un compte au solde constant −100 garde courbe, règle et point VISIBLES.
+await page.evaluate(() => {
+  ACCOUNTS.push({ id: "acc-l8-neg", name: "Dette fixture L8", inst: "", kind: "current", opening: -100, cash: false, currency: null });
+  ACCOUNTS.push({ id: "acc-l8-zero", name: "Compte zéro L8", inst: "", kind: "current", opening: 0, cash: false, currency: null });
+  render();
+});
+await page.click(`#tabbar button[aria-label="Comptes"]`);
 await page.waitForTimeout(200);
-const selAcc63 = await page.evaluate(() =>
-  [...document.querySelectorAll("#screen .caption")].map(c => c.textContent).find(t => t.includes(": solde")) || "");
-check(selAcc63.includes(expectedAcc63.split(" : ")[1]),
-  "l'étiquette du solde mensuel vient de la série existante");
-// 320 px + transparence réduite : la sélection reste lisible, zéro débordement.
+await page.click('[data-accid="acc-l8-neg"]');
+await page.waitForTimeout(250);
+const neg64 = await page.evaluate(() => {
+  const wrap = document.querySelector('[data-chart="acc"]');
+  const ys = wrap.querySelector("polyline").getAttribute("points").split(" ").map(p => parseFloat(p.split(",")[1]));
+  return { allIn: ys.every(y => Number.isFinite(y) && y >= 0 && y <= 100), sel: wrap.dataset.sel };
+});
+check(neg64.allIn, "solde constant −100 : la polyligne reste ENTIÈREMENT dans le viewBox 0…100");
+check(neg64.sel === "", "compte nouvellement ouvert : aucune sélection imposée");
+await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').focus());
+await page.keyboard.press("End");
+await page.waitForTimeout(60);
+const negSel64 = await page.evaluate(() => {
+  const wrap = document.querySelector('[data-chart="acc"]');
+  const dot = wrap.querySelector("[data-scrubdot]");
+  const cy = parseFloat(dot.getAttribute("cy"));
+  return {
+    visible: dot.getAttribute("visibility") !== "hidden",
+    inFrame: Number.isFinite(cy) && cy >= 4 && cy <= 96,
+    cap: document.querySelector('[data-chartcaption="acc"]').textContent,
+  };
+});
+check(negSel64.visible && negSel64.inFrame, "point sélectionné VISIBLE et dans le cadre sur une série constante négative");
+check(negSel64.cap.includes("-CHF 100.00"), `l'étiquette lit −100 exactement (obtenu « ${negSel64.cap} »)`);
+
+// ---------- Test 65 : isolation par compte, 320/390, transparence et mouvement réduits, FAB ----------
+currentTest = "isolation et états L8";
+// La sélection End sur « Dette fixture L8 » ne doit PAS fuir vers un autre compte.
+await page.click("#screen [data-accback]");
+await page.waitForTimeout(200);
+await page.click('[data-accid="acc-l8-zero"]');
+await page.waitForTimeout(250);
+const iso65a = await page.evaluate(() => ({
+  sel: document.querySelector('[data-chart="acc"]').dataset.sel,
+  cap: document.querySelector('[data-chartcaption="acc"]').textContent,
+}));
+check(iso65a.sel === "" && iso65a.cap.includes("Touchez la courbe"),
+  "un AUTRE compte s'ouvre sur l'invite initiale — aucune sélection héritée");
+await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').focus());
+await page.keyboard.press("Home");
+await page.waitForTimeout(60);
+await page.click("#screen [data-accback]");
+await page.waitForTimeout(200);
+await page.click('[data-accid="acc-l8-fixture"]');
+await page.waitForTimeout(250);
+const iso65b = await page.evaluate(() => document.querySelector('[data-chart="acc"]').dataset.sel);
+check(iso65b === "", "la sélection faite sur le compte zéro ne fuit pas non plus vers la fixture");
+// 320 × 844 + transparence réduite : Patrimoine sélectionné au clavier.
 await page.setViewportSize({ width: 320, height: 844 });
 await page.evaluate(() => { document.documentElement.setAttribute("data-reduced-transparency", "true"); });
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
-await page.click('[data-nwsel="3"]');
-await page.waitForTimeout(200);
-const narrow63 = await page.evaluate(() => ({
-  overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-  caption: [...document.querySelectorAll("#screen .caption")].some(c => c.textContent.includes("fortune nette") && c.textContent.includes(":")),
-}));
-check(!narrow63.overflow && narrow63.caption, "sélection lisible à 320 px en transparence réduite");
+await page.evaluate(() => document.querySelector('[data-chart="nw"] .scrub').focus());
+await page.keyboard.press("End");
+await page.waitForTimeout(60);
+const narrow65 = await page.evaluate(() => {
+  const scrub = document.querySelector('[data-chart="nw"] .scrub');
+  const r = scrub.getBoundingClientRect();
+  const fab = document.getElementById("fab").getBoundingClientRect();
+  const screenR = document.getElementById("screen").getBoundingClientRect();
+  return {
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    cap: document.querySelector('[data-chartcaption="nw"]').textContent,
+    w: r.width, h: r.height,
+    fabClear: fab.top >= screenR.bottom - 0.5,
+  };
+});
+check(!narrow65.overflow, "320 px en transparence réduite : zéro débordement horizontal");
+check(narrow65.cap.includes("fortune nette") && narrow65.cap.includes(":"),
+  "l'étiquette sélectionnée reste lisible à 320 px");
+check(narrow65.w >= 44 && narrow65.h >= 44, `cible ≥ 44 px aussi à 320 px (${Math.round(narrow65.w)}×${Math.round(narrow65.h)})`);
+check(narrow65.fabClear, "la zone de contenu s'arrête AU-DESSUS du ＋ à 320 px — aucune intersection");
 await page.evaluate(() => { document.documentElement.removeAttribute("data-reduced-transparency"); });
 await page.setViewportSize({ width: 390, height: 844 });
-// Reduced motion : l'entrée des cartes est désactivée (garde existante).
+await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.waitForTimeout(150);
+await page.click('#screen [data-more="networth"]');
+await page.waitForTimeout(250);
+const fab65 = await page.evaluate(() => {
+  const fab = document.getElementById("fab").getBoundingClientRect();
+  const screenR = document.getElementById("screen").getBoundingClientRect();
+  return fab.top >= screenR.bottom - 0.5;
+});
+check(fab65, "la zone de contenu s'arrête AU-DESSUS du ＋ à 390 px — aucune intersection");
+// Reduced motion : la garde existante coupe l'animation d'entrée des cartes.
 await page.emulateMedia({ reducedMotion: "reduce" });
 await page.click(`#tabbar button[aria-label="Mouvements"]`);
 await page.waitForTimeout(150);
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.waitForTimeout(200);
-const motion63 = await page.evaluate(() => {
+const motion65 = await page.evaluate(() => {
   const card = document.querySelector("#screen .card");
   return card ? getComputedStyle(card).animationName : "aucune-carte";
 });
-check(motion63 === "none", `reduced motion : aucune animation d'entrée (obtenu ${motion63})`);
+check(motion65 === "none", `reduced motion : aucune animation d'entrée (obtenu ${motion65})`);
 await page.emulateMedia({ reducedMotion: null });
 
-// ---------- Test 64 : performance — 10 000 mouvements, DOM borné par le mois ----------
+// ---------- Test 66 : performance honnête — 10 000 répartis PUIS concentrés, peinture, DOM borné ----------
 currentTest = "performance 10k L8";
-const seeded64 = await page.evaluate(() => {
-  const before = transactions.length;
+const renderToPaint = () => page.evaluate(() => new Promise(resolve => {
+  const t0 = performance.now();
+  render();
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - t0)));
+}));
+// Cas 1 : 10 000 mouvements RÉPARTIS sur douze mois de 2025.
+await page.evaluate(() => {
+  moreTxLimit = MORE_TX_PAGE; moreSearch = ""; moreFilter = "all";
   for (let i = 0; i < 10000; i++) {
     transactions.push({
       id: ++txSeq, y: 2025, m: (i % 12) + 1, d: (i % 28) + 1,
@@ -1999,44 +2182,95 @@ const seeded64 = await page.evaluate(() => {
       amount: 10 + (i % 90),
     });
   }
-  return { before, after: transactions.length };
 });
-check(seeded64.after === seeded64.before + 10000, "10 000 mouvements semés en mémoire");
 await page.click(`#tabbar button[aria-label="Mouvements"]`);
 await page.waitForTimeout(200);
-const perf64 = await page.evaluate(() => {
-  cursor = { y: 2025, m: 6 };
-  const t0 = performance.now();
-  render();
-  const elapsed = performance.now() - t0;
+await page.evaluate(() => { cursor = { y: 2025, m: 6 }; });
+const spread66 = await renderToPaint();
+const spreadDom66 = await page.evaluate(() => ({
+  rows: document.querySelectorAll("#moreTxList .tx").length,
+  header: (document.querySelector("#moreTxList .caption") || {}).textContent || "",
+}));
+check(spread66 < 4000, `répartis : rendu + peinture < 4 s (obtenu ${Math.round(spread66)} ms)`);
+check(spreadDom66.rows > 0 && spreadDom66.rows <= 200,
+  `répartis : DOM borné à une page (${spreadDom66.rows} lignes ≤ 200)`);
+// Navigation de mois jusqu'à la peinture.
+await page.evaluate(() => { cursor = { y: 2025, m: 5 }; moreTxLimit = MORE_TX_PAGE; });
+const nav66 = await renderToPaint();
+check(nav66 < 4000, `navigation de mois + peinture < 4 s (obtenu ${Math.round(nav66)} ms)`);
+// Cas 2 : les 10 000 mouvements CONCENTRÉS dans un seul mois.
+await page.evaluate(() => {
+  for (const t of transactions) {
+    if (typeof t.title === "string" && t.title.startsWith("Perf L8 ")) { t.m = 6; }
+  }
+  cursor = { y: 2025, m: 6 }; moreTxLimit = MORE_TX_PAGE;
+});
+const dense66 = await renderToPaint();
+const denseDom66 = await page.evaluate(() => {
+  const monthCount = transactions.filter(t => t.y === 2025 && t.m === 6).length;
+  const btn = document.querySelector("[data-moretxmore]");
   return {
-    elapsed,
-    domRows: document.querySelectorAll("#moreTxList .tx").length,
-    total: transactions.length,
+    rows: document.querySelectorAll("#moreTxList .tx").length,
+    monthCount,
+    header: (document.querySelector("#moreTxList .caption") || {}).textContent || "",
+    btnText: btn ? btn.textContent : "",
+    expectedRemaining: monthCount - 200,
   };
 });
-check(perf64.elapsed < 4000, `rendu du mois < 4 s avec 10 000 mouvements (obtenu ${Math.round(perf64.elapsed)} ms)`);
-check(perf64.domRows > 0 && perf64.domRows < 1500,
-  `le DOM est borné par le MOIS affiché (${perf64.domRows} lignes rendues pour ${perf64.total} mouvements)`);
-// Navigation de mois fluide puis nettoyage complet.
-const nav64 = await page.evaluate(() => {
+check(dense66 < 4000, `concentrés : rendu + peinture < 4 s (obtenu ${Math.round(dense66)} ms)`);
+check(denseDom66.rows === 200,
+  `concentrés : le DOM garde sa limite FIXE (${denseDom66.rows} lignes pour ${denseDom66.monthCount} mouvements du mois)`);
+check(denseDom66.header.includes(String(denseDom66.monthCount)),
+  `l'en-tête annonce le décompte TOTAL du mois (rien de masqué en silence) : « ${denseDom66.header} »`);
+check(denseDom66.btnText.includes(`${denseDom66.expectedRemaining} encore repliés sur ${denseDom66.monthCount}`),
+  `le bouton annonce exactement ce qui reste replié : « ${denseDom66.btnText} »`);
+// « Afficher plus » étend d'une page — le DOM reste borné, rien de silencieux.
+await page.click("[data-moretxmore]");
+await page.waitForTimeout(300);
+const more66 = await page.evaluate(() => document.querySelectorAll("#moreTxList .tx").length);
+check(more66 === 400, `« Afficher plus » étend d'UNE page (obtenu ${more66} lignes)`);
+// Recherche : bornée et rapide jusqu'à la peinture.
+const search66 = await page.evaluate(() => new Promise(resolve => {
+  const input = document.getElementById("moreSearchInput");
+  input.value = "Perf L8 12";
   const t0 = performance.now();
-  cursor = { y: 2025, m: 5 };
-  render();
-  return performance.now() - t0;
-});
-check(nav64 < 4000, `changement de mois < 4 s (obtenu ${Math.round(nav64)} ms)`);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve({
+    ms: performance.now() - t0,
+    rows: document.querySelectorAll("#moreTxList .tx").length,
+  })));
+}));
+check(search66.ms < 4000, `recherche + peinture < 4 s (obtenu ${Math.round(search66.ms)} ms)`);
+check(search66.rows <= 200, `résultats de recherche bornés (${search66.rows} lignes)`);
+// Défilement : le conteneur répond immédiatement.
+const scroll66 = await page.evaluate(() => new Promise(resolve => {
+  const screenEl = document.getElementById("screen");
+  const t0 = performance.now();
+  screenEl.scrollTop = screenEl.scrollHeight;
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - t0)));
+}));
+check(scroll66 < 1000, `défilement de la liste + peinture < 1 s (obtenu ${Math.round(scroll66)} ms)`);
+console.log(`PERF L8 (mesures réelles jusqu'à la peinture) : répartis ${Math.round(spread66)} ms / ${spreadDom66.rows} lignes DOM · concentrés ${Math.round(dense66)} ms / ${denseDom66.rows} lignes DOM pour ${denseDom66.monthCount} mouvements · navigation ${Math.round(nav66)} ms · recherche ${Math.round(search66.ms)} ms / ${search66.rows} lignes · défilement ${Math.round(scroll66)} ms`);
+// Nettoyage complet : fixtures et mouvements de performance retirés.
 await page.evaluate(() => {
   for (let i = transactions.length - 1; i >= 0; i--) {
-    if (typeof transactions[i].title === "string" && transactions[i].title.startsWith("Perf L8 ")) {
+    const t = transactions[i];
+    if (typeof t.title === "string" && (t.title.startsWith("Perf L8 ") || t.title === "Fixture L8 dépense")) {
       transactions.splice(i, 1);
     }
   }
+  for (let i = ACCOUNTS.length - 1; i >= 0; i--) {
+    if (["acc-l8-fixture", "acc-l8-neg", "acc-l8-zero"].includes(ACCOUNTS[i].id)) ACCOUNTS.splice(i, 1);
+  }
+  moreSearch = ""; moreTxLimit = MORE_TX_PAGE;
+  nwChartSel = null; accChartSel = null;
   cursor = { y: NOW.y, m: NOW.m };
   render();
 });
-const cleaned64 = await page.evaluate(() => transactions.some(t => typeof t.title === "string" && t.title.startsWith("Perf L8 ")));
-check(!cleaned64, "les mouvements de performance sont retirés (aucune trace)");
+const cleaned66 = await page.evaluate(() =>
+  transactions.some(t => typeof t.title === "string" && t.title.startsWith("Perf L8 "))
+  || ACCOUNTS.some(a => String(a.id).startsWith("acc-l8-")));
+check(!cleaned66, "fixtures et mouvements de performance retirés (aucune trace)");
 
 await browser.close();
 
@@ -2047,4 +2281,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 69 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 2 widgets/mouvement L8), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 71 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8), zéro erreur console ✓");

@@ -103,6 +103,7 @@ struct AnnualBudgetView: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
+                .obsidianFABClearance()
             }
         }
         .navigationTitle("Budget \(String(year))")

@@ -63,6 +63,7 @@ struct AccountDetailView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle(account.name)
         .alert(

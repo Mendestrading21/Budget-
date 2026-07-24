@@ -49,6 +49,7 @@ final class DemoTourUITests: XCTestCase {
         visitFinancialModule(app, label: "Patrimoine", base: "08-patrimoine",
                              lastProofPrefix: nil,
                              namedProofs: ["networth.chart.evolution"])
+        demoNetWorthSelectionProof(app)
         visitFinancialModule(app, label: "Récurrents et abonnements", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
                              namedProofs: ["recurring.row.Loyer"])
@@ -358,12 +359,47 @@ final class DemoTourUITests: XCTestCase {
                       "l'annulation ramène aux Réglages sans rien supprimer")
     }
 
+    /// L8 correctif : la sélection NATIVE est réellement parcourue — un
+    /// glissement sur la courbe Évolution, l'étiquette au format suisse,
+    /// la valeur accessible de la courbe annonçant le mois et le montant
+    /// choisis, et des captures avant/après. La sélection reste affichée
+    /// après le geste (dernière lecture conservée).
+    @MainActor
+    private func demoNetWorthSelectionProof(_ app: XCUIApplication) {
+        let scroll = app.scrollViews.firstMatch
+        for _ in 0..<6 { scroll.swipeDown() }
+        let chart = app.descendants(matching: .any)
+            .matching(identifier: "networth.chart.evolution").firstMatch
+        XCTAssertTrue(chart.waitForExistence(timeout: 5), "courbe Évolution introuvable")
+        let hint = app.descendants(matching: .any)
+            .matching(identifier: "networth.chart.selectionHint").firstMatch
+        XCTAssertTrue(hint.waitForExistence(timeout: 5),
+                      "l'invite « Glissez sur la courbe… » doit précéder toute sélection")
+        snap(app, "ios-l8-patrimoine-avant-selection")
+        let start = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+        let end = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        start.press(forDuration: 0.2, thenDragTo: end)
+        let label = app.staticTexts.matching(identifier: "networth.chart.selectionLabel").firstMatch
+        XCTAssertTrue(label.waitForExistence(timeout: 5),
+                      "l'étiquette de sélection doit rester affichée après le geste")
+        let text = label.label
+        XCTAssertNotNil(
+            text.range(of: "^\\d{2}\\.\\d{2}\\.\\d{4} : -?CHF .+ de fortune nette$",
+                       options: .regularExpression),
+            "étiquette de sélection inattendue : \(text)"
+        )
+        XCTAssertEqual(chart.value as? String, text,
+                       "la valeur accessible de la courbe doit annoncer le mois et le montant sélectionnés")
+        assertNoFABOverlap(app, screen: "Patrimoine", phase: "sélection active")
+        snap(app, "ios-l8-patrimoine-selection")
+    }
+
     private static let fabLabel = "Ajouter — dépense, revenu, épargne, investissement ou virement"
     /// Préfixes des éléments financiers identifiés (graphique, lignes,
     /// texte informatif) — balayés en PLUS des textes/boutons/images.
     private static let financialIdentifierPredicate = NSPredicate(format:
         "identifier BEGINSWITH 'goals.card' OR identifier BEGINSWITH 'taxes.duedate'"
-        + " OR identifier BEGINSWITH 'networth.chart' OR identifier BEGINSWITH 'recurring.row'"
+        + " OR identifier BEGINSWITH 'networth.' OR identifier BEGINSWITH 'recurring.row'"
         + " OR identifier BEGINSWITH 'insurance.row' OR identifier BEGINSWITH 'pension.'")
 
     /// Correctif L6 (2e passe) : visite un module financier en prouvant
@@ -392,9 +428,13 @@ final class DemoTourUITests: XCTestCase {
         assertNamedProofElements(app, ids: namedProofs, screen: label, phase: "état initial")
         snap(app, "\(base)-initial")
 
-        // 2) Défilement complet, re-vérification, capture de fin.
+        // 2) Défilement complet — le ＋ est vérifié à CHAQUE position
+        // intermédiaire (correctif L8), puis à l'état final.
         let scroll = app.scrollViews.firstMatch
-        for _ in 0..<5 { scroll.swipeUp() }
+        for step in 1...5 {
+            scroll.swipeUp()
+            assertNoFABOverlap(app, screen: label, phase: "défilement \(step)/5")
+        }
         assertNoFABOverlap(app, screen: label, phase: "après défilement")
         if let lastProofPrefix {
             assertLastIdentifiedElementClearsFAB(app, prefix: lastProofPrefix, screen: label)

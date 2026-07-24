@@ -57,6 +57,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath DemoResults.xcresult \
             -only-testing:BudgetUITests \
+            -only-testing:BudgetTests/ObsidianMotionTests \
             test-without-building
 
       - name: Rapports de crash + journal de l'app

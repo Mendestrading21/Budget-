@@ -266,6 +266,7 @@ struct TransactionsListView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
     }
 
@@ -309,6 +310,7 @@ struct TransactionsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     // MARK: - Actions

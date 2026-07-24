@@ -38,6 +38,15 @@ struct TransactionFormView: View {
     /// retour haptique de succès, géré par le système (réglages
     /// utilisateur respectés). Jamais décoratif.
     @State private var saveSuccessCount = 0
+
+    /// L8 correctif : la décision d'avancer le déclencheur haptique est
+    /// EXTRAITE et testée — vrai uniquement si la validation est passée
+    /// ET que l'enregistrement a réellement réussi. Jamais sur refus de
+    /// validation, jamais sur erreur de sauvegarde, jamais pour une
+    /// navigation, une suppression ou une simple sélection.
+    static func hapticTriggerAdvances(validationErrors: [TransactionValidationError], saveSucceeded: Bool) -> Bool {
+        validationErrors.isEmpty && saveSucceeded
+    }
     /// Parcours fréquent (pilote L4) : le clavier décimal s'ouvre sur le
     /// montant dès la création.
     @FocusState private var amountFocused: Bool
@@ -359,7 +368,9 @@ struct TransactionFormView: View {
                 modelContext.insert(transaction)
             }
             try modelContext.save()
-            saveSuccessCount += 1
+            if Self.hapticTriggerAdvances(validationErrors: errors, saveSucceeded: true) {
+                saveSuccessCount += 1
+            }
             dismiss()
         } catch {
             saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."

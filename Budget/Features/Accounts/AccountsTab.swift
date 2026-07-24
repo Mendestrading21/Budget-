@@ -121,6 +121,7 @@ struct AccountsTab: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     /// Cumuls façon Finary sur les comptes de placement uniquement.

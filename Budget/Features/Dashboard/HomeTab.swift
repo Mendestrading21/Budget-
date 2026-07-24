@@ -143,6 +143,7 @@ struct HomeTab: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
+                .obsidianFABClearance()
             }
             .navigationTitle(greetingName.map { "Bonjour \($0) 👋" } ?? "Accueil")
         .alert(

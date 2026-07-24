@@ -23,7 +23,7 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L5 Mouvements/Comptes | DONE | **validation humaine reçue le 23.07.2026** ; commit `f4ea4d0` ; CI #177 verte (run 30043810568 : 56 e2e + 5 parité + design, 231 tests iOS 0 échec) ; Demo vert (run 30044319681, tour 13 étapes, artefact 47,2 Mo). Risques visuels NON bloquants conservés : capture `13-compte-detail` non retrouvée par le propriétaire ; intitulés longs encore tronqués dans les listes ; texte « Versé cette année / total » du compte Épargne à clarifier ; FAB pouvant masquer légèrement le bas selon la hauteur visible | — |
 | L6 Modules financiers | DONE | **validation humaine reçue le 24.07.2026** (12 captures initiales/finales inspectées : zone d'exclusion du ＋ opérante sur les 6 modules, Loyer/Évolution/échéances/cartes/contrats/texte Prévoyance dégagés — la bande vide au-dessus du ＋ est VOLONTAIRE, ne jamais revenir à `contentMargins` seul) ; commits `edbae61` + `a7c6ea4` + `3b6e6b9` + `e135371` + `2bbf921` ; CI #183 (run 30082992805), #184 (run 30084041557), #185 (run 30085561460) vertes : 60 e2e + 5 parité + design, **242 tests iOS 0 échec** ; Demo vert (run 30084639539, 12 captures assertées, artefact 83,4 Mo). Historique transparent conservé : deux refus visuels (＋ masquant, libellés tronqués puis état initial non protégé) et un faux positif de test (cadre non coupé, corrigé en `e135371` sans toucher aux vues) | — |
 | L7 Onboarding/Confiance | DONE | **validation humaine définitive reçue le 24.07.2026** (preuves PWA et iOS inspectées). 1er refus humain le 24.07.2026 (défauts non attrapés par les tests : ＋ PWA recouvrant du contenu — padding ≠ exclusion de viewport —, ＋ parfois enterré, toasts parasites, import sans mapping/compte visibles, documents sans modification, textes destructifs discordants, bannière démo iOS sur la navigation, métadonnées tronquées, titres sombres, zone noire Réglages, onboarding natif non capturé) → **correctif `fix(l7)`** : viewport PWA s'arrêtant AU-DESSUS du ＋ (`.fab-clear`, vérifié par rectangles réels), assistant d'import complet (mapping modifiable, compte OBLIGATOIRE choisi, aperçu, confirmation distincte), édition des documents, concordance exacte des noms d'actions, bannière démo dans sa propre bande, métadonnées multilignes (type/année/fournisseur/membre/date), contraste des titres (token explicite), fond derrière la zone du ＋, tour natif onboarding+confiance (19 captures ios-l7-*, résumé de restauration réel, import natif parcouru) ; suites locales : **67 e2e** + 5 parité + design verts, captures PWA régénérées SANS toast. **Preuves finales** : commits `f26b10a` (applicatif) + `e93143a`/`48e8bea`/`6868073`/`3d9d118`/`59b4bfd` (stabilisation du tour + parité « intitulé » révélée par le tour) ; CI #193 verte (run 30102710240 : 67 e2e + 5 parité + design, **251 tests iOS 0 échec**) ; **Demo VERT** (run 30103337603 : tour principal 18 étapes + tour onboarding/confiance — 19 captures ios-l7-*, import natif parcouru avec choix réel du compte, résumé de restauration réel, dialogue destructif annulé — artefact budget-demo 181,1 Mo, expire 22.10.2026). Runs Demo intermédiaires 30096455731/30097749294/30099755053/30101791573 échoués sur le TOUR (pop du hub, label VoiceOver, en-tête « intitulé » non reconnu = vrai défaut de parité corrigé, compte volontairement non présélectionné, label du Picker) — chaque cause documentée | — |
-| L8 Widgets/Mouvement | VERIFYING | livraison ci-dessous (24.07.2026) : sélection de graphiques PWA (Patrimoine + détail de compte, 12 zones accessibles/courbe, marqueur + étiquette aria-live issue des séries EXISTANTES), `chartXSelection` + règle + point + étiquette fr-CH sur l'Évolution native, haptique `.success` UNIQUEMENT à l'enregistrement réussi d'un mouvement, performance 10k prouvée (DOM borné par le mois) ; suites locales : **69 e2e** + 5 parité + design verts, zéro erreur console ; natifs : `ObsidianMotionTests` (étiquette fr-CH positive/négative, Patrimoine 320 pt transparence réduite) ; 5 captures inspectées + README dans `docs/obsidian-glass/widgets-motion/l8/`. **Preuves finales** : commit `e1d3496` ; CI #196 VERTE (run 30110797618 : 69 e2e + 5 parité + design, **254 tests iOS 0 échec**, `ObsidianMotionTests passed`, builds Debug + Release, manifeste dans Budget.app) ; **Demo VERT** (run 30111267605, artefact `budget-demo` **76,3 Mo**, expire 22.10.2026 : <https://github.com/Mendestrading21/Budget-/actions/runs/30111267605>) | validation humaine des preuves |
+| L8 Widgets/Mouvement | VERIFYING | 1er refus humain le 24.07.2026 (échelle cassée sur séries constantes négatives, cibles < 44 pt, sélection fuyant entre comptes, perf partielle, sélection native jamais parcourue, ＋ natif recouvrant pendant le défilement, README survendu — détail dans « Refus L8 ») → **correctif `fix(l8)` du 24.07.2026** : échelle d'affichage commune sûre (`chartYScale`, constantes négatives comprises, capture −100 à l'appui), scrubber `role="slider"` pleine courbe (glissement Pointer Events + clavier ←/→/Home/End, cible ≥ 44 pt mesurée, aria-valuetext, région live persistante mise à jour en place), sélection isolée par compte (`{id, i}`), Mouvements paginés par pages fixes de 200 lignes (rien de masqué : décompte total + bouton « encore repliés »), perf 10k répartis ET concentrés mesurée jusqu'à la peinture avec temps loggés, sélection native réellement parcourue au tour Demo (glissement réel, `networth.chart.selectionLabel`, valeur accessible = sélection, lecture conservée après le geste, captures ios-l8-*), rendu 320 pt/a11y3/transparence réduite attaché à l'artefact, haptique testable (`hapticTriggerAdvances` — vibration physique = contrôle humain L9), zone d'exclusion du ＋ RESTAURÉE sur tous les écrans défilants + `.clipped()` + assertions à chaque position intermédiaire du défilement ; suites locales : **71 e2e** + 5 parité + design verts ; 6 captures inspectées + README honnête (preuves automatiques / visuelles / iPhone réel distinguées) : sélection de graphiques PWA (Patrimoine + détail de compte, 12 zones accessibles/courbe, marqueur + étiquette aria-live issue des séries EXISTANTES), `chartXSelection` + règle + point + étiquette fr-CH sur l'Évolution native, haptique `.success` UNIQUEMENT à l'enregistrement réussi d'un mouvement, performance 10k prouvée (DOM borné par le mois) ; suites locales : **69 e2e** + 5 parité + design verts, zéro erreur console ; natifs : `ObsidianMotionTests` (étiquette fr-CH positive/négative, Patrimoine 320 pt transparence réduite) ; 5 captures inspectées + README dans `docs/obsidian-glass/widgets-motion/l8/`. **Preuves finales** : commit `e1d3496` ; CI #196 VERTE (run 30110797618 : 69 e2e + 5 parité + design, **254 tests iOS 0 échec**, `ObsidianMotionTests passed`, builds Debug + Release, manifeste dans Budget.app) ; **Demo VERT** (run 30111267605, artefact `budget-demo` **76,3 Mo**, expire 22.10.2026 : <https://github.com/Mendestrading21/Budget-/actions/runs/30111267605>) | validation humaine des preuves |
 | L9 Audit final | BLOCKED | — | L8 validé |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
@@ -827,6 +827,91 @@ Constats à traiter dans les lots visuels (PAS corrigés en L1, interdits) :
   <https://github.com/Mendestrading21/Budget-/actions/runs/30044319681>.
   (Egress de session : `*.blob.core.windows.net` refusé — captures
   natives à inspecter depuis le run, comme en L4.)
+
+## Refus L8 (24.07.2026) — enregistré AVANT toute correction
+
+Validation humaine REFUSÉE malgré CI #196, CI #197 et Demo verts.
+Défauts constatés :
+
+1. **Échelle cassée** : le calcul des bornes (`min*0.995 / max*1.005`)
+   casse les séries constantes négatives — douze valeurs à −100
+   produisent un point vers y = 130, HORS du viewBox 0…100 : courbe,
+   règle et point invisibles (renderAccountDetail ET renderNetWorth).
+2. **Fausses cibles tactiles** : les 12 boutons transparents font
+   ~24-30 px de largeur (< 44 pt) ; le README parlait d'un « continuum
+   de balayage » alors que le code ne gérait que `click`, sans
+   `pointermove`.
+3. **Sélection globale** : `accChartSel` fuit d'un compte à l'autre —
+   le compte B hérite du mois choisi sur le compte A et perd son invite
+   initiale.
+4. **Preuve de performance partielle** : 10 000 mouvements répartis sur
+   douze mois et mesure du JavaScript synchrone uniquement — pas de cas
+   « tout dans un mois », pas de peinture, pas de recherche/défilement.
+5. **Sélection native jamais parcourue** : l'artefact Demo ne montre que
+   « Glissez sur la courbe… » — aucun glissement réel, aucune capture
+   de l'état sélectionné.
+6. **FAB natif** : dans la vidéo du Demo, pendant le défilement de
+   Patrimoine, le ＋ recouvre le côté droit d'une carte d'actif —
+   violation du contrat permanent de L6.
+7. **README survendu** : « surface > 44 × 44 » faux en cible réelle ;
+   test 320 pt natif réduit à `XCTAssertNotNil`.
+
+Statuts pendant les corrections : L0-L7 = DONE, **L8 = IN_PROGRESS**,
+L9 = BLOCKED. Corrections livrées le 24.07.2026 (commit `fix(l8)`) —
+L8 repasse à VERIFYING dans l'attente de la CI, du Demo et de la
+validation humaine.
+
+## Correctif L8 (24.07.2026) — réponse point par point au refus
+
+1. **Échelle** : `chartYScale` commune (marge sur l'ÉTENDUE, jamais en
+   multipliant les valeurs) — constantes positives/négatives/nulles,
+   presque constantes, mixtes, extrêmes : coordonnées finies dans le
+   viewBox (tests unitaires en page + capture
+   `l8-390-compte-negatif-constant-selection.png`, solde −100 visible
+   et centré). Aucune valeur financière modifiée.
+2. **Cibles tactiles** : les 12 boutons ~30 px sont REMPLACÉS par un
+   scrubber unique `role="slider"` couvrant toute la courbe (≥ 44 pt
+   dans les deux dimensions, MESURÉ par le test 63) — glissement réel
+   (Pointer Events + capture du pointeur, mise à jour PENDANT le geste),
+   clavier ←/→/Origine/Fin, `aria-valuetext`, focus visible,
+   `touch-action: pan-y` (aucun conflit avec le défilement vertical).
+   Région live présente AVANT la sélection et mise à jour EN PLACE
+   (nœud marqué, jamais recréé) — un vrai défaut détecté en route :
+   l'attribut `data-accid` du conteneur déclenchait la re-navigation
+   vers le compte à chaque relâchement (renommé `data-chartacc`).
+3. **Isolation par compte** : `accChartSel = { id, i }` — un compte
+   nouvellement ouvert affiche l'invite, jamais un mois hérité
+   (test 65, cycle complet A→B→A).
+4. **Performance honnête** : test 66 — 10 000 mouvements répartis PUIS
+   concentrés dans UN mois, rendu mesuré JUSQU'À LA PEINTURE (double
+   rAF), navigation, recherche, défilement ; DOM borné par pages fixes
+   de 200 lignes avec « Afficher X de plus (Y encore repliés sur Z) » —
+   rien de masqué en silence ; temps réels imprimés dans les logs CI.
+5. **Sélection native prouvée** : glissement RÉEL sur
+   `networth.chart.evolution` dans le tour Demo, attente de
+   `networth.chart.selectionLabel` (format suisse vérifié par regex),
+   valeur accessible de la courbe = sélection annoncée, captures
+   `ios-l8-patrimoine-avant-selection` / `ios-l8-patrimoine-selection` ;
+   la dernière lecture reste affichée après le geste
+   (`heldTrendSelection`) ; rendu réel 320 pt + accessibility3 +
+   transparence réduite attaché (`ios-l8-patrimoine-selection-320-a11y`,
+   `ObsidianMotionTests` exécutés aussi par le workflow Demo).
+6. **Haptique** : décision extraite et testée (`hapticTriggerAdvances` :
+   validation passée ET save réussi, sinon rien — jamais décoratif).
+   La vibration PHYSIQUE reste un contrôle humain sur iPhone réel,
+   consigné pour L9 — la CI ne la prouve pas et ne le prétend pas.
+7. **＋ natif** : zone d'exclusion restaurée sur TOUS les écrans
+   défilants (Accueil, Mouvements, Budget, Comptes, détail de compte,
+   budget annuel, année en revue — plusieurs ne l'avaient PAS) ;
+   `.clipped()` explicite en ceinture ; le tour Demo compare les
+   rectangles réels du ＋ aux éléments visibles à CHAQUE position
+   intermédiaire du défilement (5 pas) et pendant la sélection ; le
+   prédicat de balayage couvre désormais tous les identifiants
+   `networth.*` (cartes d'actifs comprises).
+8. **Documentation** : README réécrit — « surface > 44 × 44 » retirée
+   (c'était faux par cible), balayage continu documenté maintenant
+   qu'il est implémenté, preuves automatiques / visuelles / contrôle
+   iPhone réel clairement distinguées.
 
 ## Livraison L8 (24.07.2026) — sélection de graphiques et mouvement sobre
 

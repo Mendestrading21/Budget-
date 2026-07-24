@@ -67,6 +67,7 @@ struct BudgetTab: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
+                .obsidianFABClearance()
             }
             .navigationTitle("Budget")
             .toolbar {
