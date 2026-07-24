@@ -160,6 +160,7 @@ struct DocumentRow: View {
                     // jamais un bouton de partage qui disparaît en silence.
                     StatusPill(text: "Fichier absent", kind: .warning)
                         .accessibilityLabel("Le fichier de \(document.title) est absent — seules les informations restent.")
+                        .accessibilityIdentifier("document.fileMissing")
                 }
             }
         }

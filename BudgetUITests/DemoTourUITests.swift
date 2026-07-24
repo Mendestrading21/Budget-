@@ -166,8 +166,11 @@ final class DemoTourUITests: XCTestCase {
 
         // Documents : registre rempli + fichier ABSENT écrit.
         visitMoreEntry(app, label: "Documents", shot: "ios-l7-documents-rempli")
-        XCTAssertTrue(app.staticTexts["Fichier absent"].waitForExistence(timeout: 10),
-                      "un document sans fichier doit le DIRE")
+        XCTAssertTrue(
+            app.descendants(matching: .any).matching(identifier: "document.fileMissing")
+                .firstMatch.waitForExistence(timeout: 10),
+            "un document sans fichier doit le DIRE (pill « Fichier absent »)"
+        )
         // La bannière démo occupe SA bande : jamais sur la navigation.
         let demoBanner = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label CONTAINS 'Mode démonstration'")).firstMatch
@@ -181,7 +184,7 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "ios-l7-document-fichier-absent")
 
         // Import CSV : mapping → compte → aperçu → confirmation → rapport.
-        openTab(app, "Plus")
+        openPlusHub(app)
         var importEntry = app.buttons["Import CSV"].firstMatch
         if !importEntry.waitForExistence(timeout: 5) { importEntry = app.staticTexts["Import CSV"].firstMatch }
         if !importEntry.isHittable { app.swipeUp() }
@@ -205,7 +208,7 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "ios-l7-import-rapport")
 
         // Réglages : le résumé RÉEL de restauration s'affiche d'abord.
-        openTab(app, "Plus")
+        openPlusHub(app)
         var settingsEntry = app.buttons["Réglages"].firstMatch
         if !settingsEntry.waitForExistence(timeout: 5) { settingsEntry = app.staticTexts["Réglages"].firstMatch }
         if !settingsEntry.isHittable { app.swipeUp() }
@@ -259,6 +262,20 @@ final class DemoTourUITests: XCTestCase {
                       "l'annulation ne supprime rien")
     }
 
+    /// Revient au SOMMET du hub Plus de façon fiable : le re-tap d'un
+    /// onglet replie la pile, mais peut être avalé si un défilement se
+    /// termine — on vérifie que le hub est visible et on re-tape sinon.
+    @MainActor
+    private func openPlusHub(_ app: XCUIApplication) {
+        openTab(app, "Plus")
+        if app.staticTexts["À organiser"].waitForExistence(timeout: 3) { return }
+        app.tabBars.buttons["Plus"].tap()
+        if app.staticTexts["À organiser"].waitForExistence(timeout: 5) { return }
+        // Hub encore défilé : revenir en haut.
+        app.swipeDown()
+        _ = app.staticTexts["À organiser"].waitForExistence(timeout: 5)
+    }
+
     @MainActor
     private func openTab(_ app: XCUIApplication, _ label: String) {
         let tab = app.tabBars.buttons[label]
@@ -273,7 +290,7 @@ final class DemoTourUITests: XCTestCase {
     /// cover what the app claims to ship.
     @MainActor
     private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String) {
-        openTab(app, "Plus")
+        openPlusHub(app)
         var entry = app.buttons[label].firstMatch
         if !entry.waitForExistence(timeout: 5) {
             entry = app.staticTexts[label].firstMatch
@@ -336,7 +353,7 @@ final class DemoTourUITests: XCTestCase {
         _ app: XCUIApplication, label: String, base: String,
         lastProofPrefix: String?, namedProofs: [String] = []
     ) {
-        openTab(app, "Plus")
+        openPlusHub(app)
         var entry = app.buttons[label].firstMatch
         if !entry.waitForExistence(timeout: 5) {
             entry = app.staticTexts[label].firstMatch
