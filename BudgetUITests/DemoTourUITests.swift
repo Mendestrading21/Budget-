@@ -199,6 +199,16 @@ final class DemoTourUITests: XCTestCase {
         let verifyButton = app.buttons["Vérifier les lignes"]
         XCTAssertTrue(verifyButton.waitForExistence(timeout: 10),
                       "l'étape du compte de destination doit suivre")
+        // Le compte de destination est un CHOIX explicite (pas de
+        // pré-sélection) : le tour choisit réellement « Compte ménage ».
+        let accountPicker = app.buttons["Choisir…"].firstMatch
+        XCTAssertTrue(accountPicker.waitForExistence(timeout: 5),
+                      "le compte de destination doit être un choix explicite")
+        accountPicker.tap()
+        let householdAccount = app.buttons["Compte ménage"].firstMatch
+        XCTAssertTrue(householdAccount.waitForExistence(timeout: 5),
+                      "les comptes actifs doivent être proposés")
+        householdAccount.tap()
         if !verifyButton.isHittable { app.swipeUp() }
         verifyButton.tap()
         XCTAssertTrue(app.staticTexts["Prêt à importer"].waitForExistence(timeout: 10),
