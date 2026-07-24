@@ -371,24 +371,45 @@ final class DemoTourUITests: XCTestCase {
         let chart = app.descendants(matching: .any)
             .matching(identifier: "networth.chart.evolution").firstMatch
         XCTAssertTrue(chart.waitForExistence(timeout: 5), "courbe Évolution introuvable")
+        // La courbe doit être ENTIÈREMENT visible et loin des bords : un
+        // geste sur un élément à cheval sur le bord inférieur tomberait
+        // sur la tab bar ou le ＋ — cause des trois échecs précédents.
+        let viewport = scroll.frame
+        var centering = 0
+        while centering < 8 {
+            let f = chart.frame
+            if f.minY >= viewport.minY + 40 && f.maxY <= viewport.maxY - 120 { break }
+            let from = CGVector(dx: 0.5, dy: f.midY > viewport.midY ? 0.7 : 0.45)
+            let to = CGVector(dx: 0.5, dy: f.midY > viewport.midY ? 0.45 : 0.7)
+            scroll.coordinate(withNormalizedOffset: from)
+                .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: to))
+            centering += 1
+        }
+        XCTAssertTrue(
+            chart.frame.minY >= viewport.minY && chart.frame.maxY <= viewport.maxY - 100,
+            "la courbe doit être entièrement visible avant le geste (courbe \(chart.frame), viewport \(viewport))"
+        )
         let hint = app.descendants(matching: .any)
             .matching(identifier: "networth.chart.selectionHint").firstMatch
         XCTAssertTrue(hint.waitForExistence(timeout: 5),
                       "l'invite « Glissez sur la courbe… » doit précéder toute sélection")
         snap(app, "ios-l8-patrimoine-avant-selection")
-        let start = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
-        let end = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5))
+        let start = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.4))
+        let end = chart.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.4))
         // Geste LENT avec maintien : le défilement ne peut pas capter le
-        // toucher et Swift Charts reçoit la sélection PENDANT le drag.
+        // toucher et la courbe reçoit la lecture PENDANT le drag.
         start.press(forDuration: 0.6, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.4)
         let label = app.staticTexts.matching(identifier: "networth.chart.selectionLabel").firstMatch
         if !label.waitForExistence(timeout: 3) {
             // Second essai : appui long au centre — même une lecture
             // momentanée reste affichée (dernière lecture conservée).
-            chart.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5))
+            chart.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.4))
                 .press(forDuration: 0.8)
         }
-        XCTAssertTrue(label.waitForExistence(timeout: 5),
+        if !label.waitForExistence(timeout: 3) {
+            snap(app, "ios-l8-debug-apres-geste") // état réel joint à l'artefact en cas d'échec
+        }
+        XCTAssertTrue(label.exists,
                       "l'étiquette de sélection doit rester affichée après le geste")
         let text = label.label
         XCTAssertNotNil(
