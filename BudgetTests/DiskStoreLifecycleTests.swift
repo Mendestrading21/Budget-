@@ -9,6 +9,14 @@ import SwiftData
 /// celle-ci est la seule à toucher le disque — via le point d'injection
 /// `PersistenceFactory.makeContainer`, le même chemin de construction
 /// (même schéma V8) que `makeProductionContainer`.
+///
+/// Micro-correction : l'ÉCRITURE et la RELECTURE vivent chacune dans
+/// leur propre `autoreleasepool` et RIEN (conteneur, contexte, modèle,
+/// résultat de fetch) n'en sort ; le dossier temporaire n'est supprimé
+/// qu'APRÈS la sortie du second bloc, une fois le store refermé —
+/// sinon SQLite journalise « database integrity compromised by API
+/// violation: vnode unlinked while in use » (fichiers .store/-wal/-shm
+/// effacés sous une connexion encore ouverte).
 final class DiskStoreLifecycleTests: XCTestCase {
     func testDataWrittenOnDiskSurvivesFullContainerTeardown() throws {
         // 1. URL temporaire UNIQUE pour ce run.
@@ -16,10 +24,6 @@ final class DiskStoreLifecycleTests: XCTestCase {
             .appendingPathComponent("budget-disk-lifecycle-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let storeURL = directory.appendingPathComponent("Budget.store")
-        // 9. Nettoyage APRÈS la libération des conteneurs (fin du test).
-        addTeardownBlock {
-            try? FileManager.default.removeItem(at: directory)
-        }
 
         // Données fictives identifiables par UUID, montant Decimal exact,
         // relation utile compte ↔ mouvement.
@@ -29,10 +33,9 @@ final class DiskStoreLifecycleTests: XCTestCase {
         let amount = Decimal(string: "1234.56")!
         let movementDate = Date(timeIntervalSince1970: 1_784_000_000)
 
-        // 2-5. PREMIER conteneur : configuration SUR DISQUE (jamais
-        // in-memory), insertion, save, puis destruction COMPLÈTE du
-        // contexte et du conteneur à la sortie du bloc — aucune
-        // référence ne survit.
+        // 2-5. Phase d'ÉCRITURE — premier conteneur, configuration SUR
+        // DISQUE (jamais in-memory), insertion, save, puis destruction
+        // COMPLÈTE du contexte et du conteneur à la sortie du bloc.
         try autoreleasepool {
             let configuration = ModelConfiguration(url: storeURL)
             XCTAssertFalse(
@@ -66,35 +69,46 @@ final class DiskStoreLifecycleTests: XCTestCase {
             "le fichier de store doit exister sur le disque après le save"
         )
 
-        // 6. DEUXIÈME conteneur, indépendant, sur la MÊME URL.
-        let secondContainer = try PersistenceFactory.makeContainer(
-            configuration: ModelConfiguration(url: storeURL)
-        )
-        let secondContext = ModelContext(secondContainer)
+        // 6-8. Phase de RELECTURE — second conteneur INDÉPENDANT sur la
+        // MÊME URL, dans son PROPRE bloc : aucune référence SwiftData
+        // (conteneur, contexte, modèle, résultat de fetch) n'en sort.
+        // Vérification EXACTE des valeurs et de la relation persistées —
+        // pas un simple « aucun crash ».
+        try autoreleasepool {
+            let secondContainer = try PersistenceFactory.makeContainer(
+                configuration: ModelConfiguration(url: storeURL)
+            )
+            let secondContext = ModelContext(secondContainer)
 
-        // 7-8. Relecture par UUID et vérification EXACTE des valeurs et
-        // de la relation persistées — pas un simple « aucun crash ».
-        let accounts = try secondContext.fetch(
-            FetchDescriptor<Account>(predicate: #Predicate { $0.id == accountID })
-        )
-        XCTAssertEqual(accounts.count, 1, "le compte doit être retrouvé par son UUID")
-        let account = try XCTUnwrap(accounts.first)
-        XCTAssertEqual(account.name, "Compte cycle disque")
-        XCTAssertEqual(account.type, .current)
-        XCTAssertEqual(account.openingBalance, opening, "montant Decimal exact, jamais coercé")
+            let accounts = try secondContext.fetch(
+                FetchDescriptor<Account>(predicate: #Predicate { $0.id == accountID })
+            )
+            XCTAssertEqual(accounts.count, 1, "le compte doit être retrouvé par son UUID")
+            let account = try XCTUnwrap(accounts.first)
+            XCTAssertEqual(account.name, "Compte cycle disque")
+            XCTAssertEqual(account.type, .current)
+            XCTAssertEqual(account.openingBalance, opening, "montant Decimal exact, jamais coercé")
 
-        let movements = try secondContext.fetch(
-            FetchDescriptor<BudgetTransaction>(predicate: #Predicate { $0.id == transactionID })
-        )
-        XCTAssertEqual(movements.count, 1, "le mouvement doit être retrouvé par son UUID")
-        let movement = try XCTUnwrap(movements.first)
-        XCTAssertEqual(movement.title, "Dépense cycle disque")
-        XCTAssertEqual(movement.amount, amount, "montant Decimal exact après réouverture")
-        XCTAssertEqual(movement.type, .expense)
-        XCTAssertEqual(movement.date, movementDate)
+            let movements = try secondContext.fetch(
+                FetchDescriptor<BudgetTransaction>(predicate: #Predicate { $0.id == transactionID })
+            )
+            XCTAssertEqual(movements.count, 1, "le mouvement doit être retrouvé par son UUID")
+            let movement = try XCTUnwrap(movements.first)
+            XCTAssertEqual(movement.title, "Dépense cycle disque")
+            XCTAssertEqual(movement.amount, amount, "montant Decimal exact après réouverture")
+            XCTAssertEqual(movement.type, .expense)
+            XCTAssertEqual(movement.date, movementDate)
 
-        // La relation survit dans les DEUX sens.
-        XCTAssertEqual(movement.account?.id, accountID, "relation mouvement → compte persistée")
-        XCTAssertEqual(account.transactions.map(\.id), [transactionID], "relation compte → mouvements persistée")
+            // La relation survit dans les DEUX sens.
+            XCTAssertEqual(movement.account?.id, accountID, "relation mouvement → compte persistée")
+            XCTAssertEqual(account.transactions.map(\.id), [transactionID], "relation compte → mouvements persistée")
+        }
+
+        // 9. Nettoyage APRÈS la sortie du second bloc, store refermé —
+        // tout échec est VISIBLE (jamais de `try?`).
+        XCTAssertNoThrow(
+            try FileManager.default.removeItem(at: directory),
+            "le nettoyage du dossier temporaire doit réussir une fois le store refermé"
+        )
     }
 }
