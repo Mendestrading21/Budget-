@@ -360,6 +360,22 @@ struct NetWorthTrendCard: View {
         size.isAccessibilitySize ? 2 : 4
     }
 
+    /// Dates EXPLICITES des repères, réparties sur la période — en
+    /// tailles accessibilité : les deux EXTRÉMITÉS, que deux libellés ne
+    /// peuvent jamais superposer (l'automatique plaçait « mars » et
+    /// « mai » l'un sur l'autre). Statique et testé.
+    static func xAxisDates(for size: DynamicTypeSize, points: [NetWorthSnapshot]) -> [Date] {
+        let count = xAxisMarkCount(for: size)
+        guard points.count > 1, count > 1 else { return points.map(\.date) }
+        let maxIndex = points.count - 1
+        var indices: [Int] = []
+        for step in 0..<count {
+            let index = Int((Double(step) * Double(maxIndex) / Double(count - 1)).rounded())
+            if indices.last != index { indices.append(index) }
+        }
+        return indices.map { points[$0].date }
+    }
+
     var body: some View {
         let selected = NetWorthView.nearestTrendPoint(to: heldTrendSelection, in: points)
         GlassCard {
@@ -435,7 +451,7 @@ struct NetWorthTrendCard: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: Self.xAxisMarkCount(for: dynamicTypeSize))) { _ in
+                    AxisMarks(values: Self.xAxisDates(for: dynamicTypeSize, points: points)) { _ in
                         AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
                     }
                 }

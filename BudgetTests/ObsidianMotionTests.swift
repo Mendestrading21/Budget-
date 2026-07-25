@@ -157,10 +157,19 @@ final class ObsidianMotionTests: XCTestCase {
             expectedLabel,
             "l'étiquette attendue est un LITTÉRAL de la fixture"
         )
-        // Axe X adapté aux tailles accessibilité — deux repères lisibles
-        // au lieu de six libellés superposés ; rendu normal inchangé.
+        // Axe X adapté aux tailles accessibilité : repères EXPLICITES aux
+        // extrémités de la période — deux libellés opposés ne peuvent pas
+        // se superposer (l'automatique plaçait « mars » sur « mai »).
         XCTAssertEqual(NetWorthTrendCard.xAxisMarkCount(for: .accessibility3), 2)
         XCTAssertEqual(NetWorthTrendCard.xAxisMarkCount(for: .large), 4)
+        XCTAssertEqual(NetWorthTrendCard.xAxisDates(for: .accessibility3, points: points),
+                       [points.first!.date, points.last!.date],
+                       "en accessibilité, les DEUX repères sont aux extrémités opposées de la période")
+        let normalAxis = NetWorthTrendCard.xAxisDates(for: .large, points: points)
+        XCTAssertEqual(normalAxis.count, 4, "rendu normal : quatre repères répartis")
+        XCTAssertEqual(normalAxis.first, points.first!.date)
+        XCTAssertEqual(normalAxis.last, points.last!.date)
+        XCTAssertEqual(normalAxis, Array(Set(normalAxis)).sorted(), "repères distincts et croissants")
 
         let margin = BudgetSpacing.screenMargin
 
