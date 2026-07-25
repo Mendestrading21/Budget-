@@ -88,9 +88,28 @@ jobs:
           if [ -d DemoResults.xcresult ]; then
             xcrun xcresulttool export attachments \
               --path DemoResults.xcresult \
-              --output-path demo-output/captures || true
+              --output-path demo-output/captures | tee /tmp/attmap.txt || true
             ls -R demo-output/captures || true
           fi
+
+      - name: Preuves ios-l8 en base64 (inspection directe depuis les logs)
+        if: always()
+        run: |
+          # Le stockage d'artefacts est inaccessible depuis certains
+          # environnements de revue : les trois pièces L8 sont donc AUSSI
+          # imprimées en base64 dans les logs, pour inspection directe.
+          for NAME in ios-l8-patrimoine-selection-320-a11y ios-l8-patrimoine-avant-selection ios-l8-patrimoine-selection; do
+            F=$(grep -F "suggested name: \"$NAME\"" /tmp/attmap.txt | head -1 | sed -E 's/^File: ([^,]+),.*/\1/')
+            P=""
+            if [ -n "$F" ]; then P=$(find demo-output/captures -name "$F" 2>/dev/null | head -1); fi
+            if [ -n "$P" ]; then
+              echo "===B64 $NAME START==="
+              base64 -i "$P"
+              echo "===B64 $NAME END==="
+            else
+              echo "INTROUVABLE : $NAME"
+            fi
+          done
 
       - name: Archive .ipa non signée (pour plus tard)
         run: |

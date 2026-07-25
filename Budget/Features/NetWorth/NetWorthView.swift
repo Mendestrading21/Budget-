@@ -351,6 +351,14 @@ struct NetWorthView: View {
 struct NetWorthTrendCard: View {
     let points: [NetWorthSnapshot]
     @Binding var heldTrendSelection: Date?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// L8 : repères de l'axe X adaptés à la taille du texte — en tailles
+    /// accessibilité, deux repères LISIBLES valent mieux que six
+    /// libellés superposés. Statique et testé (ObsidianMotionTests).
+    static func xAxisMarkCount(for size: DynamicTypeSize) -> Int {
+        size.isAccessibilitySize ? 2 : 4
+    }
 
     var body: some View {
         let selected = NetWorthView.nearestTrendPoint(to: heldTrendSelection, in: points)
@@ -427,7 +435,7 @@ struct NetWorthTrendCard: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisMarks(values: .automatic(desiredCount: Self.xAxisMarkCount(for: dynamicTypeSize))) { _ in
                         AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
                     }
                 }
