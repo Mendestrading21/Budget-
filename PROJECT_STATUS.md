@@ -25,6 +25,12 @@ volontairement non ajoutée). Formules, migrations, clés localStorage,
 format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
 **L8 = VERIFYING**, L9 = BLOCKED.
 
+**Validation L8 (2026-07-25)** — validation humaine DÉFINITIVE reçue
+sur la référence `240e4f4` après trois passes correctives documentées.
+**L8 = DONE, L9 = READY** (à lancer uniquement sur commande explicite ;
+contrôle humain consigné pour L9 : vibration physique du haptique sur
+iPhone réel).
+
 **Micro-correction n°3 L8 (2026-07-25)** — 3e refus (unique défaut :
 preuve 320-a11y illisible — axe superposé, étiquette coupée, largeur
 artificielle) → `fix(l8): make the 320 accessibility chart fully
