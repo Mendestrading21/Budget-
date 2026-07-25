@@ -36,6 +36,19 @@ suite ≥ 72), écarts documentaires (21 captures pas 23, verrouillage
 dans `AppLockManagerTests`, `BackupServiceTests` = 10 tests, PERF
 recopiées d'un run antérieur). **L9 = IN_PROGRESS** (passe corrective).
 
+**Passe corrective L9 terminée (2026-07-25)** — `317bba0` (refus +
+ADR-023) + `9e0a754` (`fix(l9): close final release readiness gaps`) +
+`b7e3870` (réconciliation) : iPhone uniquement PROUVÉ (UIDeviceFamily
+== [1] vérifié par la CI dans le produit Release, l'app de l'archive
+Demo ET l'app extraite de l'IPA ; showBuildSettings Debug/Release = 1),
+`DiskStoreLifecycleTests` vert en CI (store disque réel, relecture par
+UUID via un second conteneur), charset corrigé + test 72 (HTTP sans
+charset), documentation réconciliée. CI #218 + CI FINALE #219 vertes
+(**72 e2e + 5 parités + 259 tests iOS 0 échec**, PERF finale
+23/33/24/18/27 ms), Demo #34 vert (artefact 278,2 Mo). **L9 =
+VERIFYING** — DONE impossible avant installation TestFlight sur iPhone
+réel et confirmations humaines (haptique, Face ID, VoiceOver).
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L8 (2026-07-24)
 
 L8 « Widgets, graphiques et micro-interactions » exécuté
