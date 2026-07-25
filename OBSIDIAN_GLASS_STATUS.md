@@ -894,6 +894,23 @@ L9 = BLOCKED.
    ligne « PERF L8 » du run CI final de cette passe (README et rapport
    alignés).
 
+### Preuves finales de la micro-correction (25.07.2026)
+
+- Commits : `c2416f7` (applicatif) + `14838b7` (documentaire).
+- CI **#203 verte** (run 30149883686, `c2416f7`) et **#204 verte**
+  (run 30149924826, `14838b7`) : 71 e2e + 5 parité + design,
+  **258 tests iOS 0 échec** (`ObsidianMotionTests` passés, preuve de
+  rendu du composant comprise), builds Debug + Release, manifeste dans
+  Budget.app. Ligne « PERF L8 » du run FINAL #204 : répartis 23 ms /
+  200 lignes DOM · concentrés 32 ms / 200 lignes DOM par page pour
+  10 000 mouvements · navigation 27 ms · recherche 22 ms / 111 lignes ·
+  défilement 27 ms.
+- **Demo VERT** (run 30150172967, `14838b7`) : glissement natif réel
+  avec étiquette assertée ÉGALE à l'instantané de la fixture démo
+  (CHF 138'400.00) et valeur accessible identique ; artefact
+  `budget-demo` **271,4 Mo**, expire 23.10.2026 :
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30150172967>.
+
 ## Refus L8 (24.07.2026) — enregistré AVANT toute correction
 
 Validation humaine REFUSÉE malgré CI #196, CI #197 et Demo verts.
