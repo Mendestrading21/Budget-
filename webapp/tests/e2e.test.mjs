@@ -2326,6 +2326,51 @@ const cleaned66 = await page.evaluate(() =>
   || ACCOUNTS.some(a => String(a.id).startsWith("acc-l8-")));
 check(!cleaned66, "fixtures et mouvements de performance retirés (aucune trace)");
 
+// ---------- Test 72 : charset servi SANS en-tête (correctif L9) ----------
+currentTest = "charset sans en-tête serveur L9";
+// La PWA déclare désormais <meta charset="utf-8"> en PREMIÈRE ligne.
+// Servie par un hôte qui OMET le charset dans Content-Type (le cas qui
+// cassait l'app : décodage Windows-1252, JS mort), elle doit démarrer
+// intacte, en UTF-8, avec ses textes accentués exacts.
+{
+  const { default: http72 } = await import("node:http");
+  const { readFileSync: readFile72 } = await import("node:fs");
+  const indexHtml72 = readFile72(path.resolve(HERE, "..", "index.html"));
+  const server72 = http72.createServer((req, res) => {
+    // Volontairement SANS charset dans l'en-tête.
+    res.writeHead(200, { "Content-Type": "text/html" });
+    res.end(indexHtml72);
+  });
+  await new Promise(resolve => server72.listen(0, "127.0.0.1", resolve));
+  const port72 = server72.address().port;
+  // Navigateur dédié sans proxy : 127.0.0.1 joignable en local comme en CI.
+  const browser72 = await chromium.launch({
+    executablePath: CHROMIUM, args: ["--no-sandbox", "--no-proxy-server"],
+  });
+  const context72 = await browser72.newContext({ viewport: { width: 390, height: 844 } });
+  const page72 = await context72.newPage();
+  const errors72 = [];
+  page72.on("pageerror", err => errors72.push("PAGEERROR: " + err.message));
+  page72.on("console", msg => { if (msg.type() === "error") errors72.push(msg.text()); });
+  await page72.goto(`http://127.0.0.1:${port72}/`);
+  await page72.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 }).catch(() => {});
+  const started72 = await page72.evaluate(() => ({
+    countries: document.querySelectorAll("[data-obcountry]").length,
+    charset: document.characterSet,
+    privacy: document.body.innerText.includes("Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne."),
+  }));
+  check(started72.countries === 3,
+    `charset omis : l'app démarre réellement (3 pays attendus, obtenu ${started72.countries})`);
+  check(String(started72.charset).toLowerCase() === "utf-8",
+    `charset omis : document décodé en UTF-8 (obtenu ${started72.charset})`);
+  check(started72.privacy,
+    "charset omis : texte accentué EXACT présent (« Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne. »)");
+  check(errors72.length === 0,
+    `charset omis : zéro pageerror / erreur console (obtenu : ${errors72.slice(0, 2).join(" | ") || "aucune"})`);
+  await browser72.close();
+  server72.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -2335,4 +2380,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 71 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 72 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8 + 1 charset L9), zéro erreur console ✓");

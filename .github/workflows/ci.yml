@@ -114,6 +114,36 @@ jobs:
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
           echo "PrivacyInfo.xcprivacy présent et valide dans Budget.app ✓"
 
+      # ADR-023 : prise en charge native iPhone UNIQUEMENT. La liste
+      # ENTIÈRE doit valoir exactement [1] — la simple présence de 1 ne
+      # suffit pas ([1,2] doit échouer).
+      - name: iPhone uniquement — UIDeviceFamily == [1] (produit Release)
+        run: |
+          PLIST="DerivedData/Build/Products/Release-iphonesimulator/Budget.app/Info.plist"
+          FAM=$(plutil -extract UIDeviceFamily json -o - "$PLIST" | tr -d '[:space:]')
+          if [ "$FAM" != "[1]" ]; then
+            echo "::error::UIDeviceFamily = $FAM dans $PLIST (attendu EXACTEMENT [1])"; exit 1
+          fi
+          echo "UIDeviceFamily == [1] dans le produit Release ✓"
+
+      # Preuve secondaire ADR-023 : le réglage de cible lui-même, en
+      # Debug ET en Release.
+      - name: iPhone uniquement — preuve secondaire (build settings)
+        run: |
+          for CONF in Debug Release; do
+            VAL=$(xcodebuild \
+              -project Budget.xcodeproj \
+              -scheme Budget \
+              -configuration "$CONF" \
+              -destination 'platform=iOS Simulator,name=iPhone 16' \
+              -showBuildSettings 2>/dev/null \
+              | awk -F' = ' '$1 ~ /TARGETED_DEVICE_FAMILY/ { print $2; exit }')
+            if [ "$VAL" != "1" ]; then
+              echo "::error::TARGETED_DEVICE_FAMILY = '$VAL' en $CONF (attendu 1)"; exit 1
+            fi
+            echo "TARGETED_DEVICE_FAMILY = 1 en $CONF ✓"
+          done
+
       - name: Publier le bundle de résultats en cas d'échec
         if: failure()
         uses: actions/upload-artifact@v4

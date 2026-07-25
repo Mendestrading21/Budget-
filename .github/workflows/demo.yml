@@ -129,6 +129,23 @@ jobs:
           zip -qry demo-output/Budget-non-signee.ipa Payload
           echo "ipa: $(du -h demo-output/Budget-non-signee.ipa | cut -f1)"
 
+      # ADR-023 : la liste ENTIÈRE UIDeviceFamily doit valoir [1] dans
+      # l'app de l'ARCHIVE et dans l'app EXTRAITE de l'IPA — pas
+      # seulement contenir 1.
+      - name: iPhone uniquement — UIDeviceFamily == [1] (archive + IPA)
+        run: |
+          check_family() {
+            FAM=$(plutil -extract UIDeviceFamily json -o - "$1" | tr -d '[:space:]')
+            if [ "$FAM" != "[1]" ]; then
+              echo "::error::UIDeviceFamily = $FAM dans $1 (attendu EXACTEMENT [1])"; exit 1
+            fi
+            echo "UIDeviceFamily == [1] dans $1 ✓"
+          }
+          check_family "build/Budget.xcarchive/Products/Applications/Budget.app/Info.plist"
+          rm -rf ipa-extract && mkdir ipa-extract
+          unzip -q demo-output/Budget-non-signee.ipa -d ipa-extract
+          check_family "ipa-extract/Payload/Budget.app/Info.plist"
+
       - name: Publier l'artefact budget-demo
         if: always()
         uses: actions/upload-artifact@v4
