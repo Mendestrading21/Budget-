@@ -162,14 +162,9 @@ final class ObsidianMotionTests: XCTestCase {
         // se superposer (l'automatique plaçait « mars » sur « mai »).
         XCTAssertEqual(NetWorthTrendCard.xAxisMarkCount(for: .accessibility3), 2)
         XCTAssertEqual(NetWorthTrendCard.xAxisMarkCount(for: .large), 4)
-        XCTAssertEqual(NetWorthTrendCard.xAxisDates(for: .accessibility3, points: points),
-                       [points.first!.date, points.last!.date],
-                       "en accessibilité, les DEUX repères sont aux extrémités opposées de la période")
-        let normalAxis = NetWorthTrendCard.xAxisDates(for: .large, points: points)
-        XCTAssertEqual(normalAxis.count, 4, "rendu normal : quatre repères répartis")
-        XCTAssertEqual(normalAxis.first, points.first!.date)
-        XCTAssertEqual(normalAxis.last, points.last!.date)
-        XCTAssertEqual(normalAxis, Array(Set(normalAxis)).sorted(), "repères distincts et croissants")
+        XCTAssertEqual(NetWorthTrendCard.accessibilityAxisDates(for: points),
+                       [points[0].date, points[points.count - 2].date],
+                       "en accessibilité : premier point et AVANT-DERNIER — éloignés (jamais superposés) et tous deux rendus (un repère au bord fuyant serait rogné par le cadre)")
 
         let margin = BudgetSpacing.screenMargin
 

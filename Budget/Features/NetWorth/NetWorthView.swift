@@ -360,20 +360,15 @@ struct NetWorthTrendCard: View {
         size.isAccessibilitySize ? 2 : 4
     }
 
-    /// Dates EXPLICITES des repères, réparties sur la période — en
-    /// tailles accessibilité : les deux EXTRÉMITÉS, que deux libellés ne
-    /// peuvent jamais superposer (l'automatique plaçait « mars » et
-    /// « mai » l'un sur l'autre). Statique et testé.
-    static func xAxisDates(for size: DynamicTypeSize, points: [NetWorthSnapshot]) -> [Date] {
-        let count = xAxisMarkCount(for: size)
-        guard points.count > 1, count > 1 else { return points.map(\.date) }
-        let maxIndex = points.count - 1
-        var indices: [Int] = []
-        for step in 0..<count {
-            let index = Int((Double(step) * Double(maxIndex) / Double(count - 1)).rounded())
-            if indices.last != index { indices.append(index) }
-        }
-        return indices.map { points[$0].date }
+    /// Dates EXPLICITES des deux repères en tailles accessibilité :
+    /// premier point et AVANT-DERNIER point — éloignés (aucune
+    /// superposition possible, l'automatique plaçait « mars » sur
+    /// « mai ») et tous deux RENDUS (un repère posé sur le bord fuyant
+    /// voit son libellé rogné par le cadre du graphique). Statique et
+    /// testé.
+    static func accessibilityAxisDates(for points: [NetWorthSnapshot]) -> [Date] {
+        guard points.count > 2 else { return points.map(\.date) }
+        return [points[0].date, points[points.count - 2].date]
     }
 
     var body: some View {
@@ -451,8 +446,14 @@ struct NetWorthTrendCard: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: Self.xAxisDates(for: dynamicTypeSize, points: points)) { _ in
-                        AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
+                    if dynamicTypeSize.isAccessibilitySize {
+                        AxisMarks(values: Self.accessibilityAxisDates(for: points)) { _ in
+                            AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
+                        }
+                    } else {
+                        AxisMarks(values: .automatic(desiredCount: Self.xAxisMarkCount(for: dynamicTypeSize))) { _ in
+                            AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
+                        }
                     }
                 }
                 .frame(height: 160)
