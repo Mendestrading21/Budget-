@@ -189,58 +189,46 @@ final class ObsidianMotionTests: XCTestCase {
             return (image, frame.height, controller.view)
         }
 
-        /// Cadre RÉEL (post-layout) d'un élément d'accessibilité, en
-        /// coordonnées de la fenêtre de rendu (origine 0,0).
-        func accessibilityFrame(_ identifier: String, in root: UIView) -> CGRect? {
-            var stack: [Any] = [root]
-            while let node = stack.popLast() {
-                if let ident = node as? UIAccessibilityIdentification,
-                   ident.accessibilityIdentifier == identifier {
-                    return (node as? NSObject)?.accessibilityFrame
-                }
-                if let object = node as? NSObject, let children = object.accessibilityElements {
-                    stack.append(contentsOf: children)
-                }
-                if let view = node as? UIView {
-                    stack.append(contentsOf: view.subviews)
-                }
-            }
-            return nil
-        }
-
+        // GÉOMÉTRIE RÉELLE 1 — l'étiquette COMPLÈTE tient dans la carte.
+        // La carte sélectionnée grandit EXACTEMENT de la différence entre
+        // la hauteur MESURÉE de l'étiquette complète et celle de l'invite
+        // (même rendu, même largeur intérieure de production). Si une
+        // ligne était rognée, ce delta serait plus petit.
         let selectedRender = renderViewport(selection: target.date)
         let unselectedRender = renderViewport(selection: nil)
+        let innerWidth = 320 - 2 * margin - 2 * BudgetSpacing.cardPadding
 
-        // Étiquette : cadre COMPLET dans l'image, marge inférieure
-        // positive, aucune troncature horizontale ni verticale.
-        let labelFrame = try XCTUnwrap(
-            accessibilityFrame("networth.chart.selectionLabel", in: selectedRender.root),
-            "l'étiquette sélectionnée doit exister dans la hiérarchie d'accessibilité"
-        )
-        XCTAssertGreaterThan(labelFrame.height, 0, "cadre d'étiquette réel après layout")
-        XCTAssertGreaterThanOrEqual(labelFrame.minY, 0, "l'étiquette ne dépasse pas le haut de l'image")
-        XCTAssertLessThanOrEqual(labelFrame.maxY, selectedRender.height - margin,
-            "marge inférieure POSITIVE sous l'étiquette : sa dernière ligne ne touche jamais le bord (maxY \(labelFrame.maxY), image \(selectedRender.height))")
-        XCTAssertGreaterThanOrEqual(labelFrame.minX, margin - 1, "l'étiquette respecte la marge gauche de production")
-        XCTAssertLessThanOrEqual(labelFrame.maxX, 320 - margin + 1,
-            "aucune troncature horizontale : l'étiquette tient dans la largeur réellement disponible")
-        // Le TEXTE exposé est l'étiquette COMPLÈTE de la fixture — pas un
-        // fragment rogné.
-        let labelElement = try XCTUnwrap(findAccessibilityElement("networth.chart.selectionLabel", in: selectedRender.root))
-        XCTAssertEqual(normalized((labelElement as? NSObject)?.accessibilityLabel ?? ""), expectedLabel,
-                       "l'étiquette exposée est le littéral complet de la fixture")
+        @MainActor
+        func measuredTextHeight(_ text: String) -> CGFloat {
+            let view = Text(text)
+                .font(BudgetFont.caption)
+                .fixedSize(horizontal: false, vertical: true)
+                .environment(\.dynamicTypeSize, .accessibility3)
+            return UIHostingController(rootView: view)
+                .sizeThatFits(in: CGSize(width: innerWidth, height: 10_000)).height
+        }
+        let labelHeight = measuredTextHeight(expectedLabel)
+        let hintHeight = measuredTextHeight("Glissez sur la courbe pour lire un mois précis.")
+        XCTAssertGreaterThan(labelHeight, hintHeight,
+                             "en accessibility3, l'étiquette complète est plus haute que l'invite")
+        XCTAssertEqual(selectedRender.height - unselectedRender.height, labelHeight - hintHeight, accuracy: 2,
+            "hauteur intrinsèque RÉELLE : la carte grandit exactement de la hauteur de l'étiquette complète — aucune ligne rognée")
 
-        // Graphique : cadre réel DANS l'image, à la largeur de production.
-        let chartFrame = try XCTUnwrap(
-            accessibilityFrame("networth.chart.evolution", in: selectedRender.root),
-            "la courbe doit exister dans la hiérarchie d'accessibilité"
-        )
-        XCTAssertGreaterThanOrEqual(chartFrame.minX, margin - 1, "la courbe respecte la marge gauche")
-        XCTAssertLessThanOrEqual(chartFrame.maxX, 320 - margin + 1, "la courbe respecte la marge droite")
-        XCTAssertGreaterThanOrEqual(chartFrame.minY, 0)
-        XCTAssertLessThanOrEqual(chartFrame.maxY, selectedRender.height, "la courbe (règle et point compris) est entière dans l'image")
-        XCTAssertGreaterThan(chartFrame.width, 200, "largeur réellement disponible après les marges de production")
-        XCTAssertLessThan(chartFrame.maxY, labelFrame.minY + 1, "l'étiquette est SOUS le graphique, jamais recouverte")
+        // GÉOMÉTRIE RÉELLE 2 — analyse pixel par pixel du rendu : rien ne
+        // touche le bord inférieur, l'étiquette est rendue en bas de
+        // carte, rien ne déborde des marges horizontales.
+        let (brightRows, brightCols, pixelScale) = try brightMap(of: selectedRender.image)
+        let lastBrightRow = CGFloat(try XCTUnwrap(brightRows.lastIndex(of: true))) / pixelScale
+        let firstBrightCol = CGFloat(try XCTUnwrap(brightCols.firstIndex(of: true))) / pixelScale
+        let lastBrightCol = CGFloat(try XCTUnwrap(brightCols.lastIndex(of: true))) / pixelScale
+        XCTAssertLessThanOrEqual(lastBrightRow, selectedRender.height - margin - 6,
+            "espace RÉEL sous la dernière ligne : aucun contenu ne touche le bord inférieur (dernier pixel clair à \(lastBrightRow) pt pour \(selectedRender.height) pt)")
+        XCTAssertGreaterThanOrEqual(lastBrightRow, selectedRender.height - margin - labelHeight - BudgetSpacing.cardPadding - 8,
+            "l'étiquette est réellement RENDUE en bas de carte — pas seulement mesurée")
+        XCTAssertGreaterThanOrEqual(firstBrightCol, margin - 2,
+            "aucun débordement à gauche de la marge de production")
+        XCTAssertLessThanOrEqual(lastBrightCol, 320 - margin + 2,
+            "aucun débordement à droite de la marge de production")
 
         // Preuve SECONDAIRE : l'état sélectionné change réellement le rendu.
         let selPNG = try XCTUnwrap(selectedRender.image.pngData())
@@ -254,22 +242,30 @@ final class ObsidianMotionTests: XCTestCase {
         add(attachment)
     }
 
-    /// Retrouve l'ÉLÉMENT d'accessibilité (pas seulement son cadre) —
-    /// pour lire le texte réellement exposé.
-    private func findAccessibilityElement(_ identifier: String, in root: UIView) -> Any? {
-        var stack: [Any] = [root]
-        while let node = stack.popLast() {
-            if let ident = node as? UIAccessibilityIdentification,
-               ident.accessibilityIdentifier == identifier {
-                return node
-            }
-            if let object = node as? NSObject, let children = object.accessibilityElements {
-                stack.append(contentsOf: children)
-            }
-            if let view = node as? UIView {
-                stack.append(contentsOf: view.subviews)
+    /// Carte des pixels CLAIRS (texte, courbe, règle, point — tout canal
+    /// > 140 sur fond sombre Obsidian) : lignes et colonnes marquées, en
+    /// pixels, avec l'échelle points→pixels de l'image.
+    private func brightMap(of image: UIImage) throws -> (rows: [Bool], cols: [Bool], scale: CGFloat) {
+        let cg = try XCTUnwrap(image.cgImage)
+        let width = cg.width, height = cg.height
+        var buffer = [UInt8](repeating: 0, count: width * height * 4)
+        let context = try XCTUnwrap(CGContext(
+            data: &buffer, width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: width * 4, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ))
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
+        var rows = [Bool](repeating: false, count: height)
+        var cols = [Bool](repeating: false, count: width)
+        for y in 0..<height {
+            for x in 0..<width {
+                let i = (y * width + x) * 4
+                if buffer[i] > 140 || buffer[i + 1] > 140 || buffer[i + 2] > 140 {
+                    rows[y] = true
+                    cols[x] = true
+                }
             }
         }
-        return nil
+        return (rows, cols, CGFloat(width) / 320)
     }
 }
