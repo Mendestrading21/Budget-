@@ -126,57 +126,69 @@ final class ObsidianMotionTests: XCTestCase {
 
     // MARK: - Preuve VISUELLE : Patrimoine SÉLECTIONNÉ à 320 pt, a11y3, transparence réduite
 
-    /// Rend le VRAI écran Patrimoine avec une sélection active injectée,
-    /// à 320 pt de large, Dynamic Type accessibility3, transparence
-    /// réduite, et attache le rendu à l'artefact
-    /// (« ios-l8-patrimoine-selection-320-a11y » — preuve à inspecter
-    /// humainement ; l'assertion automatique vérifie que le rendu n'est
-    /// pas vide et que la sélection vise bien l'instantané le plus proche).
+    /// Preuve VISUELLE réelle : la carte Évolution DE PRODUCTION
+    /// (NetWorthTrendCard — le composant rendu tel quel par NetWorthView,
+    /// jamais une copie de test), à 320 pt, Dynamic Type accessibility3,
+    /// transparence réduite, avec une sélection INJECTÉE d'un véritable
+    /// instantané. AVANT la capture : sélection résolue, étiquette
+    /// LITTÉRALE de la fixture, largeur ≤ 320 (aucun débordement),
+    /// hauteur suffisante (titre + graphique + étiquette), et l'état
+    /// sélectionné change réellement le rendu (les deux images
+    /// diffèrent). Pièce : ios-l8-patrimoine-selection-320-a11y.
     @MainActor
     func testNetWorthSelectedStateRendersAt320WithA11yType() throws {
-        let preview = DemoDataFactory.previewAppContainer()
-        let context = ModelContext(preview.modelContainer)
-        var snapshots = try context.fetch(
-            FetchDescriptor<NetWorthSnapshot>(sortBy: [SortDescriptor(\.date)])
-        )
-        if snapshots.count < 2 {
-            // Indépendance vis-à-vis de la fabrique : la preuve ne dépend
-            // pas du contenu exact de la démo.
-            let s1 = snapshot(date(2026, 3, 31), Decimal("118200"))
-            let s2 = snapshot(date(2026, 6, 30), Decimal("128450.30"))
-            context.insert(s1)
-            context.insert(s2)
-            try context.save()
-            snapshots = [s1, s2]
-        }
-        let target = snapshots[snapshots.count / 2]
-        let nearest = NetWorthView.nearestTrendPoint(to: target.date, in: snapshots)
-        XCTAssertEqual(nearest?.date, target.date,
+        let points = [
+            snapshot(date(2026, 1, 31), Decimal("118200.00")),
+            snapshot(date(2026, 2, 28), Decimal("121300.00")),
+            snapshot(date(2026, 3, 31), Decimal("124150.50")),
+            snapshot(date(2026, 4, 30), Decimal("125900.00")),
+            snapshot(date(2026, 5, 31), Decimal("127000.00")),
+            snapshot(date(2026, 6, 30), Decimal("128450.30")),
+        ]
+        let target = points[3]
+        XCTAssertEqual(NetWorthView.nearestTrendPoint(to: target.date, in: points)?.date, target.date,
                        "la sélection injectée résout vers le véritable instantané le plus proche")
+        XCTAssertEqual(
+            normalized(NetWorthView.trendSelectionLabel(date: target.date, netWorth: target.netWorth)),
+            "30.04.2026 : CHF 125'900.00 de fortune nette",
+            "l'étiquette attendue est un LITTÉRAL de la fixture"
+        )
 
-        let view = NavigationStack { NetWorthView(initialTrendSelection: target.date) }
-            .environment(preview)
-            .environment(AppRouter())
-            .modelContainer(preview.modelContainer)
-            .environment(\.dynamicTypeSize, .accessibility3)
-            .environment(\.obsidianForcedReducedTransparency, true)
-        let controller = UIHostingController(rootView: view)
-        let frame = CGRect(x: 0, y: 0, width: 320, height: 1200)
-        let window = UIWindow(frame: frame)
-        window.rootViewController = controller
-        window.makeKeyAndVisible()
-        controller.view.frame = frame
-        controller.view.layoutIfNeeded()
-        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.5))
-
-        let renderer = UIGraphicsImageRenderer(size: frame.size)
-        let image = renderer.image { _ in
-            controller.view.drawHierarchy(in: frame, afterScreenUpdates: true)
+        @MainActor
+        func renderCard(selection: Date?) throws -> (image: UIImage, size: CGSize) {
+            let card = NetWorthTrendCard(points: points, heldTrendSelection: .constant(selection))
+                .environment(\.dynamicTypeSize, .accessibility3)
+                .environment(\.obsidianForcedReducedTransparency, true)
+                .frame(width: 320)
+            let controller = UIHostingController(rootView: card)
+            let fitted = controller.sizeThatFits(in: CGSize(width: 320, height: 10_000))
+            let frame = CGRect(origin: .zero, size: CGSize(width: 320, height: fitted.height))
+            let window = UIWindow(frame: frame)
+            window.rootViewController = controller
+            window.makeKeyAndVisible()
+            controller.view.frame = frame
+            controller.view.layoutIfNeeded()
+            RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.4))
+            let renderer = UIGraphicsImageRenderer(size: frame.size)
+            let image = renderer.image { _ in
+                controller.view.drawHierarchy(in: frame, afterScreenUpdates: true)
+            }
+            return (image, fitted)
         }
-        let png = try XCTUnwrap(image.pngData())
-        XCTAssertGreaterThan(png.count, 20_000,
-            "le rendu 320 pt / a11y3 / transparence réduite n'est pas une image vide")
-        let attachment = XCTAttachment(image: image)
+
+        let selectedRender = try renderCard(selection: target.date)
+        let unselectedRender = try renderCard(selection: nil)
+        XCTAssertLessThanOrEqual(selectedRender.size.width, 320.5,
+                                 "aucun débordement horizontal à 320 pt")
+        XCTAssertGreaterThan(selectedRender.size.height, 200,
+                             "titre + graphique (160 pt) + étiquette tiennent dans la carte rendue")
+        XCTAssertGreaterThanOrEqual(selectedRender.size.height + 0.5, unselectedRender.size.height,
+                                    "l'étiquette passe à la ligne — jamais tronquée par une hauteur figée")
+        let selPNG = try XCTUnwrap(selectedRender.image.pngData())
+        let unselPNG = try XCTUnwrap(unselectedRender.image.pngData())
+        XCTAssertNotEqual(selPNG, unselPNG,
+                          "l'état SÉLECTIONNÉ (règle, point, étiquette) doit réellement changer le rendu")
+        let attachment = XCTAttachment(image: selectedRender.image)
         attachment.name = "ios-l8-patrimoine-selection-320-a11y"
         attachment.lifetime = .keepAlways
         add(attachment)

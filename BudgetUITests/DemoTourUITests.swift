@@ -417,6 +417,19 @@ final class DemoTourUITests: XCTestCase {
                        options: .regularExpression),
             "étiquette de sélection inattendue : \(text)"
         )
+        // Assertion DÉTERMINISTE : le glissement se termine à 75 % de la
+        // courbe — sur la fixture démo (six instantanés mensuels,
+        // 132'600 + k × 1'450), le point le plus proche est « il y a
+        // deux mois » : CHF 138'400.00 exactement. La date vient de
+        // l'horloge de la démo (aujourd'hui − 2 mois).
+        let calendar = Calendar.current
+        let expectedDate = calendar.date(byAdding: .month, value: -2, to: Date())!
+        let swissDate = DateFormatter()
+        swissDate.locale = Locale(identifier: "fr_CH")
+        swissDate.dateFormat = "dd.MM.yyyy"
+        let expectedLabel = "\(swissDate.string(from: expectedDate)) : CHF 138'400.00 de fortune nette"
+        XCTAssertEqual(text, expectedLabel,
+                       "l'étiquette doit valoir l'instantané RÉEL de la fixture démo")
         XCTAssertEqual(chart.value as? String, text,
                        "la valeur accessible de la courbe doit annoncer le mois et le montant sélectionnés")
         assertNoFABOverlap(app, screen: "Patrimoine", phase: "sélection active")

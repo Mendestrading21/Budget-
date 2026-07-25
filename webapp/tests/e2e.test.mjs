@@ -2014,6 +2014,13 @@ const key63a = await page.evaluate(() => ({
 check(key63a.now === "0", "Origine (Home) choisit le premier mois");
 check(key63a.cap.includes("CHF 1'234.56"),
   `avant la dépense, l'étiquette vaut l'ouverture de la fixture (obtenu « ${key63a.cap} »)`);
+const edge63a = await page.evaluate(() => {
+  const wrap = document.querySelector('[data-chart="acc"]');
+  return { cx: parseFloat(wrap.querySelector("[data-scrubdot]").getAttribute("cx")),
+           rx: parseFloat(wrap.querySelector("[data-scrubrule]").getAttribute("x1")) };
+});
+check(Number.isFinite(edge63a.cx) && edge63a.cx - 4.5 >= 0 && edge63a.rx >= 1,
+  `premier mois : cercle COMPLET (cx − r ≥ 0) et règle intérieure (cx ${edge63a.cx}, règle ${edge63a.rx})`);
 await page.keyboard.press("ArrowRight");
 await page.waitForTimeout(50);
 const key63b = await page.evaluate(() => document.querySelector('[data-chart="acc"] .scrub').getAttribute("aria-valuenow"));
@@ -2034,6 +2041,13 @@ check(key63d.now === "11", "Fin (End) choisit le dernier mois");
 check(key63d.focused, "le focus clavier reste sur le scrubber après toutes les interactions");
 check(key63d.liveSame, "la région live est MISE À JOUR en place — jamais recréée");
 check(key63d.cap.includes("CHF 1'000.00"), "l'étiquette clavier lit la même valeur de fixture");
+const edge63b = await page.evaluate(() => {
+  const wrap = document.querySelector('[data-chart="acc"]');
+  return { cx: parseFloat(wrap.querySelector("[data-scrubdot]").getAttribute("cx")),
+           rx: parseFloat(wrap.querySelector("[data-scrubrule]").getAttribute("x1")) };
+});
+check(Number.isFinite(edge63b.cx) && edge63b.cx + 4.5 <= 300 && edge63b.rx <= 299,
+  `dernier mois : cercle COMPLET (cx + r ≤ 300) et règle intérieure (cx ${edge63b.cx}, règle ${edge63b.rx})`);
 
 // ---------- Test 64 : échelle d'affichage sûre — constantes négatives, nulles, mixtes, extrêmes ----------
 currentTest = "échelle de courbe L8";
@@ -2139,6 +2153,17 @@ check(narrow65.cap.includes("fortune nette") && narrow65.cap.includes(":"),
   "l'étiquette sélectionnée reste lisible à 320 px");
 check(narrow65.w >= 44 && narrow65.h >= 44, `cible ≥ 44 px aussi à 320 px (${Math.round(narrow65.w)}×${Math.round(narrow65.h)})`);
 check(narrow65.fabClear, "la zone de contenu s'arrête AU-DESSUS du ＋ à 320 px — aucune intersection");
+const edge65b = await page.evaluate(() =>
+  parseFloat(document.querySelector('[data-chart="nw"] [data-scrubdot]').getAttribute("cx")));
+check(edge65b + 4.5 <= 300, `320 px, dernier mois : cercle complet dans le cadre (cx ${edge65b})`);
+await page.keyboard.press("Home");
+await page.waitForTimeout(60);
+const edge65a = await page.evaluate(() => ({
+  cx: parseFloat(document.querySelector('[data-chart="nw"] [data-scrubdot]').getAttribute("cx")),
+  cap: document.querySelector('[data-chartcaption="nw"]').textContent,
+}));
+check(edge65a.cx - 4.5 >= 0 && edge65a.cap.includes("fortune nette"),
+  `320 px, premier mois : cercle complet et étiquette lisible (cx ${edge65a.cx})`);
 await page.evaluate(() => { document.documentElement.removeAttribute("data-reduced-transparency"); });
 await page.setViewportSize({ width: 390, height: 844 });
 await page.click(`#tabbar button[aria-label="Plus"]`);
@@ -2173,7 +2198,7 @@ const renderToPaint = () => page.evaluate(() => new Promise(resolve => {
 }));
 // Cas 1 : 10 000 mouvements RÉPARTIS sur douze mois de 2025.
 await page.evaluate(() => {
-  moreTxLimit = MORE_TX_PAGE; moreSearch = ""; moreFilter = "all";
+  moreTxPage = 0; moreSearch = ""; moreFilter = "all";
   for (let i = 0; i < 10000; i++) {
     transactions.push({
       id: ++txSeq, y: 2025, m: (i % 12) + 1, d: (i % 28) + 1,
@@ -2195,40 +2220,69 @@ check(spread66 < 4000, `répartis : rendu + peinture < 4 s (obtenu ${Math.round(
 check(spreadDom66.rows > 0 && spreadDom66.rows <= 200,
   `répartis : DOM borné à une page (${spreadDom66.rows} lignes ≤ 200)`);
 // Navigation de mois jusqu'à la peinture.
-await page.evaluate(() => { cursor = { y: 2025, m: 5 }; moreTxLimit = MORE_TX_PAGE; });
+await page.evaluate(() => { cursor = { y: 2025, m: 5 }; moreTxPage = 0; });
 const nav66 = await renderToPaint();
 check(nav66 < 4000, `navigation de mois + peinture < 4 s (obtenu ${Math.round(nav66)} ms)`);
-// Cas 2 : les 10 000 mouvements CONCENTRÉS dans un seul mois.
+// Cas 2 : les 10 000 mouvements CONCENTRÉS dans un seul mois — VRAIE
+// pagination : chaque page REMPLACE la précédente (JAMAIS plus de 200
+// lignes dans le DOM), première/dernière lignes contrôlées contre une
+// référence INDÉPENDANTE (même filtre, tri documenté jour puis id
+// décroissants) — ni saut, ni doublon, rien d'inaccessible.
 await page.evaluate(() => {
   for (const t of transactions) {
     if (typeof t.title === "string" && t.title.startsWith("Perf L8 ")) { t.m = 6; }
   }
-  cursor = { y: 2025, m: 6 }; moreTxLimit = MORE_TX_PAGE;
+  cursor = { y: 2025, m: 6 }; moreTxPage = 0;
 });
 const dense66 = await renderToPaint();
-const denseDom66 = await page.evaluate(() => {
-  const monthCount = transactions.filter(t => t.y === 2025 && t.m === 6).length;
-  const btn = document.querySelector("[data-moretxmore]");
+check(dense66 < 4000, `concentrés : rendu + peinture < 4 s (obtenu ${Math.round(dense66)} ms)`);
+const ref66 = await page.evaluate(() =>
+  transactions.filter(t => t.y === 2025 && t.m === 6)
+    .sort((a, b) => b.d - a.d || b.id - a.id).map(t => t.title));
+const n66 = ref66.length;
+const pageState66 = () => page.evaluate(() => {
+  const titles = [...document.querySelectorAll("#moreTxList .tx .meta .t")].map(el => el.textContent);
+  const dis = id => { const el = document.querySelector(`[data-txpage="${id}"]`); return el ? el.disabled : null; };
   return {
     rows: document.querySelectorAll("#moreTxList .tx").length,
-    monthCount,
+    range: (document.querySelector("[data-txrange]") || {}).textContent || "",
     header: (document.querySelector("#moreTxList .caption") || {}).textContent || "",
-    btnText: btn ? btn.textContent : "",
-    expectedRemaining: monthCount - 200,
+    first: titles[0] || "", last: titles[titles.length - 1] || "",
+    disFirst: dis("first"), disPrev: dis("prev"), disNext: dis("next"), disLast: dis("last"),
   };
 });
-check(dense66 < 4000, `concentrés : rendu + peinture < 4 s (obtenu ${Math.round(dense66)} ms)`);
-check(denseDom66.rows === 200,
-  `concentrés : le DOM garde sa limite FIXE (${denseDom66.rows} lignes pour ${denseDom66.monthCount} mouvements du mois)`);
-check(denseDom66.header.includes(String(denseDom66.monthCount)),
-  `l'en-tête annonce le décompte TOTAL du mois (rien de masqué en silence) : « ${denseDom66.header} »`);
-check(denseDom66.btnText.includes(`${denseDom66.expectedRemaining} encore repliés sur ${denseDom66.monthCount}`),
-  `le bouton annonce exactement ce qui reste replié : « ${denseDom66.btnText} »`);
-// « Afficher plus » étend d'une page — le DOM reste borné, rien de silencieux.
-await page.click("[data-moretxmore]");
-await page.waitForTimeout(300);
-const more66 = await page.evaluate(() => document.querySelectorAll("#moreTxList .tx").length);
-check(more66 === 400, `« Afficher plus » étend d'UNE page (obtenu ${more66} lignes)`);
+const goPage66 = async which => {
+  await page.click(`[data-txpage="${which}"]`);
+  await page.waitForTimeout(120);
+  return pageState66();
+};
+const assertPage66 = (s, startIdx, label) => {
+  const endIdx = Math.min(startIdx + 200, n66) - 1;
+  check(s.rows >= 1 && s.rows <= 200, `${label} : DOM borné à 1…200 lignes (obtenu ${s.rows})`);
+  check(s.rows === endIdx - startIdx + 1, `${label} : ${endIdx - startIdx + 1} lignes attendues (obtenu ${s.rows})`);
+  check(s.range === `${startIdx + 1}–${endIdx + 1} sur ${n66}`,
+    `${label} : plage annoncée « ${startIdx + 1}–${endIdx + 1} sur ${n66} » (obtenu « ${s.range} »)`);
+  check(s.first === ref66[startIdx] && s.last === ref66[endIdx],
+    `${label} : première/dernière lignes = référence indépendante (obtenu « ${s.first} » / « ${s.last} ») — ni saut ni doublon`);
+  check(s.header.includes(`${n66} mouvements`),
+    `${label} : l'en-tête garde le décompte COMPLET du mois (« ${s.header} »)`);
+};
+let st66 = await pageState66();
+assertPage66(st66, 0, "page 1");
+check(st66.disFirst === true && st66.disPrev === true && st66.disNext === false && st66.disLast === false,
+  "page 1 : première/précédente désactivées, suivante/dernière actives");
+st66 = await goPage66("next");
+assertPage66(st66, 200, "page 2 (suivante)");
+st66 = await goPage66("next");
+assertPage66(st66, 400, "page 3 (suivante)");
+st66 = await goPage66("last");
+const lastStart66 = (Math.ceil(n66 / 200) - 1) * 200;
+assertPage66(st66, lastStart66, "dernière page");
+check(st66.disNext === true && st66.disLast === true, "dernière page : suivante/dernière désactivées");
+st66 = await goPage66("prev");
+assertPage66(st66, lastStart66 - 200, "page précédente");
+st66 = await goPage66("first");
+assertPage66(st66, 0, "retour à la première page");
 // Recherche : bornée et rapide jusqu'à la peinture.
 const search66 = await page.evaluate(() => new Promise(resolve => {
   const input = document.getElementById("moreSearchInput");
@@ -2250,7 +2304,7 @@ const scroll66 = await page.evaluate(() => new Promise(resolve => {
   requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - t0)));
 }));
 check(scroll66 < 1000, `défilement de la liste + peinture < 1 s (obtenu ${Math.round(scroll66)} ms)`);
-console.log(`PERF L8 (mesures réelles jusqu'à la peinture) : répartis ${Math.round(spread66)} ms / ${spreadDom66.rows} lignes DOM · concentrés ${Math.round(dense66)} ms / ${denseDom66.rows} lignes DOM pour ${denseDom66.monthCount} mouvements · navigation ${Math.round(nav66)} ms · recherche ${Math.round(search66.ms)} ms / ${search66.rows} lignes · défilement ${Math.round(scroll66)} ms`);
+console.log(`PERF L8 (mesures réelles jusqu'à la peinture) : répartis ${Math.round(spread66)} ms / ${spreadDom66.rows} lignes DOM · concentrés ${Math.round(dense66)} ms / 200 lignes DOM par page pour ${n66} mouvements · navigation ${Math.round(nav66)} ms · recherche ${Math.round(search66.ms)} ms / ${search66.rows} lignes · défilement ${Math.round(scroll66)} ms`);
 // Nettoyage complet : fixtures et mouvements de performance retirés.
 await page.evaluate(() => {
   for (let i = transactions.length - 1; i >= 0; i--) {
@@ -2262,7 +2316,7 @@ await page.evaluate(() => {
   for (let i = ACCOUNTS.length - 1; i >= 0; i--) {
     if (["acc-l8-fixture", "acc-l8-neg", "acc-l8-zero"].includes(ACCOUNTS[i].id)) ACCOUNTS.splice(i, 1);
   }
-  moreSearch = ""; moreTxLimit = MORE_TX_PAGE;
+  moreSearch = ""; moreTxPage = 0;
   nwChartSel = null; accChartSel = null;
   cursor = { y: NOW.y, m: NOW.m };
   render();
