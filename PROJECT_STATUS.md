@@ -1,5 +1,29 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L9 (2026-07-25)
+
+L9 « Audit final et préparation réelle » exécuté (`/budget-v1 execute
+L9`) après validation humaine définitive de L8 (`240e4f4`). AUCUN code
+applicatif modifié (aucun P0/P1 découvert) — passe d'audit et de
+preuves uniquement, dossier `docs/obsidian-glass/final-audit/l9/` :
+matrice écran/bouton PWA+iOS complète (preuves automatiques/visuelles/
+humaines distinguées, PASS partout), invariants financiers chacun
+rattaché à un test NOMMÉ (Decimal, fr-CH, planifié≠réel, virements
+neutres ADR-016, patrimoine, mono-CHF ADR-017, historique figé, zéro
+coercition, imports idempotents, fiscalité unifiée ADR-018), audit
+store disque (création+relance par CHAQUE lancement Demo — le chemin
+qui avait attrapé ADR-015 —, refus de restauration atomiques ADR-014),
+audit navigateur 70/70 PASS (tous les écrans à 390 ET 320, exclusion du
+＋, persistance, service worker + rechargement HORS LIGNE réel,
+installabilité), 23 captures inspectées (montants 7 chiffres), audit
+confidentialité/App Store (aucune donnée collectée vérifiée dans le
+code, 9 décisions HUMAN REQUIRED), protocole iPhone réel + haptique
+PENDING HUMAN. Suites locales : 71 e2e + 5 parité + design verts, zéro
+erreur console. Défauts : P0 0 · P1 0 · P2 1 (PWA sans `<meta charset>`
+— démontré, non bloquant sur les canaux réels, correctif d'une ligne
+proposé) · P3 4. **L9 = VERIFYING** — validation finale = inspection
+humaine + vibration haptique confirmée par le propriétaire.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L8 (2026-07-24)
 
 L8 « Widgets, graphiques et micro-interactions » exécuté

@@ -24,9 +24,70 @@ précédents. Ils ne définissent pas le prochain travail Obsidian Glass.
 | L6 Modules financiers | DONE | **validation humaine reçue le 24.07.2026** (12 captures initiales/finales inspectées : zone d'exclusion du ＋ opérante sur les 6 modules, Loyer/Évolution/échéances/cartes/contrats/texte Prévoyance dégagés — la bande vide au-dessus du ＋ est VOLONTAIRE, ne jamais revenir à `contentMargins` seul) ; commits `edbae61` + `a7c6ea4` + `3b6e6b9` + `e135371` + `2bbf921` ; CI #183 (run 30082992805), #184 (run 30084041557), #185 (run 30085561460) vertes : 60 e2e + 5 parité + design, **242 tests iOS 0 échec** ; Demo vert (run 30084639539, 12 captures assertées, artefact 83,4 Mo). Historique transparent conservé : deux refus visuels (＋ masquant, libellés tronqués puis état initial non protégé) et un faux positif de test (cadre non coupé, corrigé en `e135371` sans toucher aux vues) | — |
 | L7 Onboarding/Confiance | DONE | **validation humaine définitive reçue le 24.07.2026** (preuves PWA et iOS inspectées). 1er refus humain le 24.07.2026 (défauts non attrapés par les tests : ＋ PWA recouvrant du contenu — padding ≠ exclusion de viewport —, ＋ parfois enterré, toasts parasites, import sans mapping/compte visibles, documents sans modification, textes destructifs discordants, bannière démo iOS sur la navigation, métadonnées tronquées, titres sombres, zone noire Réglages, onboarding natif non capturé) → **correctif `fix(l7)`** : viewport PWA s'arrêtant AU-DESSUS du ＋ (`.fab-clear`, vérifié par rectangles réels), assistant d'import complet (mapping modifiable, compte OBLIGATOIRE choisi, aperçu, confirmation distincte), édition des documents, concordance exacte des noms d'actions, bannière démo dans sa propre bande, métadonnées multilignes (type/année/fournisseur/membre/date), contraste des titres (token explicite), fond derrière la zone du ＋, tour natif onboarding+confiance (19 captures ios-l7-*, résumé de restauration réel, import natif parcouru) ; suites locales : **67 e2e** + 5 parité + design verts, captures PWA régénérées SANS toast. **Preuves finales** : commits `f26b10a` (applicatif) + `e93143a`/`48e8bea`/`6868073`/`3d9d118`/`59b4bfd` (stabilisation du tour + parité « intitulé » révélée par le tour) ; CI #193 verte (run 30102710240 : 67 e2e + 5 parité + design, **251 tests iOS 0 échec**) ; **Demo VERT** (run 30103337603 : tour principal 18 étapes + tour onboarding/confiance — 19 captures ios-l7-*, import natif parcouru avec choix réel du compte, résumé de restauration réel, dialogue destructif annulé — artefact budget-demo 181,1 Mo, expire 22.10.2026). Runs Demo intermédiaires 30096455731/30097749294/30099755053/30101791573 échoués sur le TOUR (pop du hub, label VoiceOver, en-tête « intitulé » non reconnu = vrai défaut de parité corrigé, compte volontairement non présélectionné, label du Picker) — chaque cause documentée | — |
 | L8 Widgets/Mouvement | DONE | **Validation humaine définitive reçue le 25.07.2026** sur la référence `240e4f4` (CI #209-#214 vertes — 71 e2e + 5 parité + design, 258 tests iOS 0 échec —, Demo 30159052445 vert, pièce `ios-l8-patrimoine-selection-320-a11y` 960 × 1212 px inspectée 100 % lisible, artefact budget-demo 261,1 Mo). Historique transparent conservé ci-dessous : **3e refus humain le 25.07.2026** (unique défaut : preuve 320-a11y — axe X superposé, « fortune nette » coupée, largeur artificielle) → **ultime micro-correction `fix(l8): make the 320 accessibility chart fully readable`** : axe X adaptatif dans le composant de PRODUCTION (deux repères explicites premier/avant-dernier, libellés fixedSize introncables ; rendu normal automatique inchangé), preuve rendue dans un viewport RÉEL de 320 pt avec marges de production et hauteur intrinsèque, assertions de géométrie réelle (delta de hauteur de l'étiquette mesurée, plancher, analyse pixel : rien au bord inférieur, rien hors marges), pièces ios-l8 imprimées en base64 dans les logs Demo et INSPECTÉES directement — pièce finale 960 × 1212 px 100 % lisible (« Janv. »/« Mai » espacés et entiers, étiquette complète sur 3 lignes avec espace dessous). Détail et preuves dans « Micro-correction n°3 ». Historique : **2e refus humain le 25.07.2026** (fausse pagination cumulative, marqueurs coupés aux extrêmes, preuve 320-a11y ne montrant pas la courbe, geste Demo sans valeur attendue, temps de rapport erronés) → **micro-correction finale `fix(l8): bound transaction pages and expose edge selections`** : VRAIE pagination (page REMPLACÉE, jamais plus de 200 lignes DOM, première/précédente/suivante/dernière, plage « X–Y sur N », référence indépendante première/dernière ligne par page), projection X 6…294 (cercle complet + règle intérieure aux deux extrêmes, testé Origine/Fin sur les deux courbes à 390/320), preuve 320-a11y = la CARTE Évolution de production (`NetWorthTrendCard`) rendue EN ENTIER avec sélection injectée + étiquette littérale vérifiée AVANT capture, geste Demo asserté contre l'instantané RÉEL de la fixture démo (CHF 138'400.00), 7 captures régénérées et inspectées (dont premier mois). Détail dans « Micro-correction finale L8 ». Historique : 1er refus humain le 24.07.2026 (échelle cassée sur séries constantes négatives, cibles < 44 pt, sélection fuyant entre comptes, perf partielle, sélection native jamais parcourue, ＋ natif recouvrant pendant le défilement, README survendu — détail dans « Refus L8 ») → **correctif `fix(l8)` du 24.07.2026** : échelle d'affichage commune sûre (`chartYScale`, constantes négatives comprises, capture −100 à l'appui), scrubber `role="slider"` pleine courbe (glissement Pointer Events + clavier ←/→/Home/End, cible ≥ 44 pt mesurée, aria-valuetext, région live persistante mise à jour en place), sélection isolée par compte (`{id, i}`), Mouvements paginés par pages fixes de 200 lignes (rien de masqué : décompte total + bouton « encore repliés »), perf 10k répartis ET concentrés mesurée jusqu'à la peinture avec temps loggés, sélection native réellement parcourue au tour Demo (glissement réel, `networth.chart.selectionLabel`, valeur accessible = sélection, lecture conservée après le geste, captures ios-l8-*), rendu 320 pt/a11y3/transparence réduite attaché à l'artefact, haptique testable (`hapticTriggerAdvances` — vibration physique = contrôle humain L9), zone d'exclusion du ＋ RESTAURÉE sur tous les écrans défilants + `.clipped()` + assertions à chaque position intermédiaire du défilement ; suites locales : **71 e2e** + 5 parité + design verts ; 6 captures inspectées + README honnête (preuves automatiques / visuelles / iPhone réel distinguées). **Preuves finales** : commits `fbc3bfd`+`07b8e8f`+`430f2bf`+`47ab45a` ; CI #198-#201 VERTES (**258 tests iOS 0 échec**) ; **Demo VERT** (run 30124283066, sélection native réellement parcourue, artefact 212,4 Mo, expire 22.10.2026) — historique complet des runs intermédiaires documenté sous « Correctif L8 » : sélection de graphiques PWA (Patrimoine + détail de compte, 12 zones accessibles/courbe, marqueur + étiquette aria-live issue des séries EXISTANTES), `chartXSelection` + règle + point + étiquette fr-CH sur l'Évolution native, haptique `.success` UNIQUEMENT à l'enregistrement réussi d'un mouvement, performance 10k prouvée (DOM borné par le mois) ; suites locales : **69 e2e** + 5 parité + design verts, zéro erreur console ; natifs : `ObsidianMotionTests` (étiquette fr-CH positive/négative, Patrimoine 320 pt transparence réduite) ; 5 captures inspectées + README dans `docs/obsidian-glass/widgets-motion/l8/`. **Preuves finales** : commit `e1d3496` ; CI #196 VERTE (run 30110797618 : 69 e2e + 5 parité + design, **254 tests iOS 0 échec**, `ObsidianMotionTests passed`, builds Debug + Release, manifeste dans Budget.app) ; **Demo VERT** (run 30111267605, artefact `budget-demo` **76,3 Mo**, expire 22.10.2026 : <https://github.com/Mendestrading21/Budget-/actions/runs/30111267605>) | validation humaine des preuves |
-| L9 Audit final | READY | — | lancer uniquement sur commande explicite (`/budget-v1 execute L9`) |
+| L9 Audit final | VERIFYING | **Passe d'audit du 25.07.2026 terminée sur HEAD `35c9790`** (départ : CI #215 verte, run 30166009397). Preuves dans `docs/obsidian-glass/final-audit/l9/` : matrice écran/bouton PWA+iOS (14 espaces + transverses, preuves A/V/H, PASS partout), invariants financiers chacun rattaché à un test NOMMÉ, audit store disque/migrations/sauvegarde (refus atomiques prouvés), audit navigateur **70/70 contrôles PASS** (5 onglets + 10 destinations + détail + feuille, 390 ET 320, exclusion du ＋ à l'ouverture et après défilement, persistance après rechargement, **service worker actif + rechargement HORS LIGNE réussi** sur https local, installabilité), 23 captures inspectées une à une (montants 7 chiffres sans troncature), audit confidentialité/App Store (bundle `ch.budgetapp.Budget`, 1.0 (1), iOS 17, PrivacyInfo « aucune donnée », zéro réseau vérifié ; 9 points HUMAN REQUIRED listés), protocole iPhone réel + haptique consigné **PENDING HUMAN**. Suites locales : `git diff --check` OK, 3× `node --check` OK, **71 e2e + 5 parité + design verts, zéro erreur console** (PERF L8 : 32/30 ms pour 10k). Défauts : **P0 : 0 · P1 : 0 · P2 : 1** (PWA sans `<meta charset>` — cassure démontrée sur serveur sans en-tête charset ; canaux réels non affectés ; correctif d'une ligne PROPOSÉ, non appliqué — aucun parcours livré ne régresse) · **P3 : 4** — registre complet dans `DEFECTS.md`. CI finale + Demo du commit documentaire : voir « Preuves finales L9 » ci-dessous | validation humaine des preuves + contrôle haptique physique par le propriétaire (`/budget-v1 verify L9`) |
 
 Statuts autorisés : `BLOCKED`, `READY`, `IN_PROGRESS`, `VERIFYING`, `DONE`.
+
+## Critères d'acceptation L9 (annoncés avant toute édition, 25.07.2026)
+
+**Périmètre strict** : audit et preuves UNIQUEMENT. Aucun code applicatif
+modifié sans défaut confirmé (P0/P1 avec preuve + test de régression).
+Aucune formule, migration, clé localStorage, sauvegarde, identifiant,
+signature ni décision produit modifiée. Aucun lot L1-L8 rouvert sans
+régression démontrée. Rien n'est fusionné, déployé, publié, taggé ni
+téléversé.
+
+1. **Audit écran/bouton** : matrice finale couvrant les 14 espaces de la
+   matrice canonique, PWA et iOS, avec pour chaque parcours : preuve
+   automatique, preuve visuelle, contrôle humain éventuel, PASS/FAIL,
+   risque résiduel. Zéro bouton mort (hooks ↔ handlers vérifiés), zone
+   d'exclusion du ＋ contrôlée, états vide/négatif/long/extrême.
+2. **Intégrité financière** : les invariants (Decimal, fr-CH,
+   planifié≠réel, épargne/investissement hors vie, virements neutres,
+   capital≠intérêts, patrimoine=actifs−dettes, mono-devise gardée,
+   historique jamais réécrit, zéro NaN/coercition, erreurs de
+   persistance visibles, import idempotent) sont chacun rattachés à un
+   test existant NOMMÉ ou marqués comme trou avec priorité.
+3. **Données/store** : création+relance, migration réelle sur store
+   disque (ADR-015 : migration légère, plan étagé retiré),
+   sauvegarde/restauration en store isolé, restaurations invalides/
+   corrompues/version future/devise non-CHF REFUSÉES atomiquement —
+   chaque point rattaché à son test (BackupServiceTests,
+   DiskStoreLifecycleTests…) exécuté par la CI canonique.
+4. **PWA complète** : hors-ligne/service worker/installabilité,
+   persistance après rechargement, import/export, sauvegarde/
+   restauration, clavier/focus, équivalents lecteur d'écran, reduced
+   motion/transparency, 320/390 px sans débordement, zéro erreur
+   console, 10 000 mouvements bornés (≤ 200 lignes DOM après CHAQUE
+   navigation), graphiques sélectionnables = séries existantes — le
+   tout par la suite canonique 71 e2e + audit manuel navigateur.
+5. **iOS** : commandes canoniques CI uniquement (git diff --check, 3×
+   node --check, suite web, 5 parités, design system, tous les tests
+   iOS, builds Debug+Release, PrivacyInfo dans Budget.app, workflow
+   Demo complet). Bases minimales : 71 e2e, 5 parités, 258 tests iOS, 0
+   échec, 0 erreur console — jamais moins. Captures finales INSPECTÉES
+   (320, iPhone courant, a11y3, transparence/mouvement réduits,
+   avant/après sélection, états vides/destructifs, ＋ flottant).
+6. **iPhone réel** : détection honnête (environnement CI/conteneur =
+   aucun appareil physique) ; protocole haptique EXACT fourni au
+   propriétaire (4 contrôles : succès création, succès édition, refus
+   invalide, annulation) ; contrôle physique consigné PENDING HUMAN
+   tant que le propriétaire n'a pas confirmé — jamais prétendu passé.
+7. **Confidentialité/App Store** : nom, bundle ID, version/build, cible
+   iOS, icônes, orientations, permissions, entitlements, PrivacyInfo,
+   données collectées (aucune), logs, textes, URLs, métadonnées —
+   chaque décision propriétaire marquée HUMAN REQUIRED.
+8. **Défauts** : chaque constat classé P0/P1/P2/P3 avec preuve. P0 →
+   L9=BLOCKED immédiat. P2/P3 documentés honnêtement.
+9. **Preuves** : dossier `docs/obsidian-glass/final-audit/l9/` complet
+   (matrice, résultats exacts, appareils/OS, captures inspectées,
+   audits migration/confidentialité, checklist iPhone réel, dette
+   technique) distinguant automatique/visuel/humain. Fixtures fictives
+   uniquement. Un commit documentaire
+   `docs(l9): record final audit and release readiness evidence` ;
+   CI + Demo verts attendus et inspectés ; **L9 = VERIFYING** (jamais
+   DONE dans cette passe) ; rapport final en 18 points ; prochaine
+   commande `/budget-v1 verify L9`.
 
 ## Critères d'acceptation L8 (annoncés avant toute édition, 24.07.2026)
 
@@ -1134,13 +1195,23 @@ validation humaine.
   (Egress de session : `*.blob.core.windows.net` refusé — captures
   natives à inspecter depuis la page du run, comme aux lots précédents.)
 
+## Preuves finales L9 (renseignées après la poussée)
+
+- Commit documentaire : `docs(l9): record final audit and release
+  readiness evidence` — SHA et runs CI/Demo consignés ici après
+  vérification (aucun total ne doit descendre sous 71 e2e / 5 parité /
+  258 tests iOS / 0 échec / 0 erreur console).
+
 ## Prochaine commande exacte
 
 ```text
-/budget-v1 execute L9
+/budget-v1 verify L9
 ```
 
-L1 à L8 sont DONE (validation humaine définitive de L8 reçue le
-25.07.2026 sur `240e4f4`). L9 est READY : ne le lancer que sur commande
-explicite. Contrôles humains consignés pour L9 : vibration physique du
-retour haptique sur iPhone réel.
+L1 à L8 sont DONE. **L9 est VERIFYING** : la passe d'audit est terminée
+et documentée ; il reste au propriétaire (1) l'inspection des preuves,
+(2) la QA iPhone réel avec le CONTRÔLE HAPTIQUE physique
+(`docs/obsidian-glass/final-audit/l9/IPHONE_QA_CHECKLIST.md` — 4
+gestes : création valide = 1 vibration, édition valide = 1, refus = 0,
+annulation = 0). Claude ne peut pas ressentir une vibration : L9 ne
+sera DONE qu'après cette confirmation explicite.
