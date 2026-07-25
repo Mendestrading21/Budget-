@@ -10,16 +10,22 @@ import SwiftData
 /// `PersistenceFactory.makeContainer`, le même chemin de construction
 /// (même schéma V8) que `makeProductionContainer`.
 ///
-/// Micro-correction : l'ÉCRITURE et la RELECTURE vivent chacune dans
-/// leur propre `autoreleasepool` et RIEN (conteneur, contexte, modèle,
-/// résultat de fetch) n'en sort ; le dossier temporaire n'est supprimé
-/// qu'APRÈS la sortie du second bloc, une fois le store refermé —
-/// sinon SQLite journalise « database integrity compromised by API
-/// violation: vnode unlinked while in use » (fichiers .store/-wal/-shm
-/// effacés sous une connexion encore ouverte).
+/// Nettoyage — décision propriétaire (option 1) : le dossier n'est PAS
+/// supprimé par le test. Toutes les références SwiftData détenues par
+/// le test sont libérées à la sortie de leurs blocs `autoreleasepool`,
+/// mais des handles SQLite internes peuvent rester ouverts APRÈS cette
+/// sortie (fermeture asynchrone sur des files d'arrière-plan) et
+/// SwiftData n'expose aucun point public de synchronisation de leur
+/// fermeture. Supprimer les fichiers à cet instant déclencherait un
+/// unlink concurrent (« database integrity compromised by API
+/// violation: vnode unlinked while in use »). Le dossier UUID unique
+/// assure l'isolation entre exécutions et il est intentionnellement
+/// laissé dans l'espace temporaire du simulateur/runner, détruit avec
+/// lui.
 final class DiskStoreLifecycleTests: XCTestCase {
     func testDataWrittenOnDiskSurvivesFullContainerTeardown() throws {
-        // 1. URL temporaire UNIQUE pour ce run.
+        // 1. URL temporaire UNIQUE pour ce run (l'isolation vient de
+        // l'UUID du dossier, jamais d'un nettoyage).
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("budget-disk-lifecycle-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -34,8 +40,8 @@ final class DiskStoreLifecycleTests: XCTestCase {
         let movementDate = Date(timeIntervalSince1970: 1_784_000_000)
 
         // 2-5. Phase d'ÉCRITURE — premier conteneur, configuration SUR
-        // DISQUE (jamais in-memory), insertion, save, puis destruction
-        // COMPLÈTE du contexte et du conteneur à la sortie du bloc.
+        // DISQUE (jamais in-memory), insertion, save, puis libération de
+        // toutes les références du test à la sortie du bloc.
         try autoreleasepool {
             let configuration = ModelConfiguration(url: storeURL)
             XCTAssertFalse(
@@ -104,11 +110,9 @@ final class DiskStoreLifecycleTests: XCTestCase {
             XCTAssertEqual(account.transactions.map(\.id), [transactionID], "relation compte → mouvements persistée")
         }
 
-        // 9. Nettoyage APRÈS la sortie du second bloc, store refermé —
-        // tout échec est VISIBLE (jamais de `try?`).
-        XCTAssertNoThrow(
-            try FileManager.default.removeItem(at: directory),
-            "le nettoyage du dossier temporaire doit réussir une fois le store refermé"
-        )
+        // Pas de suppression du dossier ici — voir l'en-tête : des
+        // handles SQLite internes peuvent survivre à la libération des
+        // références du test, et il n'existe aucune barrière publique
+        // pour attendre leur fermeture sans temporisation artificielle.
     }
 }
