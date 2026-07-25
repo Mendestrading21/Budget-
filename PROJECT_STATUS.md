@@ -25,6 +25,18 @@ volontairement non ajoutée). Formules, migrations, clés localStorage,
 format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
 **L8 = VERIFYING**, L9 = BLOCKED.
 
+**Micro-correction n°3 L8 (2026-07-25)** — 3e refus (unique défaut :
+preuve 320-a11y illisible — axe superposé, étiquette coupée, largeur
+artificielle) → `fix(l8): make the 320 accessibility chart fully
+readable` + stabilisations : axe X adaptatif de PRODUCTION (deux
+repères explicites premier/avant-dernier, libellés fixedSize
+introncables, rendu normal automatique inchangé), preuve dans un
+viewport réel 320 pt avec marges de production, assertions de géométrie
+réelle (delta de hauteur mesurée, plancher, analyse pixel), pièces
+ios-l8 en base64 dans les logs Demo et inspectées directement — pièce
+finale 960 × 1212 px 100 % lisible. CI #209-#213 vertes (258 tests iOS
+0 échec), Demo 30159052445 vert et inspecté. L8 reste VERIFYING.
+
 **Micro-correction finale L8 (2026-07-25)** — 2e refus humain (fausse
 pagination cumulative, marqueurs coupés aux extrêmes, preuve 320-a11y
 sans courbe, geste Demo par regex, temps de rapport erronés) →

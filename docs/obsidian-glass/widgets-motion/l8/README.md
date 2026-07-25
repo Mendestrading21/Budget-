@@ -93,9 +93,12 @@ projection l'est.
   et le net du mois filtré COMPLET — chaque mouvement reste accessible
   par les pages, rien de masqué en silence. Première et dernière lignes
   de chaque page contrôlées contre une référence INDÉPENDANTE (même
-  filtre, tri documenté) : ni saut, ni doublon. Page remise à zéro au
-  changement de mois/filtre/recherche, bornée au rendu si les données
-  changent. Navigation de mois, recherche et défilement mesurés aussi.
+  filtre, tri documenté) : ni saut, ni doublon. Les CONTRÔLES
+  explicites (mois précédent/suivant/« aujourd'hui », filtres,
+  recherche) remettent la page à zéro ; tout autre changement de
+  curseur ou de données est correctement BORNÉ au rendu — conforme au
+  critère « réinitialisée ou correctement bornée ». Navigation de mois,
+  recherche et défilement mesurés aussi.
 
 ## Côté natif
 
@@ -108,16 +111,26 @@ projection l'est.
   doigt se lève (même contrat que la PWA).
 - **320 pt + accessibility3 + transparence réduite** : la CARTE
   Évolution DE PRODUCTION (`NetWorthTrendCard` — le composant rendu tel
-  quel par NetWorthView, jamais une copie de test) est rendue seule et
-  EN ENTIER avec une sélection injectée d'un véritable instantané :
-  titre, graphique, règle, point et étiquette dans la MÊME image
-  (`ios-l8-patrimoine-selection-320-a11y`, via `ObsidianMotionTests`,
-  exécutés aussi par le workflow Demo). AVANT la capture, les
-  assertions contrôlent : sélection résolue vers l'instantané attendu,
-  étiquette LITTÉRALE de la fixture (« 30.04.2026 : CHF 125'900.00 de
-  fortune nette »), largeur ≤ 320 pt (zéro débordement), hauteur
-  suffisante, étiquette jamais tronquée, et rendu sélectionné ≠ rendu
-  invite (les deux images diffèrent).
+  quel par NetWorthView, jamais une copie de test) est rendue EN ENTIER
+  dans un VIEWPORT réel de 320 pt avec les MARGES horizontales de
+  production, sélection injectée d'un véritable instantané : titre,
+  graphique, règle, point, axe X lisible et étiquette complète dans la
+  MÊME image (`ios-l8-patrimoine-selection-320-a11y`, 960 × 1212 px,
+  via `ObsidianMotionTests`, exécutés aussi par le workflow Demo).
+  En tailles accessibilité, l'axe X passe à DEUX repères explicites
+  (premier point et avant-dernier — jamais superposés, le bord fuyant
+  rognerait le dernier) avec libellés `fixedSize()` que Swift Charts ne
+  peut pas tronquer ; rendu normal inchangé (axe automatique).
+  Assertions de GÉOMÉTRIE réelle avant la capture : la carte grandit
+  exactement de la hauteur MESURÉE de l'étiquette complète (aucune
+  ligne rognée), plancher de hauteur intrinsèque (graphique 160 pt +
+  étiquette + marges), analyse pixel par pixel (espace réel sous la
+  dernière ligne, rien ne touche le bord inférieur, rien ne déborde des
+  marges), étiquette LITTÉRALE de la fixture (« 30.04.2026 :
+  CHF 125'900.00 de fortune nette ») ; la comparaison de PNG n'est
+  qu'une preuve secondaire. Les trois pièces ios-l8 sont AUSSI
+  imprimées en base64 dans les logs du workflow Demo pour inspection
+  directe sans téléchargement d'artefact.
 - **Geste Demo déterministe** : après le glissement réel, l'étiquette
   doit valoir EXACTEMENT l'instantané de la fixture démo (« il y a deux
   mois » : CHF 138'400.00) et la valeur accessible de la courbe doit y
