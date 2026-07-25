@@ -1,6 +1,6 @@
 # L8 — Widgets, graphiques et micro-interactions (preuves, passe corrective)
 
-Captures régénérées le 24.07.2026 (Chromium réel, deviceScaleFactor 2,
+Captures régénérées le 25.07.2026 (Chromium réel, deviceScaleFactor 2,
 zéro erreur console, onboarding réel « Elio + Sara », aucun toast).
 
 ## Trois familles de preuves — jamais confondues
@@ -24,7 +24,8 @@ zéro erreur console, onboarding réel « Elio + Sara », aucun toast).
 | `l8-390-patrimoine-selection.png` | Mois lu au scrubber : règle + point Indigo vif, étiquette `avril 2026 : CHF 2'000.00 de fortune nette` — la valeur vient de la série EXISTANTE. |
 | `l8-390-compte-detail-selection.png` | Même patron sur la courbe du solde d'un compte : `avril 2026 : solde CHF 2'000.00`. |
 | `l8-390-compte-negatif-constant-selection.png` | **Série CONSTANTE NÉGATIVE (−100)** : courbe centrée, règle et point VISIBLES, étiquette `juillet 2026 : solde -CHF 100.00` — le défaut d'échelle (coordonnées hors cadre) est corrigé et prouvé. L'anneau de focus du scrubber est visible (sélection au clavier). |
-| `l8-320-patrimoine-selection.png` | 320 px : sélection au clavier (Fin), étiquette lisible, zéro débordement horizontal. |
+| `l8-390-patrimoine-premier-mois-selection.png` | PREMIER mois (Origine) : cercle COMPLET et règle à l'intérieur du cadre — la projection X garde une marge intérieure (6…294). |
+| `l8-320-patrimoine-selection.png` | 320 px : sélection au clavier (Fin), cercle COMPLET au dernier mois (cx + r ≤ 300, vérifié par script et par les tests 63/65), étiquette lisible, zéro débordement horizontal. |
 | `l8-390-patrimoine-selection-transparence-reduite.png` | `data-reduced-transparency` : surfaces opaques, sélection intacte. |
 
 ## Le scrubber (PWA) — remplace les 12 boutons de la première livraison
@@ -50,6 +51,11 @@ zéro erreur console, onboarding réel « Elio + Sara », aucun toast).
 - Les mises à jour du marqueur, du slider et de l'étiquette sont
   CIBLÉES (aucun re-rendu complet pendant le geste). Valeurs affichées :
   TOUJOURS `series[i]` / `points[i]` déjà calculés pour la courbe.
+- **Marqueurs entièrement visibles aux extrêmes** : la projection X
+  commune (`chartX`, plage 6…294 du viewBox 0…300) garantit un cercle
+  COMPLET (r 4.5) et une règle intérieure au premier comme au dernier
+  mois — testé au clavier (Origine/Fin) sur les deux courbes, à 390 et
+  320 px ; coordonnées finies, valeurs financières inchangées.
 
 ## Échelle d'affichage sûre (`chartYScale`)
 
@@ -75,12 +81,21 @@ projection l'est.
 
 - 10 000 mouvements **répartis** sur douze mois PUIS **concentrés dans
   un seul mois** : rendu mesuré **jusqu'à la peinture** (double
-  requestAnimationFrame), < 4 s exigé (mesuré : ~40 ms).
-- **DOM borné par pages fixes de 200 lignes** même à 10 000 mouvements
-  dans le mois. Rien de masqué en silence : l'en-tête donne le décompte
-  TOTAL et le net du mois complet ; le bouton « Afficher X mouvements de
-  plus (Y encore repliés sur Z) » annonce exactement le reste, page par
-  page. Navigation de mois, recherche et défilement mesurés aussi.
+  requestAnimationFrame), < 4 s exigé — les temps de référence sont
+  ceux imprimés par la ligne « PERF L8 » du run CI FINAL, jamais
+  recopiés d'un run antérieur.
+- **VRAIE pagination, jamais plus de 200 lignes dans le DOM** : la page
+  affichée REMPLACE la précédente — aucune accumulation (le test 66
+  vérifie 1…200 lignes après CHAQUE action : suivante ×2, dernière,
+  précédente, première). Boutons première/précédente/suivante/dernière
+  (cibles ≥ 44 px, désactivés aux bornes) et plage annoncée
+  « 201–400 sur 10 000 » (aria-live). L'en-tête garde le décompte TOTAL
+  et le net du mois filtré COMPLET — chaque mouvement reste accessible
+  par les pages, rien de masqué en silence. Première et dernière lignes
+  de chaque page contrôlées contre une référence INDÉPENDANTE (même
+  filtre, tri documenté) : ni saut, ni doublon. Page remise à zéro au
+  changement de mois/filtre/recherche, bornée au rendu si les données
+  changent. Navigation de mois, recherche et défilement mesurés aussi.
 
 ## Côté natif
 
@@ -91,13 +106,22 @@ projection l'est.
   `ios-l8-patrimoine-avant-selection` / `ios-l8-patrimoine-selection`
   dans l'artefact Demo. La dernière lecture reste AFFICHÉE quand le
   doigt se lève (même contrat que la PWA).
-- **320 pt + accessibility3 + transparence réduite** : rendu RÉEL de
-  l'écran sélectionné attaché à l'artefact Demo
-  (`ios-l8-patrimoine-selection-320-a11y`, via
-  `ObsidianMotionTests`) — preuve visuelle à inspecter ; les assertions
-  automatiques garantissent que le rendu n'est pas vide, que l'étiquette
-  passe à la ligne en tailles accessibilité (jamais tronquée) et que la
-  sélection résout vers le véritable instantané le plus proche.
+- **320 pt + accessibility3 + transparence réduite** : la CARTE
+  Évolution DE PRODUCTION (`NetWorthTrendCard` — le composant rendu tel
+  quel par NetWorthView, jamais une copie de test) est rendue seule et
+  EN ENTIER avec une sélection injectée d'un véritable instantané :
+  titre, graphique, règle, point et étiquette dans la MÊME image
+  (`ios-l8-patrimoine-selection-320-a11y`, via `ObsidianMotionTests`,
+  exécutés aussi par le workflow Demo). AVANT la capture, les
+  assertions contrôlent : sélection résolue vers l'instantané attendu,
+  étiquette LITTÉRALE de la fixture (« 30.04.2026 : CHF 125'900.00 de
+  fortune nette »), largeur ≤ 320 pt (zéro débordement), hauteur
+  suffisante, étiquette jamais tronquée, et rendu sélectionné ≠ rendu
+  invite (les deux images diffèrent).
+- **Geste Demo déterministe** : après le glissement réel, l'étiquette
+  doit valoir EXACTEMENT l'instantané de la fixture démo (« il y a deux
+  mois » : CHF 138'400.00) et la valeur accessible de la courbe doit y
+  être strictement identique — plus aucune preuve par simple regex.
 - **Zone d'exclusion du ＋** : restaurée sur TOUS les écrans défilants
   (Accueil, Mouvements, Budget, Comptes, détail de compte, budget
   annuel, année en revue — en plus des modules L6) ; `.clipped()`

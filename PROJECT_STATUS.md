@@ -25,6 +25,24 @@ volontairement non ajoutée). Formules, migrations, clés localStorage,
 format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
 **L8 = VERIFYING**, L9 = BLOCKED.
 
+**Micro-correction finale L8 (2026-07-25)** — 2e refus humain (fausse
+pagination cumulative, marqueurs coupés aux extrêmes, preuve 320-a11y
+sans courbe, geste Demo par regex, temps de rapport erronés) →
+`fix(l8): bound transaction pages and expose edge selections` : vraie
+pagination des Mouvements (page REMPLACÉE, ≤ 200 lignes DOM garanties
+après chaque action, première/précédente/suivante/dernière, plage
+« X–Y sur N », première/dernière lignes contrôlées par référence
+indépendante), projection X 6…294 (cercles complets et règles
+intérieures aux deux extrêmes, testés Origine/Fin sur les deux courbes
+à 390/320), carte Évolution extraite en composant de production
+`NetWorthTrendCard` et rendue EN ENTIER pour la preuve
+320/a11y3/transparence réduite (étiquette littérale vérifiée avant
+capture, rendu sélectionné ≠ invite), geste Demo asserté contre
+l'instantané réel de la fixture démo (CHF 138'400.00 + valeur
+accessible identique), 7 captures régénérées et inspectées. Suites :
+71 e2e + 5 parité + design verts ; iOS 258 attendus. L8 reste
+VERIFYING.
+
 **Correctif L8 (2026-07-24)** — validation humaine refusée (échelle
 cassée sur séries constantes négatives, cibles < 44 pt, sélection
 fuyant entre comptes, perf partielle, sélection native jamais
