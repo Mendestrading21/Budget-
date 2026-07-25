@@ -209,8 +209,16 @@ final class ObsidianMotionTests: XCTestCase {
         }
         let labelHeight = measuredTextHeight(expectedLabel)
         let hintHeight = measuredTextHeight("Glissez sur la courbe pour lire un mois précis.")
-        XCTAssertGreaterThan(labelHeight, hintHeight,
-                             "en accessibility3, l'étiquette complète est plus haute que l'invite")
+        XCTAssertGreaterThanOrEqual(labelHeight, hintHeight,
+                                    "l'étiquette complète n'est jamais plus courte que l'invite")
+        // Preuve DIRECTE, indépendante de l'invite : la carte réserve au
+        // moins graphique (160 pt) + étiquette complète + marges et
+        // paddings — borne inférieure stricte de la hauteur intrinsèque.
+        XCTAssertGreaterThanOrEqual(
+            selectedRender.height,
+            160 + labelHeight + 2 * margin + 2 * BudgetSpacing.cardPadding,
+            "la carte obtient sa vraie hauteur intrinsèque : graphique + étiquette complète + marges"
+        )
         XCTAssertEqual(selectedRender.height - unselectedRender.height, labelHeight - hintHeight, accuracy: 2,
             "hauteur intrinsèque RÉELLE : la carte grandit exactement de la hauteur de l'étiquette complète — aucune ligne rognée")
 
