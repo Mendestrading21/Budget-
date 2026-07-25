@@ -447,8 +447,17 @@ struct NetWorthTrendCard: View {
                 }
                 .chartXAxis {
                     if dynamicTypeSize.isAccessibilitySize {
-                        AxisMarks(values: Self.accessibilityAxisDates(for: points)) { _ in
-                            AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
+                        AxisMarks(values: Self.accessibilityAxisDates(for: points)) { value in
+                            // Libellé personnalisé avec fixedSize : Swift
+                            // Charts ne peut PAS le tronquer en « … »
+                            // (constaté au run 30158304861).
+                            AxisValueLabel {
+                                if let date = value.as(Date.self) {
+                                    Text(date, format: .dateTime.month(.abbreviated))
+                                        .font(.caption2)
+                                        .fixedSize()
+                                }
+                            }
                         }
                     } else {
                         AxisMarks(values: .automatic(desiredCount: Self.xAxisMarkCount(for: dynamicTypeSize))) { _ in
