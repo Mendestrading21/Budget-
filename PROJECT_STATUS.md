@@ -24,6 +24,18 @@ erreur console. Défauts : P0 0 · P1 0 · P2 1 (PWA sans `<meta charset>`
 proposé) · P3 4. **L9 = VERIFYING** — validation finale = inspection
 humaine + vibration haptique confirmée par le propriétaire.
 
+**Refus L9 n°1 (2026-07-25)** — validation humaine REFUSÉE sur
+`2ce7320` ; décisions définitives du propriétaire : V1 native iPhone
+UNIQUEMENT (ADR-023), app jamais installée sur iPhone réel, aucun
+compte Apple Developer, aucun TestFlight — aucune QA physique ne peut
+être déclarée réussie. Défauts à corriger : cible iPad résiduelle
+(`TARGETED_DEVICE_FAMILY "1,2"` + orientations iPad), test de
+persistance disque inexistant (à créer : `DiskStoreLifecycleTests`),
+P2 charset à corriger réellement (meta + test HTTP sans charset,
+suite ≥ 72), écarts documentaires (21 captures pas 23, verrouillage
+dans `AppLockManagerTests`, `BackupServiceTests` = 10 tests, PERF
+recopiées d'un run antérieur). **L9 = IN_PROGRESS** (passe corrective).
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L8 (2026-07-24)
 
 L8 « Widgets, graphiques et micro-interactions » exécuté

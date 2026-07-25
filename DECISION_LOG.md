@@ -1,5 +1,50 @@
 # Budget decision log
 
+## ADR-023 — V1 native : prise en charge iPhone uniquement
+
+Date: 2026-07-25
+Status: accepted
+
+### Context
+
+Décision définitive du propriétaire (25.07.2026, refus de la première
+passe L9) : la V1 native prend en charge uniquement l'iPhone ; aucune
+prise en charge iPad native n'est demandée. Le projet portait pourtant
+`TARGETED_DEVICE_FAMILY = "1,2"` (6 occurrences : Budget, BudgetTests,
+BudgetUITests × Debug/Release) et deux réglages
+`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` — le binaire se
+déclarait compatible iPad alors que la fiche App Store, les captures et
+la QA ne couvrent que l'iPhone.
+
+### Decision
+
+1. `TARGETED_DEVICE_FAMILY = 1` sur les six configurations ; les deux
+   réglages d'orientations iPad sont supprimés ; l'iPhone reste en
+   portrait. Bundle identifier, version, build, cible iOS 17,
+   signature, entitlements et icônes : inchangés.
+2. `UIDeviceFamily` n'est PAS ajouté à la main dans l'Info.plist et
+   `UIRequiredDeviceCapabilities` n'est PAS utilisé pour bloquer
+   l'iPad : la valeur `[1]` doit découler du seul réglage de cible.
+3. La CI exige la liste ENTIÈRE `UIDeviceFamily == [1]` (pas la simple
+   présence de 1) dans : le `Budget.app` Release de la CI, le
+   `Budget.app` de `Budget.xcarchive` du workflow Demo, et le
+   `Budget.app` extrait de l'IPA non signée ; preuve secondaire via
+   `xcodebuild -showBuildSettings` (Debug et Release).
+4. La documentation parle de « prise en charge native iPhone
+   uniquement » — sans prétendre empêcher un éventuel mode de
+   compatibilité géré par Apple sur iPad.
+
+### Consequences
+
+Le binaire, la fiche App Store et la QA décrivent le même produit. Une
+future prise en charge iPad serait une décision produit nouvelle
+(layouts, captures, QA dédiées), pas un simple réglage.
+
+### Verification
+
+Étapes CI « iPhone uniquement » (job macOS) et étapes archive/IPA du
+workflow Demo ; `xcodebuild -showBuildSettings` imprimé dans les logs.
+
 ## ADR-022 — L2 : fondations Obsidian livrées par alias, S.theme neutralisé, indigo profond AA
 
 Date: 2026-07-23
