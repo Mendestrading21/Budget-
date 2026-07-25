@@ -99,7 +99,9 @@ jobs:
           # environnements de revue : les trois pièces L8 sont donc AUSSI
           # imprimées en base64 dans les logs, pour inspection directe.
           for NAME in ios-l8-patrimoine-selection-320-a11y ios-l8-patrimoine-avant-selection ios-l8-patrimoine-selection; do
-            F=$(grep -F "suggested name: \"$NAME\"" /tmp/attmap.txt | head -1 | sed -E 's/^File: ([^,]+),.*/\1/')
+            # xcresulttool suffixe les noms (« NAME_0_UUID.png ») — et un
+            # nom peut être le préfixe d'un autre : on ancre sur « NAME_ ».
+            F=$(grep -F "suggested name: \"${NAME}_" /tmp/attmap.txt | head -1 | sed -E 's/^File: ([^,]+),.*/\1/')
             P=""
             if [ -n "$F" ]; then P=$(find demo-output/captures -name "$F" 2>/dev/null | head -1); fi
             if [ -n "$P" ]; then
