@@ -1291,6 +1291,38 @@ validation humaine.
 - Bases minimales confirmées : 71 e2e / 5 parité / 258 tests iOS /
   0 échec / 0 erreur console — rien n'a diminué.
 
+## Prévisualisation propriétaire — PWA déployée (25.07.2026, autorisation explicite)
+
+- Sur autorisation écrite du propriétaire, la PWA vérifiée du HEAD
+  `c25ab648` est déployée sur GitHub Pages :
+  <https://mendestrading21.github.io/Budget-/> (run Pages #36,
+  30176338887 ; déploiement `github-pages` portant exactement le SHA
+  `c25ab648`, statut success). Aucun fichier du dépôt modifié — le
+  propriétaire a ajouté lui-même la branche exacte
+  `refonte/budget-obsidian-glass-v1` aux règles de l'environnement
+  (l'API des environnements est inaccessible depuis la session).
+- Preuve de contenu : sha256 byte-à-byte identiques entre
+  `git show c25ab648:webapp/*` et le site assemblé avec les commandes
+  exactes du workflow (6 fichiers) ; `github.io` étant inaccessible
+  depuis le conteneur (proxy d'egress), la confirmation visuelle en
+  ligne a été faite par le propriétaire (capture de l'écran Mois
+  Obsidian reçue).
+- Vérification navigateur (profil neuf, https local, données fictives) :
+  **16/16 PASS** — démarrage vierge, onboarding, démo sur choix
+  explicite uniquement, CRUD mouvement, persistance, export JSON,
+  restauration ronde, service worker actif, réouverture hors ligne,
+  zéro pageerror/erreur console, ZÉRO requête externe.
+- Le propriétaire utilise la PWA installée depuis Safari (« Sur
+  l'écran d'accueil »). Rappels consignés : adresse publique mais
+  données uniquement dans localStorage de l'appareil ; sauvegarde JSON
+  régulière recommandée ; pas de migration automatique PWA → SwiftData ;
+  Face ID/haptique/VoiceOver physiques attendront l'app native.
+- **Premier retour propriétaire (25.07.2026)** : sur grand iPhone, le
+  texte de la PWA paraît PETIT — la mise en page est adaptative en
+  largeur mais les tailles de texte sont fixes. Consigné comme
+  amélioration P3-5 (DEFECTS.md) pour une future passe autorisée ;
+  l'app native suit déjà Dynamic Type.
+
 ## Prochaine commande exacte
 
 ```text

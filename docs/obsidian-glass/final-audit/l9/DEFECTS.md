@@ -69,6 +69,15 @@ des décisions du propriétaire (URLs, compte Apple, prix — voir
    fiche, à produire si le propriétaire les veut.
 4. **Widgets natifs personnalisables** : volontairement NON ajoutés
    (décision L8 documentée, réversible sur demande).
+5. **Tailles de texte fixes dans la PWA** (retour propriétaire du
+   25.07.2026 sur grand iPhone, après le déploiement de
+   prévisualisation) : la mise en page est adaptative en largeur
+   (320 px → grands écrans, vérifié) mais les corps de texte sont en
+   tailles fixes — perçus petits sur un iPhone Pro Max. Pistes pour une
+   future passe autorisée : réglage de taille dans l'app ou respect du
+   réglage de texte iOS (`-apple-system-body`). L'app native suit déjà
+   Dynamic Type. Contournement immédiat : Réglages iOS → Écran et
+   luminosité → Affichage (Zoom) → Agrandi.
 
 ## Décision d'état
 

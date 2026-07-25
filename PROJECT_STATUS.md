@@ -36,6 +36,16 @@ suite ≥ 72), écarts documentaires (21 captures pas 23, verrouillage
 dans `AppLockManagerTests`, `BackupServiceTests` = 10 tests, PERF
 recopiées d'un run antérieur). **L9 = IN_PROGRESS** (passe corrective).
 
+**Prévisualisation propriétaire (2026-07-25, soir)** — sur
+autorisation explicite, PWA du HEAD `c25ab648` déployée sur GitHub
+Pages (run #36, 30176338887 ; déploiement portant le SHA exact ;
+sha256 des 6 fichiers identiques au HEAD ; vérification navigateur
+16/16 en profil neuf, zéro requête externe). Le propriétaire l'a
+installée sur son iPhone et l'utilise. Aucun fichier du dépôt modifié
+par le déploiement ; règle d'environnement github-pages ajoutée par le
+propriétaire (branche exacte). Premier retour : texte perçu petit sur
+grand iPhone → P3-5. L9 reste VERIFYING.
+
 **Passe corrective L9 terminée (2026-07-25)** — `317bba0` (refus +
 ADR-023) + `9e0a754` (`fix(l9): close final release readiness gaps`) +
 `b7e3870` (réconciliation) : iPhone uniquement PROUVÉ (UIDeviceFamily
