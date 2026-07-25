@@ -1195,12 +1195,34 @@ validation humaine.
   (Egress de session : `*.blob.core.windows.net` refusé — captures
   natives à inspecter depuis la page du run, comme aux lots précédents.)
 
-## Preuves finales L9 (renseignées après la poussée)
+## Preuves finales L9 (vérifiées le 25.07.2026)
 
-- Commit documentaire : `docs(l9): record final audit and release
-  readiness evidence` — SHA et runs CI/Demo consignés ici après
-  vérification (aucun total ne doit descendre sous 71 e2e / 5 parité /
-  258 tests iOS / 0 échec / 0 erreur console).
+- Commit documentaire : `d88b31a` — `docs(l9): record final audit and
+  release readiness evidence` (32 fichiers, documentation et captures
+  uniquement, AUCUN code applicatif).
+- **CI #216 verte** (run 30168699554) sur `d88b31a` : job Web —
+  **71 parcours verts zéro erreur console** (« PERF L8 » du run final :
+  répartis 23 ms / concentrés 30 ms / 200 lignes DOM par page pour
+  10 000 mouvements · navigation 25 ms · recherche 14 ms · défilement
+  31 ms), **5 fixtures de parité**, design system avec contrastes
+  mesurés (texte primaire/canvas 18.28:1 … warning/canvas 11.10:1, tous
+  ≥ exigence) ; job macOS — build Debug, étape « Tests unitaires »
+  verte (mêmes 258 tests que CI #215/#216 : le diff est documentaire,
+  zéro fichier Swift/JS modifié), build Release,
+  `PrivacyInfo.xcprivacy` présent et validé DANS `Budget.app` Release.
+- **Demo VERT** (run 30168713350) sur `d88b31a` : tour principal +
+  tour onboarding/confiance + preuve de sélection native assertés
+  (18:01→18:20), artefact **budget-demo 186,4 Mo** (captures + vidéo +
+  .ipa non signée), expire le **23.10.2026** :
+  <https://github.com/Mendestrading21/Budget-/actions/runs/30168713350>.
+  Les trois pièces base64 des logs ont été DÉCODÉES et INSPECTÉES à
+  nouveau pour CE run : pièce 320-a11y 960 × 1212 px (« Janv. »/« Mai »
+  entiers, étiquette « 30.04.2026 : CHF 125'900.00 de fortune nette »
+  complète sur 3 lignes), sélection simulateur avec bannière démo et
+  étiquette déterministe « 25.05.2026 : CHF 138'400.00 de fortune
+  nette » = la fixture exacte.
+- Bases minimales confirmées : 71 e2e / 5 parité / 258 tests iOS /
+  0 échec / 0 erreur console — rien n'a diminué.
 
 ## Prochaine commande exacte
 
