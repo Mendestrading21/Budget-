@@ -15,7 +15,7 @@ store disque (création+relance par CHAQUE lancement Demo — le chemin
 qui avait attrapé ADR-015 —, refus de restauration atomiques ADR-014),
 audit navigateur 70/70 PASS (tous les écrans à 390 ET 320, exclusion du
 ＋, persistance, service worker + rechargement HORS LIGNE réel,
-installabilité), 23 captures inspectées (montants 7 chiffres), audit
+installabilité), 21 captures inspectées (montants 7 chiffres), audit
 confidentialité/App Store (aucune donnée collectée vérifiée dans le
 code, 9 décisions HUMAN REQUIRED), protocole iPhone réel + haptique
 PENDING HUMAN. Suites locales : 71 e2e + 5 parité + design verts, zéro

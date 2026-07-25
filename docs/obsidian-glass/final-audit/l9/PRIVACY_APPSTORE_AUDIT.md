@@ -14,7 +14,8 @@ dépôt (`Budget.xcodeproj/project.pbxproj`, `Budget/PrivacyInfo.xcprivacy`,
 | Cible iOS | `IPHONEOS_DEPLOYMENT_TARGET 17.0` | OK (SwiftUI + SwiftData) |
 | Icônes | `AppIcon.appiconset/AppIcon1024.png` (icône unique 1024, format Xcode 15+) | OK — variantes marketing = choix futur du propriétaire |
 | Écran de lancement | `UILaunchScreen_Generation = YES` | OK |
-| Orientations | iPhone : portrait uniquement ; iPad : les 4 | OK, cohérent produit |
+| Cible d'appareils | `TARGETED_DEVICE_FAMILY = 1` — prise en charge native **iPhone uniquement** (ADR-023) ; `UIDeviceFamily == [1]` exigé par la CI dans le produit Release, l'app de l'archive Demo et l'app extraite de l'IPA | OK (sans prétendre empêcher un éventuel mode de compatibilité géré par Apple) |
+| Orientations | iPhone : portrait uniquement (les réglages d'orientations iPad ont été retirés) | OK, cohérent produit |
 | Permissions | `NSFaceIDUsageDescription` = « Budget verrouille vos données financières avec Face ID. » — UNIQUE permission demandée | OK, exacte (le verrouillage existe, `AppLockManager`) |
 | Chiffrement export | `ITSAppUsesNonExemptEncryption = NO` | OK (chiffrement iOS standard uniquement) |
 | Entitlements | AUCUN fichier `.entitlements` — aucune capability spéciale | OK (Face ID n'en exige pas) |
@@ -77,5 +78,15 @@ véridique et vérifiable.
    remplacer par une adresse dédiée.
 
 Aucun de ces points n'est inventable par un outil ; tant qu'ils sont
-ouverts, l'app N'EST PAS « prête App Store » — elle est prête pour la
-QA physique et la préparation de soumission.
+ouverts, l'app N'EST PAS « prête App Store ».
+
+## État réel de l'installation (25.07.2026 — décisions du propriétaire)
+
+- L'app native n'a encore **JAMAIS été installée** sur un iPhone réel.
+- **Aucun compte Apple Developer / App Store Connect** n'est configuré.
+- L'App ID `ch.budgetapp.Budget` n'est **pas encore enregistré** chez
+  Apple (c'est l'identifiant canonique du projet, réservé côté dépôt).
+- **TestFlight n'a jamais été exécuté** (le workflow existe, jamais
+  lancé) ; aucun Xcode local n'a été utilisé.
+- Face ID réel, VoiceOver réel et haptique physique : **PENDING
+  HUMAN** — aucune QA physique ne peut être déclarée réussie.

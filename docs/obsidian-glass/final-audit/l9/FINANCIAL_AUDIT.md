@@ -26,17 +26,24 @@ Aucune règle n'a été modifiée pendant l'audit.
 
 ## Validation sur store disque (exigence L9)
 
-- **Création puis relance** : le VRAI conteneur disque
-  (`PersistenceFactory.makeProductionContainer()`,
-  `isStoredInMemoryOnly: false`) est construit par `AppContainer()` à
-  CHAQUE lancement de la vraie app — y compris sous `-demoTour` : le
-  store de production est ouvert d'abord, le mode démo bascule ENSUITE
-  sur un conteneur in-memory séparé (`BudgetApp.swift`). Le workflow
-  Demo lance l'app plusieurs fois dans le même simulateur (tour
-  principal, tour onboarding/confiance, preuve de sélection) : le store
-  disque est créé au premier lancement puis ROUVERT aux lancements
-  suivants. C'est exactement ce chemin qui avait attrapé le SIGABRT du
-  plan de migration étagé (ADR-015) — la garde fonctionne.
+- **Création puis relance — test XCTest dédié (passe corrective)** :
+  `DiskStoreLifecycleTests.testDataWrittenOnDiskSurvivesFullContainerTeardown`
+  crée un store SwiftData sur une URL temporaire UNIQUE avec la
+  configuration de PRODUCTION (`isStoredInMemoryOnly: false`, même
+  schéma V8, même chemin de construction via le point d'injection
+  `PersistenceFactory.makeContainer` réutilisé par
+  `makeProductionContainer`), insère des données fictives identifiées
+  par UUID (montant `Decimal` exact + relation compte ↔ mouvement),
+  sauvegarde, DÉTRUIT complètement le premier contexte et le premier
+  conteneur, rouvre la même URL avec un SECOND conteneur indépendant,
+  relit par UUID et vérifie valeurs et relation dans les deux sens,
+  puis nettoie le dossier temporaire. Preuve secondaire : le VRAI
+  conteneur disque est aussi construit par `AppContainer()` à CHAQUE
+  lancement de la vraie app (y compris sous `-demoTour` : store de
+  production ouvert d'abord, bascule démo in-memory ensuite —
+  `BudgetApp.swift`) ; les lancements successifs du workflow Demo le
+  créent puis le ROUVRENT — le chemin qui avait attrapé le SIGABRT du
+  plan de migration étagé (ADR-015).
 - **Migration depuis chaque schéma réellement livré** : AUCUN store
   n'a jamais été distribué (pas de TestFlight, pas d'App Store — le
   pipeline existe mais n'a jamais tourné). Le seul format réel est V8
@@ -63,7 +70,7 @@ Aucune règle n'a été modifiée pendant l'audit.
   (fichiers effacés APRÈS le commit de purge, jamais d'enregistrements
   survivants avec fichiers perdus) ; PWA « double suppression »
   (opérations vs réinitialisation complète, textes exacts).
-- **Verrouillage** : `BackupServiceTests` (état verrouillé par défaut ?
+- **Verrouillage** : `AppLockManagerTests` (état verrouillé par défaut ?
   non — désactivé par défaut, activation exige une authentification
   RÉUSSIE, verrouillage en arrière-plan, survit à la relance) ; échec et
   annulation couverts (`testLocksOnBackgroundAndUnlocksOnlyOnSuccess`).
@@ -85,11 +92,11 @@ DANS `Budget.app` Release ; puis workflow Demo complet sur simulateur.
    Elle est couverte par le runtime Apple (migration légère) et par le
    boot disque du Demo à chaque run. Risque résiduel : FAIBLE, réévalué
    au premier changement de schéma post-publication.
-2. Les tests unitaires natifs tournent sur des conteneurs in-memory
-   (voulu : isolation) ; le chemin disque est couvert par le lancement
-   réel de l'app (Demo) et non par un test unitaire dédié. Risque
-   résiduel : FAIBLE (le chemin qui a réellement cassé une fois — plan
-   étagé — est précisément celui que le Demo exerce à chaque run).
+2. ~~Chemin disque sans test unitaire dédié~~ — **comblé dans la
+   passe corrective** : `DiskStoreLifecycleTests` (ci-dessus) écrit,
+   ferme et relit un store disque réel avec la configuration de
+   production. Les autres suites restent volontairement in-memory
+   (isolation).
 3. Le contrôle du format d'une sauvegarde PWA restaurée dans l'app
    NATIVE (et inversement) n'est pas un parcours produit : les deux
    plateformes ont des formats distincts et honnêtes — documenté dans

@@ -47,13 +47,13 @@ des décisions du propriétaire (URLs, compte Apple, prix — voir
 - **Risque résiduel** : migration d'hébergeur, proxy d'entreprise qui
   réécrit les en-têtes, ou ouverture locale d'une copie enregistrée →
   app inutilisable jusqu'à correction.
-- **Correctif proposé (NON appliqué — L9 n'a pas rouvert le code
-  validé sans régression d'un parcours livré)** : ajouter
-  `<meta charset="utf-8">` en PREMIÈRE ligne de `webapp/index.html`
-  (la spécification HTML exige la déclaration dans les 1024 premiers
-  octets) + un test e2e servi en HTTP sans en-tête charset. Une ligne,
-  zéro risque fonctionnel. Priorité : à glisser dans la prochaine passe
-  corrective autorisée.
+- **Correctif APPLIQUÉ (passe corrective L9, sur autorisation du
+  refus n°1)** : `<meta charset="utf-8">` en PREMIÈRE ligne de
+  `webapp/index.html` (la spécification HTML exige la déclaration dans
+  les 1024 premiers octets) + **test e2e 72** : serveur HTTP servant
+  `Content-Type: text/html` volontairement SANS charset, démarrage
+  réel dans Chromium, document décodé UTF-8, texte accentué exact
+  vérifié, zéro pageerror/erreur console.
 
 ## P3 — améliorations futures (aucune n'invalide un parcours)
 
@@ -72,7 +72,8 @@ des décisions du propriétaire (URLs, compte Apple, prix — voir
 
 ## Décision d'état
 
-Aucun P0 ⇒ pas de passage en BLOCKED. Aucun P1 ⇒ aucune correction
-applicative requise dans cette passe. Le P2-1 et les P3 restent OUVERTS
-et visibles ici — pas de documentation-masquage : le correctif P2-1
-n'attend qu'une autorisation de passe corrective.
+Aucun P0 ⇒ pas de passage en BLOCKED. Aucun P1. **P2-1 : CORRIGÉ dans
+la passe corrective** (meta charset + test 72). P3-2 (test disque
+dédié) : **RÉALISÉ dans la passe corrective** (`DiskStoreLifecycleTests`).
+Les P3 restants (ellipses de listes, icônes alternatives, widgets
+personnalisables) demeurent OUVERTS et visibles ici.

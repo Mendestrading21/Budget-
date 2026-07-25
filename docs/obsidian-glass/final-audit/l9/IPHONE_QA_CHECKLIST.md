@@ -4,7 +4,10 @@
 
 L'audit L9 s'exécute dans un conteneur Linux distant : **aucun iPhone
 physique n'est connecté ni connectable**, aucun Xcode local, aucun
-simulateur local. Les builds/tests iOS tournent en CI (macOS-15,
+simulateur local. Décisions/état du propriétaire (25.07.2026) : l'app
+n'a encore **JAMAIS été installée** sur un iPhone réel, **aucun compte
+Apple Developer** n'existe, l'App ID n'est **pas enregistré** chez
+Apple et **TestFlight n'a jamais été exécuté**. Les builds/tests iOS tournent en CI (macOS-15,
 simulateur iPhone 16). **Aucune QA physique n'a donc été effectuée et
 rien ici ne prétend le contraire.** Tout ce chapitre est un protocole à
 dérouler PAR LE PROPRIÉTAIRE ; L9 reste `VERIFYING` tant que le contrôle

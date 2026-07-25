@@ -18,6 +18,7 @@ conseil financier).
 | Catégorie secondaire | Productivité |
 | Classification d'âge | 4+ |
 | Langue | Français (Suisse) uniquement en V1 |
+| Appareils | **iPhone uniquement** (ADR-023, `TARGETED_DEVICE_FAMILY = 1`, portrait) — sans prétendre empêcher un éventuel mode de compatibilité géré par Apple sur iPad |
 | Prix | Voir « Décision de prix » ci-dessous |
 
 ## Texte promotionnel (170 car. max)
@@ -142,6 +143,15 @@ possible en V2 avec la sync famille, prévue par la vision produit).
 Étapes de vie du prix : TestFlight gratuit pour vous → lancement à
 CHF 6.00 → réévaluation avec la V2 (palier familial / abonnement si la
 sync arrive).
+
+## État réel au 25.07.2026 (rien de tout cela n'est encore fait)
+
+- L'app native n'a encore **JAMAIS été installée** sur un iPhone réel.
+- **Aucun compte Apple Developer / App Store Connect** n'existe.
+- L'App ID `ch.budgetapp.Budget` n'est **pas encore enregistré** chez
+  Apple (identifiant canonique réservé côté projet uniquement).
+- **TestFlight n'a jamais été exécuté** ; aucun Xcode local utilisé.
+- QA physique (haptique, Face ID réel, VoiceOver réel) : PENDING HUMAN.
 
 ## Reste à faire avec le compte Apple Developer (~99 $/an)
 
