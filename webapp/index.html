@@ -3623,7 +3623,7 @@ function renderOnboarding() {
     <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
       <span style="font-size:18px">${c.flag}</span>
-    </button>`).join("")}`, { top: true });
+    </button>`).join("")}`);
   if (obStep === 2) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">🏠</div>
