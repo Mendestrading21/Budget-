@@ -3610,7 +3610,7 @@ function obProgress() {
 
 function renderOnboarding() {
   const shell = (inner, opts = {}) => `<div style="display:flex;flex-direction:column;min-height:100%;max-width:340px;margin:0 auto">
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:${opts.top ? "flex-start" : "center"};gap:6px${opts.top ? ";padding-top:8px" : ""}">${inner}</div>
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:${opts.top ? "flex-start" : "center"};gap:10px${opts.top ? ";padding-top:8px" : ""}">${inner}</div>
     <div style="padding:18px 0 6px">${obProgress()}</div>
   </div>`;
   if (obStep === 1) return shell(`
@@ -3620,22 +3620,22 @@ function renderOnboarding() {
       <p class="caption" style="max-width:280px;margin:0 auto">Vos données restent sur cet appareil.</p>
     </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
-    <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
+    <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
       <span style="font-size:18px">${c.flag}</span>
     </button>`).join("")}`);
   if (obStep === 2) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
+    <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">🏠</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Pour parler de « nous » quand vous êtes deux — rien d'autre.</p>
     </div>
-    <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
-    <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
-    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>
-    <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>`);
+    <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
+    <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
+    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>
+    <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>`);
   if (obStep === 3) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
+    <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">👋</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obHousehold === "solo" ? "Votre prénom" : "Vos prénoms"}</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Uniquement pour vous saluer — ça reste sur cet appareil.</p>
@@ -3648,10 +3648,10 @@ function renderOnboarding() {
       <label for="obPartner">${obHousehold === "couple" ? "Prénom de votre moitié" : "Prénom de l'autre parent"}</label>
       <input id="obPartner" autocomplete="off" value="${esc(obPartner)}" />` : ""}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
-      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>
     </form>`);
   if (obStep === 4) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
+    <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">💼</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obSalaryPhase === 2 ? `Le salaire de ${esc(obPartner)} ?` : `Votre salaire, ${esc(obName)} ?`}</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Un rappel chaque mois, un geste pour le valider.</p>
@@ -3664,27 +3664,27 @@ function renderOnboarding() {
       <input id="obTaxPct" inputmode="numeric" maxlength="3" value="${Math.round((obTaxRate ?? COUNTRIES[obCountry].taxRate) * 100)}" />
       <p class="caption" style="margin:4px 0 0">Une estimation pour votre organisation — jamais un taux officiel ni un conseil fiscal. Modifiable à tout moment dans Impôts.</p>`}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
-      <button class="btn secondary" type="button" data-obskip style="margin-top:8px">Passer</button>
-      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
+      <button class="btn secondary" type="button" data-obskip style="margin-top:10px">Passer</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>
     </form>`);
   if (obStep === 6) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
+    <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">🎯</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Un premier objectif ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Facultatif — il vous donne un cap dès le premier jour. Modifiable à tout moment.</p>
     </div>
-    <button type="button" class="btn secondary" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
-    <button type="button" class="btn secondary" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
-    <button type="button" class="btn secondary" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
+    <button type="button" class="btn secondary" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
+    <button type="button" class="btn secondary" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
+    <button type="button" class="btn secondary" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
     <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>
-    <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>`);
+    <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>`);
   const accToggle = (key, label, icon) => `
     <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
-      style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:13px 16px">
+      style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:13px 16px">
       <span>${icon} ${label}</span><span>${obAccounts[key] ? "✓" : "＋"}</span>
     </button>`;
   return shell(`
-    <div style="text-align:center;margin-bottom:10px">
+    <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">💳</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Vos comptes</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Le compte courant est le point de départ — ajoutez le reste d'un tap.</p>
@@ -3696,7 +3696,7 @@ function renderOnboarding() {
       ${accToggle("pension", L("pensionKind"), "🛡")}
       ${accToggle("brokerage", "Bourse / titres", "📈")}
       <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
-      <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
+      <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>
     </form>`);
 }
 
