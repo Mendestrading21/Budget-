@@ -179,13 +179,6 @@
     padding: 14px 18px 20px;
     scrollbar-width: none;
   }
-  /* L7 : zone d'EXCLUSION permanente du ＋ — le viewport de défilement
-     s'ARRÊTE au-dessus du bouton flottant (marge du conteneur, pas un
-     simple padding de contenu) : rien ne peut être rendu sous le ＋,
-     à l'ouverture comme en cours de défilement. */
-  .screen.fab-clear {
-    margin-bottom: 88px;
-  }
   /* L8 correctif : scrubber de courbe — UNE surface interactive qui
      couvre toute la courbe (≥ 44 px dans les deux dimensions), vrai
      glissement pointeur. touch-action: pan-y laisse le défilement
@@ -439,11 +432,13 @@
   .tabbar {
     flex: none;
     display: flex;
+    align-items: center;
     border-top: 1px solid var(--line);
     background: var(--surface-2);
     backdrop-filter: blur(14px);
     padding: 8px 6px calc(14px + env(safe-area-inset-bottom));
   }
+  .tabbar .tab-group { flex: 1; display: flex; }
   .tabbar button {
     flex: 1;
     background: none;
@@ -488,22 +483,25 @@
     border: 1px solid var(--negative);
     color: var(--negative);
   }
-  .fab {
-    position: absolute;
-    z-index: 5; /* toujours AU-DESSUS du contenu, sous les feuilles (10) */
-    right: 20px; bottom: calc(92px + env(safe-area-inset-bottom));
-    width: 50px; height: 50px;
-    border-radius: 17px;
+  /* Le ＋ vit DANS la barre du bas, exactement au centre : il ne peut
+     jamais recouvrir le contenu (retour propriétaire du tour). */
+  .tabbar .fab {
+    flex: none;
+    width: 46px; height: 46px;
+    margin: 0 6px;
+    padding: 0;
+    border-radius: 16px;
     border: none;
     background:
       linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
       var(--brand-deep);
-    color: #fff; font-size: 24px;
+    color: #fff; font-size: 22px;
     cursor: pointer;
-    box-shadow: 0 10px 26px var(--brand-glow);
+    box-shadow: 0 6px 18px var(--brand-glow);
     display: grid; place-items: center;
     line-height: 0;
   }
+  .tabbar .fab[disabled] { opacity: 0.4; cursor: default; }
 
   .sheet-backdrop {
     position: absolute; inset: 0;
@@ -762,8 +760,6 @@
   <div class="notch" aria-hidden="true"></div>
   <div class="demo-banner">✦ Budget — données fictives · vos ajouts restent dans ce navigateur</div>
   <div class="screen" id="screen"></div>
-
-  <button class="fab" id="fab" title="Ajouter un mouvement" aria-label="Ajouter un mouvement">+</button>
 
   <div class="sheet-backdrop" id="sheetBackdrop">
     <form class="sheet" id="txForm">
@@ -3852,9 +3848,7 @@ function render() {
   banner.style.display = (!locked && !onboarding && S.isDemo) ? "flex" : "none";
   document.getElementById("tabbar").style.display = onboarding ? "none" : "";
   if (onboarding) {
-    screen.classList.remove("fab-clear");
     screen.innerHTML = renderOnboarding();
-    document.getElementById("fab").style.display = "none";
     bindOnboarding();
     return;
   }
@@ -3865,20 +3859,20 @@ function render() {
   screen.classList.toggle("screen-enter", navKey !== lastNavKey);
   lastNavKey = navKey;
   screen.innerHTML = locked ? renderLockScreen() : RENDERERS[activeTab]();
-  document.getElementById("tabbar").innerHTML = TABS.map(([id, label]) =>
-    `<button class="${id === activeTab ? "active" : ""}" data-tab="${id}" aria-label="${label}" ${locked ? "disabled" : ""}>${ICONS[id]}<span>${label}</span></button>`
-  ).join("");
+  // Le ＋ est un membre de la barre, exactement au CENTRE : deux
+  // destinations à gauche, trois à droite, jamais au-dessus du contenu.
+  const tabBtn = ([id, label]) =>
+    `<button class="${id === activeTab ? "active" : ""}" data-tab="${id}" aria-label="${label}" ${locked ? "disabled" : ""}>${ICONS[id]}<span>${label}</span></button>`;
+  document.getElementById("tabbar").innerHTML =
+    `<div class="tab-group">${TABS.slice(0, 2).map(tabBtn).join("")}</div>` +
+    `<button class="fab" id="fab" title="Ajouter" aria-label="Ajouter un mouvement" ${locked ? "disabled" : ""}>+</button>` +
+    `<div class="tab-group">${TABS.slice(2).map(tabBtn).join("")}</div>`;
   const prev = document.getElementById("prevM");
   const next = document.getElementById("nextM");
   if (prev) prev.onclick = () => { cursor = shiftMonth(cursor, -1); moreTxPage = 0; render(); pushNav(); };
   if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); moreTxPage = 0; render(); pushNav(); };
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; moreTxPage = 0; render(); pushNav(); };
-  // Accueil : le héros porte déjà l'action d'ajout — pas de ＋ flottant
-  // ni de bande réservée sur cet écran (retour propriétaire).
-  const fabHidden = locked || activeTab === "home";
-  document.getElementById("fab").style.display = fabHidden ? "none" : "grid";
-  screen.classList.toggle("fab-clear", !fabHidden);
   animateHeroAmount();
 }
 
@@ -3916,6 +3910,7 @@ function animateHeroAmount() {
 
 document.getElementById("tabbar").addEventListener("click", (e) => {
   if (locked) return;
+  if (e.target.closest("#fab")) { openSheet("quickMenu"); return; }
   const btn = e.target.closest("button[data-tab]");
   if (btn) { activeTab = btn.dataset.tab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); }
 });
@@ -4594,7 +4589,8 @@ function openTxSheet(tx, presetType) {
   document.getElementById("fAmount").focus();
 }
 
-document.getElementById("fab").addEventListener("click", () => openSheet("quickMenu"));
+/* Le ＋ vit dans la barre (recréé à chaque rendu) : son clic est délégué
+   par l'écouteur du tabbar, avec la même garde de verrouillage. */
 document.getElementById("fCancel").addEventListener("click", () => backdrop.classList.remove("open"));
 backdrop.addEventListener("click", (e) => { if (e.target === backdrop) dismissSheetGuarded(); });
 document.addEventListener("keydown", (e) => {

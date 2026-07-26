@@ -1765,14 +1765,14 @@ async function assertFabExclusion(tag) {
       viewportClear: screenR.bottom <= fab.top + 0.5,
       plusVisible: getComputedStyle(fabEl).display !== "none" && fabEl.textContent.trim() === "+"
         && fab.width >= 44 && fab.height >= 44,
-      zIndex: getComputedStyle(fabEl).zIndex,
+      inBar: document.getElementById("tabbar").contains(fabEl),
       noHScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   });
   check(check60.viewportClear, `${tag} : le viewport s'arrête AU-DESSUS du ＋ (exclusion permanente)`);
   check(check60.bad.length === 0, `${tag} : éléments visibles sous le ＋ : ${check60.bad.join(", ")}`);
   check(check60.plusVisible, `${tag} : le symbole ＋ est présent, visible et ≥ 44 px`);
-  check(check60.zIndex === "5", `${tag} : le ＋ n'est jamais enterré (z-index)`);
+  check(check60.inBar, `${tag} : le ＋ vit dans la barre du bas — jamais enterré sous le contenu`);
   check(check60.noHScroll, `${tag} : aucun débordement horizontal`);
 }
 for (const [w, tag60] of [[390, "390"], [320, "320"]]) {
