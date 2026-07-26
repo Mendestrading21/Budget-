@@ -3659,9 +3659,6 @@ function renderOnboarding() {
     <form id="obForm2" class="ob-form">
       <label for="obSalary">Salaire mensuel net (${obBase})</label>
       <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" value="${(() => { const v = obSalaryPhase === 2 ? obSalary2 : obSalary; return v ? String(v) : ""; })()}" />
-      <label for="obSalaryDay">Jour de versement</label>
-      <select id="obSalaryDay">${Array.from({ length: 28 }, (_, i) =>
-        `<option value="${i + 1}" ${i + 1 === obSalaryDay ? "selected" : ""}>Le ${i + 1} du mois</option>`).join("")}</select>
       ${obSalaryPhase === 2 ? "" : `
       <label for="obTaxPct">Part mise de côté pour les impôts (%)</label>
       <input id="obTaxPct" inputmode="numeric" maxlength="3" value="${Math.round((obTaxRate ?? COUNTRIES[obCountry].taxRate) * 100)}" />
@@ -3693,13 +3690,12 @@ function renderOnboarding() {
       <p class="caption" style="max-width:290px;margin:0 auto">Le compte courant est le point de départ — ajoutez le reste d'un tap.</p>
     </div>
     <form id="obForm3" class="ob-form">
-      <label for="obOpening">Solde actuel du compte courant (${obBase})</label>
-      <input id="obOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <input id="obOpening" inputmode="decimal" placeholder="Solde actuel (${obBase})"
+        aria-label="Solde actuel du compte courant (${obBase})" autocomplete="off" style="margin-top:10px" />
       ${accToggle("savings", "Épargne", "🏛")}
       ${accToggle("pension", L("pensionKind"), "🛡")}
       ${accToggle("brokerage", "Bourse / titres", "📈")}
       <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
-      <button class="btn secondary" type="button" data-obdemo style="margin-top:8px">Explorer avec des données d'exemple</button>
       <button type="button" class="btn secondary" data-obback style="margin-top:8px">‹ Retour</button>
     </form>`);
 }
@@ -3754,11 +3750,11 @@ function bindOnboarding() {
       const amount = parseAmountField(document.getElementById("obSalary").value);
       if (obSalaryPhase === 2) {
         obSalary2 = amount > 0 ? amount : null;
-        obSalaryDay2 = Number(document.getElementById("obSalaryDay").value) || obSalaryDay;
+        obSalaryDay2 = obSalaryDay; // jour par défaut (25) — modifiable ensuite dans Paiements réguliers
         obStep = 5;
       } else {
         obSalary = amount > 0 ? amount : null;
-        obSalaryDay = Number(document.getElementById("obSalaryDay").value) || 25;
+        // Jour de versement : défaut 25, modifiable ensuite dans Paiements réguliers.
         if (obPartner) { obSalaryPhase = 2; } else { obStep = 5; }
       }
       render(); scrollTop();
@@ -3787,15 +3783,6 @@ function bindOnboarding() {
       e.preventDefault();
       obOpeningVal = parseAmountField(document.getElementById("obOpening").value) || 0;
       obStep = 6; render(); scrollTop();
-    });
-    form3.querySelector("[data-obdemo]").addEventListener("click", () => {
-      // La démo complète, avec le prénom déjà saisi si l'on est passé par là.
-      const seeded = seedState(obCountry);
-      seeded.profile = { name: obName || "Alex", partner: obPartner || null,
-                         householdType: obPartner ? obHousehold : "solo" };
-      try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded)); }
-      catch (err) { toast("Stockage plein — la démonstration n'a pas pu être chargée"); return; }
-      location.reload();
     });
   }
 }
