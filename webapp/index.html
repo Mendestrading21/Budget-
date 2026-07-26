@@ -3603,31 +3603,27 @@ let obSalaryDay2 = 25;
 let obAccounts = { savings: true, pension: false, brokerage: false };
 
 function obProgress() {
-  return `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:18px" aria-label="Étape ${obStep} sur 6">
+  return `<div style="display:flex;gap:6px;justify-content:center" aria-label="Étape ${obStep} sur 6">
     ${[1, 2, 3, 4, 5, 6].map(i => `<span style="width:${i === obStep ? 22 : 8}px;height:8px;border-radius:4px;background:${i <= obStep ? "var(--indigo)" : "var(--line)"};transition:width .2s"></span>`).join("")}
   </div>`;
 }
 
 function renderOnboarding() {
-  const shell = inner => `<div style="display:flex;flex-direction:column;justify-content:center;min-height:100%;max-width:340px;margin:0 auto;gap:6px">${obProgress()}${inner}</div>`;
+  const shell = (inner, opts = {}) => `<div style="display:flex;flex-direction:column;min-height:100%;max-width:340px;margin:0 auto">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:${opts.top ? "flex-start" : "center"};gap:6px${opts.top ? ";padding-top:8px" : ""}">${inner}</div>
+    <div style="padding:18px 0 6px">${obProgress()}</div>
+  </div>`;
   if (obStep === 1) return shell(`
-    <div style="text-align:center;margin-bottom:10px">
-      <div style="font-size:56px" aria-hidden="true">💰</div>
-      <h1 style="margin:10px 0 6px;font-size:30px;letter-spacing:-0.5px">Budget</h1>
-      <p class="caption" style="max-width:280px;margin:0 auto">Vos finances, chez vous. Rien ne quitte cet appareil.</p>
-    </div>
-    <div class="card" style="margin-bottom:4px">
-      <div class="caption" style="display:grid;gap:6px">
-        <span>🔒 Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne.</span>
-        <span>🏦 Aucune connexion bancaire : vous saisissez ou importez vous-même.</span>
-        <span>📥 Une sauvegarde = un fichier que VOUS téléchargez et gardez.</span>
-      </div>
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="font-size:34px" aria-hidden="true">💰</div>
+      <h1 style="margin:6px 0 4px;font-size:22px;letter-spacing:-0.5px">Budget</h1>
+      <p class="caption" style="max-width:280px;margin:0 auto">Vos données restent sur cet appareil.</p>
     </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
     <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:8px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
       <span style="font-size:18px">${c.flag}</span>
-    </button>`).join("")}`);
+    </button>`).join("")}`, { top: true });
   if (obStep === 2) return shell(`
     <div style="text-align:center;margin-bottom:10px">
       <div style="font-size:44px" aria-hidden="true">🏠</div>

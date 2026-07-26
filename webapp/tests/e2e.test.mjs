@@ -1610,8 +1610,10 @@ p56.on("pageerror", err => consoleErrors.push(`[onboarding L7] pageerror: ${err.
 await p56.goto(APP_URL);
 await p56.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
 let ob56 = await p56.$eval("body", el => el.innerHTML);
-check(ob56.includes("CE navigateur") && ob56.includes("Aucune connexion bancaire"),
-  "l'étape 1 énonce la promesse de confidentialité RÉELLE (stockage local, pas de banque)");
+check(ob56.includes("Vos données restent sur cet appareil"),
+  "l'étape 1 énonce la promesse de confidentialité en UNE ligne honnête (stockage local)");
+check(!ob56.includes("Vos données vivent dans CE navigateur"),
+  "l'étape 1 ne porte plus la carte aux trois lignes (retour propriétaire — les détails restent dans Confidentialité)");
 await p56.click('[data-obcountry="CH"]');
 await p56.click('[data-obhh="solo"]');
 await p56.fill("#obName", "Testeur");
@@ -2357,14 +2359,14 @@ currentTest = "charset sans en-tête serveur L9";
   const started72 = await page72.evaluate(() => ({
     countries: document.querySelectorAll("[data-obcountry]").length,
     charset: document.characterSet,
-    privacy: document.body.innerText.includes("Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne."),
+    privacy: document.body.innerText.includes("Vos données restent sur cet appareil."),
   }));
   check(started72.countries === 3,
     `charset omis : l'app démarre réellement (3 pays attendus, obtenu ${started72.countries})`);
   check(String(started72.charset).toLowerCase() === "utf-8",
     `charset omis : document décodé en UTF-8 (obtenu ${started72.charset})`);
   check(started72.privacy,
-    "charset omis : texte accentué EXACT présent (« Vos données vivent dans CE navigateur — pas de serveur, pas de compte en ligne. »)");
+    "charset omis : texte accentué EXACT présent (« Vos données restent sur cet appareil. »)");
   check(errors72.length === 0,
     `charset omis : zéro pageerror / erreur console (obtenu : ${errors72.slice(0, 2).join(" | ") || "aucune"})`);
   await browser72.close();
