@@ -32,6 +32,15 @@ async function goHome() {
   await page.waitForSelector("#tabbar button", { timeout: 10000 });
 }
 
+// L'écran Mouvements vit dans Plus (retour propriétaire du tour) :
+// même écran, même contenu, atteint par le hub.
+async function goMovements() {
+  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.waitForTimeout(150);
+  await page.click('#screen [data-more="movements"]');
+  await page.waitForTimeout(200);
+}
+
 // ---------- Test 0 : première ouverture = écran de bienvenue ----------
 currentTest = "bienvenue";
 await page.goto(APP_URL);
@@ -69,15 +78,19 @@ await page.waitForSelector("#tabbar button");
 homeHTML = await page.$eval("#screen", el => el.innerHTML);
 check(homeHTML.includes("Elio") && homeHTML.includes("Sara"), "prénoms perdus après rechargement");
 
-// ---------- Test 1 : chaque onglet s'ouvre ----------
+// ---------- Test 1 : chaque onglet s'ouvre (Mouvements vit dans Plus) ----------
 currentTest = "onglets";
 await goHome();
-for (const label of ["Mois", "Mouvements", "Budget", "Comptes", "Plus"]) {
+for (const label of ["Mois", "Budget", "Comptes", "Plus"]) {
   await page.click(`#tabbar button[aria-label="${label}"]`);
   await page.waitForTimeout(120);
   const content = await page.$eval("#screen", el => el.innerHTML.length);
   check(content > 200, `onglet ${label} vide`);
 }
+await goMovements();
+const movContent = await page.$eval("#screen", el => el.innerHTML);
+check(movContent.length > 200 && movContent.includes("moreSearchInput"),
+  "écran Mouvements accessible depuis Plus (recherche présente)");
 
 // ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
 currentTest = "check du mois";
@@ -152,10 +165,8 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Épargne E2E"), "épargne absente de l'écran Accueil");
 
-// ---------- Test 5 : Échap ferme la feuille ----------
+// ---------- Test 5 : Échap ferme la feuille (le ＋ de la barre est partout) ----------
 currentTest = "echap";
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(150);
 await page.click("#fab");
 await page.waitForSelector("#quickMenu", { state: "visible" });
 await page.keyboard.press("Escape");
@@ -308,10 +319,9 @@ await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("1'100.00"), "la mensualité payée doit décrémenter la dette (1200 → 1100)");
 
-// ---------- Test 11 : onglet Mouvements — recherche et filtres ----------
+// ---------- Test 11 : écran Mouvements (dans Plus) — recherche et filtres ----------
 currentTest = "mouvements";
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(150);
+await goMovements();
 check(await page.$("#moreSearchInput") !== null, "champ de recherche absent");
 check((await page.$$("[data-morefilter]")).length >= 5, "filtres de type absents");
 await page.fill("#moreSearchInput", "zzz-introuvable-e2e");
@@ -551,8 +561,7 @@ await page.evaluate(() => {
 });
 await page.reload();
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(150);
+await goMovements();
 await page.waitForSelector("[data-addtx]", { state: "visible" });
 await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
@@ -568,7 +577,7 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 for (const group of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
   check(screenHTML.includes(group), `groupe « ${group} » absent du menu Plus`);
 }
-check(screenHTML.includes('data-gototab="movements"'), "l'entrée Mouvements doit rester dans le menu Plus");
+check(screenHTML.includes('data-more="movements"'), "l'entrée Mouvements doit rester dans le menu Plus");
 check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more="networth"'),
   "les destinations du menu Plus doivent rester atteignables après regroupement");
 
@@ -1252,8 +1261,7 @@ await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(250);
+await goMovements();
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 // Regroupement par jour : des en-têtes datés dd.mm.yyyy.
 const dayHeaders = await page.$$eval(".day-header", els => els.map(e => e.textContent));
@@ -1374,8 +1382,7 @@ await page.evaluate(() => { // nettoyage
 
 // ---------- Test 51 : a11y L5 — cibles 44 px, 320 px, information jamais couleur seule ----------
 currentTest = "a11y L5";
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(200);
+await goMovements();
 const targets51 = await page.evaluate(() =>
   [...document.querySelectorAll(".filter-chip, #moreSearchInput, .month-nav button")]
     .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || el.id || "?").trim().slice(0, 16) }))
@@ -1394,8 +1401,7 @@ const overflow51b = await page.evaluate(() =>
 check(overflow51b, "Comptes sans débordement à 320 px");
 await page.setViewportSize({ width: 390, height: 844 });
 // Jamais la couleur seule : signes explicites sur les montants de la liste.
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(200);
+await goMovements();
 const signs51 = await page.$$eval("#moreTxList .tx .amount", els =>
   els.slice(0, 8).map(e => e.textContent.trim()));
 check(signs51.every(t => /^[+−-]/.test(t) || t.length > 0), "chaque montant porte un signe ou un libellé textuel");
@@ -1668,7 +1674,7 @@ const rows57 = await page.evaluate(() =>
 check(rows57.length >= 10, `toutes les destinations sont listées (obtenu ${rows57.length})`);
 check(rows57.every(r => r.h >= 43.5), "chaque ligne du hub fait au moins 44 px");
 check(rows57.every(r => r.sub.trim().length > 0), "chaque ligne explique ce qu'on y fait");
-for (const dest57 of ["bills", "recurring", "taxes", "insurance", "networth", "goals", "year", "importcsv", "assistant", "settings"]) {
+for (const dest57 of ["movements", "bills", "recurring", "taxes", "insurance", "networth", "goals", "year", "importcsv", "assistant", "settings"]) {
   await page.click(`#tabbar button[aria-label="Plus"]`);
   await page.waitForTimeout(120);
   await page.click(`#screen [data-more="${dest57}"]`);
@@ -2176,7 +2182,7 @@ const fab65 = await page.evaluate(() => {
 check(fab65, "la zone de contenu s'arrête AU-DESSUS du ＋ à 390 px — aucune intersection");
 // Reduced motion : la garde existante coupe l'animation d'entrée des cartes.
 await page.emulateMedia({ reducedMotion: "reduce" });
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.click(`#tabbar button[aria-label="Comptes"]`);
 await page.waitForTimeout(150);
 await page.click(`#tabbar button[aria-label="Plus"]`);
 await page.waitForTimeout(200);
@@ -2206,8 +2212,7 @@ await page.evaluate(() => {
     });
   }
 });
-await page.click(`#tabbar button[aria-label="Mouvements"]`);
-await page.waitForTimeout(200);
+await goMovements();
 await page.evaluate(() => { cursor = { y: 2025, m: 6 }; });
 const spread66 = await renderToPaint();
 const spreadDom66 = await page.evaluate(() => ({
