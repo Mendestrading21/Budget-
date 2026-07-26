@@ -105,9 +105,8 @@ check(screenHTML.includes("9'700.00") || screenHTML.includes("5'500.00"), "les s
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
 currentTest = "creation mouvement";
 await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.click("#fab");
-await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
-await page.click('#quickMenu [data-quick="tx"]');
+// Accueil : plus de ＋ flottant — le bouton héros ouvre la feuille.
+await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Test E2E dépense");
@@ -155,6 +154,8 @@ check(screenHTML.includes("Épargne E2E"), "épargne absente de l'écran Accueil
 
 // ---------- Test 5 : Échap ferme la feuille ----------
 currentTest = "echap";
+await page.click(`#tabbar button[aria-label="Mouvements"]`);
+await page.waitForTimeout(150);
 await page.click("#fab");
 await page.waitForSelector("#quickMenu", { state: "visible" });
 await page.keyboard.press("Escape");
@@ -478,9 +479,7 @@ check(!baseSheetOpen, "le bouton Annuler de la devise de référence doit fermer
 // ---------- Test 21 : fermeture accidentelle d'une feuille avec saisie → garde-fou ----------
 currentTest = "garde-fou saisie";
 await goHome();
-await page.click("#fab");
-await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
-await page.click('#quickMenu [data-quick="tx"]');
+await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Saisie en cours");
@@ -491,9 +490,7 @@ await page.waitForTimeout(150);
 let guardOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
 check(!guardOpen, "après confirmation, la feuille doit se fermer");
 // ouvrir sans rien changer et cliquer le fond : pas de saisie → fermeture directe
-await page.click("#fab");
-await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
-await page.click('#quickMenu [data-quick="tx"]');
+await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
 const snapClean = await page.evaluate(() => serializeSheet("txForm") === openSheetSnapshot);
 check(snapClean, "une feuille fraîchement ouverte ne doit pas être considérée comme modifiée");
@@ -933,14 +930,15 @@ await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-// Ordre du premier viewport : salutation → héros → métriques → priorité.
+// Ordre du premier viewport : salutation (grand titre) → héros → métriques → priorité.
 const orderIdx = {
-  hello: screenHTML.indexOf('class="hello"'),
+  hello: screenHTML.indexOf("Bonjour"),
   hero: screenHTML.indexOf("Argent disponible"),
   metrics: screenHTML.indexOf('class="stat-grid"'),
   quick: screenHTML.indexOf('class="quick-row"'),
 };
-check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation courte avant le héros");
+check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
+check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
 check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
 check(orderIdx.metrics < orderIdx.quick, "métriques avant les actions rapides");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
@@ -1183,10 +1181,8 @@ await page.evaluate(() => { // nettoyage
   if (i >= 0) transactions.splice(i, 1);
   saveState(); render();
 });
-// Virement : résumé explicite et neutralité affichée.
-await page.click("#fab");
-await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
-await page.click('#quickMenu [data-quick="tx"]');
+// Virement : résumé explicite et neutralité affichée (bouton héros).
+await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
 await page.click('#typeGrid button[data-ftype="transfer"]');
 await page.waitForTimeout(100);

@@ -2146,9 +2146,9 @@ function renderHome() {
   // L3 — premier viewport du contrat : salutation courte + mois → héros
   // « Disponible » (avec action universelle) → 4 métriques → UNE priorité →
   // actions rapides → aperçu Budget → mouvements récents (sections).
-  return `<p class="hello">${S.profile.name
+  return `<h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
     ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
-    : "Bonjour 👋"}</p>
+    : "Bonjour 👋"}</h2>
     ${monthNav()}
     ${hero}
     ${metrics}
@@ -3874,8 +3874,11 @@ function render() {
   if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); moreTxPage = 0; render(); pushNav(); };
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; moreTxPage = 0; render(); pushNav(); };
-  document.getElementById("fab").style.display = locked ? "none" : "grid";
-  screen.classList.toggle("fab-clear", !locked);
+  // Accueil : le héros porte déjà l'action d'ajout — pas de ＋ flottant
+  // ni de bande réservée sur cet écran (retour propriétaire).
+  const fabHidden = locked || activeTab === "home";
+  document.getElementById("fab").style.display = fabHidden ? "none" : "grid";
+  screen.classList.toggle("fab-clear", !fabHidden);
   animateHeroAmount();
 }
 
