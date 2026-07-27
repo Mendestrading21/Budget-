@@ -114,6 +114,164 @@ for (const [label, fg, bg, min] of CHECKS) {
   check(ratio >= min, `contraste insuffisant — ${label} : ${ratio.toFixed(2)} < ${min}`);
 }
 
+// ============================================================
+// Section NU (NU1) — fondations Neon Ultra ISOLÉES (ADR-024).
+// Additive : ne modifie ni n'affaiblit AUCUN contrôle Obsidian
+// ci-dessus. Le tableau BANNED continue d'interdire les couleurs
+// Neon Ultra dans index.html et obsidian.css tant que NU2 n'a
+// pas commencé ; la vérification Neon Ultra est SÉPARÉE et
+// limitée à neon-ultra.css / neon-ultra-gallery.html.
+// ============================================================
+
+// ---------- NU1 : tokens canoniques Neon Ultra ----------
+currentTest = "NU tokens canoniques";
+const NU_CSS_PATH = path.resolve(HERE, "..", "design-system", "neon-ultra.css");
+const NU_GALLERY_PATH = path.resolve(HERE, "..", "design-system", "neon-ultra-gallery.html");
+const NU_GALLERY_URL = "file://" + NU_GALLERY_PATH;
+const nuCss = fs.readFileSync(NU_CSS_PATH, "utf8");
+const nuGallery = fs.readFileSync(NU_GALLERY_PATH, "utf8");
+const NU_CANONICAL = {
+  "--nu-canvas": "#05060A",
+  "--nu-navigation": "#0B0D13",
+  "--nu-surface": "#11141C",
+  "--nu-surface-elevated": "#181C26",
+  "--nu-surface-fallback": "#151923",
+  "--nu-border": "#293040",
+  "--nu-magenta": "#D946EF",
+  "--nu-violet": "#7C3AED",
+  "--nu-cyan": "#38BDF8",
+  "--nu-cta-start": "#C000A4",
+  "--nu-cta-end": "#6E00E8",
+  "--nu-text-primary": "#F5F7FA",
+  "--nu-text-secondary": "#A3ACBA",
+  "--nu-text-tertiary": "#7C8696",
+  "--nu-text-on-cta": "#FFFFFF",
+  "--nu-positive": "#35D39A",
+  "--nu-negative": "#FF6577",
+  "--nu-warning": "#F6C453",
+};
+for (const [name, value] of Object.entries(NU_CANONICAL)) {
+  const m = nuCss.match(new RegExp(name.replace(/[-]/g, "\\-") + "\\s*:\\s*([^;]+);"));
+  check(m, `neon-ultra.css doit déclarer ${name}`);
+  if (m) check(m[1].trim() === value,
+    `neon-ultra.css : ${name} doit valoir « ${value} » (obtenu « ${m[1].trim()} »)`);
+}
+check(nuCss.includes("linear-gradient(135deg, var(--nu-cta-start) 0%, var(--nu-cta-end) 100%)"),
+  "le dégradé CTA doit être exactement 135deg, cta-start 0% → cta-end 100%");
+
+// ---------- NU2 : ISOLATION — l'app publique ne connaît pas Neon Ultra ----------
+currentTest = "NU isolation";
+check(!indexSrc.includes("--nu-"), "index.html ne doit contenir AUCUNE variable --nu-");
+check(!indexSrc.includes("neon-ultra"), "index.html ne doit pas référencer neon-ultra.css");
+check(!cssSrc.includes("--nu-"), "obsidian.css ne doit contenir AUCUNE variable --nu-");
+check(nuGallery.includes('href="neon-ultra.css"') && !nuGallery.includes("obsidian.css"),
+  "la galerie Neon Ultra ne charge QUE neon-ultra.css");
+// Aucun hex brut hors du bloc :root dans les RÈGLES (les primitives
+// référencent les rôles ; les commentaires documentaires sont ignorés).
+{
+  const rootEnd = nuCss.indexOf("}", nuCss.indexOf(":root"));
+  const afterRoot = nuCss.slice(rootEnd).replace(/\/\*[\s\S]*?\*\//g, "");
+  const rawHex = afterRoot.match(/#[0-9A-Fa-f]{3,8}\b/g) || [];
+  check(rawHex.length === 0,
+    `aucun hex brut hors :root dans les règles de neon-ultra.css (trouvé : ${rawHex.join(", ")})`);
+}
+
+// ---------- NU3 : parité des rôles avec DesignTokens.swift ----------
+currentTest = "NU parité Swift";
+const swiftSrc = fs.readFileSync(
+  path.resolve(HERE, "..", "..", "Budget", "Core", "DesignSystem", "DesignTokens.swift"), "utf8");
+const nuSwiftBlock = swiftSrc.slice(swiftSrc.indexOf("enum NeonUltraColor"));
+const SWIFT_ROLES = {
+  canvas: "--nu-canvas", navigation: "--nu-navigation", surface: "--nu-surface",
+  surfaceElevated: "--nu-surface-elevated", surfaceFallback: "--nu-surface-fallback",
+  border: "--nu-border", magenta: "--nu-magenta", violet: "--nu-violet", cyan: "--nu-cyan",
+  ctaStart: "--nu-cta-start", ctaEnd: "--nu-cta-end", textPrimary: "--nu-text-primary",
+  textSecondary: "--nu-text-secondary", textTertiary: "--nu-text-tertiary",
+  textOnCta: "--nu-text-on-cta",
+  positive: "--nu-positive", negative: "--nu-negative", warning: "--nu-warning",
+};
+const hexToRgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+for (const [swiftName, cssVar] of Object.entries(SWIFT_ROLES)) {
+  const m = nuSwiftBlock.match(new RegExp(
+    `static let ${swiftName} = rgb\\((\\d+), (\\d+), (\\d+)\\)`));
+  check(m, `DesignTokens.swift doit déclarer NeonUltraColor.${swiftName}`);
+  if (m) {
+    const expected = hexToRgb(NU_CANONICAL[cssVar]);
+    const got = [Number(m[1]), Number(m[2]), Number(m[3])];
+    check(got.join(",") === expected.join(","),
+      `parité ${swiftName} ↔ ${cssVar} : Swift rgb(${got}) ≠ CSS ${NU_CANONICAL[cssVar]}`);
+  }
+}
+// Parité géométrie et mouvement.
+for (const [swiftDecl, cssDecl] of [
+  ["static let hero: CGFloat = 26", "--nu-radius-hero: 26px"],
+  ["static let card: CGFloat = 18", "--nu-radius-card: 18px"],
+  ["static let control: CGFloat = 14", "--nu-radius-control: 14px"],
+  ["static let press: Double = 0.14", "--nu-motion-press: 140ms"],
+  ["static let state: Double = 0.24", "--nu-motion-state: 240ms"],
+]) {
+  check(swiftSrc.includes(swiftDecl), `DesignTokens.swift doit déclarer « ${swiftDecl} »`);
+  check(nuCss.includes(cssDecl), `neon-ultra.css doit déclarer « ${cssDecl} »`);
+}
+check(nuSwiftBlock.includes("pressScale: CGFloat = 0.98") && nuCss.includes("scale(0.98)"),
+  "la pression 0,98 doit être identique sur les deux plateformes");
+
+// ---------- NU4 : contrastes Neon Ultra mesurés (jamais estimés) ----------
+currentTest = "NU contrastes";
+const NU_SURFACES = {
+  canvas: "#05060A", navigation: "#0B0D13", "surface standard": "#11141C",
+  "surface élevée": "#181C26", "fallback opaque": "#151923",
+};
+const NU_TEXTS = {
+  textPrimary: "#F5F7FA", textSecondary: "#A3ACBA", textTertiary: "#7C8696",
+};
+// Minimums contractuels du texte discret (clôture NU0, re-mesurés).
+const NU_TERTIARY_MIN = {
+  canvas: 5.50, navigation: 5.28, "surface standard": 5.00,
+  "surface élevée": 4.63, "fallback opaque": 4.78,
+};
+const nuMeasured = [];
+for (const [textName, textHex] of Object.entries(NU_TEXTS)) {
+  for (const [surfName, surfHex] of Object.entries(NU_SURFACES)) {
+    const ratio = contrast(textHex, surfHex);
+    nuMeasured.push(`NU ${textName} / ${surfName} : ${ratio.toFixed(2)}:1`);
+    check(ratio >= 4.5,
+      `NU contraste insuffisant — ${textName} / ${surfName} : ${ratio.toFixed(2)} < 4.5`);
+    if (textName === "textTertiary") {
+      const min = NU_TERTIARY_MIN[surfName];
+      check(ratio >= min - 0.02,
+        `NU textTertiary / ${surfName} : ${ratio.toFixed(2)} < minimum contractuel ${min}`);
+    }
+  }
+}
+// CTA : le texte BLANC PUR reste AA sur les DEUX extrémités du dégradé
+// (mesures contractuelles ≈ 5,56 et 7,43).
+for (const [end, hex, floor] of [["cta-start", "#C000A4", 5.3], ["cta-end", "#6E00E8", 7.2]]) {
+  const ratio = contrast("#FFFFFF", hex);
+  nuMeasured.push(`NU textOnCta (blanc) / ${end} : ${ratio.toFixed(2)}:1`);
+  check(ratio >= 4.5, `NU CTA ${end} : ${ratio.toFixed(2)} < 4.5`);
+  check(ratio >= floor, `NU CTA ${end} : ${ratio.toFixed(2)} sous le plancher contractuel ${floor}`);
+}
+// Sémantique sur canvas — planchers contractuels.
+for (const [name, hex, min] of [
+  ["positive", "#35D39A", 10.5], ["negative", "#FF6577", 7.1], ["warning", "#F6C453", 12.4],
+]) {
+  const ratio = contrast(hex, "#05060A");
+  nuMeasured.push(`NU ${name} / canvas : ${ratio.toFixed(2)}:1`);
+  check(ratio >= min, `NU ${name} / canvas : ${ratio.toFixed(2)} < ${min}`);
+}
+// Focus cyan : contraste NON TEXTUEL ≥ 3:1 sur toutes les surfaces.
+for (const [surfName, surfHex] of Object.entries(NU_SURFACES)) {
+  const ratio = contrast("#38BDF8", surfHex);
+  check(ratio >= 3, `NU focus cyan / ${surfName} : ${ratio.toFixed(2)} < 3`);
+}
+// Le violet ne porte jamais seul un petit libellé actif : la règle est
+// documentée ET le chip sélectionné garde le texte en text-primary.
+check(contrast("#7C3AED", "#0B0D13") < 4.5,
+  "garde de réalité : le violet mesure bien < 4,5 sur la navigation (d'où la règle)");
+check(nuCss.includes("JAMAIS seul") || nuCss.includes("jamais un libellé"),
+  "neon-ultra.css doit documenter la règle du violet");
+
 // ---------- D3 : galerie dans un vrai navigateur ----------
 const browser = await chromium.launch({ executablePath: CHROMIUM, args: ["--no-sandbox"] });
 const consoleErrors = [];
@@ -250,6 +408,136 @@ currentTest = "texte agrandi 320px";
   await page.context().close();
 }
 
+// ---------- NU5 : galerie Neon Ultra dans un vrai navigateur ----------
+for (const width of [320, 390]) {
+  currentTest = `NU galerie ${width}px`;
+  const page = await newPage(width);
+  await page.goto(NU_GALLERY_URL);
+  await page.waitForSelector("#nuSwatches .swatch");
+  const overflow = await page.evaluate(() =>
+    document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check(overflow <= 0, `débordement horizontal de ${overflow}px`);
+  // Nuancier complet : 17 rôles.
+  const swatchCount = await page.$$eval("#nuSwatches .swatch", els => els.length);
+  check(swatchCount === 17, `17 rôles attendus au nuancier (obtenu ${swatchCount})`);
+  // Montant extrême entier.
+  const longAmount = await page.evaluate(() => {
+    const nodes = [...document.querySelectorAll(".nu-amount, .nu-amount-hero")];
+    const el = nodes.find(n => n.textContent.includes("9'999'999.99"));
+    return el ? { found: true, clipped: el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow === "hidden" } : { found: false };
+  });
+  check(longAmount.found, "le montant CHF -9'999'999.99 doit être présenté");
+  check(!longAmount.clipped, "le montant extrême ne doit pas être tronqué");
+  // Chiffres tabulaires + AUCUN glow sur les montants.
+  const heroStyle = await page.$eval(".nu-amount-hero", el => {
+    const cs = getComputedStyle(el);
+    return { numeric: cs.fontVariantNumeric, shadow: cs.textShadow };
+  });
+  check(heroStyle.numeric.includes("tabular-nums"), `chiffres tabulaires requis (obtenu ${heroStyle.numeric})`);
+  check(heroStyle.shadow === "none", `aucun glow sur un montant (obtenu ${heroStyle.shadow})`);
+  // Cibles ≥ 44 px.
+  const smallTargets = await page.evaluate(() =>
+    [...document.querySelectorAll("button, input, [role='button']")]
+      .filter(el => el.offsetParent !== null)
+      .map(el => ({ h: el.getBoundingClientRect().height, label: (el.textContent || el.id || "?").trim().slice(0, 30) }))
+      .filter(t => t.h < 43.5));
+  check(smallTargets.length === 0,
+    `cibles < 44px : ${smallTargets.map(t => `${t.label} (${t.h.toFixed(0)}px)`).join(", ")}`);
+  // États réellement présents : sélectionné, erreur, désactivé.
+  const states = await page.evaluate(() => ({
+    chipSelected: !!document.querySelector('.nu-chip[aria-pressed="true"]'),
+    chipSelectedBorder: getComputedStyle(document.querySelector('.nu-chip[aria-pressed="true"]')).borderColor,
+    rowSelected: !!document.querySelector(".nu-card--selected"),
+    error: !!document.querySelector('.nu-field[aria-invalid="true"]'),
+    errorMsg: (document.getElementById("nuFieldErrorMsg") || {}).textContent || "",
+    disabledBtn: getComputedStyle(document.querySelector(".nu-button:disabled")).opacity,
+    disabledChip: !!document.querySelector(".nu-chip:disabled"),
+  }));
+  check(states.chipSelected && states.rowSelected, "états sélectionnés présents (chip + ligne)");
+  check(states.chipSelectedBorder === "rgb(124, 58, 237)",
+    `le chip sélectionné porte l'indicateur violet en bordure (obtenu ${states.chipSelectedBorder})`);
+  check(states.error && states.errorMsg.includes("chiffres"), "état d'erreur avec message textuel");
+  check(Number(states.disabledBtn) <= 0.45 && states.disabledChip,
+    "états désactivés identifiables (opacité réduite)");
+  await page.context().close();
+}
+
+// ---------- NU6 : focus clavier cyan ≥ 2 px ----------
+currentTest = "NU focus clavier";
+{
+  const page = await newPage(390);
+  await page.goto(NU_GALLERY_URL);
+  await page.waitForSelector("#nuFocusDemo");
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("Tab");
+  const outline = await page.evaluate(() => {
+    const cs = getComputedStyle(document.activeElement);
+    return { width: cs.outlineWidth, style: cs.outlineStyle, color: cs.outlineColor };
+  });
+  check(outline.style !== "none" && parseFloat(outline.width) >= 2,
+    `focus-visible ≥ 2px requis (obtenu ${outline.style} ${outline.width})`);
+  check(outline.color === "rgb(56, 189, 248)",
+    `anneau de focus CYAN attendu (obtenu ${outline.color})`);
+  await page.context().close();
+}
+
+// ---------- NU7 : transparence réduite réellement OPAQUE ----------
+currentTest = "NU transparence reduite";
+{
+  const page = await newPage(390);
+  await page.goto(NU_GALLERY_URL);
+  await page.waitForSelector("#nuToggleTransparency");
+  await page.click("#nuToggleTransparency");
+  const after = await page.evaluate(() => ({
+    card: getComputedStyle(document.querySelector(".nu-card:not(.nu-card--elevated)")).backgroundColor,
+    elevated: getComputedStyle(document.querySelector(".nu-card--elevated")).backgroundColor,
+    shadow: getComputedStyle(document.querySelector(".nu-card--elevated")).boxShadow,
+    blur: [...document.querySelectorAll(".nu-card, .nu-card--elevated")]
+      .map(el => getComputedStyle(el).backdropFilter)
+      .filter(v => v && v !== "none").length,
+  }));
+  // #151923 = rgb(21, 25, 35)
+  check(after.card === "rgb(21, 25, 35)", `carte mate → fallback opaque attendu (obtenu ${after.card})`);
+  check(after.elevated === "rgb(21, 25, 35)", `carte élevée → fallback opaque attendu (obtenu ${after.elevated})`);
+  check(after.shadow === "none", `l'ombre de profondeur doit disparaître (obtenu ${after.shadow})`);
+  check(after.blur === 0, "aucun blur résiduel en transparence réduite");
+  await page.context().close();
+}
+
+// ---------- NU8 : reduced motion ----------
+currentTest = "NU reduced motion";
+{
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
+  const page = await context.newPage();
+  page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[${currentTest}] ${msg.text()}`); });
+  page.on("pageerror", err => consoleErrors.push(`[${currentTest}] pageerror: ${err.message}`));
+  await page.goto(NU_GALLERY_URL);
+  await page.waitForSelector(".nu-button");
+  const anim = await page.$eval(".nu-button", el => getComputedStyle(el).transitionDuration);
+  check(anim === "0s" || parseFloat(anim) <= 0.011,
+    `reduced motion doit neutraliser les transitions (obtenu ${anim})`);
+  await context.close();
+}
+
+// ---------- NU9 : texte agrandi 200 % sans débordement ----------
+currentTest = "NU texte agrandi 320px";
+{
+  const page = await newPage(320);
+  await page.goto(NU_GALLERY_URL);
+  await page.waitForSelector("#nuToggleLargeText");
+  await page.click("#nuToggleLargeText");
+  const state = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    scale: getComputedStyle(document.documentElement).fontSize,
+  }));
+  check(state.scale === "32px", `texte agrandi à 200 % attendu (obtenu ${state.scale})`);
+  check(state.overflow <= 0, `débordement horizontal en texte agrandi : ${state.overflow}px`);
+  await page.context().close();
+}
+
 await browser.close();
 
 // ---------- Bilan ----------
@@ -258,9 +546,12 @@ if (consoleErrors.length) {
 }
 console.log("Contrastes mesurés :");
 for (const line of measured) console.log("  " + line);
+console.log("Contrastes Neon Ultra mesurés :");
+for (const line of nuMeasured) console.log("  " + line);
 if (failures.length) {
   console.error(`\n✗ ${failures.length} échec(s) design system :`);
   for (const f of failures) console.error("  - " + f);
   process.exit(1);
 }
 console.log("\n✓ Design system Obsidian : tokens, parité, contrastes, galerie 320/390, cibles 44px, focus, reduced motion/transparency — OK, zéro erreur console");
+console.log("✓ Fondations Neon Ultra (NU1) : tokens exacts, isolation de l'app, parité Swift, contrastes AA, galerie 320/390, focus cyan, états, texte 200 %, reduced motion/transparency — OK");

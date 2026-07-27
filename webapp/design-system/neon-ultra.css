@@ -1,0 +1,314 @@
+/* ============================================================
+   Budget — Neon Ultra · tokens et primitives (ADR-024, NU1)
+   ------------------------------------------------------------
+   FONDATION ISOLÉE : cette feuille n'est chargée QUE par
+   `neon-ultra-gallery.html`. `webapp/index.html` (Obsidian) ne
+   la référence pas — la PWA publique reste inchangée jusqu'au
+   rebranchement contrôlé (NU2). Préfixe systématique `--nu-` /
+   `.nu-` : aucune collision possible avec les variables Obsidian.
+   Les valeurs brutes vivent UNIQUEMENT dans le bloc :root ;
+   les primitives référencent les rôles.
+   Une seule identité sombre. Vert, corail et ambre STRICTEMENT
+   sémantiques. Cartes mates sans blur ; aucun glow sur un
+   montant ; aucun clignotement ni animation permanente.
+   ============================================================ */
+
+:root {
+  /* --- Fonds et surfaces (opaques — cartes mates) --- */
+  --nu-canvas: #05060A;            /* fond d'écran global */
+  --nu-navigation: #0B0D13;        /* barre d'onglets, barres système */
+  --nu-surface: #11141C;           /* carte standard (listes) — mate */
+  --nu-surface-elevated: #181C26;  /* carte élevée (héros, feuille) */
+  --nu-surface-fallback: #151923;  /* remplaçant opaque (Reduce Transparency) */
+  --nu-border: #293040;            /* séparations, contours */
+
+  /* --- Néons (≤ 10 % d'un écran, un seul point focal majeur) --- */
+  --nu-magenta: #D946EF;           /* accent principal de marque */
+  --nu-violet: #7C3AED;            /* accent actif — JAMAIS seul sur un petit libellé (3,41:1) */
+  --nu-cyan: #38BDF8;              /* info, sélection, focus */
+  --nu-cta-start: #C000A4;         /* départ du dégradé CTA */
+  --nu-cta-end: #6E00E8;           /* arrivée du dégradé CTA */
+
+  /* --- Textes (AA mesuré sur les cinq surfaces) --- */
+  --nu-text-primary: #F5F7FA;      /* montants et titres */
+  --nu-text-secondary: #A3ACBA;    /* explications */
+  --nu-text-tertiary: #7C8696;     /* métadonnées (corrigé AA 27.07.2026) */
+  --nu-text-on-cta: #FFFFFF;       /* texte du CTA : blanc pur (5,56 / 7,43 sur le dégradé) */
+
+  /* --- Sémantique financière (jamais décorative) --- */
+  --nu-positive: #35D39A;
+  --nu-negative: #FF6577;
+  --nu-warning: #F6C453;
+
+  /* --- Teintes translucides dérivées (badges/chips uniquement) --- */
+  --nu-tint-positive: rgba(53, 211, 154, 0.14);
+  --nu-tint-negative: rgba(255, 101, 119, 0.14);
+  --nu-tint-warning: rgba(246, 196, 83, 0.16);
+  --nu-tint-neutral: rgba(255, 255, 255, 0.07);
+  --nu-tint-violet: rgba(124, 58, 237, 0.16);
+
+  /* --- Dégradé CTA — réservé au CTA principal / sélection / marque --- */
+  --nu-gradient-cta: linear-gradient(135deg, var(--nu-cta-start) 0%, var(--nu-cta-end) 100%);
+
+  /* --- Géométrie (parité NeonUltraRadius) --- */
+  --nu-radius-hero: 26px;
+  --nu-radius-card: 18px;
+  --nu-radius-control: 14px;
+  --nu-screen-margin: 18px;
+  --nu-pad-hero: 24px;
+  --nu-pad-card: 18px;
+
+  /* --- Mouvement (parité NeonUltraMotion) : court, jamais permanent --- */
+  --nu-motion-press: 140ms;
+  --nu-motion-state: 240ms;
+}
+
+/* ------------------------------------------------------------
+   Transparence réduite : TOUTE surface bascule sur le remplaçant
+   opaque #151923 ; aucun blur, halo ou matériau résiduel.
+   Déclencheurs : réglage utilisateur + mécanisme déterministe
+   de test `html[data-nu-reduced-transparency="true"]`.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nu-surface: var(--nu-surface-fallback);
+    --nu-surface-elevated: var(--nu-surface-fallback);
+  }
+  .nu-card, .nu-card--elevated { box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+html[data-nu-reduced-transparency="true"] {
+  --nu-surface: var(--nu-surface-fallback);
+  --nu-surface-elevated: var(--nu-surface-fallback);
+}
+html[data-nu-reduced-transparency="true"] .nu-card,
+html[data-nu-reduced-transparency="true"] .nu-card--elevated {
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* ------------------------------------------------------------
+   Base
+   ------------------------------------------------------------ */
+html, body { margin: 0; padding: 0; }
+.nu-body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: var(--nu-text-primary);
+  background: var(--nu-canvas);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Texte agrandi — mécanisme déterministe, jusqu'à 200 %. */
+html[data-nu-large-text="true"] { font-size: 200%; }
+
+/* Focus clavier : anneau CYAN ≥ 2 px décalé (contraste non textuel
+   ≥ 3:1 sur toutes les surfaces sombres) — jamais la couleur seule. */
+.nu-body :focus-visible {
+  outline: 2px solid var(--nu-cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Mouvement réduit : aucune transition non essentielle. */
+@media (prefers-reduced-motion: reduce) {
+  .nu-body *, .nu-body *::before, .nu-body *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------
+   Cartes — mate (listes, AUCUN blur ni ombre) et élevée
+   (profondeur subtile par ombre noire, jamais un glow).
+   ------------------------------------------------------------ */
+.nu-card {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-card);
+  padding: var(--nu-pad-card);
+  box-sizing: border-box;
+}
+.nu-card--elevated {
+  background: var(--nu-surface-elevated);
+  border-radius: var(--nu-radius-hero);
+  padding: var(--nu-pad-hero);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+.nu-card--selected { border-color: var(--nu-violet); border-width: 1.5px; }
+.nu-card--row {
+  border-radius: var(--nu-radius-control);
+  padding: 12px 14px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nu-row-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------
+   Montants — chiffres tabulaires, une ligne, jamais tronqués,
+   AUCUN glow ni text-shadow. Taille FLUIDE à la largeur
+   (min(rem, vw)) : même à 200 % de texte, un montant extrême
+   reste ENTIER sans débordement — équivalent CSS du
+   `minimumScaleFactor` SwiftUI. Le corps de texte, lui, suit
+   pleinement le zoom.
+   ------------------------------------------------------------ */
+.nu-amount-hero {
+  font-size: min(2.5rem, 9.6vw);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  white-space: nowrap;
+  text-shadow: none;
+}
+.nu-amount-hero--long { font-size: min(1.9rem, 6.6vw); }
+.nu-amount {
+  font-size: min(1em, 5.4vw);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: none;
+}
+.nu-amount--positive { color: var(--nu-positive); }
+.nu-amount--negative { color: var(--nu-negative); }
+.nu-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nu-text-secondary);
+  margin: 0 0 6px;
+}
+.nu-caption { font-size: 0.72rem; color: var(--nu-text-tertiary); }
+
+/* ------------------------------------------------------------
+   Boutons — CTA gradient (SEUL usage du dégradé), secondaire,
+   destructif sémantique. Cible ≥ 44 px, pression 0,98.
+   ------------------------------------------------------------ */
+.nu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--nu-radius-control);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  color: var(--nu-text-on-cta);
+  background: var(--nu-gradient-cta);
+  transition: transform var(--nu-motion-press) ease, filter var(--nu-motion-press) ease;
+}
+.nu-button:active { transform: scale(0.98); filter: brightness(1.05); }
+.nu-button:disabled { opacity: 0.4; cursor: default; }
+.nu-button:disabled:active { transform: none; filter: none; }
+.nu-button--secondary {
+  background: var(--nu-surface-fallback);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+}
+.nu-button--destructive {
+  background: var(--nu-tint-negative);
+  border: 1px solid var(--nu-negative);
+  color: var(--nu-negative);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nu-button { transition: none; }
+  .nu-button:active { transform: none; filter: none; }
+}
+
+/* ------------------------------------------------------------
+   Chip — normal, sélectionné, désactivé. RÈGLE AA : la sélection
+   garde le texte en --nu-text-primary et se signale par
+   l'INDICATEUR violet (point + bordure), jamais un libellé
+   violet seul.
+   ------------------------------------------------------------ */
+.nu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid var(--nu-border);
+  background: var(--nu-surface);
+  color: var(--nu-text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nu-chip[aria-pressed="true"] {
+  background: var(--nu-tint-violet);
+  border: 1.5px solid var(--nu-violet);
+}
+.nu-chip[aria-pressed="true"]::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--nu-violet);
+  flex: none;
+}
+.nu-chip:disabled { opacity: 0.4; cursor: default; }
+
+/* ------------------------------------------------------------
+   Badge — TOUJOURS texte + symbole (point de forme), jamais la
+   couleur seule. Sémantique exclusive, jamais la marque.
+   ------------------------------------------------------------ */
+.nu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--nu-tint-neutral);
+  color: var(--nu-text-secondary);
+}
+.nu-badge::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+.nu-badge--positive { background: var(--nu-tint-positive); color: var(--nu-positive); }
+.nu-badge--negative { background: var(--nu-tint-negative); color: var(--nu-negative); }
+.nu-badge--warning { background: var(--nu-tint-warning); color: var(--nu-warning); }
+
+/* ------------------------------------------------------------
+   Champ — normal, focus (cyan), erreur (sémantique).
+   ------------------------------------------------------------ */
+.nu-field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--nu-text-secondary);
+  margin: 10px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.nu-field {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: var(--nu-navigation);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 11px 12px;
+  border-radius: 11px;
+}
+.nu-field:focus { outline: 2px solid var(--nu-cyan); outline-offset: 1px; }
+.nu-field[aria-invalid="true"] { border-color: var(--nu-negative); }
+.nu-field[aria-invalid="true"]:focus { outline-color: var(--nu-negative); }
+.nu-field-error { color: var(--nu-negative); font-size: 0.78rem; margin-top: 6px; }

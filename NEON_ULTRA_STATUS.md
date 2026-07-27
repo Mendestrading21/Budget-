@@ -6,9 +6,9 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 
 | Lot | Intitulé | État |
 |---|---|---|
-| NU0 | Gouvernance et baseline | **DONE** (validé par le propriétaire le 27.07.2026 ; clôture : image intégrée + contrat AA corrigé, CI verte exigée sur le commit de clôture) |
-| NU1 | Tokens et primitives | **READY** |
-| NU2 | Pilote PWA — Mois, Budget, Ajouter | À VENIR |
+| NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
+| NU1 | Tokens et primitives | **VERIFYING** (livré le 27.07.2026 — validation humaine des galeries attendue) |
+| NU2 | Pilote PWA — Mois, Budget, Ajouter | À VENIR (ne devient READY qu'après validation humaine des galeries NU1) |
 | NU3 | Pilote SwiftUI équivalent | À VENIR |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
 | NU5 | Factures, Objectifs et Récurrents | À VENIR |
@@ -16,6 +16,44 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU7 | Onboarding, confiance, réglages, identité | À VENIR |
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
+
+## NU1 — Tokens et primitives (27.07.2026) — VERIFYING
+
+Fondations Neon Ultra livrées en familles parallèles ISOLÉES (aucun écran
+réel modifié ; la PWA publique et les écrans SwiftUI restent Obsidian
+jusqu'à NU2/NU3) :
+
+- **iOS** : `NeonUltraColor/Gradient/Radius/Motion/Typography` (ajout pur en
+  fin de `DesignTokens.swift`), primitives `NeonUltraComponents.swift`
+  (cartes mate/élevée, CTA gradient, secondaire, destructif sémantique,
+  chip 3 états, badge ×4, montant sans glow via FinanceFormatting, focus
+  cyan, résolveur Reduce Transparency → `#151923`),
+  `NeonUltraComponentGallery.swift` (jamais reliée à la navigation ;
+  harness `UIHostingController`), `BudgetTests/NeonUltraDesignSystemTests.swift`
+  (17 nouveaux tests : RGBA exacts, contrastes AA mesurés, CTA blanc pur
+  5,56/7,43, identité unique, sémantique ≠ marque, géométrie/mouvement,
+  montant extrême, galerie 320/390/accessibility3/transparence réduite).
+- **PWA** : `webapp/design-system/neon-ultra.css` (variables `--nu-*`,
+  valeurs brutes uniquement dans `:root`) + `neon-ultra-gallery.html`
+  (seule page qui charge cette feuille). `webapp/index.html` : zéro octet
+  modifié ; le tableau BANNED historique interdit toujours les teintes
+  Neon Ultra dans l'app.
+- **Tests web additifs** (`design.test.mjs` §NU1–NU9) : tokens exacts,
+  isolation de l'app, parité Swift↔CSS (18 rôles + rayons + mouvement),
+  contrastes complets (15 paires texte/surface + CTA + sémantique + focus),
+  galerie 320/390, focus cyan ≥ 2 px, états sélectionné/erreur/désactivé,
+  texte agrandi 200 %, reduced motion, transparence réduite opaque sans blur.
+- **Preuves** : `docs/neon-ultra/foundations/nu1/README.md` + 6 captures
+  inspectées (390, 320, 320@200 %, transparence réduite, reduced motion,
+  gros plan des états). Captures simulateur iOS : impossibles depuis cet
+  environnement Linux — harness de test CI en attendant, PNG au plus tard
+  avec NU3 (limitation documentée).
+- **Inventaire d'identité** (manifest `#07090e`, theme-color `#090C12`,
+  icônes PWA, AccentColor `#4B5CFF`, AppIcon) : consigné, AUCUNE
+  modification — différé à NU7.
+
+Validation humaine attendue : galeries NU1 (PWA + iOS via CI). NU2 ne
+devient READY qu'après cet accord.
 
 ## NU0 — Clôture (27.07.2026) — DONE
 

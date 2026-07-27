@@ -254,3 +254,154 @@ enum BudgetFont {
         .system(.body, design: .default).weight(.semibold).monospacedDigit()
     }
 }
+
+// ============================================================
+// Budget — Neon Ultra · tokens canoniques (ADR-024, NU1)
+// ------------------------------------------------------------
+// FAMILLE PARALLÈLE ET ISOLÉE : aucun écran de l'application ne
+// référence encore ces rôles (le rebranchement est réservé aux
+// lots NU2/NU3). Les valeurs brutes vivent UNIQUEMENT ici ; les
+// primitives `NeonUltra*` référencent les rôles. Rien de ce qui
+// précède (BudgetColor/Tint/Theme/Spacing/Radius/Font, gradients
+// Obsidian) n'est modifié.
+// Vert, corail et ambre restent STRICTEMENT sémantiques.
+// ============================================================
+
+/// Rôles de couleur Neon Ultra (constitution Neon Ultra §1).
+/// Une seule identité sombre — aucune variation clair/sombre.
+enum NeonUltraColor {
+    // MARK: - Fonds et surfaces (opaques : cartes mates, jamais de blur)
+
+    /// `#05060A` — fond d'écran global.
+    static let canvas = rgb(5, 6, 10)
+    /// `#0B0D13` — barre d'onglets, barres système.
+    static let navigation = rgb(11, 13, 19)
+    /// `#11141C` — carte standard (liste, cellule) — mate.
+    static let surface = rgb(17, 20, 28)
+    /// `#181C26` — carte élevée (héros, feuille).
+    static let surfaceElevated = rgb(24, 28, 38)
+    /// `#151923` — remplaçant opaque de TOUTE surface translucide
+    /// quand la transparence est réduite.
+    static let surfaceFallback = rgb(21, 25, 35)
+    /// `#293040` — séparations et contours de cartes.
+    static let border = rgb(41, 48, 64)
+
+    // MARK: - Néons (≤ 10 % d'un écran, un seul point focal majeur)
+
+    /// `#D946EF` — accent principal de marque.
+    static let magenta = rgb(217, 70, 239)
+    /// `#7C3AED` — accent secondaire, états actifs. ≈ 3,41:1 sur la
+    /// navigation : ne porte JAMAIS seul un petit libellé actif — le
+    /// texte actif reste `textPrimary`, accompagné d'un indicateur
+    /// violet.
+    static let violet = rgb(124, 58, 237)
+    /// `#38BDF8` — information, sélection de graphique, focus.
+    static let cyan = rgb(56, 189, 248)
+    /// `#C000A4` — départ du dégradé CTA.
+    static let ctaStart = rgb(192, 0, 164)
+    /// `#6E00E8` — arrivée du dégradé CTA.
+    static let ctaEnd = rgb(110, 0, 232)
+
+    // MARK: - Textes (AA mesuré sur les cinq surfaces)
+
+    /// `#F5F7FA` — montants et titres.
+    static let textPrimary = rgb(245, 247, 250)
+    /// `#A3ACBA` — explications.
+    static let textSecondary = rgb(163, 172, 186)
+    /// `#7C8696` — métadonnées (corrigé AA le 27.07.2026 : ≥ 4,5:1
+    /// sur les cinq surfaces, mesuré).
+    static let textTertiary = rgb(124, 134, 150)
+    /// `#FFFFFF` — texte du CTA : blanc pur, 5,56:1 / 7,43:1 mesurés
+    /// sur les deux extrémités du dégradé.
+    static let textOnCta = rgb(255, 255, 255)
+
+    // MARK: - Sémantique financière (jamais décorative)
+
+    /// `#35D39A` — entrées, progrès sain.
+    static let positive = rgb(53, 211, 154)
+    /// `#FF6577` — sorties, dépassement, erreur.
+    static let negative = rgb(255, 101, 119)
+    /// `#F6C453` — à surveiller, échéance.
+    static let warning = rgb(246, 196, 83)
+
+    // MARK: - Teintes translucides dérivées (badges/chips uniquement —
+    // dérivées des rôles ci-dessus, jamais de nouvelle teinte)
+
+    static let tintPositive = positive.opacity(0.14)
+    static let tintNegative = negative.opacity(0.14)
+    static let tintWarning = warning.opacity(0.16)
+    static let tintNeutral = Color.white.opacity(0.07)
+    static let tintViolet = violet.opacity(0.16)
+
+    private static func rgb(_ r: Double, _ g: Double, _ b: Double, alpha: Double = 1) -> Color {
+        Color(red: r / 255, green: g / 255, blue: b / 255, opacity: alpha)
+    }
+}
+
+/// Dégradés Neon Ultra — réservés au CTA principal, à la sélection et
+/// aux courts moments de marque (constitution §2.3). Jamais sur les
+/// cartes de listes, jamais autour d'un montant.
+enum NeonUltraGradient {
+    /// CTA profond `135deg, #C000A4 → #6E00E8` (équivalent SwiftUI :
+    /// topLeading → bottomTrailing).
+    static let cta = LinearGradient(
+        colors: [NeonUltraColor.ctaStart, NeonUltraColor.ctaEnd],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+/// Rayons Neon Ultra (parité avec `--nu-radius-*` côté PWA).
+enum NeonUltraRadius {
+    /// Carte élevée / héros / feuille.
+    static let hero: CGFloat = 26
+    /// Carte standard mate.
+    static let card: CGFloat = 18
+    /// Contrôle, chip, bouton.
+    static let control: CGFloat = 14
+}
+
+/// Mouvement Neon Ultra : court, utile, jamais permanent.
+/// Reduce Motion neutralise toute transition non essentielle.
+enum NeonUltraMotion {
+    /// Pression / focus : 120–160 ms.
+    static let press: Double = 0.14
+    /// Ouverture / changement d'état : ≤ 280 ms.
+    static let state: Double = 0.24
+    /// Échelle maximale de pression.
+    static let pressScale: CGFloat = 0.98
+}
+
+/// Rôles typographiques Neon Ultra — police système, Dynamic Type,
+/// chiffres tabulaires sur tous les montants (aucun glow, jamais).
+enum NeonUltraTypography {
+    /// Montant héros — chiffres tabulaires, sans effet lumineux.
+    static var heroAmount: Font {
+        .system(.largeTitle, design: .rounded).weight(.semibold).monospacedDigit()
+    }
+
+    /// Titre d'écran ou de carte.
+    static var title: Font {
+        .system(.title3, design: .default).weight(.bold)
+    }
+
+    /// Corps de texte.
+    static var body: Font {
+        .system(.body, design: .default)
+    }
+
+    /// Libellé de carte / chip.
+    static var label: Font {
+        .system(.footnote, design: .default).weight(.semibold)
+    }
+
+    /// Métadonnée discrète.
+    static var meta: Font {
+        .system(.caption, design: .default)
+    }
+
+    /// Montant courant — chiffres tabulaires.
+    static var amount: Font {
+        .system(.body, design: .default).weight(.semibold).monospacedDigit()
+    }
+}
