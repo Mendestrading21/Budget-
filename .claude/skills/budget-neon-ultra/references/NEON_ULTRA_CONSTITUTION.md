@@ -34,7 +34,14 @@ de publication restent en vigueur.
 |---|---|
 | Principal | `#F5F7FA` |
 | Secondaire | `#A3ACBA` |
-| Discret | `#747E8E` |
+| Discret | `#7C8696` |
+
+Correction AA du 27.07.2026 (clôture NU0) : le texte discret initial
+`#747E8E` mesurait 4,49:1 sur surface standard, 4,15:1 sur surface élevée et
+4,28:1 sur le fallback opaque — sous le seuil AA de 4,5:1 pour du texte
+courant. La valeur canonique est `#7C8696`, mesurée : canvas 5,50:1 ·
+navigation 5,28:1 · surface standard 5,00:1 · surface élevée 4,63:1 ·
+fallback opaque 4,78:1.
 
 ### Sémantique financière (jamais décorative)
 
@@ -63,6 +70,12 @@ de publication restent en vigueur.
    casino/crypto.** Budget est une app de confiance, pas une machine à sous.
 8. **Animations courtes et utiles** (~150–250 ms), déclenchées par une action,
    jamais permanentes.
+9. **Violet et petits libellés** : `brandViolet #7C3AED` mesure environ
+   3,41:1 sur la navigation `#0B0D13`. Il peut servir pour des icônes
+   suffisamment grandes, des bordures et des indicateurs graphiques, mais
+   JAMAIS seul pour un petit libellé actif. Le texte actif reste
+   `textPrimary #F5F7FA`, accompagné d'un indicateur violet, sauf autre
+   paire réellement mesurée à ≥ 4,5:1.
 
 ## 3. Accessibilité (non négociable)
 

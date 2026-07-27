@@ -6,8 +6,8 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 
 | Lot | Intitulé | État |
 |---|---|---|
-| NU0 | Gouvernance et baseline | **VERIFYING** (validation propriétaire attendue) |
-| NU1 | Tokens et primitives | READY (après validation NU0 + image de référence) |
+| NU0 | Gouvernance et baseline | **DONE** (validé par le propriétaire le 27.07.2026 ; clôture : image intégrée + contrat AA corrigé, CI verte exigée sur le commit de clôture) |
+| NU1 | Tokens et primitives | **READY** |
 | NU2 | Pilote PWA — Mois, Budget, Ajouter | À VENIR |
 | NU3 | Pilote SwiftUI équivalent | À VENIR |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
@@ -17,7 +17,32 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## NU0 — Gouvernance et baseline (27.07.2026) — VERIFYING
+## NU0 — Clôture (27.07.2026) — DONE
+
+Validation propriétaire du contenu technique NU0 reçue, définitive après :
+
+- **Image de référence intégrée** :
+  `.claude/skills/budget-neon-ultra/assets/visual/neon-ultra-reference.jpeg`
+  — reçue, copiée sous nom stable, décodage vérifié (JPEG valide,
+  **736×1174 px**, 530 614 octets), réellement ouverte et inspectée.
+  Éléments retenus : fond noir, profondeur graphite, éclairages
+  magenta/violet/cyan, cartes superposées, énergie premium — aucun texte,
+  personnage, nom, logo ni écran exact ne sera copié.
+- **Correction AA du contrat** (mesures indépendantes reproduites) : texte
+  discret `#747E8E` → **`#7C8696`** (l'ancien mesurait 4,49:1 / 4,15:1 /
+  4,28:1 sur surface standard / élevée / fallback — sous AA ; le nouveau
+  mesure canvas 5,50:1 · navigation 5,28:1 · surface standard 5,00:1 ·
+  surface élevée 4,63:1 · fallback opaque 4,78:1). Constitution, résumé du
+  skill et ADR-024 alignés.
+- **Règle violet** ajoutée à la constitution : `#7C3AED` ≈ 3,41:1 sur la
+  navigation — icônes grandes, bordures et indicateurs seulement, jamais
+  seul pour un petit libellé actif (texte actif = `#F5F7FA` + indicateur
+  violet, sauf paire mesurée ≥ 4,5:1).
+- Aucun écran, token applicatif, rendu ni comportement modifiés ;
+  `git diff --check` vert ; CI complète verte attendue sur le commit de
+  clôture (rapportée en session).
+
+## NU0 — Gouvernance et baseline (27.07.2026) — historique de la passe initiale
 
 Livré (aucun écran, rendu, token ni logique modifiés) :
 
@@ -65,14 +90,14 @@ Livré (aucun écran, rendu, token ni logique modifiés) :
 
 ### En attente du propriétaire (HUMAN REQUIRED)
 
-1. **Validation NU0** (ce lot reste VERIFYING jusqu'à ta validation).
-2. **Image de référence Neon Ultra** — non jointe au prompt NU0 ; à envoyer
-   pour `assets/visual/neon-ultra-reference.jpeg` avant NU1.
-3. Décision produit navigation PWA/iOS (hors périmètre NU0–NU8).
-4. Héritage L9 inchangé : QA iPhone réel, haptique, Face ID, VoiceOver
-   physique, compte Apple/TestFlight — PENDING HUMAN.
+1. Décision produit navigation PWA/iOS (hors périmètre NU0–NU8) —
+   divergence documentée, décision séparée en attente.
+2. Héritage L9 inchangé : L9 Obsidian = VERIFYING (historique) ; QA iPhone
+   réel, haptique, Face ID, VoiceOver physique, compte Apple/TestFlight —
+   PENDING HUMAN.
 
 ### Prochaine action exacte
 
-Après validation du propriétaire : `/budget-neon-ultra execute NU1`
-(tokens et primitives — aucun écran rebranché sans preuve de contraste).
+`/budget-neon-ultra execute NU1` (tokens et primitives — alias d'abord,
+aucun écran rebranché sans preuve de contraste). Ne pas démarrer sans
+demande explicite du propriétaire.

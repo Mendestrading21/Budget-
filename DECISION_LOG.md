@@ -21,7 +21,12 @@ constitution Obsidian) interdisaient magenta/cyan et les néons.
    `#05060A`, navigation `#0B0D13`, surfaces `#11141C`/`#181C26`,
    fallback opaque `#151923`, bordure `#293040`, néons magenta
    `#D946EF` / violet `#7C3AED` / cyan `#38BDF8`, CTA en dégradé
-   `#C000A4 → #6E00E8`, textes `#F5F7FA`/`#A3ACBA`/`#747E8E`,
+   `#C000A4 → #6E00E8`, textes `#F5F7FA`/`#A3ACBA`/`#7C8696`
+   (texte discret : `#747E8E` initial corrigé le 27.07.2026 à la
+   clôture NU0 — mesures AA insuffisantes sur surfaces 4,49/4,15/4,28 ;
+   `#7C8696` mesure 5,50/5,28/5,00/4,63/4,78 sur canvas/navigation/
+   surface/élevée/fallback ; le violet seul ne porte jamais un petit
+   libellé actif, 3,41:1 sur navigation),
    sémantique `#35D39A`/`#FF6577`/`#F6C453`. Règles complètes :
    `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_CONSTITUTION.md`
    (75 % noir, ≤ 10 % néon, un seul point focal par viewport, gradient

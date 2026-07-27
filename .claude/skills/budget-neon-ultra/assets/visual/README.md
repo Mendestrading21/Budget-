@@ -1,9 +1,19 @@
 # Référence visuelle Neon Ultra
 
-Emplacement réservé à l'image d'inspiration du propriétaire :
+- `neon-ultra-reference.jpeg` — **reçue du propriétaire le 27.07.2026 et
+  réellement inspectée** (JPEG valide, 736×1174 px, 530 614 octets).
 
-- `neon-ultra-reference.jpeg` — **pas encore fournie** (voir
-  `../../references/REFERENCE_INDEX.md`, statut HUMAN REQUIRED).
+## Éléments artistiques retenus
 
-Dès réception, l'image est copiée ici sous ce nom stable, ouverte et
-inspectée réellement avant le premier lot visuel (NU1).
+- fond noir profond ;
+- profondeur graphite (cartes sombres posées sur plus sombre) ;
+- éclairages magenta / violet / cyan ;
+- cartes superposées à hiérarchie nette ;
+- énergie premium (CTA lumineux, reste de l'écran calme).
+
+## Limite stricte
+
+Inspiration de direction artistique uniquement : **aucun texte, personnage,
+nom, logo ni écran exact de la référence ne sera copié.** La palette
+canonique de `../../references/NEON_ULTRA_CONSTITUTION.md` prévaut sur les
+couleurs exactes de l'image.

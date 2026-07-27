@@ -116,8 +116,10 @@ La constitution détaillée prévaut ; résumé opérationnel :
   navigation `#0B0D13`, surfaces `#11141C` / `#181C26`, fallback opaque
   `#151923`, bordure `#293040` ; néons magenta `#D946EF`, violet `#7C3AED`,
   cyan `#38BDF8` ; CTA profond `#C000A4 → #6E00E8` ; textes `#F5F7FA` /
-  `#A3ACBA` / `#747E8E` ; sémantique : positif `#35D39A`, négatif `#FF6577`,
-  alerte `#F6C453`.
+  `#A3ACBA` / `#7C8696` (texte discret corrigé AA le 27.07.2026) ;
+  sémantique : positif `#35D39A`, négatif `#FF6577`, alerte `#F6C453`.
+  Le violet seul ne porte jamais un petit libellé actif (3,41:1 sur la
+  navigation) : texte actif en `#F5F7FA` + indicateur violet.
 - 75 % noir/graphite, 15 % neutres, 10 % maximum de néon.
 - Un seul point focal lumineux majeur par viewport.
 - Gradient réservé au CTA, à la sélection et aux moments de marque.

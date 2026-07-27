@@ -2,19 +2,14 @@
 
 ## Référence artistique principale
 
-| Fichier attendu | Statut |
+| Fichier | Statut |
 |---|---|
-| `../assets/visual/neon-ultra-reference.jpeg` | **À FOURNIR — HUMAN REQUIRED** |
+| `../assets/visual/neon-ultra-reference.jpeg` | **REÇUE et INSPECTÉE** (27.07.2026) — JPEG valide, 736×1174 px, 530 614 octets |
 
-Le prompt NU0 du propriétaire (27.07.2026) annonçait une image jointe
-d'inspiration ; aucune image n'était attachée au message reçu. La palette et
-les règles canoniques étant intégralement spécifiées en texte (voir
-`NEON_ULTRA_CONSTITUTION.md`), NU0 a été exécuté sans l'image.
-
-**Action propriétaire** : envoyer l'image de référence. Elle sera alors
-copiée telle quelle sous `assets/visual/neon-ultra-reference.jpeg` (nom
-stable), ouverte et inspectée réellement, et ce fichier sera mis à jour —
-avant le premier lot visuel (NU1).
+Éléments artistiques retenus (et rien d'autre) : fond noir, profondeur
+graphite, éclairages magenta/violet/cyan, cartes superposées, énergie
+premium. **Aucun texte, personnage, nom, logo ni écran exact de la référence
+ne sera copié.**
 
 ## Règles d'usage des références
 
