@@ -412,6 +412,14 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   text-shadow: none;
   color: var(--nu-text-primary);
 }
+/* Le plancher 320 px doit rester robuste avec les polices système les plus
+   larges, pas uniquement avec la police du runner CI. Les chiffres restent
+   tabulaires et entiers ; seule leur taille d'affichage s'adapte. */
+@media (max-width: 340px) {
+  #screen.nu-pilot-screen .hero-amount { font-size: 8.6vw; }
+  #screen.nu-pilot-screen .hero-amount.long { font-size: 5.2vw; }
+  #screen.nu-pilot-screen .stat .amount { font-size: min(15px, 4.7vw); }
+}
 #screen.nu-pilot-screen .pos,
 #screen.nu-pilot-screen .amount.pos { color: var(--nu-positive); }
 #screen.nu-pilot-screen .neg,
@@ -598,7 +606,14 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   border: none;
   color: var(--nu-text-on-cta);
 }
-.sheet.nu-pilot-sheet .f-more summary { color: var(--nu-text-secondary); font-size: 13px; }
+.sheet.nu-pilot-sheet .f-more summary {
+  color: var(--nu-text-secondary);
+  font-size: 13px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
 /* Pied collant : jamais caché par le clavier, même surface élevée. */
 .sheet.nu-pilot-sheet .actions.sticky {
   background: var(--nu-surface-elevated);

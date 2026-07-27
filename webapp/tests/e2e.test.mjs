@@ -2467,6 +2467,28 @@ await page.waitForTimeout(200);
   check(/rgba\(20, 25, 37|rgba\(27, 34, 48/.test(String(comptes73.cardBg)),
     `Comptes : cartes en verre Obsidian inchangées (obtenu ${comptes73.cardBg})`);
   check(comptes73.cta === 0, `Comptes : aucun CTA Neon Ultra (obtenu ${comptes73.cta})`);
+  const firstAccount73 = await page.$("#screen [data-accid]");
+  check(!!firstAccount73, "Comptes : un détail de compte est disponible pour vérifier l'isolation");
+  if (firstAccount73) {
+    await firstAccount73.click();
+    await page.waitForTimeout(200);
+    const detail73 = await page.evaluate(() => {
+      const polyline = document.querySelector("#screen .chart-select polyline");
+      const rule = document.querySelector("#screen [data-scrubrule]");
+      return {
+        piloted: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+        line: polyline ? getComputedStyle(polyline).stroke : "",
+        rule: rule ? getComputedStyle(rule).stroke : "",
+      };
+    });
+    check(!detail73.piloted, "Détail de compte : aucune classe pilote");
+    check(detail73.line === "rgb(145, 136, 255)",
+      `Détail de compte : courbe Indigo Obsidian (obtenu ${detail73.line})`);
+    check(detail73.rule === "rgb(167, 176, 192)",
+      `Détail de compte : règle gris Obsidian (obtenu ${detail73.rule})`);
+    await page.click("#screen [data-accback]");
+    await page.waitForTimeout(150);
+  }
 }
 // Plus (qui héberge Mouvements) : Obsidian également.
 await page.click('#tabbar button[aria-label="Plus"]');
@@ -2612,6 +2634,13 @@ await goHome();
       chips: chips.map(c => c.dataset.ftype),
       chipsSmall: chips.filter(c => c.getBoundingClientRect().height < 44).length,
       titleTag: (document.getElementById("fTitle").tagName || "").toLowerCase(),
+      smallTargets: [...form.querySelectorAll("button, input:not(.sr-select), select:not(.sr-select), textarea, summary")]
+        .filter(el => el.offsetParent !== null)
+        .map(el => ({
+          label: el.id || (el.textContent || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 24),
+          height: el.getBoundingClientRect().height,
+        }))
+        .filter(item => item.height < 43.5),
     };
   });
   check(form75.piloted, "le formulaire Nouveau mouvement est une feuille pilote Neon Ultra");
@@ -2627,6 +2656,8 @@ await goHome();
     `formulaire : chaque type reste une cible d'au moins 44 px (obtenu ${form75.chipsSmall} trop petites)`);
   check(form75.titleTag === "textarea",
     `formulaire : l'intitulé complet reste visible (multiligne, obtenu <${form75.titleTag}>)`);
+  check(form75.smallTargets.length === 0,
+    `formulaire : tous les contrôles font ≥ 44 px (${form75.smallTargets.map(t => `${t.label}: ${t.height.toFixed(0)}px`).join(", ")})`);
   // Enregistrement RÉEL : le montant saisi doit se retrouver au centime près.
   await page.click('#txForm [data-ftype="expense"]');
   await page.fill("#fAmount", "84.50");
@@ -2715,7 +2746,11 @@ currentTest = "NU2 accessibilité des surfaces pilotes";
     const screenEl = document.getElementById("screen");
     const overflow = screenEl.scrollWidth - screenEl.clientWidth;
     const clipped = [...screenEl.querySelectorAll(".hero-amount, .amount, .card-label, .pill")]
-      .filter(el => el.scrollWidth - el.clientWidth > 1).length;
+      .filter(el => el.scrollWidth - el.clientWidth > 1)
+      .map(el => ({
+        label: (el.textContent || el.className).trim().replace(/\s+/g, " ").slice(0, 40),
+        excess: Math.round(el.scrollWidth - el.clientWidth),
+      }));
     const small = [...screenEl.querySelectorAll("button, a[href], [role=button]")]
       .filter(el => el.getBoundingClientRect().height > 0
         && el.getBoundingClientRect().height < 44).length;
@@ -2725,8 +2760,8 @@ currentTest = "NU2 accessibilité des surfaces pilotes";
     `320 px : aucun débordement horizontal du contenu (obtenu ${etroit77.overflow} px)`);
   check(etroit77.bodyOverflow <= 1,
     `320 px : aucun débordement horizontal de la page (obtenu ${etroit77.bodyOverflow} px)`);
-  check(etroit77.clipped === 0,
-    `320 px : aucun montant ni libellé tronqué (obtenu ${etroit77.clipped})`);
+  check(etroit77.clipped.length === 0,
+    `320 px : aucun montant ni libellé tronqué (${etroit77.clipped.map(x => `${x.label}: +${x.excess}px`).join(", ")})`);
   check(etroit77.small === 0,
     `320 px : toutes les cibles tactiles font au moins 44 px (obtenu ${etroit77.small} trop petites)`);
   // Focus clavier : anneau cyan d'au moins 2 px, avec décalage.

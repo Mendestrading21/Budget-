@@ -2407,7 +2407,7 @@ function renderBudget() {
     ${monthNav()}
     <div class="card hero">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-        <div style="min-width:0;flex:1;flex-basis:200px">
+        <div style="min-width:0;flex:1;flex-basis:${Math.abs(remaining) >= 1000000 ? "100%" : "200px"}">
       <p class="card-label">Reste à dépenser (dépenses budgétées)</p>
       <p class="hero-amount fit-row${remaining < 0 ? " neg" : ""}${Math.abs(remaining) >= 1000000 ? " long" : ""}">${chf(remaining)}</p>
       <div style="margin:6px 0 4px">${planState}</div>
@@ -2493,7 +2493,7 @@ function chartScrubHTML(kind, opts) {
       data-pts="${esc(JSON.stringify(opts.pts))}" data-texts="${esc(JSON.stringify(opts.texts))}" data-caps="${esc(JSON.stringify(opts.caps))}">
       <svg viewBox="0 0 300 100" style="width:100%;height:${opts.height}px" aria-hidden="true">
         ${opts.body}
-        <line data-scrubrule x1="${sx}" y1="4" x2="${sx}" y2="96" stroke="var(--nu-text-tertiary)" stroke-width="1" opacity="0.6"${hidden}/>
+        <line data-scrubrule x1="${sx}" y1="4" x2="${sx}" y2="96" stroke="var(--coolgray)" stroke-width="1" opacity="0.6"${hidden}/>
         <circle data-scrubdot cx="${sx}" cy="${sy}" r="4.5" fill="var(--brand-bright)" stroke="var(--bg)" stroke-width="1.5"${hidden}/>
       </svg>
       <div class="scrub" role="slider" tabindex="0" aria-orientation="horizontal"
@@ -2542,7 +2542,7 @@ function renderAccountDetail(a) {
         caps: MONTHS12.map((mm, i) => `<strong>${MONTH_NAMES[mm.m - 1]} ${mm.y}</strong> : solde <strong>${money(series[i], a.currency || baseCurrency())}</strong>`),
         label: "Courbe du solde sur douze mois — glissez dessus ou utilisez les flèches pour lire un mois",
         hint: "Touchez la courbe ou glissez dessus pour lire le solde d'un mois précis.",
-        body: `<polyline points="${px}" fill="none" stroke="var(--nu-violet)" stroke-width="2.5" stroke-linecap="round"/>`,
+        body: `<polyline points="${px}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>`,
       })}
     </div>
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>

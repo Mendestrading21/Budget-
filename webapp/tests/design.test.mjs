@@ -179,6 +179,22 @@ check(!cssSrc.includes("--nu-"), "obsidian.css ne doit contenir AUCUNE variable 
 check(!indexSrc.includes("nu-body"), "le body de production ne porte jamais .nu-body");
 check(nuGallery.includes('href="neon-ultra.css"') && !nuGallery.includes("obsidian.css"),
   "la galerie Neon Ultra ne charge QUE neon-ultra.css");
+// Les références de rôles dans le markup de production sont elles aussi
+// isolées : seules les fonctions pilotes peuvent employer `var(--nu-*)`.
+// Un sélecteur CSS bien scopé ne compense pas une couleur NU injectée en
+// ligne dans Comptes, Plus, Mouvements ou une fonction graphique partagée.
+{
+  const homeStart = indexSrc.indexOf("function renderHome()");
+  const budgetStart = indexSrc.indexOf("function renderBudget()");
+  const pilotEnd = indexSrc.indexOf("function chartX(");
+  const outsidePilot = indexSrc.slice(0, homeStart)
+    + indexSrc.slice(pilotEnd);
+  const leakingInlineRoles = outsidePilot.match(/var\(--nu-[a-z-]+\)/g) || [];
+  check(homeStart >= 0 && budgetStart > homeStart && pilotEnd > budgetStart,
+    "les bornes des deux renderers pilotes doivent rester détectables");
+  check(leakingInlineRoles.length === 0,
+    `aucun rôle NU en ligne hors renderHome/renderBudget (fuite : ${[...new Set(leakingInlineRoles)].join(", ")})`);
+}
 // Portée STRICTE : hors :root et bascules d'accessibilité déterministes,
 // chaque règle est enracinée dans une classe NU.
 {
@@ -601,12 +617,30 @@ currentTest = "NU texte agrandi 320px";
   await page.goto(NU_GALLERY_URL);
   await page.waitForSelector("#nuToggleLargeText");
   await page.click("#nuToggleLargeText");
-  const state = await page.evaluate(() => ({
-    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    scale: getComputedStyle(document.documentElement).fontSize,
-  }));
+  const state = await page.evaluate(() => {
+    const viewportWidth = document.documentElement.clientWidth;
+    const offenders = [...document.body.querySelectorAll("*")]
+      .filter(el => el.offsetParent !== null)
+      .map(el => {
+        const rect = el.getBoundingClientRect();
+        return {
+          id: el.id || el.className || el.tagName,
+          right: Math.round(rect.right - viewportWidth),
+          width: Math.round(rect.width),
+        };
+      })
+      .filter(item => item.right > 1)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 5);
+    return {
+      overflow: document.documentElement.scrollWidth - viewportWidth,
+      scale: getComputedStyle(document.documentElement).fontSize,
+      offenders,
+    };
+  });
   check(state.scale === "32px", `texte agrandi à 200 % attendu (obtenu ${state.scale})`);
-  check(state.overflow <= 0, `débordement horizontal en texte agrandi : ${state.overflow}px`);
+  check(state.overflow <= 0,
+    `débordement horizontal en texte agrandi : ${state.overflow}px (${state.offenders.map(x => `${x.id}: +${x.right}px/${x.width}px`).join(", ")})`);
   // La valeur complète du champ reste VISIBLE à 320 px / 200 % :
   // aucune troncature interne du champ multiligne ni des contrôles.
   const clipped200 = await page.evaluate(() =>
@@ -838,6 +872,13 @@ void clippedIn;
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
       stickyBg: getComputedStyle(f.querySelector(".actions.sticky")).backgroundColor,
       titleTag: document.getElementById("fTitle").tagName,
+      smallTargets: [...f.querySelectorAll("button, input:not(.sr-select), select:not(.sr-select), textarea, summary")]
+        .filter(el => el.offsetParent !== null)
+        .map(el => ({
+          label: el.id || (el.textContent || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 24),
+          h: el.getBoundingClientRect().height,
+        }))
+        .filter(item => item.h < 43.5),
     };
   });
   check(form.pilot && form.bg === "rgb(24, 28, 38)", "le formulaire est une feuille pilote élevée");
@@ -848,6 +889,8 @@ void clippedIn;
     `« Enregistrer » est le SEUL CTA gradient de la feuille (obtenu ${form.gradientCount})`);
   check(form.stickyBg === "rgb(24, 28, 38)", "le pied collant reste sur la surface élevée");
   check(form.titleTag === "TEXTAREA", "l'intitulé est multiligne (aucune troncature à 200 %)");
+  check(form.smallTargets.length === 0,
+    `tous les contrôles du formulaire font ≥ 44 px (${form.smallTargets.map(t => `${t.label}: ${t.h.toFixed(0)}px`).join(", ")})`);
   // Erreur : message corail PRÈS du champ + aria-invalid + saisie conservée.
   await page.evaluate(() => { document.getElementById("fMore").open = true; });
   await page.fill("#fTitle", "Courses de la semaine au marché couvert");
@@ -893,6 +936,30 @@ void clippedIn;
     check(iso.bg === "rgba(0, 0, 0, 0)", `${label} garde le fond Obsidian (obtenu ${iso.bg})`);
     check(OBSIDIAN_SURFACES.includes(iso.card),
       `${label} garde ses cartes Obsidian translucides (obtenu ${iso.card})`);
+    if (label === "Comptes") {
+      const accountTrigger = await page.$("#screen [data-accid]");
+      check(!!accountTrigger, "Comptes expose au moins un détail de compte testable");
+      if (accountTrigger) {
+        await accountTrigger.click();
+        await page.waitForTimeout(200);
+        const chart = await page.evaluate(() => {
+          const polyline = document.querySelector("#screen .chart-select polyline");
+          const rule = document.querySelector("#screen [data-scrubrule]");
+          return {
+            pilot: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+            line: polyline ? getComputedStyle(polyline).stroke : "",
+            rule: rule ? getComputedStyle(rule).stroke : "",
+          };
+        });
+        check(!chart.pilot, "le détail de compte reste hors pilote");
+        check(chart.line === "rgb(145, 136, 255)",
+          `la courbe de compte garde l'Indigo Obsidian (obtenu ${chart.line})`);
+        check(chart.rule === "rgb(167, 176, 192)",
+          `la règle de lecture garde le gris Obsidian (obtenu ${chart.rule})`);
+        await page.click("#screen [data-accback]");
+        await page.waitForTimeout(150);
+      }
+    }
   }
   // Mouvements (dans Plus) : Obsidian également.
   await page.click('#screen [data-more="movements"]');

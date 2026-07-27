@@ -11,6 +11,12 @@ Ces captures sont générées par
 **entièrement fictif** (« Alex & Charlie ») et le jeu de démonstration de
 l'app. Aucune donnée réelle du propriétaire n'apparaît.
 
+Le passage de clôture technique a également vérifié l'isolation au niveau des
+styles calculés : la courbe et la règle de lecture du détail Compte conservent
+leurs rôles Obsidian, sans aucune référence `--nu-*`. La cible
+« Détails (facultatif) » du formulaire mesure au moins 44 px et les montants
+extrêmes restent entiers avec une police système plus large que celle de la CI.
+
 Régénération :
 
 ```
@@ -44,12 +50,12 @@ fichiers côte à côte pour juger l'avant/après.
 | --- | --- | --- |
 | `nu2-pwa-390-mois.png` | 390×844 | Écran Mois piloté : hiérarchie 75 % noir / 15 % gris / 10 % néon, un seul point focal lumineux, aucun halo autour des montants |
 | `nu2-pwa-320-mois.png` | 320×844 | Même écran au plancher supporté : rien ne déborde, rien n'est coupé |
-| `nu2-pwa-320-mois-extreme.png` | 320×844 | Montants fictifs à sept chiffres, positifs et négatifs : le héros passe en variante `long`, les quatre métriques restent lisibles |
+| `nu2-pwa-320-mois-extreme.png` | 320×844 | Montants fictifs à sept chiffres, positifs et négatifs : le héros passe en variante `long`, les quatre métriques restent entières et lisibles, y compris avec une police système large |
 | `nu2-pwa-390-budget.png` | 390×844 | Budget chargé : anneau accessible, état du plan écrit, jauges mates, planifié et réel nommés séparément |
 | `nu2-pwa-320-budget.png` | 320×844 | Budget à 320 px : en-têtes de ligne repliés, aucune collision |
 | `nu2-pwa-390-budget-vide.png` | 390×844 | État vide **pédagogique** : une promesse, une action unique en dégradé, puis les trois étapes de « Comment ça marche » |
 | `nu2-pwa-390-ajouter-menu.png` | feuille | Menu Ajouter : huit destinations intactes, toutes ≥ 44 px, aucune hiérarchie artificielle |
-| `nu2-pwa-390-mouvement.png` | feuille | Nouveau mouvement : montant dominant, intitulé long entièrement visible, focus cyan, CTA unique |
+| `nu2-pwa-390-mouvement.png` | feuille | Nouveau mouvement : montant dominant, intitulé long entièrement visible, focus cyan, CTA unique et contrôle repliable ≥ 44 px |
 | `nu2-pwa-390-erreur.png` | feuille | Erreur de saisie : message corail `#FF6577` **collé au champ fautif**, bordure d'erreur, champ focalisé, feuille conservée |
 | `nu2-pwa-320-mouvement-clavier.png` | 320×260 | Clavier logiciel simulé : le montant reste atteignable et « Enregistrer » reste visible grâce au pied collant |
 | `nu2-pwa-320-texte-200.png` | 320 @ ×2 | Texte agrandi 200 % (zoom de page fidèle + bascule `data-large-text`) : aucune fonction perdue, aucune troncature interne |

@@ -39,6 +39,10 @@ la feuille `#quickMenu` (Ajouter) et la feuille `#txForm`
   (`animateHeroAmount`, 200 ms, neutralisée sous mouvement réduit).
 - Tous les tokens Obsidian d'`index.html` sont vérifiés **inchangés** par
   test, et le tableau BANNED historique reste intact.
+- La vérification de clôture interdit désormais toute référence
+  `var(--nu-*)` injectée hors des deux renderers pilotes. Elle ouvre aussi le
+  détail Compte et mesure ses styles calculés : courbe Indigo et règle grise
+  restent strictement Obsidian, sans classe pilote.
 
 ### Ce qui change à l'écran
 
@@ -61,6 +65,11 @@ la feuille `#quickMenu` (Ajouter) et la feuille `#txForm`
 - **Correctif d'accessibilité découvert par le lot** : la zone cliquable
   d'une facture (`.meta[role="button"]`) tombait à 29 px de haut à 320 px.
   Elle est ramenée à 44 px minimum dans la portée pilote.
+- **Correctifs de clôture** : la cible repliable
+  « Détails (facultatif) » mesure elle aussi au moins 44 px ; à 320 px, les
+  montants héros, métriques et Budget s'adaptent aux polices système larges
+  sans perdre un chiffre. Un Budget à sept chiffres réorganise son héros
+  avant de réduire le montant.
 
 ### Preuves
 
@@ -70,7 +79,8 @@ la feuille `#quickMenu` (Ajouter) et la feuille `#txForm`
   centime, erreur de formulaire, accessibilité 320 px / focus / mouvement
   réduit, HTTP + service worker + hors-ligne) · 5 fixtures de parité ·
   design system Obsidian **et** fondations NU1 **et** surfaces pilotes NU2
-  verts · zéro erreur console.
+  verts · zéro erreur console. Le passage final mesure aussi tous les
+  contrôles visibles du formulaire et inspecte le détail Compte.
 - **HTTP, rechargement et hors-ligne** : serveur local réel, `sw.js` livré
   tel quel (aucune modification, nom de cache inchangé), page réellement
   **contrôlée** par le service worker, rechargement en ligne puis coupure
