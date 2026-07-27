@@ -159,13 +159,43 @@ for (const [name, value] of Object.entries(NU_CANONICAL)) {
 check(nuCss.includes("linear-gradient(135deg, var(--nu-cta-start) 0%, var(--nu-cta-end) 100%)"),
   "le dégradé CTA doit être exactement 135deg, cta-start 0% → cta-end 100%");
 
-// ---------- NU2 : ISOLATION — l'app publique ne connaît pas Neon Ultra ----------
+// ---------- NU2 : CHARGEMENT UNIQUE + isolation des valeurs ----------
+// (Remplace l'assertion NU1 « index.html ne connaît pas Neon Ultra » : la
+// feuille est désormais PARTAGÉE entre la galerie et les surfaces pilotes.)
 currentTest = "NU isolation";
-check(!indexSrc.includes("--nu-"), "index.html ne doit contenir AUCUNE variable --nu-");
-check(!indexSrc.includes("neon-ultra"), "index.html ne doit pas référencer neon-ultra.css");
+{
+  const links = indexSrc.match(/<link[^>]+href="design-system\/neon-ultra\.css"[^>]*>/g) || [];
+  check(links.length === 1,
+    `index.html doit charger neon-ultra.css EXACTEMENT une fois (obtenu ${links.length})`);
+}
+// Aucune VALEUR canonique Neon Ultra recopiée dans l'app : uniquement des rôles.
+for (const [name, value] of Object.entries(NU_CANONICAL)) {
+  check(!indexSrc.includes(value),
+    `index.html ne doit contenir AUCUNE valeur brute Neon Ultra (${name} = ${value})`);
+}
+check(!/--nu-[a-z-]+\s*:/.test(indexSrc),
+  "index.html ne doit DÉCLARER aucun token --nu- (les tokens vivent dans neon-ultra.css)");
 check(!cssSrc.includes("--nu-"), "obsidian.css ne doit contenir AUCUNE variable --nu-");
+check(!indexSrc.includes("nu-body"), "le body de production ne porte jamais .nu-body");
 check(nuGallery.includes('href="neon-ultra.css"') && !nuGallery.includes("obsidian.css"),
   "la galerie Neon Ultra ne charge QUE neon-ultra.css");
+// Portée STRICTE : hors :root et bascules d'accessibilité déterministes,
+// chaque règle est enracinée dans une classe NU.
+{
+  const rules = nuCss.replace(/\/\*[\s\S]*?\*\//g, "").split("}")
+    .map(r => r.split("{")[0].trim()).filter(Boolean)
+    .flatMap(r => r.split(",").map(s => s.trim()))
+    .filter(s => s && !s.startsWith("@") && s !== ":root" && s !== "from" && s !== "to");
+  const leaking = rules.filter(sel =>
+    !/\.nu-/.test(sel) && !/^html\[data-(nu-)?(reduced-transparency|large-text)/.test(sel));
+  check(leaking.length === 0,
+    `aucune règle Neon Ultra hors classe NU (fuite : ${leaking.slice(0, 4).join(" | ")})`);
+}
+// Les tokens Obsidian de l'app restent intacts (aucun n'est réécrit en NU).
+for (const [name, value] of Object.entries(CANONICAL)) {
+  const m = indexSrc.match(new RegExp(name.replace(/[-]/g, "\\-") + "\\s*:\\s*([^;]+);"));
+  check(m && m[1].trim() === value, `token Obsidian ${name} INCHANGÉ dans index.html`);
+}
 // Aucun hex brut hors du bloc :root dans les RÈGLES (les primitives
 // référencent les rôles ; les commentaires documentaires sont ignorés).
 {
@@ -599,6 +629,344 @@ currentTest = "NU texte agrandi 320px";
   await page.context().close();
 }
 
+// ---------- NU2 : surfaces PILOTES de l'application ----------
+// Scoping réel (Mois/Budget seulement), styles calculés Neon Ultra, CTA
+// unique, cartes mates, montants sans glow, cibles, focus, états réduits —
+// et ISOLATION prouvée sur les écrans restés Obsidian.
+currentTest = "NU2 surfaces pilotes";
+async function onboardApp(page) {
+  await page.goto(APP_URL);
+  await page.waitForSelector('[data-obcountry="CH"]');
+  await page.click('[data-obcountry="CH"]');
+  await page.click('[data-obhh="solo"]');
+  await page.fill("#obName", "Alex");
+  await page.click('#obForm1 button[type="submit"]');
+  await page.fill("#obSalary", "5200");
+  await page.click('#obForm2 button[type="submit"]');
+  await page.waitForSelector("#obOpening", { state: "visible" });
+  await page.fill("#obOpening", "3400");
+  await page.click('#obForm3 button[type="submit"]');
+  await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+  await page.click('[data-obgoal="urgence"]');
+  await page.waitForSelector("#tabbar button");
+  await page.waitForTimeout(6500);
+}
+const clippedIn = root => root.evaluate === undefined ? null : null; // (marqueur : helper page ci-dessous)
+async function internallyClipped(page, selector) {
+  return page.evaluate(sel => [...document.querySelectorAll(sel)]
+    .filter(el => el.offsetParent !== null)
+    .map(el => ({
+      id: el.id || (el.textContent || "?").trim().slice(0, 22),
+      w: el.scrollWidth - el.clientWidth, h: el.scrollHeight - el.clientHeight,
+    }))
+    .filter(c => c.w > 1 || c.h > 1), selector);
+}
+void clippedIn;
+{
+  const page = await newPage(390);
+  await onboardApp(page);
+  // Mois : classe pilote + styles calculés Neon Ultra.
+  const mois = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const hero = document.querySelector("#screen .card.hero");
+    const cta = document.querySelector("#screen [data-addtx]");
+    const stat = document.querySelector("#screen .stat");
+    const amt = document.querySelector("#screen .hero-amount");
+    const html = s.innerHTML;
+    return {
+      pilot: s.classList.contains("nu-pilot-screen"),
+      screenBg: getComputedStyle(s).backgroundColor,
+      heroBg: getComputedStyle(hero).backgroundColor,
+      heroBlur: getComputedStyle(hero).backdropFilter,
+      statBg: getComputedStyle(stat).backgroundColor,
+      ctaGradient: getComputedStyle(cta).backgroundImage,
+      ctaColor: getComputedStyle(cta).color,
+      amountShadow: getComputedStyle(amt).textShadow,
+      metrics: document.querySelectorAll("#screen .stat").length,
+      priorities: document.querySelectorAll("#screen .priority-card").length,
+      quick: document.querySelectorAll("#screen .quick-row .btn").length,
+      // Ordre du premier viewport : salutation → mois → héros → métriques → priorité.
+      order: [html.indexOf("Bonjour"), html.indexOf("Argent disponible"),
+              html.indexOf('class="stat-grid"'), html.indexOf('class="quick-row"')],
+      gradientCtas: [...document.querySelectorAll("#screen .btn")]
+        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
+      blurred: [...document.querySelectorAll("#screen .card")]
+        .filter(c => getComputedStyle(c).backdropFilter !== "none").length,
+      glowing: [...document.querySelectorAll("#screen .amount, #screen .hero-amount")]
+        .filter(a => getComputedStyle(a).textShadow !== "none").length,
+    };
+  });
+  check(mois.pilot, "Mois porte la classe nu-pilot-screen");
+  check(mois.screenBg === "rgb(5, 6, 10)", `canvas Neon Ultra attendu (obtenu ${mois.screenBg})`);
+  check(mois.heroBg === "rgb(24, 28, 38)", `héros sur surface élevée (obtenu ${mois.heroBg})`);
+  check(mois.heroBlur === "none", "aucun blur sur le héros pilote");
+  check(mois.statBg === "rgb(17, 20, 28)", `métriques sur surface mate (obtenu ${mois.statBg})`);
+  check(mois.ctaGradient.includes("gradient") && mois.ctaGradient.includes("192, 0, 164"),
+    "l'action « Ajouter un mouvement » porte le dégradé CTA canonique");
+  check(mois.ctaColor === "rgb(255, 255, 255)", "texte du CTA en blanc pur");
+  check(mois.amountShadow === "none" && mois.glowing === 0, "AUCUN glow autour d'un montant");
+  check(mois.metrics === 4, `exactement 4 métriques (obtenu ${mois.metrics})`);
+  check(mois.priorities <= 1, `au plus UNE priorité (obtenu ${mois.priorities})`);
+  check(mois.quick === 4, `4 actions rapides (obtenu ${mois.quick})`);
+  check(mois.order.every(i => i >= 0) && mois.order[0] < mois.order[1]
+    && mois.order[1] < mois.order[2] && mois.order[2] < mois.order[3],
+    `ordre du premier viewport : salutation → héros → métriques → actions (${mois.order})`);
+  check(mois.gradientCtas === 1, `UN SEUL CTA gradient sur Mois (obtenu ${mois.gradientCtas})`);
+  check(mois.blurred === 0, "aucune carte de liste floutée sur une surface pilote");
+  // Cibles ≥ 44 px et aucune troncature interne.
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.waitForTimeout(200);
+    const small = await page.evaluate(() =>
+      [...document.querySelectorAll("#screen .btn, #screen [role='button']")]
+        .filter(el => el.offsetParent !== null)
+        .filter(el => el.getBoundingClientRect().height < 43.5).length);
+    check(small === 0, `Mois ${width}px : toutes les cibles ≥ 44 px (obtenu ${small} trop petites)`);
+    const over = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    check(over <= 0, `Mois ${width}px : aucun débordement horizontal (${over}px)`);
+    const clipped = await internallyClipped(page, "#screen .btn, #screen .stat, #screen .card-label");
+    check(clipped.length === 0,
+      `Mois ${width}px : aucune troncature interne (${clipped.map(c => c.id).join(", ")})`);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  // Montant extrême (fictif) : sept chiffres, positif et négatif, ENTIERS.
+  await page.evaluate(() => {
+    transactions.push({ id: ++txSeq, y: cursor.y, m: cursor.m, d: 2, title: "Extrême NU2 +",
+      type: "income", cat: null, acc: ACCOUNTS[0].id, dest: null, status: "posted", amount: 9999999.99 });
+    saveState(); render();
+  });
+  await page.waitForTimeout(250);
+  const extreme = await page.evaluate(() => {
+    const el = document.querySelector("#screen .hero-amount");
+    return { text: el.textContent, clipped: el.scrollWidth > el.clientWidth + 1 };
+  });
+  check(/\d'\d{3}'\d{3}/.test(extreme.text) && !extreme.clipped,
+    `montant extrême entier et non tronqué (obtenu « ${extreme.text} »)`);
+
+  // Budget : héros, statut ÉCRIT, anneau accessible, lignes mates.
+  await page.click(`#tabbar button[aria-label="Budget"]`);
+  await page.waitForTimeout(300);
+  const budget = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const ring = document.querySelector('#screen svg[role="img"]');
+    return {
+      pilot: s.classList.contains("nu-pilot-screen"),
+      screenBg: getComputedStyle(s).backgroundColor,
+      // `innerText` reflète `text-transform` : comparaison insensible à la casse.
+      empty: /aucun budget/i.test(s.innerText),
+      explained: /comment ça marche/i.test(s.innerText) && /planifié/i.test(s.innerText),
+      ringLabel: ring ? ring.getAttribute("aria-label") || "" : "",
+      gradientCtas: [...document.querySelectorAll("#screen .btn")]
+        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  check(budget.pilot && budget.screenBg === "rgb(5, 6, 10)", "Budget est une surface pilote Neon Ultra");
+  check(budget.gradientCtas === 1,
+    `Budget vide : UNE action principale évidente en CTA gradient (obtenu ${budget.gradientCtas})`);
+  check(budget.empty && budget.explained,
+    "Budget vide : explication simple présente (aucun écran qui paraît cassé)");
+  check(budget.overflow <= 0, `Budget vide : aucun débordement horizontal (${budget.overflow}px)`);
+  // État CHARGÉ : une vraie ligne budgétaire est créée par le parcours réel.
+  await page.click("#screen [data-addline]");
+  await page.waitForSelector("#lineForm", { state: "visible" });
+  await page.fill("#lAmount", "650");
+  await page.click('#lineForm button[type="submit"]');
+  await page.waitForTimeout(350);
+  const loaded = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const ring = document.querySelector('#screen svg[role="img"]');
+    const line = document.querySelector("#screen .card .bar-row");
+    return {
+      states: ["Dans le plan", "À surveiller", "Dépassé"].filter(t => s.innerText.includes(t)),
+      ringLabel: ring ? ring.getAttribute("aria-label") || "" : "",
+      values: s.innerText.includes("réel") && s.innerText.includes("planifié"),
+      lineBg: line ? getComputedStyle(line.closest(".card")).backgroundColor : "",
+      fill: line ? getComputedStyle(line.querySelector(".fill")).backgroundImage : "",
+      gradientCtas: [...document.querySelectorAll("#screen .btn")]
+        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  check(loaded.states.length >= 1,
+    `Budget chargé : l'état du plan est ÉCRIT (obtenu ${loaded.states.join(",") || "aucun"})`);
+  check(loaded.ringLabel.includes("%") || loaded.ringLabel.toLowerCase().includes("budget"),
+    `l'anneau plan/réel porte une étiquette accessible (obtenu « ${loaded.ringLabel} »)`);
+  check(loaded.values, "les valeurs réel / planifié sont écrites en toutes lettres");
+  check(loaded.lineBg === "rgb(17, 20, 28)", `lignes de catégories MATES (obtenu ${loaded.lineBg})`);
+  check(loaded.fill === "none", `barres simples, sans gradient décoratif (obtenu ${loaded.fill})`);
+  check(loaded.gradientCtas <= 1, `Budget chargé : au plus un CTA gradient (obtenu ${loaded.gradientCtas})`);
+  check(loaded.overflow <= 0, `Budget chargé : aucun débordement horizontal (${loaded.overflow}px)`);
+
+  // Feuilles pilotes : menu Ajouter puis Nouveau mouvement.
+  await page.click(`#tabbar button[aria-label="Mois"]`);
+  await page.waitForTimeout(200);
+  await page.click("#fab");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  const menu = await page.evaluate(() => {
+    const m = document.getElementById("quickMenu");
+    return {
+      pilot: m.classList.contains("nu-pilot-sheet"),
+      bg: getComputedStyle(m).backgroundColor,
+      blur: getComputedStyle(m).backdropFilter,
+      destinations: m.querySelectorAll("[data-quick]").length,
+      gradient: [...m.querySelectorAll(".btn")]
+        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
+      small: [...m.querySelectorAll(".btn")].filter(b => b.getBoundingClientRect().height < 43.5).length,
+    };
+  });
+  check(menu.pilot && menu.bg === "rgb(24, 28, 38)", "le menu Ajouter est une feuille pilote élevée");
+  check(menu.blur === "none", "aucun blur sur la feuille pilote");
+  check(menu.destinations === 8, `les 8 destinations sont conservées (obtenu ${menu.destinations})`);
+  check(menu.gradient === 0, `aucune grille de CTA lumineux (obtenu ${menu.gradient})`);
+  check(menu.small === 0, "toutes les tuiles du menu ≥ 44 px");
+  await page.click('#quickMenu [data-quick="tx"]');
+  await page.waitForSelector("#txForm", { state: "visible" });
+  const form = await page.evaluate(() => {
+    const f = document.getElementById("txForm");
+    const chip = f.querySelector('[data-ftype="expense"]');
+    const submit = f.querySelector('button[type="submit"]');
+    return {
+      pilot: f.classList.contains("nu-pilot-sheet"),
+      bg: getComputedStyle(f).backgroundColor,
+      fieldBg: getComputedStyle(document.getElementById("fAmount")).backgroundColor,
+      chipPressed: chip.getAttribute("aria-pressed"),
+      chipBorder: getComputedStyle(chip).borderTopColor,
+      submitGradient: getComputedStyle(submit).backgroundImage.includes("gradient"),
+      gradientCount: [...f.querySelectorAll(".btn")]
+        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
+      stickyBg: getComputedStyle(f.querySelector(".actions.sticky")).backgroundColor,
+      titleTag: document.getElementById("fTitle").tagName,
+    };
+  });
+  check(form.pilot && form.bg === "rgb(24, 28, 38)", "le formulaire est une feuille pilote élevée");
+  check(form.fieldBg === "rgb(11, 13, 19)", `champs OPAQUES (obtenu ${form.fieldBg})`);
+  check(form.chipPressed === "true" && form.chipBorder === "rgb(124, 58, 237)",
+    "la chip sélectionnée porte le bord violet (texte principal conservé)");
+  check(form.submitGradient && form.gradientCount === 1,
+    `« Enregistrer » est le SEUL CTA gradient de la feuille (obtenu ${form.gradientCount})`);
+  check(form.stickyBg === "rgb(24, 28, 38)", "le pied collant reste sur la surface élevée");
+  check(form.titleTag === "TEXTAREA", "l'intitulé est multiligne (aucune troncature à 200 %)");
+  // Erreur : message corail PRÈS du champ + aria-invalid + saisie conservée.
+  await page.evaluate(() => { document.getElementById("fMore").open = true; });
+  await page.fill("#fTitle", "Courses de la semaine au marché couvert");
+  await page.fill("#fAmount", "");
+  await page.click('#txForm button[type="submit"]');
+  await page.waitForTimeout(250);
+  const errState = await page.evaluate(() => {
+    const err = document.getElementById("fError");
+    const amount = document.getElementById("fAmount");
+    return {
+      text: err.textContent, color: getComputedStyle(err).color,
+      nextToField: amount.nextElementSibling === err,
+      invalid: amount.getAttribute("aria-invalid"),
+      keptTitle: document.getElementById("fTitle").value,
+      saveVisible: document.querySelector('#txForm button[type="submit"]').getBoundingClientRect().height > 0,
+    };
+  });
+  check(errState.text.length > 0 && errState.color === "rgb(255, 101, 119)",
+    `message d'erreur CORAIL (obtenu ${errState.color})`);
+  check(errState.nextToField && errState.invalid === "true",
+    "erreur placée près du champ concerné, marqué aria-invalid");
+  check(errState.keptTitle === "Courses de la semaine au marché couvert",
+    "la saisie est CONSERVÉE après une erreur");
+  check(errState.saveVisible, "« Enregistrer » reste visible après l'erreur");
+  await page.click("#fCancel"); // fermeture sans garde-fou de saisie
+  await page.waitForTimeout(250);
+
+  // ISOLATION : les écrans restants gardent EXACTEMENT leur rendu Obsidian.
+  const OBSIDIAN_SURFACES = ["rgba(20, 25, 37, 0.72)", "rgba(27, 34, 48, 0.88)"];
+  for (const label of ["Comptes", "Plus"]) {
+    await page.click(`#tabbar button[aria-label="${label}"]`);
+    await page.waitForTimeout(250);
+    const iso = await page.evaluate(() => {
+      const s = document.getElementById("screen");
+      const card = document.querySelector("#screen .card");
+      return {
+        pilot: s.classList.contains("nu-pilot-screen"),
+        bg: getComputedStyle(s).backgroundColor,
+        card: card ? getComputedStyle(card).backgroundColor : "(aucune)",
+      };
+    });
+    check(!iso.pilot, `${label} ne porte AUCUNE classe pilote`);
+    check(iso.bg === "rgba(0, 0, 0, 0)", `${label} garde le fond Obsidian (obtenu ${iso.bg})`);
+    check(OBSIDIAN_SURFACES.includes(iso.card),
+      `${label} garde ses cartes Obsidian translucides (obtenu ${iso.card})`);
+  }
+  // Mouvements (dans Plus) : Obsidian également.
+  await page.click('#screen [data-more="movements"]');
+  await page.waitForTimeout(250);
+  const mov = await page.evaluate(() => ({
+    pilot: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+    tabs: document.querySelectorAll("#tabbar button[data-tab]").length,
+    fab: !!document.getElementById("fab"),
+  }));
+  check(!mov.pilot, "Mouvements (dans Plus) reste Obsidian");
+  check(mov.tabs === 4 && mov.fab, "barre à 4 onglets + ＋ central INCHANGÉE");
+  await page.context().close();
+}
+
+// ---------- NU2 : transparence réduite et mouvement réduit sur les pilotes ----------
+currentTest = "NU2 accessibilité";
+{
+  const page = await newPage(390);
+  await onboardApp(page);
+  await page.evaluate(() => { document.documentElement.dataset.reducedTransparency = "true"; });
+  await page.waitForTimeout(200);
+  const rt = await page.evaluate(() => {
+    const hero = document.querySelector("#screen .card.hero");
+    const card = document.querySelector("#screen .card:not(.hero)");
+    return {
+      hero: getComputedStyle(hero).backgroundColor,
+      card: card ? getComputedStyle(card).backgroundColor : "rgb(21, 25, 35)",
+      shadow: getComputedStyle(hero).boxShadow,
+      blur: getComputedStyle(hero).backdropFilter,
+    };
+  });
+  check(rt.hero === "rgb(21, 25, 35)", `transparence réduite : héros opaque #151923 (obtenu ${rt.hero})`);
+  check(rt.card === "rgb(21, 25, 35)", `transparence réduite : cartes opaques (obtenu ${rt.card})`);
+  check(rt.shadow === "none" && rt.blur === "none", "transparence réduite : ni ombre ni blur résiduels");
+  await page.context().close();
+}
+{
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+  const page = await context.newPage();
+  page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[${currentTest}] ${msg.text()}`); });
+  page.on("pageerror", err => consoleErrors.push(`[${currentTest}] pageerror: ${err.message}`));
+  await onboardApp(page);
+  const rm = await page.evaluate(() => {
+    const cta = document.querySelector("#screen [data-addtx]");
+    return { btn: getComputedStyle(cta).transitionDuration };
+  });
+  check(rm.btn === "0s" || parseFloat(rm.btn) <= 0.011,
+    `mouvement réduit : transitions neutralisées sur les pilotes (obtenu ${rm.btn})`);
+  await context.close();
+}
+
+// ---------- NU2 : texte agrandi — aucune perte de fonction ni troncature ----------
+currentTest = "NU2 texte agrandi";
+{
+  const context = await browser.newContext({ viewport: { width: 320, height: 844 }, deviceScaleFactor: 2 });
+  const page = await context.newPage();
+  page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[${currentTest}] ${msg.text()}`); });
+  page.on("pageerror", err => consoleErrors.push(`[${currentTest}] pageerror: ${err.message}`));
+  await onboardApp(page);
+  await page.evaluate(() => { document.documentElement.dataset.largeText = "true"; });
+  await page.waitForTimeout(250);
+  const big = await page.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    cta: !!document.querySelector("#screen [data-addtx]"),
+    amount: (document.querySelector("#screen .hero-amount") || {}).textContent || "",
+  }));
+  const clippedBig = await internallyClipped(page, "#screen .btn, #screen .stat, #screen .card-label, #screen .hero-amount");
+  check(big.overflow <= 0, `texte agrandi : aucun débordement horizontal (${big.overflow}px)`);
+  check(big.cta && /CHF/.test(big.amount), "texte agrandi : aucune perte de fonction (CTA et montant présents)");
+  check(clippedBig.length === 0,
+    `texte agrandi : aucune troncature interne (${clippedBig.map(c => c.id).join(", ")})`);
+  await context.close();
+}
+
 await browser.close();
 
 // ---------- Bilan ----------
@@ -616,3 +984,4 @@ if (failures.length) {
 }
 console.log("\n✓ Design system Obsidian : tokens, parité, contrastes, galerie 320/390, cibles 44px, focus, reduced motion/transparency — OK, zéro erreur console");
 console.log("✓ Fondations Neon Ultra (NU1) : tokens exacts, isolation de l'app, parité Swift, contrastes AA, galerie 320/390, focus cyan, états, texte 200 %, reduced motion/transparency — OK");
+console.log("✓ Surfaces pilotes Neon Ultra (NU2) : chargement unique, aucune valeur brute dans l'app, tokens Obsidian intacts, scoping Mois/Budget + txForm/quickMenu, CTA unique, cartes mates, montants sans glow, 44 px, focus cyan, états vide/erreur/extrême, texte agrandi, reduced motion/transparency, isolation des écrans Obsidian — OK");

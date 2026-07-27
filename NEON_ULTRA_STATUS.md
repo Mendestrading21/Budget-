@@ -7,9 +7,9 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | Lot | Intitulé | État |
 |---|---|---|
 | NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
-| NU1 | Tokens et primitives | **VERIFYING** (livré + écarts de vérification clos le 27.07.2026 — validation humaine des galeries attendue) |
-| NU2 | Pilote PWA — Mois, Budget, Ajouter | À VENIR (ne devient READY qu'après validation humaine des galeries NU1) |
-| NU3 | Pilote SwiftUI équivalent | À VENIR |
+| NU1 | Tokens et primitives | **DONE** (validation du propriétaire le 27.07.2026 sur `5796e3c`) |
+| NU2 | Pilote PWA — Mois, Budget, Ajouter | **VERIFYING** (livré le 27.07.2026 — inspection humaine attendue) |
+| NU3 | Pilote SwiftUI équivalent | À VENIR (non autorisé avant validation humaine de NU2) |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
 | NU5 | Factures, Objectifs et Récurrents | À VENIR |
 | NU6 | Patrimoine et graphiques | À VENIR |
@@ -17,7 +17,86 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## NU1 — Tokens et primitives (27.07.2026) — VERIFYING
+## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — VERIFYING
+
+Quatre surfaces — et quatre seulement — portent désormais l'identité Neon
+Ultra dans la PWA réelle : `renderHome()` (Mois), `renderBudget()` (Budget),
+la feuille `#quickMenu` (Ajouter) et la feuille `#txForm`
+(Nouveau mouvement). Le reste de l'app demeure Obsidian Glass.
+
+### Stratégie d'isolation (le cœur du lot)
+
+- `webapp/design-system/neon-ultra.css` est chargée **exactement une fois**
+  depuis `index.html`. Chaque règle de production est enracinée dans
+  `#screen.nu-pilot-screen` ou `.sheet.nu-pilot-sheet` — aucune ne peut
+  atteindre un écran non piloté.
+- `index.html` ne **déclare** aucun token `--nu-*` et ne contient **aucune**
+  valeur brute Neon Ultra : les vues pilotes ne référencent que des rôles
+  (`var(--nu-*)`). Le corps de production ne porte jamais `.nu-body`.
+- Les modifications JavaScript se limitent au périmètre autorisé : une
+  bascule de classe dans `render()` (Mois et Budget uniquement, hors
+  onboarding et hors verrouillage) et la durée du compteur héros
+  (`animateHeroAmount`, 200 ms, neutralisée sous mouvement réduit).
+- Tous les tokens Obsidian d'`index.html` sont vérifiés **inchangés** par
+  test, et le tableau BANNED historique reste intact.
+
+### Ce qui change à l'écran
+
+- **Mois** : canvas `#05060A`, cartes de liste **mates** `#11141C` sans flou,
+  héros seul en surface élevée `#181C26`, un **unique** point focal lumineux
+  (CTA `#C000A4 → #6E00E8`, texte blanc dédié), aucun halo autour d'un
+  montant, légendes remontées à 13 px.
+- **Budget** : anneau et jauges plats, couleurs strictement sémantiques,
+  état du plan toujours **écrit** (« Dans le plan » / « À surveiller » /
+  « Dépassé »), planifié et réel jamais mélangés. L'état vide devient
+  pédagogique : promesse, action unique, puis les trois étapes de
+  « Comment ça marche ».
+- **Ajouter** : feuille pilote opaque, huit destinations **strictement
+  égales** entre elles (aucun faux point focal), cibles ≥ 44 px.
+- **Nouveau mouvement** : le montant devient le champ dominant (20 px),
+  les sept types sont des pastilles ≥ 44 px, l'intitulé est multiligne et
+  reste entièrement lisible, le CTA « Enregistrer » est collant en pied,
+  et le message d'erreur s'affiche **contre le champ fautif** (corail
+  `#FF6577`, `aria-invalid`, focus déplacé).
+- **Correctif d'accessibilité découvert par le lot** : la zone cliquable
+  d'une facture (`.meta[role="button"]`) tombait à 29 px de haut à 320 px.
+  Elle est ramenée à 44 px minimum dans la portée pilote.
+
+### Preuves
+
+- **Tests web** : 78 parcours e2e (72 conservés sans affaiblissement +
+  **6 parcours NU2** : Mois piloté et isolation des écrans Obsidian, Budget
+  vide puis chargé, ＋ → Ajouter → mouvement réellement enregistré au
+  centime, erreur de formulaire, accessibilité 320 px / focus / mouvement
+  réduit, HTTP + service worker + hors-ligne) · 5 fixtures de parité ·
+  design system Obsidian **et** fondations NU1 **et** surfaces pilotes NU2
+  verts · zéro erreur console.
+- **HTTP, rechargement et hors-ligne** : serveur local réel, `sw.js` livré
+  tel quel (aucune modification, nom de cache inchangé), page réellement
+  **contrôlée** par le service worker, rechargement en ligne puis coupure
+  réseau et vrai rechargement — l'app s'ouvre entière, les données du foyer
+  survivent, `neon-ultra.css` est servie depuis le cache et parsée, le
+  canvas, le héros et le CTA gardent leurs valeurs mesurées.
+- **Captures** : `docs/neon-ultra/pilot/nu2/README.md` + **12 captures**
+  générées par outillage reproductible sur données fictives et toutes
+  réellement ouvertes (390, 320, montant extrême à sept chiffres, budget
+  vide, menu Ajouter, formulaire, erreur, clavier simulé, texte 200 %,
+  transparence réduite).
+- **Non-régression financière** : aucune formule, conversion, validation,
+  clé `localStorage`, structure de données ni destination de navigation
+  n'est touchée — seules des règles de présentation et la bascule de classe
+  changent.
+
+### Limite connue, non corrigée par NU2
+
+La PWA dimensionne ses textes en pixels (**P3-5**, ouverte depuis L9) : le
+grossissement disponible est le zoom de page. La capture 200 % le reproduit
+fidèlement plutôt que de simuler un mécanisme absent.
+
+Validation humaine attendue : inspection des quatre surfaces sur iPhone
+réel. **NU3 n'est pas autorisé avant cet accord.**
+
+## NU1 — Tokens et primitives (27.07.2026) — DONE
 
 Fondations Neon Ultra livrées en familles parallèles ISOLÉES (aucun écran
 réel modifié ; la PWA publique et les écrans SwiftUI restent Obsidian
@@ -55,8 +134,8 @@ jusqu'à NU2/NU3) :
   icônes PWA, AccentColor `#4B5CFF`, AppIcon) : consigné, AUCUNE
   modification — différé à NU7.
 
-Validation humaine attendue : galeries NU1 (PWA + iOS via CI). NU2 ne
-devient READY qu'après cet accord.
+Validation du propriétaire reçue le **27.07.2026** sur
+`5796e3c74bc44ae6a5f75c4e3e9f3eec526979ce` : NU1 est clos, NU2 autorisé.
 
 ## NU0 — Clôture (27.07.2026) — DONE
 
@@ -139,6 +218,7 @@ Livré (aucun écran, rendu, token ni logique modifiés) :
 
 ### Prochaine action exacte
 
-`/budget-neon-ultra execute NU1` (tokens et primitives — alias d'abord,
-aucun écran rebranché sans preuve de contraste). Ne pas démarrer sans
-demande explicite du propriétaire.
+`/budget-neon-ultra verify NU2` — inspecter les quatre surfaces pilotes sur
+iPhone réel, puis valider ou refuser. NU3 (pilote SwiftUI équivalent) reste
+**non autorisé** tant que cette validation n'est pas donnée. La divergence
+de navigation PWA/iOS demeure une décision produit séparée.

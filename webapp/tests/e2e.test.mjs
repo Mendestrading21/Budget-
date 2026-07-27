@@ -2339,8 +2339,17 @@ currentTest = "charset sans en-tête serveur L9";
   const { default: http72 } = await import("node:http");
   const { readFileSync: readFile72 } = await import("node:fs");
   const indexHtml72 = readFile72(path.resolve(HERE, "..", "index.html"));
+  // La feuille Neon Ultra est un VRAI fichier lié : l'hôte de ce test la sert
+  // donc réellement, elle aussi SANS charset dans l'en-tête. Un serveur qui
+  // renverrait index.html pour tout masquerait une erreur de type MIME.
+  const cssNu72 = readFile72(path.resolve(HERE, "..", "design-system", "neon-ultra.css"));
   const server72 = http72.createServer((req, res) => {
-    // Volontairement SANS charset dans l'en-tête.
+    // Volontairement SANS charset dans les en-têtes.
+    if (req.url && req.url.startsWith("/design-system/neon-ultra.css")) {
+      res.writeHead(200, { "Content-Type": "text/css" });
+      res.end(cssNu72);
+      return;
+    }
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(indexHtml72);
   });
@@ -2361,9 +2370,16 @@ currentTest = "charset sans en-tête serveur L9";
     countries: document.querySelectorAll("[data-obcountry]").length,
     charset: document.characterSet,
     privacy: document.body.innerText.includes("Vos données restent sur cet appareil."),
+    // La feuille Neon Ultra est-elle réellement PARSÉE (et non rejetée pour
+    // type MIME) ? Une feuille refusée expose zéro règle.
+    nuRules: [...document.styleSheets]
+      .filter(s => String(s.href || "").includes("neon-ultra.css"))
+      .reduce((a, s) => { try { return a + s.cssRules.length; } catch { return a; } }, 0),
   }));
   check(started72.countries === 3,
     `charset omis : l'app démarre réellement (3 pays attendus, obtenu ${started72.countries})`);
+  check(started72.nuRules > 0,
+    `charset omis : neon-ultra.css servie en text/css est réellement parsée (obtenu ${started72.nuRules} règles)`);
   check(String(started72.charset).toLowerCase() === "utf-8",
     `charset omis : document décodé en UTF-8 (obtenu ${started72.charset})`);
   check(started72.privacy,
@@ -2372,6 +2388,526 @@ currentTest = "charset sans en-tête serveur L9";
     `charset omis : zéro pageerror / erreur console (obtenu : ${errors72.slice(0, 2).join(" | ") || "aucune"})`);
   await browser72.close();
   server72.close();
+}
+
+// ---------- Test 73 : NU2 — Mois pilote ET isolation des écrans Obsidian ----------
+currentTest = "NU2 Mois pilote et isolation";
+// Le pilote Neon Ultra ne vaut que s'il ne DÉBORDE pas : Mois et Budget
+// changent d'identité, Comptes et Plus restent Obsidian à l'octet près.
+await goHome();
+{
+  const mois73 = await page.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const hero = screenEl.querySelector(".card.hero");
+    const amount = screenEl.querySelector(".hero-amount");
+    const cta = screenEl.querySelector(".btn.nu-cta");
+    const cs = getComputedStyle(screenEl);
+    return {
+      piloted: screenEl.classList.contains("nu-pilot-screen"),
+      canvas: cs.backgroundColor,
+      heroBg: hero ? getComputedStyle(hero).backgroundColor : null,
+      heroBlur: hero ? getComputedStyle(hero).backdropFilter : null,
+      amountShadow: amount ? getComputedStyle(amount).textShadow : null,
+      amountText: amount ? amount.textContent.trim() : "",
+      ctaText: cta ? cta.textContent.trim() : "",
+      ctaBg: cta ? getComputedStyle(cta).backgroundImage : "",
+      ctaColor: cta ? getComputedStyle(cta).color : "",
+      // Point focal UNIQUE : un seul dégradé CTA dans tout l'écran.
+      ctaCount: screenEl.querySelectorAll(".btn.nu-cta").length,
+      title: (screenEl.querySelector("h2.screen-title") || {}).textContent || "",
+      // Aucun montant ne porte de halo (règle de la constitution).
+      glowing: [...screenEl.querySelectorAll(".hero-amount, .amount")]
+        .filter(el => getComputedStyle(el).textShadow !== "none").length,
+    };
+  });
+  check(mois73.piloted, "Mois porte la classe pilote Neon Ultra");
+  check(mois73.canvas === "rgb(5, 6, 10)",
+    `Mois : fond canvas Neon Ultra #05060A (obtenu ${mois73.canvas})`);
+  check(mois73.heroBg === "rgb(24, 28, 38)",
+    `Mois : héros en surface élevée MATE #181C26 (obtenu ${mois73.heroBg})`);
+  check(mois73.heroBlur === "none",
+    `Mois : plus aucun flou de verre sur le héros (obtenu ${mois73.heroBlur})`);
+  check(mois73.glowing === 0,
+    `Mois : AUCUN montant n'est entouré d'un halo (obtenu ${mois73.glowing} en halo)`);
+  check(/\d/.test(mois73.amountText),
+    `Mois : le montant héros reste un vrai chiffre lisible (obtenu « ${mois73.amountText} »)`);
+  check(mois73.ctaCount === 1,
+    `Mois : un SEUL point focal lumineux par écran (obtenu ${mois73.ctaCount} CTA)`);
+  check(mois73.ctaText.includes("Ajouter un mouvement"),
+    `Mois : le CTA reste l'action utile « Ajouter un mouvement » (obtenu « ${mois73.ctaText} »)`);
+  check(mois73.ctaBg.includes("192, 0, 164") && mois73.ctaBg.includes("110, 0, 232"),
+    `Mois : CTA en dégradé #C000A4 → #6E00E8 (obtenu ${mois73.ctaBg})`);
+  check(mois73.ctaColor === "rgb(255, 255, 255)",
+    `Mois : texte du CTA en blanc dédié (obtenu ${mois73.ctaColor})`);
+  check(/Bonjour|Bonsoir|Salut|Bonne/i.test(mois73.title),
+    `Mois : la salutation reste le titre de page (obtenu « ${mois73.title.trim()} »)`);
+}
+// Budget : piloté lui aussi.
+await page.click('#tabbar button[aria-label="Budget"]');
+await page.waitForTimeout(200);
+const budgetPiloted73 = await page.$eval("#screen", el => el.classList.contains("nu-pilot-screen"));
+check(budgetPiloted73, "Budget porte la classe pilote Neon Ultra");
+// Comptes : AUCUN pilote, verre Obsidian intact.
+await page.click('#tabbar button[aria-label="Comptes"]');
+await page.waitForTimeout(200);
+{
+  const comptes73 = await page.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const card = screenEl.querySelector(".card");
+    return {
+      piloted: screenEl.classList.contains("nu-pilot-screen"),
+      canvas: getComputedStyle(screenEl).backgroundColor,
+      cardBg: card ? getComputedStyle(card).backgroundColor : null,
+      cta: screenEl.querySelectorAll(".btn.nu-cta").length,
+    };
+  });
+  check(!comptes73.piloted, "Comptes n'est PAS piloté (identité Obsidian préservée)");
+  check(comptes73.canvas === "rgba(0, 0, 0, 0)",
+    `Comptes : le canvas pilote ne déborde pas (obtenu ${comptes73.canvas})`);
+  check(/rgba\(20, 25, 37|rgba\(27, 34, 48/.test(String(comptes73.cardBg)),
+    `Comptes : cartes en verre Obsidian inchangées (obtenu ${comptes73.cardBg})`);
+  check(comptes73.cta === 0, `Comptes : aucun CTA Neon Ultra (obtenu ${comptes73.cta})`);
+}
+// Plus (qui héberge Mouvements) : Obsidian également.
+await page.click('#tabbar button[aria-label="Plus"]');
+await page.waitForTimeout(200);
+const plusPiloted73 = await page.$eval("#screen", el => el.classList.contains("nu-pilot-screen"));
+check(!plusPiloted73, "Plus n'est PAS piloté (identité Obsidian préservée)");
+await goMovements();
+const mvtPiloted73 = await page.$eval("#screen", el => el.classList.contains("nu-pilot-screen"));
+check(!mvtPiloted73, "Mouvements (dans Plus) n'est PAS piloté");
+// La barre d'onglets et le ＋ appartiennent au shell (NU4) : intacts.
+const shell73 = await page.evaluate(() => ({
+  tabs: [...document.querySelectorAll("#tabbar [data-tab]")].map(b => b.dataset.tab),
+  fab: !!document.querySelector("#tabbar #fab"),
+  barBg: getComputedStyle(document.getElementById("tabbar")).backgroundColor,
+}));
+check(shell73.tabs.join(",") === "home,budget,accounts,more",
+  `les quatre onglets PWA sont inchangés (obtenu ${shell73.tabs.join(",")})`);
+check(shell73.fab, "le ＋ reste membre centré de la barre d'onglets");
+check(shell73.barBg !== "rgb(11, 13, 19)",
+  `la barre d'onglets reste Obsidian (le shell appartient à NU4, obtenu ${shell73.barBg})`);
+
+// ---------- Test 74 : NU2 — Budget vide pédagogique puis budget chargé ----------
+currentTest = "NU2 Budget vide et chargé";
+await goHome();
+await page.click('#tabbar button[aria-label="Budget"]');
+await page.waitForTimeout(250);
+{
+  // On repart d'un mois SANS ligne budgétaire : l'état vide doit expliquer.
+  await page.evaluate(() => {
+    cursor = shiftMonth({ y: NOW.y, m: NOW.m }, 6); // mois futur, jamais budgété
+    render();
+  });
+  await page.waitForTimeout(200);
+  const vide74 = await page.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const text = screenEl.innerText;
+    return {
+      lines: screenEl.querySelectorAll("[data-linecat]").length,
+      explains: /comment ça marche/i.test(text),
+      steps: (text.match(/\n\s*[123]\./g) || []).length,
+      planifie: /planifié/i.test(text),
+      ctaCount: screenEl.querySelectorAll(".btn.nu-cta").length,
+      ctaText: (screenEl.querySelector(".btn.nu-cta") || {}).textContent || "",
+      addline: !!screenEl.querySelector("[data-addline]"),
+    };
+  });
+  check(vide74.lines === 0, `Budget vide : réellement aucune ligne (obtenu ${vide74.lines})`);
+  check(vide74.explains, "Budget vide : la carte « Comment ça marche » explique la suite");
+  check(vide74.steps >= 3, `Budget vide : les trois étapes sont écrites (obtenu ${vide74.steps})`);
+  check(vide74.planifie, "Budget vide : le mot « planifié » est présent (vocabulaire du contrat)");
+  check(vide74.ctaCount === 1,
+    `Budget vide : un seul point focal lumineux (obtenu ${vide74.ctaCount})`);
+  check(vide74.addline, "Budget vide : l'action « Ajouter une ligne budgétaire » est offerte");
+  // Création réelle d'une ligne : la feuille lineForm reste OBSIDIAN (hors périmètre NU2).
+  await page.click("#screen [data-addline]");
+  await page.waitForSelector("#lineForm", { state: "visible" });
+  const linePiloted74 = await page.$eval("#lineForm", el => el.classList.contains("nu-pilot-sheet"));
+  check(!linePiloted74, "la feuille « ligne budgétaire » n'est PAS pilotée (hors périmètre NU2)");
+  await page.$eval("#lCat", el => { el.selectedIndex = 0; });
+  await page.fill("#lAmount", "400");
+  await page.click('#lineForm button[type="submit"]');
+  await page.waitForTimeout(350);
+  const charge74 = await page.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const hero = screenEl.querySelector(".card.hero");
+    const pill = screenEl.querySelector(".pill");
+    const ring = screenEl.querySelector('svg[aria-label^="Budget consommé"]');
+    const track = screenEl.querySelector(".track") || screenEl.querySelector(".bar");
+    return {
+      lines: screenEl.querySelectorAll("[data-linecat]").length,
+      heroBg: hero ? getComputedStyle(hero).backgroundColor : null,
+      planState: pill ? pill.textContent.trim() : "",
+      ringLabel: ring ? ring.getAttribute("aria-label") : "",
+      text: screenEl.innerText,
+      trackShadow: track ? getComputedStyle(track).boxShadow : "none",
+    };
+  });
+  check(charge74.lines === 1,
+    `Budget chargé : la ligne créée est bien affichée (obtenu ${charge74.lines})`);
+  check(/Dans le plan|À surveiller|Dépassé/.test(charge74.planState),
+    `Budget chargé : l'état du plan est ÉCRIT, jamais la couleur seule (obtenu « ${charge74.planState} »)`);
+  check(/Budget consommé/.test(charge74.ringLabel),
+    `Budget chargé : l'anneau reste annoncé aux lecteurs d'écran (obtenu « ${charge74.ringLabel} »)`);
+  check(/planifié/i.test(charge74.text) && /réel/i.test(charge74.text),
+    "Budget chargé : planifié et réel restent nommés séparément");
+  check(charge74.text.includes("400.00") || /400/.test(charge74.text),
+    "Budget chargé : le montant planifié saisi (400) est restitué exactement");
+  check(charge74.heroBg === "rgb(24, 28, 38)",
+    `Budget chargé : héros en surface élevée mate (obtenu ${charge74.heroBg})`);
+  check(charge74.trackShadow === "none",
+    `Budget chargé : jauges plates, aucune lueur (obtenu ${charge74.trackShadow})`);
+  // Nettoyage : la ligne de test disparaît, l'app revient au mois courant.
+  await page.evaluate(() => {
+    if (S.budgets) delete S.budgets[`${cursor.y}-${cursor.m}`];
+    saveState();
+    cursor = { y: NOW.y, m: NOW.m };
+    render();
+  });
+  await page.waitForTimeout(200);
+  const cleaned74 = await page.evaluate(() => budgetLines(shiftMonth(cursor, 6).y, shiftMonth(cursor, 6).m).length);
+  check(cleaned74 === 0, `Budget : la ligne de test est retirée (obtenu ${cleaned74})`);
+}
+
+// ---------- Test 75 : NU2 — ＋ → Ajouter → Nouveau mouvement RÉELLEMENT enregistré ----------
+currentTest = "NU2 ajouter un mouvement";
+await goHome();
+{
+  const before75 = await page.evaluate(() => transactions.length);
+  await page.click("#fab");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  const menu75 = await page.evaluate(() => {
+    const menu = document.getElementById("quickMenu");
+    return {
+      piloted: menu.classList.contains("nu-pilot-sheet"),
+      dests: [...menu.querySelectorAll("[data-quick]")].map(b => b.dataset.quick),
+      small: [...menu.querySelectorAll("[data-quick]")]
+        .filter(b => b.getBoundingClientRect().height < 44).length,
+      surface: getComputedStyle(menu).backgroundColor,
+      cta: menu.querySelectorAll(".btn.nu-cta").length,
+    };
+  });
+  check(menu75.piloted, "le menu Ajouter est une feuille pilote Neon Ultra");
+  check(menu75.dests.join(",") === "tx,bill,acc,goal,rec,item,ins,pen",
+    `les huit destinations du menu rapide sont intactes (obtenu ${menu75.dests.join(",")})`);
+  check(menu75.small === 0,
+    `menu Ajouter : toutes les cibles font au moins 44 px (obtenu ${menu75.small} trop petites)`);
+  check(menu75.cta === 0,
+    `menu Ajouter : aucun faux point focal, les huit choix restent égaux (obtenu ${menu75.cta})`);
+  await page.click('#quickMenu [data-quick="tx"]');
+  await page.waitForSelector("#txForm", { state: "visible" });
+  const form75 = await page.evaluate(() => {
+    const form = document.getElementById("txForm");
+    const amount = document.getElementById("fAmount");
+    const submit = form.querySelector('button[type="submit"]');
+    const chips = [...form.querySelectorAll("[data-ftype]")];
+    return {
+      piloted: form.classList.contains("nu-pilot-sheet"),
+      amountSize: parseFloat(getComputedStyle(amount).fontSize),
+      submitText: submit.textContent.trim(),
+      submitBg: getComputedStyle(submit).backgroundImage,
+      submitColor: getComputedStyle(submit).color,
+      ctaCount: form.querySelectorAll(".btn.nu-cta").length,
+      chips: chips.map(c => c.dataset.ftype),
+      chipsSmall: chips.filter(c => c.getBoundingClientRect().height < 44).length,
+      titleTag: (document.getElementById("fTitle").tagName || "").toLowerCase(),
+    };
+  });
+  check(form75.piloted, "le formulaire Nouveau mouvement est une feuille pilote Neon Ultra");
+  check(form75.amountSize >= 20,
+    `formulaire : le montant est le champ dominant (obtenu ${form75.amountSize} px)`);
+  check(form75.ctaCount === 1 && form75.submitText === "Enregistrer",
+    `formulaire : un unique CTA « Enregistrer » (obtenu ${form75.ctaCount} × « ${form75.submitText} »)`);
+  check(form75.submitBg.includes("192, 0, 164") && form75.submitColor === "rgb(255, 255, 255)",
+    `formulaire : CTA en dégradé de marque, texte blanc (obtenu ${form75.submitColor})`);
+  check(form75.chips.join(",") === "expense,income,saving,investment,transfer,taxPayment,refund",
+    `formulaire : les sept types de mouvement sont intacts (obtenu ${form75.chips.join(",")})`);
+  check(form75.chipsSmall === 0,
+    `formulaire : chaque type reste une cible d'au moins 44 px (obtenu ${form75.chipsSmall} trop petites)`);
+  check(form75.titleTag === "textarea",
+    `formulaire : l'intitulé complet reste visible (multiligne, obtenu <${form75.titleTag}>)`);
+  // Enregistrement RÉEL : le montant saisi doit se retrouver au centime près.
+  await page.click('#txForm [data-ftype="expense"]');
+  await page.fill("#fAmount", "84.50");
+  await page.evaluate(() => { document.getElementById("fMore").open = true; });
+  await page.fill("#fTitle", "Courses NU2");
+  await page.click('#txForm button[type="submit"]');
+  await page.waitForTimeout(400);
+  const saved75 = await page.evaluate(prev => ({
+    closed: !document.getElementById("sheetBackdrop").classList.contains("open"),
+    added: transactions.length - prev,
+    amount: (transactions.find(t => t.title === "Courses NU2") || {}).amount,
+    type: (transactions.find(t => t.title === "Courses NU2") || {}).type,
+  }), before75);
+  check(saved75.closed, "formulaire : la feuille se ferme après un enregistrement réussi");
+  check(saved75.added === 1, `formulaire : exactement un mouvement créé (obtenu ${saved75.added})`);
+  check(saved75.amount === 84.5,
+    `formulaire : montant enregistré au centime près (attendu 84.5, obtenu ${saved75.amount})`);
+  check(saved75.type === "expense",
+    `formulaire : type conservé (attendu expense, obtenu ${saved75.type})`);
+}
+
+// ---------- Test 76 : NU2 — erreur de formulaire lisible, PRÈS du champ ----------
+currentTest = "NU2 erreur de formulaire";
+{
+  await page.click("#fab");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  await page.click('#quickMenu [data-quick="tx"]');
+  await page.waitForSelector("#txForm", { state: "visible" });
+  await page.fill("#fAmount", "");
+  await page.click('#txForm button[type="submit"]');
+  await page.waitForTimeout(300);
+  const err76 = await page.evaluate(() => {
+    const error = document.getElementById("fError");
+    const amount = document.getElementById("fAmount");
+    const eBox = error.getBoundingClientRect();
+    const aBox = amount.getBoundingClientRect();
+    return {
+      text: error.textContent.trim(),
+      color: getComputedStyle(error).color,
+      distance: Math.abs(eBox.top - aBox.bottom),
+      invalid: amount.getAttribute("aria-invalid"),
+      focused: document.activeElement === amount,
+      role: error.getAttribute("role"),
+      open: document.getElementById("sheetBackdrop").classList.contains("open"),
+      created: transactions.some(t => t.title === "" && !t.amount),
+    };
+  });
+  check(err76.text.length > 0, "erreur : un message est réellement affiché");
+  check(err76.role === "alert", `erreur : le message est annoncé (role=${err76.role})`);
+  check(err76.distance < 160,
+    `erreur : le message se lit à côté du champ fautif (obtenu ${Math.round(err76.distance)} px)`);
+  check(err76.color === "rgb(255, 101, 119)",
+    `erreur : corail sémantique #FF6577 (obtenu ${err76.color})`);
+  check(err76.invalid === "true", `erreur : champ marqué aria-invalid (obtenu ${err76.invalid})`);
+  check(err76.focused, "erreur : le champ fautif reçoit le focus");
+  check(err76.open, "erreur : la feuille reste ouverte, rien n'est perdu");
+  check(!err76.created, "erreur : aucun mouvement fantôme n'est créé");
+  // Correction puis abandon volontaire : aucune donnée écrite.
+  const before76 = await page.evaluate(() => transactions.length);
+  await page.click("#fCancel");
+  await page.waitForTimeout(300);
+  const after76 = await page.evaluate(() => ({
+    closed: !document.getElementById("sheetBackdrop").classList.contains("open"),
+    count: transactions.length,
+  }));
+  check(after76.closed, "annulation : la feuille se ferme");
+  check(after76.count === before76, "annulation : aucun mouvement enregistré");
+  // Nettoyage du mouvement du test 75.
+  await page.evaluate(() => {
+    const i = transactions.findIndex(t => t.title === "Courses NU2");
+    if (i >= 0) transactions.splice(i, 1);
+    saveState(); render();
+  });
+  await page.waitForTimeout(200);
+  const cleaned76 = await page.evaluate(() => transactions.some(t => t.title === "Courses NU2"));
+  check(!cleaned76, "les mouvements de test NU2 sont retirés (aucune trace)");
+}
+
+// ---------- Test 77 : NU2 — 320 px, focus visible, mouvement réduit ----------
+currentTest = "NU2 accessibilité des surfaces pilotes";
+{
+  await page.setViewportSize({ width: 320, height: 640 });
+  await goHome();
+  await page.waitForTimeout(300);
+  const etroit77 = await page.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const overflow = screenEl.scrollWidth - screenEl.clientWidth;
+    const clipped = [...screenEl.querySelectorAll(".hero-amount, .amount, .card-label, .pill")]
+      .filter(el => el.scrollWidth - el.clientWidth > 1).length;
+    const small = [...screenEl.querySelectorAll("button, a[href], [role=button]")]
+      .filter(el => el.getBoundingClientRect().height > 0
+        && el.getBoundingClientRect().height < 44).length;
+    return { overflow, clipped, small, bodyOverflow: document.body.scrollWidth - 320 };
+  });
+  check(etroit77.overflow <= 1,
+    `320 px : aucun débordement horizontal du contenu (obtenu ${etroit77.overflow} px)`);
+  check(etroit77.bodyOverflow <= 1,
+    `320 px : aucun débordement horizontal de la page (obtenu ${etroit77.bodyOverflow} px)`);
+  check(etroit77.clipped === 0,
+    `320 px : aucun montant ni libellé tronqué (obtenu ${etroit77.clipped})`);
+  check(etroit77.small === 0,
+    `320 px : toutes les cibles tactiles font au moins 44 px (obtenu ${etroit77.small} trop petites)`);
+  // Focus clavier : anneau cyan d'au moins 2 px, avec décalage.
+  const focus77 = await page.evaluate(() => {
+    const cta = document.querySelector("#screen .btn.nu-cta");
+    cta.focus();
+    const cs = getComputedStyle(cta);
+    return {
+      color: cs.outlineColor,
+      width: parseFloat(cs.outlineWidth),
+      style: cs.outlineStyle,
+      offset: parseFloat(cs.outlineOffset),
+    };
+  });
+  check(focus77.color === "rgb(56, 189, 248)",
+    `focus : anneau cyan #38BDF8 (obtenu ${focus77.color})`);
+  check(focus77.width >= 2 && focus77.style !== "none",
+    `focus : anneau d'au moins 2 px réellement dessiné (obtenu ${focus77.width} px ${focus77.style})`);
+  check(focus77.offset >= 2, `focus : anneau décalé du bord (obtenu ${focus77.offset} px)`);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(200);
+}
+// Mouvement réduit : le compteur héros affiche IMMÉDIATEMENT la valeur finale.
+{
+  const pageRm = await context.newPage();
+  const rmErrors = [];
+  pageRm.on("pageerror", err => rmErrors.push("pageerror: " + err.message));
+  pageRm.on("console", msg => { if (msg.type() === "error") rmErrors.push(msg.text()); });
+  pageRm.on("dialog", d => d.accept());
+  await pageRm.emulateMedia({ reducedMotion: "reduce" });
+  await pageRm.goto(APP_URL);
+  await pageRm.waitForSelector("#tabbar button", { timeout: 10000 });
+  await pageRm.click('#tabbar button[aria-label="Mois"]');
+  const rm77 = await pageRm.evaluate(() => {
+    const el = document.querySelector("#screen .hero-amount");
+    const immediate = el ? el.textContent.trim() : "";
+    return new Promise(resolve => setTimeout(() => resolve({
+      immediate,
+      settled: el ? el.textContent.trim() : "",
+      transition: el ? getComputedStyle(el).transitionDuration : "",
+      piloted: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+    }), 500));
+  });
+  check(rm77.piloted, "mouvement réduit : l'écran Mois reste piloté");
+  check(rm77.immediate === rm77.settled,
+    `mouvement réduit : aucun comptage animé, la valeur finale est là tout de suite (« ${rm77.immediate} » puis « ${rm77.settled} »)`);
+  check(rm77.transition === "0s" || rm77.transition === "",
+    `mouvement réduit : aucune transition sur le montant (obtenu ${rm77.transition})`);
+  check(rmErrors.length === 0,
+    `mouvement réduit : zéro erreur console (obtenu ${rmErrors.slice(0, 2).join(" | ") || "aucune"})`);
+  await pageRm.close();
+}
+
+// ---------- Test 78 : NU2 — HTTP réel, service worker, rechargement, HORS LIGNE ----------
+currentTest = "NU2 HTTP, service worker et hors-ligne";
+// La feuille Neon Ultra est le PREMIER fichier externe dont dépend l'identité
+// de l'app. Servie par un vrai serveur, elle doit survivre au rechargement ET
+// à la coupure réseau, sans toucher au service worker ni à son nom de cache.
+{
+  const { default: http78 } = await import("node:http");
+  const { readFileSync: readFile78, existsSync: exists78 } = await import("node:fs");
+  const WEBAPP = path.resolve(HERE, "..");
+  const TYPES = {
+    ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8", ".webmanifest": "application/manifest+json",
+    ".png": "image/png", ".svg": "image/svg+xml", ".json": "application/json",
+  };
+  const served = new Set();
+  const server78 = http78.createServer((req, res) => {
+    const rel = decodeURIComponent(String(req.url || "/").split("?")[0]);
+    const name = rel === "/" ? "index.html" : rel.replace(/^\/+/, "");
+    const file = path.resolve(WEBAPP, name);
+    // Aucun échappement hors du dossier webapp.
+    if (!file.startsWith(WEBAPP) || !exists78(file)) { res.writeHead(404); res.end("404"); return; }
+    served.add(name);
+    res.writeHead(200, { "Content-Type": TYPES[path.extname(file)] || "application/octet-stream" });
+    res.end(readFile78(file));
+  });
+  await new Promise(resolve => server78.listen(0, "127.0.0.1", resolve));
+  const port78 = server78.address().port;
+  const origin78 = `http://127.0.0.1:${port78}`;
+  const browser78 = await chromium.launch({
+    executablePath: CHROMIUM, args: ["--no-sandbox", "--no-proxy-server"],
+  });
+  const context78 = await browser78.newContext({ viewport: { width: 390, height: 844 } });
+  const page78 = await context78.newPage();
+  const errors78 = [];
+  page78.on("pageerror", err => errors78.push("PAGEERROR: " + err.message));
+  page78.on("console", msg => { if (msg.type() === "error") errors78.push(msg.text()); });
+  page78.on("dialog", d => d.accept());
+  await page78.goto(origin78 + "/");
+  await page78.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
+  // L'app n'enregistre son service worker qu'en HTTPS (garde de production).
+  // 127.0.0.1 est un contexte sécurisé : on enregistre EXACTEMENT le même
+  // fichier `sw.js`, non modifié, pour éprouver le comportement réel.
+  const registered78 = await page78.evaluate(async () => {
+    const reg = await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    return !!reg;
+  });
+  check(registered78, "hors-ligne : le service worker livré (sw.js) s'enregistre réellement");
+  // Onboarding réel : des données à retrouver après la coupure.
+  await page78.click('[data-obcountry="CH"]');
+  await page78.click('[data-obhh="solo"]');
+  await page78.fill("#obName", "Robin");
+  await page78.click('#obForm1 button[type="submit"]');
+  await page78.fill("#obSalary", "5200");
+  await page78.click('#obForm2 button[type="submit"]');
+  await page78.waitForSelector("#obOpening", { state: "visible" });
+  await page78.fill("#obOpening", "3400");
+  await page78.click('#obForm3 button[type="submit"]');
+  await page78.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+  await page78.click('[data-obgoal="urgence"]');
+  await page78.waitForSelector("#tabbar button", { timeout: 10000 });
+  // Rechargement EN LIGNE : le service worker prend le contrôle et met en cache.
+  await page78.reload();
+  await page78.waitForSelector("#tabbar button", { timeout: 10000 });
+  await page78.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 10000 });
+  const online78 = await page78.evaluate(() => ({
+    controlled: !!navigator.serviceWorker.controller,
+    name: ((JSON.parse(localStorage.getItem("budget-app-state-v1") || "{}").profile || {}).name) || "",
+    canvas: getComputedStyle(document.getElementById("screen")).backgroundColor,
+  }));
+  check(online78.controlled, "hors-ligne : la page est réellement CONTRÔLÉE par le service worker");
+  check(online78.name === "Robin",
+    `rechargement en ligne : les données locales survivent (obtenu « ${online78.name} »)`);
+  check(online78.canvas === "rgb(5, 6, 10)",
+    `rechargement en ligne : l'identité Neon Ultra est appliquée (obtenu ${online78.canvas})`);
+  check(served.has("design-system/neon-ultra.css"),
+    "hors-ligne : la feuille Neon Ultra a bien été demandée au serveur");
+  // COUPURE RÉSEAU puis vrai rechargement.
+  await context78.setOffline(true);
+  await page78.reload();
+  await page78.waitForSelector("#tabbar button", { timeout: 15000 });
+  const offline78 = await page78.evaluate(() => {
+    const screenEl = document.getElementById("screen");
+    const hero = screenEl.querySelector(".card.hero");
+    const cta = screenEl.querySelector(".btn.nu-cta");
+    return {
+      onLine: navigator.onLine,
+      tabs: document.querySelectorAll("#tabbar [data-tab]").length,
+      fab: !!document.getElementById("fab"),
+      name: ((JSON.parse(localStorage.getItem("budget-app-state-v1") || "{}").profile || {}).name) || "",
+      amount: (screenEl.querySelector(".hero-amount") || {}).textContent || "",
+      canvas: getComputedStyle(screenEl).backgroundColor,
+      heroBg: hero ? getComputedStyle(hero).backgroundColor : null,
+      ctaBg: cta ? getComputedStyle(cta).backgroundImage : "",
+      nuRules: [...document.styleSheets]
+        .filter(s => String(s.href || "").includes("neon-ultra.css"))
+        .reduce((a, s) => { try { return a + s.cssRules.length; } catch { return a; } }, 0),
+    };
+  });
+  check(offline78.onLine === false, "hors-ligne : le navigateur est réellement déconnecté");
+  check(offline78.tabs === 4 && offline78.fab,
+    `hors-ligne : l'app s'ouvre entière (obtenu ${offline78.tabs} onglets, ＋ ${offline78.fab})`);
+  check(offline78.name === "Robin",
+    `hors-ligne : les données du foyer sont intactes (obtenu « ${offline78.name} »)`);
+  check(/\d/.test(offline78.amount),
+    `hors-ligne : le montant héros est calculé et affiché (obtenu « ${offline78.amount.trim()} »)`);
+  check(offline78.nuRules > 0,
+    `hors-ligne : neon-ultra.css est servie depuis le cache et parsée (obtenu ${offline78.nuRules} règles)`);
+  check(offline78.canvas === "rgb(5, 6, 10)",
+    `hors-ligne : le canvas Neon Ultra survit à la coupure (obtenu ${offline78.canvas})`);
+  check(offline78.heroBg === "rgb(24, 28, 38)",
+    `hors-ligne : le héros reste en surface élevée mate (obtenu ${offline78.heroBg})`);
+  check(offline78.ctaBg.includes("192, 0, 164"),
+    `hors-ligne : le CTA garde son dégradé de marque (obtenu ${offline78.ctaBg})`);
+  // La navigation continue de fonctionner sans réseau.
+  await page78.click('#tabbar button[aria-label="Budget"]');
+  await page78.waitForTimeout(250);
+  const navOffline78 = await page78.evaluate(() => ({
+    piloted: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+    text: document.getElementById("screen").innerText.slice(0, 40),
+  }));
+  check(navOffline78.piloted,
+    `hors-ligne : Budget reste piloté et navigable (obtenu « ${navOffline78.text.trim()} »)`);
+  check(errors78.length === 0,
+    `HTTP/hors-ligne : zéro pageerror / erreur console (obtenu : ${errors78.slice(0, 3).join(" | ") || "aucune"})`);
+  await context78.setOffline(false);
+  await browser78.close();
+  server78.close();
 }
 
 await browser.close();
@@ -2383,4 +2919,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 72 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8 + 1 charset L9), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 78 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8 + 1 charset L9 + 6 pilote Neon Ultra NU2), zéro erreur console ✓");
