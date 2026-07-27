@@ -10,6 +10,13 @@ allowed-tools: Read Write Edit Grep Glob Bash
 
 # Budget V1 — directeur de produit et de refonte
 
+> **ROUTAGE (27.07.2026, ADR-024)** : le programme Obsidian Glass est clos
+> (L0–L8 DONE, L9 VERIFYING — historique conservé tel quel). Le programme
+> actif est **Budget — Neon Ultra** sur la branche
+> `refonte/budget-neon-ultra-v1` : utiliser `/budget-neon-ultra`. Ce skill
+> reste une référence HISTORIQUE ; ne plus l'invoquer pour du nouveau
+> travail et ne jamais mélanger les deux feuilles de route.
+
 ## Mission
 
 Faire de Budget une application de finances personnelles suisse simple,
@@ -17,8 +24,8 @@ fiable, désirable et compréhensible en moins de dix secondes. Conserver les
 fonctions et les données existantes. Ne jamais recommencer le produit depuis
 zéro pour obtenir un nouveau visuel.
 
-Le programme actif est **Budget — Obsidian Glass**. Il remplace les anciennes
-directions visuelles et constitue l'unique feuille de route opérationnelle.
+Le programme de ce skill était **Budget — Obsidian Glass**. Il est remplacé
+par Neon Ultra (ADR-024) ; voir le bloc ROUTAGE ci-dessus.
 
 Mode demandé : **$ARGUMENTS**
 

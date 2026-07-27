@@ -1,5 +1,57 @@
 # Budget decision log
 
+## ADR-024 — Direction visuelle « Budget Neon Ultra » (remplace les clauses visuelles Obsidian)
+
+Date: 2026-07-27
+Status: accepted
+
+### Context
+
+Autorisation explicite du propriétaire (27.07.2026) : « Je remplace
+officiellement la direction visuelle "accent indigo unique" par la
+direction "Budget Neon Ultra" : noir profond, magenta, violet et
+cyan. » Les règles alors en vigueur (ADR-020 « identité sombre unique
+et skill canonique », ADR-022 « fondations Obsidian, indigo profond
+AA », CLAUDE.md « une seule teinte de marque Indigo Aurora #7367FF »,
+constitution Obsidian) interdisaient magenta/cyan et les néons.
+
+### Decision
+
+1. La direction canonique devient « Budget Neon Ultra » : canvas
+   `#05060A`, navigation `#0B0D13`, surfaces `#11141C`/`#181C26`,
+   fallback opaque `#151923`, bordure `#293040`, néons magenta
+   `#D946EF` / violet `#7C3AED` / cyan `#38BDF8`, CTA en dégradé
+   `#C000A4 → #6E00E8`, textes `#F5F7FA`/`#A3ACBA`/`#747E8E`,
+   sémantique `#35D39A`/`#FF6577`/`#F6C453`. Règles complètes :
+   `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_CONSTITUTION.md`
+   (75 % noir, ≤ 10 % néon, un seul point focal par viewport, gradient
+   réservé au CTA/sélection/marque, aucun glow sur les montants,
+   sémantique exclusive pour vert/corail/ambre, pas d'esthétique
+   casino, AA, 44 pt, Reduce Motion/Transparency).
+2. Cette ADR remplace UNIQUEMENT les clauses visuelles incompatibles
+   d'ADR-020/022, de CLAUDE.md et de la constitution Obsidian
+   (accent indigo unique, interdiction des néons). Tout le reste
+   d'ADR-020/022 (skill canonique par programme, un seul thème sombre,
+   alias de tokens, contraintes AA mesurées) reste applicable dans son
+   esprit au nouveau programme.
+3. Aucune règle financière, technique, de confidentialité, de
+   sauvegarde, d'accessibilité ou de publication n'est modifiée.
+   ADR-001→019, ADR-021, ADR-023 : inchangées.
+4. Le programme s'exécute sur la branche `refonte/budget-neon-ultra-v1`
+   (créée depuis `26d186e`, dernier HEAD Obsidian à CI verte run #229).
+   La branche `refonte/budget-obsidian-glass-v1` et tous les rapports
+   L0–L9 sont conservés comme historique et ne sont pas réécrits.
+5. La divergence de navigation constatée (PWA : 4 onglets + ＋ central,
+   Mouvements dans Plus ; iOS : 5 onglets + ＋ flottant) N'EST PAS
+   traitée par cette ADR — décision produit séparée à venir.
+
+### Consequences
+
+- Skill opérationnel : `/budget-neon-ultra` (NU0–NU9) ; `/budget-v1`
+  et les skills antérieurs deviennent historiques.
+- Les écrans ne changent qu'à partir de NU1/NU2, tokens d'abord,
+  contrastes prouvés avant bascule ; NU0 est purement documentaire.
+
 ## ADR-023 — V1 native : prise en charge iPhone uniquement
 
 Date: 2026-07-25
