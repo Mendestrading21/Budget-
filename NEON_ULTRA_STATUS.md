@@ -8,8 +8,8 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 |---|---|---|
 | NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
 | NU1 | Tokens et primitives | **DONE** (validation du propriétaire le 27.07.2026 sur `5796e3c`) |
-| NU2 | Pilote PWA — Mois, Budget, Ajouter | **VERIFYING** (livré le 27.07.2026 — inspection humaine attendue) |
-| NU3 | Pilote SwiftUI équivalent | À VENIR (non autorisé avant validation humaine de NU2) |
+| NU2 | Pilote PWA — Mois, Budget, Ajouter | **DONE** (validation du propriétaire le 27.07.2026 sur `ff029388`, publication Pages autorisée) |
+| NU3 | Pilote SwiftUI équivalent | **READY** (non commencé) |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
 | NU5 | Factures, Objectifs et Récurrents | À VENIR |
 | NU6 | Patrimoine et graphiques | À VENIR |
@@ -17,7 +17,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — VERIFYING
+## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — DONE
 
 Quatre surfaces — et quatre seulement — portent désormais l'identité Neon
 Ultra dans la PWA réelle : `renderHome()` (Mois), `renderBudget()` (Budget),
@@ -103,8 +103,10 @@ La PWA dimensionne ses textes en pixels (**P3-5**, ouverte depuis L9) : le
 grossissement disponible est le zoom de page. La capture 200 % le reproduit
 fidèlement plutôt que de simuler un mécanisme absent.
 
-Validation humaine attendue : inspection des quatre surfaces sur iPhone
-réel. **NU3 n'est pas autorisé avant cet accord.**
+Validation du propriétaire reçue le **27.07.2026** sur
+`ff029388d275798a98046a777e4f3389507c1399` : les quatre surfaces sont
+acceptées et leur publication GitHub Pages est explicitement autorisée.
+**NU2 est clos ; NU3 est autorisé mais n'est pas commencé.**
 
 ## NU1 — Tokens et primitives (27.07.2026) — DONE
 
@@ -228,7 +230,6 @@ Livré (aucun écran, rendu, token ni logique modifiés) :
 
 ### Prochaine action exacte
 
-`/budget-neon-ultra verify NU2` — inspecter les quatre surfaces pilotes sur
-iPhone réel, puis valider ou refuser. NU3 (pilote SwiftUI équivalent) reste
-**non autorisé** tant que cette validation n'est pas donnée. La divergence
-de navigation PWA/iOS demeure une décision produit séparée.
+`/budget-neon-ultra execute NU3` — pilote SwiftUI équivalent, sans modifier
+la navigation. La divergence de navigation PWA/iOS demeure une décision
+produit séparée.
