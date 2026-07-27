@@ -185,6 +185,18 @@ final class NeonUltraDesignSystemTests: XCTestCase {
 
     // MARK: - Géométrie, mouvement, cibles
 
+    /// Mesure la taille RÉELLE de chaque contrôle interactif rendu par
+    /// `UIHostingController` (jamais une simple lecture du code) :
+    /// toute cible doit atteindre 44 × 44 pt au minimum.
+    private func measuredSize<V: View>(
+        _ view: V, width: CGFloat = 320
+    ) -> CGSize {
+        let host = UIHostingController(rootView: view)
+        host.view.frame = CGRect(x: 0, y: 0, width: width, height: 1000)
+        host.view.layoutIfNeeded()
+        return host.sizeThatFits(in: CGSize(width: width, height: 1000))
+    }
+
     func testRadiiMotionAndTouchTargets() {
         XCTAssertEqual(NeonUltraRadius.hero, 26)
         XCTAssertEqual(NeonUltraRadius.card, 18)
@@ -194,6 +206,64 @@ final class NeonUltraDesignSystemTests: XCTestCase {
         XCTAssertLessThanOrEqual(NeonUltraMotion.press, 0.16)
         XCTAssertLessThanOrEqual(NeonUltraMotion.state, 0.28)
         XCTAssertEqual(NeonUltraMotion.pressScale, 0.98)
+
+        // Cibles tactiles MESURÉES sur les primitives rendues (≥ 44 × 44 pt).
+        let targets: [(String, AnyView)] = [
+            ("bouton principal", AnyView(Button("Ajouter") {}.buttonStyle(NeonUltraPrimaryButtonStyle()))),
+            ("bouton secondaire", AnyView(Button("Annuler") {}.buttonStyle(NeonUltraSecondaryButtonStyle()))),
+            ("bouton destructif", AnyView(Button("Supprimer") {}.buttonStyle(NeonUltraDestructiveButtonStyle()))),
+            ("chip normal", AnyView(NeonUltraChip(label: "Dépenses"))),
+            ("chip sélectionné", AnyView(NeonUltraChip(label: "Revenus", isSelected: true))),
+            ("chip désactivé", AnyView(NeonUltraChip(label: "Bientôt", isDisabled: true))),
+        ]
+        for (label, view) in targets {
+            let size = measuredSize(view)
+            XCTAssertGreaterThanOrEqual(
+                size.height, 44, "\(label) : hauteur mesurée \(size.height) < 44 pt"
+            )
+            XCTAssertGreaterThanOrEqual(
+                size.width, 44, "\(label) : largeur mesurée \(size.width) < 44 pt"
+            )
+        }
+    }
+
+    // MARK: - Reduce Motion (comportement réel des styles de bouton)
+
+    /// Sous réduction des animations, la DÉCISION appliquée par les trois
+    /// styles de bouton (`NeonUltraMotionResolver`, seul chemin de code
+    /// du scaleEffect/animation de pression) neutralise l'échelle ET
+    /// l'animation ; sans réduction, la pression anime réellement à 0,98.
+    func testReduceMotionNeutralizesPressScaleAndAnimation() {
+        // Reduce Motion actif : pression pressée SANS échelle ni animation.
+        XCTAssertEqual(
+            NeonUltraMotionResolver.pressScale(isPressed: true, reduceMotion: true), 1,
+            "sous Reduce Motion, aucune échelle de pression"
+        )
+        XCTAssertNil(
+            NeonUltraMotionResolver.pressAnimation(reduceMotion: true),
+            "sous Reduce Motion, aucune animation de pression"
+        )
+        // Sans réduction : la pression applique bien 0,98 animé, et l'état
+        // relâché revient à 1 (aucune animation permanente).
+        XCTAssertEqual(
+            NeonUltraMotionResolver.pressScale(isPressed: true, reduceMotion: false),
+            NeonUltraMotion.pressScale
+        )
+        XCTAssertNotNil(NeonUltraMotionResolver.pressAnimation(reduceMotion: false))
+        XCTAssertEqual(
+            NeonUltraMotionResolver.pressScale(isPressed: false, reduceMotion: false), 1,
+            "au repos, aucune transformation résiduelle"
+        )
+        // Les trois styles rendus se construisent (le résolveur est leur
+        // unique chemin de code de pression).
+        let pressed = UIHostingController(rootView: VStack {
+            Button("Ajouter") {}.buttonStyle(NeonUltraPrimaryButtonStyle())
+            Button("Annuler") {}.buttonStyle(NeonUltraSecondaryButtonStyle())
+            Button("Supprimer") {}.buttonStyle(NeonUltraDestructiveButtonStyle())
+        })
+        pressed.view.frame = CGRect(x: 0, y: 0, width: 320, height: 400)
+        pressed.view.layoutIfNeeded()
+        XCTAssertNotNil(pressed.view)
     }
 
     // MARK: - Montants (FinanceFormatting, aucun calcul local)

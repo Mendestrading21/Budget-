@@ -25,6 +25,22 @@ extension EnvironmentValues {
     }
 }
 
+/// Résolution du mouvement sous Reduce Motion : la DÉCISION unique que
+/// tous les styles de bouton Neon Ultra appliquent. Sous réduction des
+/// animations : aucune échelle de pression (1,0) et aucune animation
+/// (nil). Sinon : pression `NeonUltraMotion.pressScale` (0,98) animée
+/// sur `NeonUltraMotion.press`.
+enum NeonUltraMotionResolver {
+    static func pressScale(isPressed: Bool, reduceMotion: Bool) -> CGFloat {
+        guard isPressed, !reduceMotion else { return 1 }
+        return NeonUltraMotion.pressScale
+    }
+
+    static func pressAnimation(reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : .easeOut(duration: NeonUltraMotion.press)
+    }
+}
+
 /// Résolution des surfaces sous Reduce Transparency : toute surface
 /// (déjà opaque par conception — cartes mates) bascule sur le
 /// remplaçant opaque canonique `surfaceFallback`, sans blur ni halo.
@@ -108,9 +124,9 @@ struct NeonUltraPrimaryButtonStyle: ButtonStyle {
             .background(NeonUltraGradient.cta)
             .clipShape(RoundedRectangle(cornerRadius: NeonUltraRadius.control, style: .continuous))
             .opacity(isEnabled ? 1 : 0.4)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? NeonUltraMotion.pressScale : 1)
+            .scaleEffect(NeonUltraMotionResolver.pressScale(isPressed: configuration.isPressed, reduceMotion: reduceMotion))
             .animation(
-                reduceMotion ? nil : .easeOut(duration: NeonUltraMotion.press),
+                NeonUltraMotionResolver.pressAnimation(reduceMotion: reduceMotion),
                 value: configuration.isPressed
             )
     }
@@ -135,9 +151,9 @@ struct NeonUltraSecondaryButtonStyle: ButtonStyle {
                     .stroke(NeonUltraColor.border, lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? NeonUltraMotion.pressScale : 1)
+            .scaleEffect(NeonUltraMotionResolver.pressScale(isPressed: configuration.isPressed, reduceMotion: reduceMotion))
             .animation(
-                reduceMotion ? nil : .easeOut(duration: NeonUltraMotion.press),
+                NeonUltraMotionResolver.pressAnimation(reduceMotion: reduceMotion),
                 value: configuration.isPressed
             )
     }
@@ -162,9 +178,9 @@ struct NeonUltraDestructiveButtonStyle: ButtonStyle {
                     .stroke(NeonUltraColor.negative, lineWidth: 1)
             )
             .opacity(isEnabled ? 1 : 0.4)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? NeonUltraMotion.pressScale : 1)
+            .scaleEffect(NeonUltraMotionResolver.pressScale(isPressed: configuration.isPressed, reduceMotion: reduceMotion))
             .animation(
-                reduceMotion ? nil : .easeOut(duration: NeonUltraMotion.press),
+                NeonUltraMotionResolver.pressAnimation(reduceMotion: reduceMotion),
                 value: configuration.isPressed
             )
     }

@@ -28,6 +28,7 @@ struct NeonUltraComponentGallery: View {
         ("textPrimary", "titres/montants", "#F5F7FA", NeonUltraColor.textPrimary),
         ("textSecondary", "explications", "#A3ACBA", NeonUltraColor.textSecondary),
         ("textTertiary", "métadonnées", "#7C8696", NeonUltraColor.textTertiary),
+        ("textOnCta", "texte du CTA", "#FFFFFF", NeonUltraColor.textOnCta),
         ("positive", "sémantique", "#35D39A", NeonUltraColor.positive),
         ("negative", "sémantique", "#FF6577", NeonUltraColor.negative),
         ("warning", "sémantique", "#F6C453", NeonUltraColor.warning),

@@ -50,6 +50,24 @@ await capture("nu1-pwa-390-transparence-reduite", {
   prepare: page => page.click("#nuToggleTransparency"),
 });
 await capture("nu1-pwa-390-reduced-motion", { width: 390, reducedMotion: true, fullPage: false });
+// Focus clavier RÉEL : Tab jusqu'au bouton secondaire de démonstration,
+// anneau cyan visible, section Boutons dans le viewport (un seul CTA
+// primaire actif à l'écran).
+await capture("nu1-pwa-390-focus", {
+  width: 390, fullPage: false,
+  prepare: async page => {
+    await page.evaluate(() => {
+      document.querySelector(".grid .nu-button").scrollIntoView({ block: "start" });
+      window.scrollBy(0, -60);
+    });
+    let reached = false;
+    for (let i = 0; i < 20 && !reached; i++) {
+      await page.keyboard.press("Tab");
+      reached = await page.evaluate(() => document.activeElement.id === "nuFocusDemo");
+    }
+    if (!reached) { console.error("FOCUS: nuFocusDemo jamais atteint"); process.exitCode = 1; }
+  },
+});
 // Gros plan des états : chips + champs (sélectionné, erreur, désactivé).
 await capture("nu1-pwa-390-etats", {
   width: 390, fullPage: false,

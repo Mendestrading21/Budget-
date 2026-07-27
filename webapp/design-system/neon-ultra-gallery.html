@@ -89,12 +89,12 @@
     </div>
   </section>
 
-  <h2>Boutons</h2>
+  <h2>Boutons — un seul CTA primaire actif</h2>
   <div class="grid">
     <button class="nu-button">Ajouter un mouvement</button>
-    <button class="nu-button" id="nuFocusDemo">Ajouter (recevra le focus)</button>
     <button class="nu-button" disabled>Ajouter (désactivé)</button>
-    <button class="nu-button nu-button--secondary">Action secondaire</button>
+    <button class="nu-button nu-button--secondary" id="nuFocusDemo">Action
+    secondaire (recevra le focus)</button>
     <button class="nu-button nu-button--destructive">Supprimer le mouvement</button>
   </div>
 
@@ -118,7 +118,8 @@
   <h2>Champs — normal, focus, erreur</h2>
   <section class="nu-card">
     <label class="nu-field-label" for="nuFieldNormal">Intitulé</label>
-    <input class="nu-field" id="nuFieldNormal" value="Courses de la semaine">
+    <textarea class="nu-field nu-field--multiline" id="nuFieldNormal"
+      rows="1">Courses de la semaine</textarea>
     <label class="nu-field-label" for="nuFieldError">Montant (erreur)</label>
     <input class="nu-field" id="nuFieldError" value="abc" aria-invalid="true"
       aria-describedby="nuFieldErrorMsg">
@@ -140,7 +141,7 @@
     ["magenta", "marque"], ["violet", "accent actif"], ["cyan", "info / focus"],
     ["cta-start", "CTA départ"], ["cta-end", "CTA arrivée"],
     ["text-primary", "titres"], ["text-secondary", "explications"],
-    ["text-tertiary", "métadonnées"],
+    ["text-tertiary", "métadonnées"], ["text-on-cta", "texte du CTA"],
     ["positive", "sémantique"], ["negative", "sémantique"], ["warning", "sémantique"],
   ];
   const styles = getComputedStyle(document.documentElement);
@@ -160,6 +161,19 @@
     host.append(cell);
   }
 
+  // Champ multiligne : la hauteur suit TOUJOURS le contenu — la valeur
+  // complète reste visible à 320 px, y compris en texte agrandi 200 %.
+  const autoField = document.getElementById("nuFieldNormal");
+  const sizeField = () => {
+    autoField.style.height = "auto";
+    // box-sizing: border-box — la hauteur inclut les bordures
+    // (offsetHeight − clientHeight), sinon 2 px restent tronqués.
+    const borders = autoField.offsetHeight - autoField.clientHeight;
+    autoField.style.height = (autoField.scrollHeight + borders) + "px";
+  };
+  sizeField();
+  autoField.addEventListener("input", sizeField);
+
   // Bascules déterministes (mêmes attributs que ceux testés en CI).
   const tToggle = document.getElementById("nuToggleTransparency");
   tToggle.addEventListener("click", () => {
@@ -168,6 +182,7 @@
     else delete document.documentElement.dataset.nuReducedTransparency;
     tToggle.setAttribute("aria-pressed", String(on));
     tToggle.textContent = "Transparence réduite : " + (on ? "on" : "off");
+    sizeField();
   });
   const lToggle = document.getElementById("nuToggleLargeText");
   lToggle.addEventListener("click", () => {
@@ -176,6 +191,7 @@
     else delete document.documentElement.dataset.nuLargeText;
     lToggle.setAttribute("aria-pressed", String(on));
     lToggle.textContent = "Texte agrandi : " + (on ? "on" : "off");
+    sizeField();
   });
 </script>
 </body>

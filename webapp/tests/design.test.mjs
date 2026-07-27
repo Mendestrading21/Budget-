@@ -417,9 +417,31 @@ for (const width of [320, 390]) {
   const overflow = await page.evaluate(() =>
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check(overflow <= 0, `débordement horizontal de ${overflow}px`);
-  // Nuancier complet : 17 rôles.
+  // Nuancier complet : 18 rôles (17 initiaux + textOnCta).
   const swatchCount = await page.$$eval("#nuSwatches .swatch", els => els.length);
-  check(swatchCount === 17, `17 rôles attendus au nuancier (obtenu ${swatchCount})`);
+  check(swatchCount === 18, `18 rôles attendus au nuancier (obtenu ${swatchCount})`);
+  const hasOnCta = await page.evaluate(() =>
+    [...document.querySelectorAll("#nuSwatches .swatch b")].some(b => b.textContent === "text-on-cta"));
+  check(hasOnCta, "le rôle text-on-cta doit figurer au nuancier");
+  // Un SEUL CTA primaire actif par section (point focal unique).
+  const primariesPerSection = await page.evaluate(() =>
+    [...document.querySelectorAll("main > section, main > .grid")].map(sec =>
+      sec.querySelectorAll(".nu-button:not(.nu-button--secondary):not(.nu-button--destructive):not([disabled])").length));
+  check(primariesPerSection.every(n => n <= 1),
+    `chaque section porte AU PLUS un CTA primaire actif (obtenu ${primariesPerSection.join(",")})`);
+  // Aucune troncature INTERNE d'un champ ou contrôle (pas seulement
+  // l'absence de débordement de page).
+  const clippedControls = await page.evaluate(() =>
+    [...document.querySelectorAll(".nu-field, .nu-button, .nu-chip")]
+      .filter(el => el.offsetParent !== null)
+      .map(el => ({
+        id: el.id || el.textContent.trim().slice(0, 20),
+        w: el.scrollWidth - el.clientWidth,
+        h: el.scrollHeight - el.clientHeight,
+      }))
+      .filter(c => c.w > 1 || c.h > 1));
+  check(clippedControls.length === 0,
+    `troncature interne détectée : ${clippedControls.map(c => `${c.id} (+${c.w}/${c.h}px)`).join(", ")}`);
   // Montant extrême entier.
   const longAmount = await page.evaluate(() => {
     const nodes = [...document.querySelectorAll(".nu-amount, .nu-amount-hero")];
@@ -478,6 +500,26 @@ currentTest = "NU focus clavier";
     `focus-visible ≥ 2px requis (obtenu ${outline.style} ${outline.width})`);
   check(outline.color === "rgb(56, 189, 248)",
     `anneau de focus CYAN attendu (obtenu ${outline.color})`);
+  // La démonstration de focus est un bouton SECONDAIRE sombre (jamais un
+  // deuxième CTA gradient) et reçoit réellement le focus clavier.
+  const focusDemo = await page.evaluate(() => {
+    const el = document.getElementById("nuFocusDemo");
+    return { secondary: el.classList.contains("nu-button--secondary") };
+  });
+  check(focusDemo.secondary, "le bouton de démonstration du focus doit être secondaire");
+  let reached = false;
+  for (let i = 0; i < 20 && !reached; i++) {
+    await page.keyboard.press("Tab");
+    reached = await page.evaluate(() => document.activeElement.id === "nuFocusDemo");
+  }
+  const demoOutline = await page.evaluate(() => {
+    const cs = getComputedStyle(document.getElementById("nuFocusDemo"));
+    return { width: cs.outlineWidth, style: cs.outlineStyle, color: cs.outlineColor, offset: cs.outlineOffset };
+  });
+  check(reached, "le parcours clavier doit atteindre nuFocusDemo");
+  check(demoOutline.style !== "none" && parseFloat(demoOutline.width) >= 2
+    && demoOutline.color === "rgb(56, 189, 248)" && parseFloat(demoOutline.offset) >= 2,
+    `focus cyan ≥ 2px avec offset attendu sur nuFocusDemo (obtenu ${JSON.stringify(demoOutline)})`);
   await page.context().close();
 }
 
@@ -535,6 +577,25 @@ currentTest = "NU texte agrandi 320px";
   }));
   check(state.scale === "32px", `texte agrandi à 200 % attendu (obtenu ${state.scale})`);
   check(state.overflow <= 0, `débordement horizontal en texte agrandi : ${state.overflow}px`);
+  // La valeur complète du champ reste VISIBLE à 320 px / 200 % :
+  // aucune troncature interne du champ multiligne ni des contrôles.
+  const clipped200 = await page.evaluate(() =>
+    [...document.querySelectorAll(".nu-field, .nu-button, .nu-chip")]
+      .filter(el => el.offsetParent !== null)
+      .map(el => ({
+        id: el.id || el.textContent.trim().slice(0, 20),
+        w: el.scrollWidth - el.clientWidth,
+        h: el.scrollHeight - el.clientHeight,
+      }))
+      .filter(c => c.w > 1 || c.h > 1));
+  check(clipped200.length === 0,
+    `troncature interne à 200 % : ${clipped200.map(c => `${c.id} (+${c.w}/${c.h}px)`).join(", ")}`);
+  const fieldFull = await page.evaluate(() => {
+    const f = document.getElementById("nuFieldNormal");
+    return { value: f.value, visible: f.scrollHeight <= f.clientHeight + 1 };
+  });
+  check(fieldFull.value === "Courses de la semaine" && fieldFull.visible,
+    "la valeur « Courses de la semaine » reste complète et visible à 200 %");
   await page.context().close();
 }
 

@@ -309,6 +309,14 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   border-radius: 11px;
 }
 .nu-field:focus { outline: 2px solid var(--nu-cyan); outline-offset: 1px; }
+/* Variante multiligne : la valeur complète reste VISIBLE à 320 px même
+   en texte agrandi 200 % — la hauteur suit le contenu (auto-dimension
+   par la galerie), jamais de troncature interne. */
+.nu-field--multiline {
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+}
 .nu-field[aria-invalid="true"] { border-color: var(--nu-negative); }
 .nu-field[aria-invalid="true"]:focus { outline-color: var(--nu-negative); }
 .nu-field-error { color: var(--nu-negative); font-size: 0.78rem; margin-top: 6px; }

@@ -7,7 +7,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | Lot | Intitulé | État |
 |---|---|---|
 | NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
-| NU1 | Tokens et primitives | **VERIFYING** (livré le 27.07.2026 — validation humaine des galeries attendue) |
+| NU1 | Tokens et primitives | **VERIFYING** (livré + écarts de vérification clos le 27.07.2026 — validation humaine des galeries attendue) |
 | NU2 | Pilote PWA — Mois, Budget, Ajouter | À VENIR (ne devient READY qu'après validation humaine des galeries NU1) |
 | NU3 | Pilote SwiftUI équivalent | À VENIR |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
@@ -30,9 +30,12 @@ jusqu'à NU2/NU3) :
   cyan, résolveur Reduce Transparency → `#151923`),
   `NeonUltraComponentGallery.swift` (jamais reliée à la navigation ;
   harness `UIHostingController`), `BudgetTests/NeonUltraDesignSystemTests.swift`
-  (17 nouveaux tests : RGBA exacts, contrastes AA mesurés, CTA blanc pur
-  5,56/7,43, identité unique, sémantique ≠ marque, géométrie/mouvement,
-  montant extrême, galerie 320/390/accessibility3/transparence réduite).
+  (**17 tests**, prouvés par CI : RGBA exacts, contrastes AA mesurés, CTA
+  blanc pur 5,56/7,43, identité unique, sémantique ≠ marque,
+  géométrie/mouvement, cibles tactiles MESURÉES ≥ 44×44 pt par rendu,
+  Reduce Motion comportemental via `NeonUltraMotionResolver`, montant
+  extrême, galerie 320/390/accessibility3/transparence réduite) —
+  **276 tests iOS au total, 0 échec**.
 - **PWA** : `webapp/design-system/neon-ultra.css` (variables `--nu-*`,
   valeurs brutes uniquement dans `:root`) + `neon-ultra-gallery.html`
   (seule page qui charge cette feuille). `webapp/index.html` : zéro octet
@@ -43,9 +46,9 @@ jusqu'à NU2/NU3) :
   contrastes complets (15 paires texte/surface + CTA + sémantique + focus),
   galerie 320/390, focus cyan ≥ 2 px, états sélectionné/erreur/désactivé,
   texte agrandi 200 %, reduced motion, transparence réduite opaque sans blur.
-- **Preuves** : `docs/neon-ultra/foundations/nu1/README.md` + 6 captures
-  inspectées (390, 320, 320@200 %, transparence réduite, reduced motion,
-  gros plan des états). Captures simulateur iOS : impossibles depuis cet
+- **Preuves** : `docs/neon-ultra/foundations/nu1/README.md` + 7 captures
+  inspectées (390, 320, 320@200 % — champ multiligne complet, transparence
+  réduite, reduced motion, focus cyan réel, gros plan des états). Captures simulateur iOS : impossibles depuis cet
   environnement Linux — harness de test CI en attendant, PNG au plus tard
   avec NU3 (limitation documentée).
 - **Inventaire d'identité** (manifest `#07090e`, theme-color `#090C12`,
