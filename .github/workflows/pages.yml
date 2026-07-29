@@ -4,45 +4,190 @@ name: Pages
 # https://mendestrading21.github.io/Budget-/
 # Ouvrable dans Safari puis « Sur l'écran d'accueil » → l'app s'installe
 # comme une vraie app (icône, plein écran, données sur l'appareil).
-# Aucun secret requis — le GITHUB_TOKEN du workflow suffit.
+# Le SHA exact doit avoir une CI push verte avant tout déploiement.
 
 on:
   push:
     branches:
-      - codex/budget-leader-refonte
+      - refonte/budget-neon-ultra-v1
     paths:
       - "webapp/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "SHA Git complet à déployer (CI push verte obligatoire)"
+        required: true
+        type: string
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  verify-ci:
+    name: Vérifier la CI du SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: read
+    outputs:
+      deploy_sha: ${{ steps.target.outputs.sha }}
+
+    steps:
+      - name: Résoudre et valider le SHA
+        id: target
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_SHA: ${{ github.sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+
+          raw_sha="$PUSH_SHA"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            raw_sha="$INPUT_SHA"
+          fi
+
+          sha="$(printf '%s' "$raw_sha" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Un SHA Git complet de 40 caractères hexadécimaux est requis."
+            exit 1
+          fi
+
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "SHA candidat : $sha"
+
+      - name: Attendre une CI push verte pour ce SHA exact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          DEPLOY_BRANCH: refonte/budget-neon-ultra-v1
+        run: |
+          set -euo pipefail
+
+          command -v curl >/dev/null
+          command -v jq >/dev/null
+
+          api="${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${TARGET_SHA}&event=push&per_page=100"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          # Une exécution push peut apparaître quelques instants après Pages.
+          # En lancement manuel, le SHA doit déjà avoir sa CI.
+          missing_limit=15
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            missing_limit=3
+          fi
+
+          last_state=""
+
+          # 165 × 20 s = 55 min maximum, sous le timeout du job.
+          # Le job iOS de ci.yml est lui-même limité à 40 min.
+          for attempt in $(seq 1 165); do
+            curl \
+              --fail-with-body \
+              --silent \
+              --show-error \
+              --retry 3 \
+              --retry-all-errors \
+              --connect-timeout 10 \
+              --max-time 30 \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$api" \
+              -o "$response_file"
+
+            jq -e '.workflow_runs | type == "array"' \
+              "$response_file" >/dev/null
+
+            run="$(
+              jq -cer \
+                --arg sha "$TARGET_SHA" \
+                --arg branch "$DEPLOY_BRANCH" \
+                '[
+                  .workflow_runs[]
+                  | select(
+                      .head_sha == $sha
+                      and .head_branch == $branch
+                      and .event == "push"
+                    )
+                ]
+                | sort_by(.id)
+                | last // empty' \
+                "$response_file" || true
+            )"
+
+            if [[ -z "$run" ]]; then
+              if (( attempt >= missing_limit )); then
+                echo "::error::Aucune CI push trouvée pour ${TARGET_SHA} sur ${DEPLOY_BRANCH}."
+                exit 1
+              fi
+              sleep 20
+              continue
+            fi
+
+            status="$(jq -r '.status' <<<"$run")"
+            conclusion="$(jq -r '.conclusion // "pending"' <<<"$run")"
+            run_url="$(jq -r '.html_url' <<<"$run")"
+            state="${status}/${conclusion}"
+
+            if [[ "$state" != "$last_state" ]]; then
+              echo "CI ${TARGET_SHA}: ${state} — ${run_url}"
+              last_state="$state"
+            fi
+
+            if [[ "$status" == "completed" ]]; then
+              if [[ "$conclusion" != "success" ]]; then
+                echo "::error::Déploiement refusé : CI '${conclusion}'. ${run_url}"
+                exit 1
+              fi
+
+              echo "CI verte confirmée : ${run_url}"
+              exit 0
+            fi
+
+            sleep 20
+          done
+
+          echo "::error::Délai dépassé en attendant la CI de ${TARGET_SHA}."
+          exit 1
+
   deploy:
     name: Déployer l'app web
+    needs: verify-ci
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
+      - name: Checkout du SHA validé
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify-ci.outputs.deploy_sha }}
+          persist-credentials: false
 
-      - name: Assembler le site (index + icônes + manifest)
+      - name: Assembler le site (index + icônes + manifest + Neon Ultra)
         run: |
-          mkdir site
+          set -euo pipefail
+          mkdir -p site/design-system
           cp webapp/index.html site/
           cp webapp/manifest.webmanifest webapp/sw.js webapp/*.png site/
+          cp webapp/design-system/neon-ultra.css site/design-system/
+          test -s site/design-system/neon-ultra.css
 
-      - name: Configurer Pages (activation automatique)
+      - name: Configurer Pages
         uses: actions/configure-pages@v5
         with:
           enablement: true
