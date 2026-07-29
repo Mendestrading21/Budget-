@@ -17,7 +17,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## Correctif critique de fiabilité (29.07.2026) — VERIFYING
+## Correctif critique de fiabilité (29.07.2026) — CI VERIFIED / DEPLOYING
 
 La poursuite visuelle reste gelée avant NU3 pendant la validation d'un lot
 correctif transversal découvert par audit. Ce lot ne change pas la direction
@@ -43,9 +43,15 @@ Neon Ultra et ne clôt aucun lot visuel.
 
 Les tests dédiés sont ajoutés au web et au natif. Validation locale web :
 **86 parcours e2e** (78 conservés + 8 scénarios critiques), zéro erreur
-console, et **5 fixtures de parité** vertes. L'état reste **VERIFYING**
-jusqu'à réussite de la CI complète au SHA exact puis vérification du
-déploiement GitHub Pages. **NU3 reste READY et non commencé.**
+console, et **5 fixtures de parité** vertes. Validation distante :
+**CI #253 verte** sur `a6ea692be7bcffdce527568c5bdfd7084826f9d5`
+(86 e2e, 5 parités, design/accessibilité, **289 tests iOS**, builds Debug
+et Release, PrivacyInfo et iPhone uniquement). Le code de fiabilité est
+**CI VERIFIED**. Le workflow Pages est durci pour exiger une CI push verte
+sur le SHA exact et publier automatiquement les changements `webapp/**`.
+La livraison reste **VERIFYING** jusqu'à synchronisation du garde-fou sur
+la branche par défaut et contrôle des fichiers réellement servis par Pages.
+**NU3 reste READY et non commencé.**
 
 ## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — DONE
 
