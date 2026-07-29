@@ -2750,6 +2750,66 @@ function renderSimpleHome() {
       </div>`}
   </section>`;
 
+  // Tuiles d'accès : chaque destination utile, avec un chiffre RÉEL calculé
+  // depuis les données — jamais un libellé décoratif. Une tuile qui n'a rien
+  // à dire dit ce qu'il faut faire pour qu'elle serve.
+  const tiles = (() => {
+    const closed = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
+    const activeSubs = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
+    const subsPerMonth = activeSubs.length
+      ? fromCents(Math.round(activeSubs.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12))
+      : 0;
+    const openBills = (S.bills || []).filter(b => !billIsCovered(b));
+    const lateBills = openBills.filter(billIsOverdue).length;
+    const report = budgetReport(y, m);
+    const plannedC = report.lines.filter(l => l.kind === "expense").reduce((a, l) => a + toCents(l.planned), 0);
+    const actualC = report.lines.filter(l => l.kind === "expense").reduce((a, l) => a + toCents(l.actual), 0);
+    const tax = taxSummary(NOW.y);
+    const netWorth = round2(
+      ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
+      + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
+      + PENSIONS.reduce((a, x) => a + x.value, 0)
+      - liabilitiesTotal());
+    const prio = GOALS.filter(g => !g.achieved);
+
+    const items = [
+      ["year", "📅", "Année", `${closed} mois bouclé${closed > 1 ? "s" : ""} sur 12`],
+      ["subs", "🎬", "Abonnements", activeSubs.length
+        ? `${activeSubs.length} actif${activeSubs.length > 1 ? "s" : ""} · ${chf(subsPerMonth)}/mois`
+        : "Rien de suivi pour l'instant"],
+      ["bills", "🧾", "Factures", lateBills
+        ? `${lateBills} en retard`
+        : (openBills.length ? `${openBills.length} à payer` : "Tout est payé 🎉")],
+      ["taxes", "📮", "Impôts", tax.reserveGap > 0
+        ? `${chf(tax.reserveGap)} à réserver`
+        : `Réserve ${NOW.y} couverte ✓`],
+      ["networth", "🏛", "Patrimoine", chf(netWorth)],
+      ["goals", "🎯", "Objectifs", prio.length
+        ? `${prio.length} en cours`
+        : "Aucun objectif en cours"],
+    ];
+    const tile = ([id, icon, title, value]) =>
+      `<button class="home-tile" data-more="${id}" aria-label="${esc(title)} — ${esc(value)}">
+        <span class="home-tile-icon" aria-hidden="true">${icon}</span>
+        <span class="home-tile-title">${title}</span>
+        <span class="home-tile-value">${value}</span>
+      </button>`;
+    // Le Budget vit dans sa propre destination : la tuile y mène.
+    const budgetTile = plannedC > 0
+      ? `<button class="home-tile" data-gototab="budget" aria-label="Budget — ${Math.round(actualC / plannedC * 100)} % utilisé">
+          <span class="home-tile-icon" aria-hidden="true">📊</span>
+          <span class="home-tile-title">Budget</span>
+          <span class="home-tile-value">${Math.round(actualC / plannedC * 100)} % utilisé</span>
+        </button>`
+      : `<button class="home-tile" data-gototab="budget" aria-label="Budget — aucun budget fixé">
+          <span class="home-tile-icon" aria-hidden="true">📊</span>
+          <span class="home-tile-title">Budget</span>
+          <span class="home-tile-value">Aucun budget fixé</span>
+        </button>`;
+    return `<p class="section-title">Tout voir</p>
+      <div class="home-tiles">${items.slice(0, 3).map(tile).join("")}${budgetTile}${items.slice(3).map(tile).join("")}</div>`;
+  })();
+
   return `<div class="home-simple">
     <h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
       ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
@@ -2759,6 +2819,7 @@ function renderSimpleHome() {
     ${hero}
     ${metrics}
     ${bills}
+    ${tiles}
   </div>`;
 }
 

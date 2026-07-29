@@ -836,10 +836,36 @@ await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Disponible"), "le montant disponible doit dominer l'écran Mois");
 check(screenHTML.includes("Factures mensuelles"), "les factures mensuelles doivent suivre les quatre montants");
+// ADR-026 : l'accueil ne CHARGE aucune analyse. Un raccourci de navigation
+// vers une destination dédiée n'est pas une analyse — un widget de
+// progression, une courbe ou une jauge en est une. L'assertion distingue
+// donc les deux au lieu de bannir un simple lien.
 check(!screenHTML.includes("Ce qui reste, 6 derniers mois")
-    && !screenHTML.includes("Budget restant :")
-    && !screenHTML.includes('data-more="goals"'),
-  "courbe, budget détaillé et objectif ne doivent plus charger l'écran Mois");
+    && !screenHTML.includes("Budget restant :"),
+  "ni courbe 6 mois ni budget détaillé ne doivent charger l'écran Mois");
+const home35 = await page.evaluate(() => {
+  const s = document.getElementById("screen");
+  const tiles = [...s.querySelectorAll(".home-tile")];
+  const bills = s.querySelector(".home-bills-card");
+  const grid = s.querySelector(".home-tiles");
+  return {
+    // Aucun ancien widget d'objectif : seule une tuile de navigation subsiste.
+    goalWidget: !!s.querySelector('.card.row.tx[data-more="goals"]'),
+    // Aucune tuile ne porte de jauge ni de graphique.
+    tilesWithGauge: tiles.filter(t => t.querySelector(".track, svg")).length,
+    tileCount: tiles.length,
+    // Les tuiles viennent APRÈS les factures : le premier niveau reste
+    // le mois, le disponible, les quatre montants, les factures.
+    tilesAfterBills: !!(grid && bills)
+      && (bills.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+  };
+});
+check(!home35.goalWidget,
+  "l'ancien widget d'objectif ne doit plus charger l'écran Mois");
+check(home35.tileCount > 0 && home35.tilesWithGauge === 0,
+  `les tuiles sont de la NAVIGATION, pas des analyses (obtenu ${home35.tilesWithGauge} avec jauge sur ${home35.tileCount})`);
+check(home35.tilesAfterBills,
+  "les tuiles viennent après les factures : le premier niveau reste essentiel");
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
 check(tabLabel === "Mois", "l'onglet d'accueil s'appelle « Mois »");
 
@@ -3627,6 +3653,79 @@ currentTest = "écran Abonnements";
   check(!clean90, "les abonnements de test sont retirés (aucune trace)");
 }
 
+// ---------- Test 91 : tuiles de l'accueil — chiffres réels et destinations vivantes ----------
+currentTest = "tuiles de l'accueil";
+await goHome();
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.waitForTimeout(300);
+{
+  const tiles91 = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const tiles = [...s.querySelectorAll(".home-tile")];
+    // Valeurs attendues recalculées depuis l'état, indépendamment du rendu.
+    const activeSubs = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
+    const perMonth = chf(fromCents(Math.round(
+      activeSubs.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12)));
+    const closed = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
+    return {
+      count: tiles.length,
+      keys: tiles.map(t => t.dataset.more || t.dataset.gototab),
+      texts: tiles.map(t => t.innerText.replace(/\n/g, " · ")),
+      // Toutes tapables et assez grandes.
+      small: tiles.filter(t => t.getBoundingClientRect().height < 44).length,
+      // Chacune est annoncée avec son chiffre.
+      unlabelled: tiles.filter(t => !(t.getAttribute("aria-label") || "").includes("—")).length,
+      expectedSubs: `${activeSubs.length} actif${activeSubs.length > 1 ? "s" : ""} · ${perMonth}/mois`,
+      expectedYear: `${closed} mois bouclé${closed > 1 ? "s" : ""} sur 12`,
+      // Le point focal reste unique : le CTA du héros.
+      ctas: s.querySelectorAll(".btn.nu-cta").length,
+      gradientTiles: tiles.filter(t => getComputedStyle(t).backgroundImage !== "none").length,
+    };
+  });
+  check(tiles91.count === 7,
+    `sept tuiles d'accès (obtenu ${tiles91.count})`);
+  check(tiles91.keys.join(",") === "year,subs,bills,budget,taxes,networth,goals",
+    `les tuiles mènent aux sept destinations attendues (obtenu ${tiles91.keys.join(",")})`);
+  check(tiles91.small === 0, `toutes les tuiles font au moins 44 px (obtenu ${tiles91.small} trop petites)`);
+  check(tiles91.unlabelled === 0,
+    `chaque tuile est annoncée avec son chiffre (obtenu ${tiles91.unlabelled} sans)`);
+  check(tiles91.texts.some(t => t.includes(tiles91.expectedSubs)),
+    `la tuile Abonnements porte le coût mensuel EXACT « ${tiles91.expectedSubs} » (obtenu ${JSON.stringify(tiles91.texts)})`);
+  check(tiles91.texts.some(t => t.includes(tiles91.expectedYear)),
+    `la tuile Année porte le compte de mois bouclés EXACT « ${tiles91.expectedYear} »`);
+  check(tiles91.ctas === 1,
+    `le point focal reste unique malgré les tuiles (obtenu ${tiles91.ctas} CTA)`);
+  check(tiles91.gradientTiles === 0,
+    `aucune tuile ne porte de dégradé (obtenu ${tiles91.gradientTiles})`);
+  // Chaque tuile ouvre RÉELLEMENT sa destination, et l'onglet Mois y revient.
+  for (const [key, expect] of [["year", "Année"], ["subs", "Abonnements"],
+                               ["bills", "Factures"], ["taxes", "Impôts"],
+                               ["networth", "Patrimoine"], ["goals", "Objectifs"]]) {
+    await page.click(`#tabbar button[aria-label="Mois"]`);
+    await page.waitForTimeout(200);
+    await page.click(`#screen .home-tile[data-more="${key}"]`);
+    await page.waitForTimeout(300);
+    const landed = await page.evaluate(() => ({
+      tab: activeTab, view: moreView,
+      text: document.getElementById("screen").innerText.slice(0, 80),
+    }));
+    check(landed.tab === "more" && landed.view === key,
+      `la tuile ${key} ouvre sa destination (obtenu ${landed.tab}/${landed.view})`);
+    check(landed.text.includes(expect),
+      `la destination ${key} affiche « ${expect} » (obtenu « ${landed.text.replace(/\n/g, " ").slice(0, 50)} »)`);
+  }
+  // La tuile Budget mène à l'onglet Budget, pas à une vue de Gérer.
+  await page.click(`#tabbar button[aria-label="Mois"]`);
+  await page.waitForTimeout(200);
+  await page.click('#screen .home-tile[data-gototab="budget"]');
+  await page.waitForTimeout(300);
+  const budget91 = await page.evaluate(() => ({ tab: activeTab, view: moreView }));
+  check(budget91.tab === "budget" && budget91.view === null,
+    `la tuile Budget ouvre l'onglet Budget (obtenu ${budget91.tab}/${budget91.view})`);
+  await page.click(`#tabbar button[aria-label="Mois"]`);
+  await page.waitForTimeout(200);
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3636,4 +3735,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 90 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 91 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil), zéro erreur console ✓");

@@ -1,5 +1,76 @@
 # Budget decision log
 
+## ADR-028 — Rythme des charges régulières, page Année et tuiles d'accès
+
+Date: 2026-07-29
+Status: accepted
+
+### Context
+
+Le propriétaire tient son suivi de référence dans un tableur : une table par
+année avec les douze mois et leur état, une table d'abonnements avec leur
+échéance, et un tableau de bord fait de blocs. Trois écarts empêchaient l'app
+de remplacer ce tableur.
+
+1. Une charge régulière était forcément **mensuelle**. Un abonnement annuel
+   devait être saisi soit comme mensuel — compté douze fois, donc faux — soit
+   comme facture ponctuelle, donc jamais renouvelé. Aucune notion de
+   résiliation non plus.
+2. Aucune vue des douze mois : il fallait feuilleter l'écran Mois un mois à
+   la fois avec les flèches.
+3. Le tableur additionne des prix annuels et des prix mensuels dans une même
+   colonne. Le total affiché ne veut rien dire : sur le jeu réel du
+   propriétaire il annonce 995.75 CHF alors que le coût vrai est 3'106.65 CHF
+   par an. L'app doit corriger cette erreur, pas la reproduire.
+
+### Decision
+
+1. Deux champs **additifs** sur les charges régulières : `every`
+   (`"month"` par défaut, `"year"`), `dueM` (mois d'échéance, utile
+   uniquement en annuel) et `endedOn` (`null` ou `{ y, m }` de résiliation).
+   Absents, ils valent mensuel et actif : le sens des données déjà
+   enregistrées est strictement préservé.
+2. Une charge **annuelle** est engagée **uniquement sur son mois
+   d'échéance**. Elle n'est jamais lissée sur douze mois : l'app n'affiche
+   pas un prélèvement qui n'existe pas. Cette règle vaut partout où une
+   récurrence pèse — argent disponible, obligations du mois, rituel de
+   bouclage, revenus attendus.
+3. Une charge **résiliée** quitte les prévisions dès le mois indiqué mais
+   reste visible dans l'écran Abonnements. Résilier ne touche aucun
+   mouvement : l'historique comptabilisé est intact.
+4. Écran **Abonnements** : deux totaux jamais additionnés entre eux — coût
+   réel annuel, et moyenne mensuelle nommée comme telle. « Factures
+   mensuelles » ne montre que le mensuel, conforme à son titre.
+5. Page **Année** : les douze mois, chacun avec son état écrit et ses
+   montants entré/sorti, ouvrable d'un tap. Vue pure, aucune formule
+   nouvelle.
+6. **Tuiles d'accès** sur l'accueil, sous les factures : sept raccourcis
+   portant chacun un chiffre réel. Ce sont des liens de navigation, pas des
+   analyses — aucune jauge, aucune courbe, aucun dégradé. Le premier niveau
+   de l'accueil reste celui d'ADR-026 (mois, disponible, quatre montants,
+   factures) et les analyses restent dans leurs destinations dédiées.
+7. Les écrans **nés** dans cette passe (Année, Abonnements) naissent dans
+   l'identité Neon Ultra plutôt que dans l'ancienne peau : la portée pilote
+   d'ADR-024 les accueille.
+
+### Consequences
+
+L'app remplace le tableur sans en hériter l'erreur de total. Un abonnement
+annuel devient modélisable pour la première fois. Aucune formule financière,
+clé de stockage, structure de données ni destination de navigation existante
+n'est modifiée.
+
+### Verification
+
+Un annuel de 1200 dû en mars pèse 1300 en mars avec un mensuel de 100, 100 en
+avril, et **2400 sur la somme des douze mois** — jamais 15'600. Rituel de
+bouclage et obligations du mois vérifiés sur les deux mois. Deux totaux
+d'abonnements comparés au recalcul depuis l'état. Résiliation chiffrée. Trois
+refus de restauration (rythme inconnu, mois d'échéance hors 1-12, date de
+résiliation illisible) avec données intactes. Sept tuiles, destinations
+réellement ouvertes, cibles 44 px, point focal unique, aucune jauge.
+91 parcours e2e, 5 parités, design system vert, zéro erreur console.
+
 ## ADR-027 — Récurrents en retard engagés et couverture stricte par `recurringId`
 
 Date: 2026-07-29
