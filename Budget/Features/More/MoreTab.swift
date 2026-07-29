@@ -61,7 +61,7 @@ struct MoreTab: View {
             }
             .scrollContentBackground(.hidden)
             .background(BudgetScreenBackground())
-            .navigationTitle("Plus")
+            .navigationTitle("Gérer")
         }
     }
 
@@ -105,7 +105,7 @@ struct MoreTab: View {
     }
 }
 
-/// Regroupe deux écrans avancés afin d'éviter deux lignes voisines dans Plus.
+/// Regroupe deux écrans avancés afin d'éviter deux lignes voisines dans Gérer.
 private struct FinancialProtectionHubView: View {
     var body: some View {
         List {
