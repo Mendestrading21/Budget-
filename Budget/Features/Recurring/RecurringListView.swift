@@ -52,7 +52,6 @@ struct RecurringListView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
-            .obsidianFABClearance()
         }
         .navigationTitle("Factures mensuelles")
         .toolbar {
@@ -102,7 +101,7 @@ struct RecurringListView: View {
         if !activeBills.isEmpty {
             sectionTitle("Mes factures", count: activeBills.count)
             ForEach(activeBills) { recurring in
-                simpleRow(recurring)
+                row(recurring)
             }
         }
     }
@@ -112,7 +111,7 @@ struct RecurringListView: View {
         if !activeIncome.isEmpty {
             sectionTitle("Mes revenus réguliers", count: activeIncome.count)
             ForEach(activeIncome) { recurring in
-                simpleRow(recurring)
+                row(recurring)
             }
         }
     }
@@ -123,7 +122,7 @@ struct RecurringListView: View {
             DisclosureGroup("Désactivés (\(inactive.count))") {
                 VStack(spacing: BudgetSpacing.small) {
                     ForEach(inactive) { recurring in
-                        simpleRow(recurring)
+                        row(recurring)
                     }
                 }
                 .padding(.top, BudgetSpacing.small)
@@ -144,73 +143,23 @@ struct RecurringListView: View {
         }
     }
 
-    private func simpleRow(_ recurring: RecurringTransaction) -> some View {
+    private func row(_ recurring: RecurringTransaction) -> some View {
         Button {
             editedRecurring = recurring
         } label: {
-            GlassCard(style: .row) {
-                HStack(spacing: BudgetSpacing.medium) {
-                    Image(systemName: recurring.type == .income ? "arrow.down.circle" : "calendar")
-                        .foregroundStyle(
-                            recurring.type == .income
-                                ? BudgetColor.positive
-                                : BudgetColor.warning
-                        )
-                        .frame(width: 28)
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(recurring.title)
-                            .font(BudgetFont.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-
-                        Text(rowSubtitle(recurring))
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    Spacer(minLength: BudgetSpacing.small)
-
-                    Text(FinanceFormatting.chf(recurring.amount))
-                        .font(BudgetFont.amount)
-                        .foregroundStyle(
-                            recurring.type == .income
-                                ? BudgetColor.positive
-                                : .primary
-                        )
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-            }
+            RecurringRow(
+                recurring: recurring,
+                monthlyEquivalent: scheduleService.monthlyEquivalent(of: recurring),
+                nextDate: scheduleService.nextOccurrence(
+                    of: recurring,
+                    onOrAfter: appContainer.dateProvider.now
+                ),
+                now: appContainer.dateProvider.now
+            )
         }
         .buttonStyle(.plain)
-        .opacity(recurring.isActive ? 1 : 0.55)
-        .accessibilityLabel(rowAccessibility(recurring))
         .accessibilityHint("Touchez deux fois pour modifier")
         .accessibilityIdentifier("recurring.row.\(recurring.title)")
-    }
-
-    private func rowSubtitle(_ recurring: RecurringTransaction) -> String {
-        var parts: [String] = [recurring.frequencyLabel]
-
-        if let next = scheduleService.nextOccurrence(
-            of: recurring,
-            onOrAfter: appContainer.dateProvider.now
-        ), recurring.isActive {
-            parts.append("prochaine le \(FinanceFormatting.swissDate(next))")
-        }
-
-        if !recurring.isActive {
-            parts.append("désactivée")
-        }
-
-        return parts.joined(separator: " · ")
-    }
-
-    private func rowAccessibility(_ recurring: RecurringTransaction) -> String {
-        "\(recurring.title), \(FinanceFormatting.chf(recurring.amount)), \(rowSubtitle(recurring))"
     }
 
     private var emptyState: some View {
@@ -223,6 +172,64 @@ struct RecurringListView: View {
                 action: { isPresentingNew = true }
             )
         }
+    }
+}
+
+/// Ligne réutilisable et testable. Les intitulés longs passent à la ligne au
+/// lieu d’être coupés, tandis que le montant reste lisible sur petit écran.
+struct RecurringRow: View {
+    let recurring: RecurringTransaction
+    let monthlyEquivalent: Decimal
+    let nextDate: Date?
+    let now: Date
+
+    var body: some View {
+        GlassCard(style: .row) {
+            HStack(alignment: .top, spacing: BudgetSpacing.medium) {
+                Image(systemName: recurring.type == .income ? "arrow.down.circle" : "calendar")
+                    .foregroundStyle(recurring.type == .income ? BudgetColor.positive : BudgetColor.warning)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(recurring.title)
+                        .font(BudgetFont.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(subtitle)
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: BudgetSpacing.small)
+
+                Text(FinanceFormatting.chf(recurring.amount))
+                    .font(BudgetFont.amount)
+                    .foregroundStyle(recurring.type == .income ? BudgetColor.positive : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .layoutPriority(1)
+            }
+        }
+        .opacity(recurring.isActive ? 1 : 0.55)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(recurring.title), \(FinanceFormatting.chf(recurring.amount)), \(subtitle)")
+    }
+
+    private var subtitle: String {
+        var parts = [recurring.frequencyLabel]
+        if recurring.frequencyLabel != "Mensuel" {
+            parts.append("environ \(FinanceFormatting.chf(monthlyEquivalent)) par mois")
+        }
+        if let nextDate, recurring.isActive {
+            parts.append("prochaine le \(FinanceFormatting.swissDate(nextDate))")
+        }
+        if !recurring.isActive {
+            parts.append("désactivée")
+        }
+        return parts.joined(separator: " · ")
     }
 }
 
