@@ -131,13 +131,13 @@ final class TransactionValidationTests: XCTestCase {
     }
 
     @MainActor
-    func testAppContainerPersistsDuePromotionInDedicatedContext() throws {
+    func testAppContainerPromotesTheMainContextAndPersistsIt() throws {
         let fixedNow = Date(timeIntervalSince1970: 1_785_278_400)
         let appContainer = try AppContainer(
             dateProvider: FixedDateProvider(now: fixedNow),
             inMemory: true
         )
-        let writeContext = ModelContext(appContainer.modelContainer)
+        let mainContext = appContainer.modelContainer.mainContext
         let account = Account(name: "Courant", type: .current)
         let due = BudgetTransaction(
             date: appContainer.calendar.date(byAdding: .day, value: -1, to: fixedNow)!,
@@ -155,14 +155,23 @@ final class TransactionValidationTests: XCTestCase {
             title: "Échéance future",
             account: account
         )
-        writeContext.insert(account)
-        writeContext.insert(due)
-        writeContext.insert(future)
-        try writeContext.save()
+        mainContext.insert(account)
+        mainContext.insert(due)
+        mainContext.insert(future)
+        try mainContext.save()
+        let alreadyLoaded = try mainContext.fetch(FetchDescriptor<BudgetTransaction>())
+        let loadedDue = try XCTUnwrap(
+            alreadyLoaded.first { $0.title == "Échéance à promouvoir" }
+        )
+        let loadedFuture = try XCTUnwrap(
+            alreadyLoaded.first { $0.title == "Échéance future" }
+        )
 
         appContainer.postDuePlannedTransactions()
 
         XCTAssertNil(appContainer.duePostingErrorMessage)
+        XCTAssertEqual(loadedDue.status, .posted)
+        XCTAssertEqual(loadedFuture.status, .planned)
         let readContext = ModelContext(appContainer.modelContainer)
         let persisted = try readContext.fetch(FetchDescriptor<BudgetTransaction>())
         XCTAssertEqual(
@@ -173,6 +182,42 @@ final class TransactionValidationTests: XCTestCase {
             persisted.first { $0.title == "Échéance future" }?.status,
             .planned
         )
+    }
+
+    @MainActor
+    func testPromotionNeverCommitsOrRollsBackPendingMainContextEdits() throws {
+        let fixedNow = Date(timeIntervalSince1970: 1_785_278_400)
+        let appContainer = try AppContainer(
+            dateProvider: FixedDateProvider(now: fixedNow),
+            inMemory: true
+        )
+        let mainContext = appContainer.modelContainer.mainContext
+        let account = Account(name: "Courant", type: .current)
+        let due = BudgetTransaction(
+            date: appContainer.calendar.date(byAdding: .day, value: -1, to: fixedNow)!,
+            amount: 75,
+            type: .expense,
+            status: .planned,
+            title: "Échéance protégée",
+            account: account
+        )
+        mainContext.insert(account)
+        mainContext.insert(due)
+        try mainContext.save()
+
+        account.name = "Édition non enregistrée"
+        XCTAssertTrue(mainContext.hasChanges)
+        appContainer.postDuePlannedTransactions()
+
+        XCTAssertTrue(mainContext.hasChanges, "La maintenance ne doit pas annuler l'édition en cours")
+        XCTAssertEqual(account.name, "Édition non enregistrée")
+        XCTAssertEqual(due.status, .planned)
+        XCTAssertNotNil(appContainer.duePostingErrorMessage)
+        mainContext.rollback()
+
+        let readContext = ModelContext(appContainer.modelContainer)
+        let persisted = try readContext.fetch(FetchDescriptor<BudgetTransaction>())
+        XCTAssertEqual(persisted.first?.status, .planned)
     }
 
     func testPlannedFutureDateIsAllowed() {

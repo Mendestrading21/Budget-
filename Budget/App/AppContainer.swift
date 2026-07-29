@@ -49,12 +49,16 @@ final class AppContainer {
     }
 
     /// Applies the canonical day-based posting rule when the app starts or
-    /// returns to the foreground. A DEDICATED context prevents this
-    /// maintenance save/rollback from committing or cancelling an unrelated
-    /// form edit in the UI's main context.
+    /// returns to the foreground. The main context keeps already-rendered
+    /// `@Query` values coherent. Promotion starts only when that context is
+    /// clean, so it can never commit or cancel an unrelated form edit.
     @MainActor
     func postDuePlannedTransactions() {
-        let context = ModelContext(modelContainer)
+        let context = modelContainer.mainContext
+        guard !context.hasChanges else {
+            duePostingErrorMessage = "Une modification est encore en cours. Terminez-la, puis réessayez la mise à jour des échéances."
+            return
+        }
         do {
             let transactions = try context.fetch(FetchDescriptor<BudgetTransaction>())
             let promoted = TransactionPostingPolicy(calendar: calendar)
