@@ -113,6 +113,6 @@ jamais copier un texte, un nom, un personnage, une marque ou un écran exact.
 - Aucune formule, agrégat, migration, clé localStorage, sauvegarde,
   service worker, bundle identifier, signature, PrivacyInfo, cible
   iPhone-only ([1]) ni donnée de démonstration.
-- La navigation (PWA 4 onglets + ＋ central / iOS 5 onglets) reste EN L'ÉTAT
-  jusqu'à la décision produit séparée documentée dans
-  `NEON_ULTRA_SCREEN_MATRIX.md`.
+- La navigation suit ADR-026 : cinq destinations identiques PWA/iOS
+  (`Mois · Historique · Budget · Comptes · Gérer`), sans bouton global
+  central ou flottant. Cette convergence ne modifie aucune règle financière.

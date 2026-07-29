@@ -443,9 +443,10 @@
     backdrop-filter: blur(14px);
     padding: 8px 6px calc(14px + env(safe-area-inset-bottom));
   }
-  .tabbar .tab-group { flex: 1; display: flex; }
   .tabbar button {
     flex: 1;
+    min-width: 0;
+    min-height: 44px;
     background: none;
     border: none;
     color: var(--coolgray);
@@ -455,6 +456,12 @@
     display: flex; flex-direction: column; align-items: center; gap: 3px;
     cursor: pointer;
     padding: 4px 0;
+  }
+  .tabbar button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .tabbar button svg { width: 22px; height: 22px; }
   .tabbar button.active { color: var(--indigo-text); }
@@ -488,26 +495,6 @@
     border: 1px solid var(--negative);
     color: var(--negative);
   }
-  /* Le ＋ vit DANS la barre du bas, exactement au centre : il ne peut
-     jamais recouvrir le contenu (retour propriétaire du tour). */
-  .tabbar .fab {
-    flex: none;
-    width: 46px; height: 46px;
-    margin: 0 6px;
-    padding: 0;
-    border-radius: 16px;
-    border: none;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
-      var(--brand-deep);
-    color: #fff; font-size: 22px;
-    cursor: pointer;
-    box-shadow: 0 6px 18px var(--brand-glow);
-    display: grid; place-items: center;
-    line-height: 0;
-  }
-  .tabbar .fab[disabled] { opacity: 0.4; cursor: default; }
-
   .sheet-backdrop {
     position: absolute; inset: 0;
     background: rgba(4, 6, 10, 0.6);
@@ -927,7 +914,7 @@
     </form>
 
     <form class="sheet" id="recForm" style="display:none">
-      <h3 id="recSheetTitle">Nouveau paiement régulier</h3>
+      <h3 id="recSheetTitle">Nouvelle facture mensuelle</h3>
       <label for="rTitle">Intitulé</label>
       <input id="rTitle" placeholder="Loyer" autocomplete="off" />
       <label for="rAmount">Montant (<span class="curlabel">CHF</span>)</label>
@@ -948,9 +935,9 @@
         <button type="button" class="btn secondary" id="rCancel">Annuler</button>
         <button type="submit" class="btn">Enregistrer</button>
       </div>
-      <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Marquer payé ce mois</button>
+      <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Régler ce mois</button>
       <button type="button" class="btn secondary" id="rDelete"
-              style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce paiement régulier</button>
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette récurrence</button>
     </form>
 
     <form class="sheet" id="itemForm" style="display:none">
@@ -968,7 +955,7 @@
       <div id="iMonthlyWrap">
         <label for="iMonthly">Mensualité (facultatif — dettes)</label>
         <input id="iMonthly" inputmode="decimal" placeholder="0.00" autocomplete="off" />
-        <p class="caption" style="margin:4px 0 0">Crée un paiement régulier : chaque « ✓ Fait » du Check du mois réduit la dette.</p>
+        <p class="caption" style="margin:4px 0 0">Crée une mensualité : chaque paiement enregistré réduit automatiquement la dette.</p>
       </div>
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="iInclude" style="width:auto" checked /> Compter dans la fortune nette
@@ -1084,7 +1071,7 @@
         <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
         <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
         <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
-        <button type="button" class="btn secondary" data-quick="rec">🔁 Paiement régulier</button>
+        <button type="button" class="btn secondary" data-quick="rec">🔁 Facture mensuelle</button>
         <button type="button" class="btn secondary" data-quick="item">🏛 Actif / dette</button>
         <button type="button" class="btn secondary" data-quick="ins">🛡 Assurance</button>
         <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
@@ -1399,6 +1386,34 @@ function stampAllTransactions(state) {
   return stamped;
 }
 
+/* Migration limitée aux fixtures de démonstration historiques : avant les
+   recurringId, le salaire de démo était rapproché par simple intitulé.
+   Les vraies données utilisateur ne sont jamais devinées ; elles suivent
+   désormais exclusivement le lien explicite. */
+function linkDemoRecurringTransactions(state) {
+  if (!state || state.isDemo !== true) return 0;
+  const accounts = state.accounts || [];
+  const fallback = accounts.find(a => a.cash && a.currency === state.baseCurrency)
+    || accounts.find(a => a.cash) || accounts[0] || null;
+  let linked = 0;
+  for (const transaction of state.transactions || []) {
+    if (transaction.recurringId) continue;
+    const candidates = (state.recurrings || []).filter(recurring => {
+      const accountId = accounts.some(a => a.id === recurring.accountId)
+        ? recurring.accountId : (fallback && fallback.id);
+      return recurring.title === transaction.title
+        && recurring.type === transaction.type
+        && Math.round(Number(recurring.amount) * 100) === Math.round(Number(transaction.amount) * 100)
+        && accountId === transaction.acc;
+    });
+    if (candidates.length === 1) {
+      transaction.recurringId = candidates[0].id;
+      linked++;
+    }
+  }
+  return linked;
+}
+
 /* E05 : un montant saisi dans la devise du compte SOURCE se convertit
    dans celle du compte DESTINATION (via la devise de référence).
    Un taux absent rend le montant non convertible : jamais de 1:1 implicite. */
@@ -1520,9 +1535,10 @@ function transactionSequenceFloor(list, floor = 0) {
   }, Number.isSafeInteger(floor) ? floor : 0);
 }
 function monthTemplate(y, m) {
-  const mk = (d, title, amount, type, cat, acc, dest) => ({
+  const mk = (d, title, amount, type, cat, acc, dest, recurringId) => ({
     id: ++txSeq, y, m, d, title, amount, type, cat: cat || null, acc, dest: dest || null,
     status: statusForDate(y, m, d),
+    ...(recurringId ? { recurringId } : {}),
   });
   return [
     mk(1, "Loyer", 2150, "expense", "Logement", "cur"),
@@ -1534,12 +1550,13 @@ function monthTemplate(y, m) {
     mk(16, "Versement 3a", 587, "investment", "Pilier 3a", "cur", "p3a"),
     mk(18, "Retrait espèces", 200, "transfer", null, "cur", "cash"),
     mk(20, "Acompte d'impôts", 850, "taxPayment", "Impôts", "cur"),
-    mk(25, "Salaire", 8450, "income", "Salaire", "cur"),
+    mk(25, "Salaire", 8450, "income", "Salaire", "cur", null, "r-salaire"),
   ];
 }
 
-/* Récurrents (Phase 6) : occurrences à venir du mois courant, pas encore
-   comptabilisées — elles pèsent sur le « Vraiment disponible ». */
+/* Récurrents (Phase 6) : une occurrence par mois. Tant qu'elle n'est pas
+   liée à un mouvement, elle pèse sur le montant « Disponible », même si
+   son échéance est dépassée. */
 const RECURRINGS_SEED = [
   { id: "r-salaire", title: "Salaire", amount: 8450.00, type: "income", cat: "Salaire", day: 25, icon: "💰" },
   { id: "r-streaming", title: "Streaming vidéo", amount: 21.90, type: "expense", cat: "Restaurants et sorties", day: 22, icon: "📺" },
@@ -1771,7 +1788,7 @@ txSeq = transactionSequenceFloor(S.transactions, txSeq);
 /* P0 change historique : tout état chargé (ancien utilisateur, sauvegarde
    JSON restaurée) passe par la normalisation d'estampillage, puis l'état
    migré est immédiatement persisté. */
-if (stampAllTransactions(S) > 0) saveState();
+if (stampAllTransactions(S) + linkDemoRecurringTransactions(S) > 0) saveState();
 
 // Alias STABLES vers l'état : toute mutation doit se faire EN PLACE
 // (push/splice/length=0), jamais par réaffectation.
@@ -1846,11 +1863,12 @@ function recurringAccountId(recurring) {
     ? recurring.accountId : defaultCashAccount();
 }
 function recurringOccurrence(recurring, y, m) {
-  const accountId = recurringAccountId(recurring);
-  return transactions.find(t => inMonth(t, y, m) && (
-    t.recurringId === recurring.id
-    || (!t.recurringId && t.title === recurring.title && t.acc === accountId)
-  )) || null;
+  // Une échéance mensuelle n'est couverte que par son mouvement lié.
+  // Un achat manuel portant le même titre sur le même compte reste une
+  // opération distincte et ne peut plus masquer une vraie facture.
+  return transactions.find(t =>
+    inMonth(t, y, m) && t.recurringId === recurring.id
+  ) || null;
 }
 function recurringAmountInBase(recurring) {
   return toCHF(recurring.amount, accountCurrency(recurringAccountId(recurring)));
@@ -1942,13 +1960,12 @@ function snapshot(y, m) {
 
   const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const isCurrent = (y === NOW.y && m === NOW.m);
-  // Occurrences récurrentes encore à venir ce mois, dédupliquées contre
-  // les mouvements déjà saisis/planifiés (même titre, même mois) — la
-  // règle native : chaque charge apparaît exactement une fois.
-  const upcomingRecurrings = isCurrent
-    ? RECURRINGS.filter(r => r.day > NOW.d
-        && !recurringOccurrence(r, y, m))
-    : [];
+  // Toutes les occurrences mensuelles non couvertes restent engagées,
+  // même après leur échéance. Elles sont dédupliquées uniquement par leur
+  // recurringId : une charge en retard ne disparaît jamais du disponible.
+  const upcomingRecurrings = RECURRINGS.filter(r =>
+    !recurringOccurrence(r, y, m)
+  );
   const recurringCharges = fromCents(upcomingRecurrings.reduce((a, r) =>
     a + (r.type === "expense" ? toCents(recurringAmountInBase(r)) : 0), 0));
   const recurringIncome = fromCents(upcomingRecurrings.reduce((a, r) =>
@@ -2021,6 +2038,73 @@ function monthCheckItems(y, m) {
   return items;
 }
 
+/* Projection visuelle unique des obligations du mois. Les factures qui
+   reviennent vivent dans RECURRINGS ; S.bills reste réservé aux échéances
+   ponctuelles. Le helper est pur : l'afficher ou le réafficher ne crée
+   jamais de mouvement. */
+function monthlyObligations(y, m) {
+  const lastDay = new Date(y, m, 0).getDate();
+  const stateFor = (linked, due, legacyPaid = false) => {
+    if (legacyPaid || (linked && linked.status === "posted")) return "paid";
+    if (linked && linked.status === "planned") return "scheduled";
+    return compareDateParts(due, NOW) < 0 ? "late" : "upcoming";
+  };
+  const recurring = RECURRINGS.filter(r => r.type === "expense").map(r => {
+    const due = { y, m, d: Math.min(r.day, lastDay) };
+    const linked = recurringOccurrence(r, y, m);
+    return {
+      key: `recurring:${r.id}:${y}-${m}`,
+      source: "recurring",
+      id: r.id,
+      title: r.title,
+      icon: r.icon || "🔁",
+      amount: recurringAmountInBase(r),
+      due,
+      state: stateFor(linked, due),
+      accountName: (ACCOUNTS.find(a => a.id === recurringAccountId(r)) || {}).name || "",
+    };
+  });
+  const bills = (S.bills || []).filter(b => b.dueY === y && b.dueM === m).map(b => {
+    const due = { y, m, d: Math.min(b.dueD || lastDay, lastDay) };
+    const linked = billLinkedTransaction(b);
+    return {
+      key: `bill:${b.id}`,
+      source: "bill",
+      id: b.id,
+      title: b.name,
+      icon: "🧾",
+      amount: billAmountInBase(b),
+      due,
+      state: stateFor(linked, due, b.paidTxId === -1),
+      accountName: (ACCOUNTS.find(a => a.id === billAccountId(b)) || {}).name || "",
+    };
+  });
+  const order = { late: 0, upcoming: 1, scheduled: 2, paid: 3 };
+  return [...recurring, ...bills].sort((a, b) =>
+    order[a.state] - order[b.state]
+      || a.due.d - b.due.d
+      || a.title.localeCompare(b.title, "fr")
+  );
+}
+
+/* La simplification retire le « Check du mois » de l'accueil, mais sa
+   progression historique reste synchronisée en arrière-plan. */
+function syncMonthCheckState(y, m) {
+  const checks = monthCheckItems(y, m);
+  const doneCount = checks.filter(c => c.done).length;
+  const monthKey = `${y}-${m}`;
+  const monthClosed = checks.length > 0 && doneCount === checks.length;
+  if (monthClosed && !(S.monthChecks || {})[monthKey]) {
+    S.monthChecks[monthKey] = Date.now();
+    saveState();
+    const streak = closedStreak(y, m);
+    toast(streak >= 2 ? `Mois bouclé ✓ · 🔥 ×${streak}` : "Mois bouclé ✓");
+  } else if (!monthClosed && (S.monthChecks || {})[monthKey]) {
+    delete S.monthChecks[monthKey];
+    saveState();
+  }
+}
+
 function budgetLines(y, m) {
   return (S.budgets && S.budgets[`${y}-${m}`]) || [];
 }
@@ -2071,12 +2155,14 @@ function fold(value) {
 
 const ICONS = {
   home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5M5.5 9v11h13V9"/></svg>',
+  movements: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5h14M5 12h14M5 19h14"/><circle cx="3" cy="5" r=".8" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="3" cy="19" r=".8" fill="currentColor" stroke="none"/></svg>',
   budget: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 4.2"/></svg>',
   accounts: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18"/></svg>',
   more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
 };
 const TABS = [
-  ["home", "Mois"], ["budget", "Budget"], ["accounts", "Comptes"], ["more", "Plus"],
+  ["home", "Mois"], ["movements", "Historique"], ["budget", "Budget"],
+  ["accounts", "Comptes"], ["more", "Gérer"],
 ];
 
 /* Teinte de pastille par nature de mouvement (design system Horizon). */
@@ -2158,6 +2244,8 @@ function monthPriority(y, m, s, report) {
   return null;
 }
 
+/* Ancien renderer conservé temporairement pour la compatibilité des outils
+   de référence NU2. Il n'est plus relié à la navigation. */
 function renderHome() {
   const { y, m } = cursor;
   // R4 — widgets personnalisables : l'essentiel reste, le reste se choisit.
@@ -2498,6 +2586,111 @@ function renderHome() {
     </div>
     </details>`)}
     <button class="btn secondary" data-customize style="margin:6px 0 2px">🎛 Personnaliser mon écran</button>`;
+}
+
+/* ADR-026 — Accueil de lecture immédiate. Toute la richesse reste dans les
+   cinq destinations ; Mois ne montre que les montants utiles et les
+   factures du mois, avec une seule action principale. */
+function renderSimpleHome() {
+  const { y, m } = cursor;
+  const s = snapshot(y, m);
+  syncMonthCheckState(y, m);
+
+  const heroLong = value => Math.abs(value) >= 1000000 ? " long" : "";
+  const hero = s.isCurrent ? `
+    <div class="card hero home-hero">
+      <p class="card-label">Disponible</p>
+      <p class="hero-amount${s.available < 0 ? " neg" : ""}${heroLong(s.available)}">${chf(s.available)}</p>
+      <button class="btn nu-cta" data-addtx>＋ Ajouter un mouvement</button>
+    </div>` : `
+    <div class="card hero home-hero">
+      <p class="card-label">Reste du mois</p>
+      <p class="hero-amount ${s.cashFlow < 0 ? "neg" : "pos"}${heroLong(s.cashFlow)}">${chf(s.cashFlow, true)}</p>
+    </div>`;
+
+  const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
+  const metricCurrency = (CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `).trim();
+  const metricAmount = (value, cls) => {
+    const compact = chf(value).replace(CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `, "");
+    return `<span class="amount ${cls}${Math.abs(value) >= 1000000 ? " long" : ""}">${compact}</span>`;
+  };
+  const metricLabel = label =>
+    `<div class="home-metric-label"><span class="card-label">${label}</span><span class="home-metric-currency">${esc(metricCurrency)}</span></div>`;
+  const metrics = `<div class="stat-grid home-metrics" aria-label="Montants du mois">
+    <div class="stat">${metricLabel("Entré")}${metricAmount(s.income, "pos")}</div>
+    <div class="stat">${metricLabel("Dépensé")}${metricAmount(s.living, "neg")}</div>
+    <div class="stat">${metricLabel("À payer")}${metricAmount(toPay, "warn")}</div>
+    <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}</div>
+  </div>`;
+
+  const obligations = monthlyObligations(y, m);
+  const open = obligations.filter(item => item.state !== "paid");
+  const paidCount = obligations.filter(item => item.state === "paid").length;
+  const remaining = fromCents(open.reduce((sum, item) => sum + toCents(item.amount), 0));
+  const status = item => {
+    if (item.state === "paid") return { label: "Payée", cls: "pos" };
+    if (item.state === "scheduled") return { label: "Planifiée", cls: "warn" };
+    if (item.state === "late") return { label: "En retard", cls: "neg" };
+    const today = compareDateParts(item.due, NOW) === 0;
+    return { label: today ? "À payer aujourd'hui" : `À venir le ${String(item.due.d).padStart(2, "0")}.${String(m).padStart(2, "0")}`, cls: "" };
+  };
+  const action = item => {
+    if (!["late", "upcoming"].includes(item.state)) return "";
+    const attr = item.source === "recurring"
+      ? `data-postrec="${esc(item.id)}"`
+      : `data-paybill="${esc(item.id)}"`;
+    const dueNow = compareDateParts(item.due, NOW) <= 0;
+    return `<button class="btn secondary home-bill-action" ${attr}>${dueNow ? "Payer" : "Planifier"}</button>`;
+  };
+  const row = item => {
+    const state = status(item);
+    const target = item.source === "recurring"
+      ? `data-recid="${esc(item.id)}"`
+      : `data-billid="${esc(item.id)}"`;
+    return `<div class="home-bill-row" data-obligation-key="${esc(item.key)}">
+      <div class="ico ${item.state === "paid" ? "t-income" : "t-expense"}" aria-hidden="true">${item.icon}</div>
+      <div class="meta" ${target} role="button" tabindex="0">
+        <div class="t">${esc(item.title)}</div>
+        <div class="s ${state.cls}">${state.label}${item.accountName ? ` · ${esc(item.accountName)}` : ""}</div>
+      </div>
+      <span class="amount">${chf(item.amount)}</span>
+      ${action(item)}
+    </div>`;
+  };
+  const shown = [...open, ...obligations.filter(item => item.state === "paid")].slice(0, 3);
+  const bills = `<section class="card home-bills-card" aria-labelledby="monthlyBillsTitle">
+    <div class="home-bills-head">
+      <div>
+        <p class="card-label" id="monthlyBillsTitle">Factures mensuelles</p>
+        <p class="home-bills-total">${chf(remaining)}</p>
+        <span class="caption">reste à régler · ${paidCount} sur ${obligations.length} réglée${paidCount === 1 ? "" : "s"}</span>
+      </div>
+      <button class="btn secondary home-manage" data-more="recurring">Gérer</button>
+    </div>
+    ${obligations.length ? `
+      <div class="track home-bills-progress" role="progressbar" aria-label="Factures payées"
+        aria-valuemin="0" aria-valuemax="${obligations.length}" aria-valuenow="${paidCount}">
+        <div class="fill" style="width:${(paidCount / obligations.length * 100).toFixed(1)}%"></div>
+      </div>
+      <div class="home-bills-list">${shown.map(row).join("")}</div>
+      ${obligations.length > shown.length ? `<button class="home-more-link" data-more="recurring">Voir les ${obligations.length} factures</button>` : ""}
+    ` : `
+      <div class="home-bills-empty">
+        <p class="caption">Ajoutez votre loyer, vos primes ou vos abonnements une fois : ils reviendront automatiquement chaque mois.</p>
+        <button class="btn secondary" data-addrec>＋ Ajouter une facture mensuelle</button>
+      </div>`}
+  </section>`;
+
+  return `<div class="home-simple">
+    <h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
+      ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
+      : "Bonjour 👋"}</h2>
+    ${monthNav()}
+    ${fxWarningHTML()}
+    ${hero}
+    ${metrics}
+    ${bills}
+  </div>`;
 }
 
 /* ---------- Onglet « Mouvements » : liste complète, recherche, filtres (P2) ---------- */
@@ -2866,7 +3059,7 @@ function renderGoals() {
 
 function backBar(title) {
   return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
-    <button class="btn secondary" data-back style="width:auto;padding:8px 14px;font-size:13px">‹ Plus</button>
+    <button class="btn secondary" data-back style="width:auto;padding:8px 14px;font-size:13px">‹ Gérer</button>
     <h2 class="screen-title" style="margin:0;font-size:24px">${title}</h2>
   </div>`;
 }
@@ -3205,22 +3398,40 @@ function renderInsurance() {
 
 /* ---------- Récurrents (Phase 6) ---------- */
 function renderRecurring() {
-  const rows = RECURRINGS.length ? RECURRINGS.map(r => {
+  const row = r => {
     const isIncome = r.type === "income";
-    const materialized = !!recurringOccurrence(r, NOW.y, NOW.m);
+    const occurrence = recurringOccurrence(r, NOW.y, NOW.m);
+    const due = { y: NOW.y, m: NOW.m, d: r.day };
     const account = ACCOUNTS.find(a => a.id === recurringAccountId(r));
-    const statusPill = materialized ? '<span class="pill pos">Saisi ce mois</span>' : '<span class="pill">À venir</span>';
-    const status = materialized ? "déjà saisi ce mois"
-      : `prochaine occurrence : ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
+    let pill;
+    let status;
+    if (occurrence && occurrence.status === "posted") {
+      pill = `<span class="pill pos">${isIncome ? "Reçu" : "Payée"} ce mois</span>`;
+      status = isIncome ? "revenu reçu" : "facture payée";
+    } else if (occurrence) {
+      pill = '<span class="pill warn">Planifiée</span>';
+      status = `prévue le ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}`;
+    } else if (compareDateParts(due, NOW) < 0) {
+      pill = '<span class="pill neg">En retard</span>';
+      status = `à régler depuis le ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}`;
+    } else {
+      pill = '<span class="pill">À venir</span>';
+      status = `prévue le ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}`;
+    }
     return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
-      <div class="meta"><div class="t">${esc(r.title)}${statusPill}</div>
-        <div class="s">Mensuel, le ${r.day} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
+      <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
+      <div class="meta"><div class="t">${esc(r.title)}${pill}</div>
+        <div class="s">Tous les mois, le ${r.day} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
-  }).join("") : `<div class="card row"><span class="caption">Aucun paiement régulier. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
-  return backBar("Paiements réguliers") + rows + `
-    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un paiement régulier</button>
-    <p class="caption" style="padding:6px 4px 0">Chaque charge active apparaît exactement une fois dans les prévisions du mois ; la saisir (ou « Marquer payé ») la retire des prévisions, sans doublon.</p>`;
+  };
+  const expenses = RECURRINGS.filter(r => r.type === "expense");
+  const incomes = RECURRINGS.filter(r => r.type === "income");
+  return backBar("Factures mensuelles") + `
+    <p class="caption" style="margin:0 0 12px">Ajoutez une facture une seule fois : elle revient automatiquement chaque mois, à la bonne date et sur le bon compte.</p>
+    ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune facture mensuelle. Ajoutez par exemple le loyer, les primes ou un abonnement.</span></div>`}
+    ${incomes.length ? `<p class="section-title">Revenus mensuels</p>${incomes.map(row).join("")}` : ""}
+    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une facture ou un revenu mensuel</button>
+    <p class="caption" style="padding:6px 4px 0">Une échéance reste à payer tant qu'aucun mouvement lié ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
 
 /* ---------- Import CSV réel (Phase 11 / W4) ---------- */
@@ -3514,15 +3725,15 @@ function renderBills() {
       <span class="glyph" aria-hidden="true">🧾</span>
       <p class="t">Aucune facture</p>
       <p>Acomptes d'impôts, prime de voiture, facture du dentiste… Ajoutez ce qui doit être payé pour ne rien oublier.</p>
-      <button class="btn" data-addbill style="max-width:260px;margin:12px auto 0">＋ Ajouter une facture</button>
+      <button class="btn" data-addbill style="max-width:280px;margin:12px auto 0">＋ Ajouter une facture ponctuelle</button>
     </div>` : "";
-  return backBar("Factures") + billsHero + billsEmpty + annualCard + `
+  return backBar("Factures ponctuelles") + billsHero + billsEmpty + annualCard + `
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
     ${bills.length ? `<p class="section-title">À payer</p>` : ""}
     ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`) : ""}
     ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
-    ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture</button>` : ""}
+    ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture ponctuelle</button>` : ""}
     <p class="caption" style="padding:6px 4px 0">« Marquer payée » crée le mouvement de dépense correspondant — la facture et le mouvement restent liés. Les factures ouvertes du mois pèsent déjà sur le « Vraiment disponible ».</p>`;
 }
 
@@ -3631,8 +3842,8 @@ function renderSettings() {
       ${METHODOLOGY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>`;
 }
 
-// Menu « Plus » regroupé par intention (blueprint B07) : Aujourd'hui,
-// Patrimoine, Données, Réglages. Le sous-titre peut être dynamique (fn).
+// Menu « Gérer » regroupé par intention (blueprint B07). Le sous-titre
+// peut être dynamique (fn).
 /* ---------- Assistant local (blueprint Horizon) ----------
    Réponses DÉTERMINISTES calculées depuis les données locales : résultat,
    raison, hypothèses, action. Jamais d'invention, jamais de réseau. */
@@ -3700,16 +3911,15 @@ function renderAssistant() {
     ${Object.entries(QA).map(([k, qa]) => card(k, qa)).join("")}`;
 }
 
-// Hub « Plus » par intentions (blueprint Horizon).
+// Hub « Gérer » par intentions (ADR-026).
 const MORE_GROUPS = [
   ["À organiser", [
-    ["movements", "🔎", "Mouvements", "Liste du mois, recherche et filtres"],
-    ["bills", "🧾", "Factures", () => {
+    ["recurring", "🔁", "Factures mensuelles", "Loyer, primes, abonnements et revenus réguliers"],
+    ["bills", "🧾", "Factures ponctuelles", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
       const open = (S.bills || []).filter(b => !billIsCovered(b)).length;
       return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé 🎉");
     }],
-    ["recurring", "🔁", "Paiements réguliers", "Charges, revenus et abonnements"],
   ]],
   ["À prévoir", [
     ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
@@ -3743,7 +3953,7 @@ function renderMore() {
       <span style="color:var(--coolgray)">›</span>
     </div>`;
   };
-  return `<h2 class="screen-title">Plus</h2>` + MORE_GROUPS.map(([label, items]) =>
+  return `<h2 class="screen-title">Gérer</h2>` + MORE_GROUPS.map(([label, items]) =>
     `<p class="section-title">${label}</p>` + items.map(row).join("")).join("");
 }
 
@@ -4073,15 +4283,18 @@ function renderLockScreen() {
   </div>`;
 }
 
-const RENDERERS = { home: renderHome, budget: renderBudget, accounts: renderAccounts, more: renderMore };
+const RENDERERS = {
+  home: renderSimpleHome,
+  movements: renderMovements,
+  budget: renderBudget,
+  accounts: renderAccounts,
+  more: renderMore,
+};
 
 function render() {
   // Une PWA peut rester ouverte pendant plusieurs jours : la promotion
   // d'échéance se fait aussi au rendu, pas seulement au rechargement.
   if (promoteDuePlannedTransactions(S) > 0) saveState();
-  // L'écran Mouvements vit désormais dans Plus : toute ancienne
-  // destination « onglet Mouvements » (historique, liens) y est routée.
-  if (activeTab === "movements") { activeTab = "more"; moreView = "movements"; }
   if (!RENDERERS[activeTab]) activeTab = "home"; // ancien onglet « month » (historique) ou état inconnu
   const screen = document.getElementById("screen");
   const banner = document.querySelector(".demo-banner");
@@ -4108,14 +4321,11 @@ function render() {
   screen.classList.toggle("screen-enter", navKey !== lastNavKey);
   lastNavKey = navKey;
   screen.innerHTML = locked ? renderLockScreen() : RENDERERS[activeTab]();
-  // Le ＋ est un membre de la barre, exactement au CENTRE : deux
-  // destinations de chaque côté, jamais au-dessus du contenu.
+  // Cinq destinations stables, dans le même ordre sur le web et l'iPhone.
+  // Les actions de création restent locales à leur écran.
   const tabBtn = ([id, label]) =>
     `<button class="${id === activeTab ? "active" : ""}" data-tab="${id}" aria-label="${label}" ${locked ? "disabled" : ""}>${ICONS[id]}<span>${label}</span></button>`;
-  document.getElementById("tabbar").innerHTML =
-    `<div class="tab-group">${TABS.slice(0, 2).map(tabBtn).join("")}</div>` +
-    `<button class="fab" id="fab" title="Ajouter" aria-label="Ajouter un mouvement" ${locked ? "disabled" : ""}>+</button>` +
-    `<div class="tab-group">${TABS.slice(2).map(tabBtn).join("")}</div>`;
+  document.getElementById("tabbar").innerHTML = TABS.map(tabBtn).join("");
   const prev = document.getElementById("prevM");
   const next = document.getElementById("nextM");
   if (prev) prev.onclick = () => { cursor = shiftMonth(cursor, -1); moreTxPage = 0; render(); pushNav(); };
@@ -4159,12 +4369,11 @@ function animateHeroAmount() {
 
 document.getElementById("tabbar").addEventListener("click", (e) => {
   if (locked) return;
-  if (e.target.closest("#fab")) { openSheet("quickMenu"); return; }
   const btn = e.target.closest("button[data-tab]");
   if (btn) { activeTab = btn.dataset.tab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); }
 });
 
-/* Navigation de l'onglet Plus + actions (délégation d'événements). */
+/* Navigation de l'onglet Gérer + actions (délégation d'événements). */
 document.getElementById("screen").addEventListener("click", (e) => {
   const txEl = e.target.closest("[data-txid]");
   if (txEl) {
@@ -5275,6 +5484,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   }
 
   stampAllTransactions(state);
+  linkDemoRecurringTransactions(state);
   for (const transaction of state.transactions) {
     if (transaction.sourceCurrency !== state.baseCurrency
         && !(transaction.fx > 0 && transaction.fxBase === state.baseCurrency)) {
@@ -5653,11 +5863,19 @@ function fillAccountOptions(selectId, selectedId) {
 function openRecSheet(rec) {
   editingRecId = rec ? rec.id : null;
   document.getElementById("recForm").reset();
-  document.getElementById("recSheetTitle").textContent = rec ? "Modifier le paiement régulier" : "Nouveau paiement régulier";
+  document.getElementById("recSheetTitle").textContent = rec
+    ? (rec.type === "income" ? "Modifier le revenu mensuel" : "Modifier la facture mensuelle")
+    : "Nouvelle facture ou revenu mensuel";
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
   const alreadyThisMonth = rec && recurringOccurrence(rec, NOW.y, NOW.m);
   postBtn.style.display = rec && !alreadyThisMonth ? "block" : "none";
+  if (rec) {
+    const due = { y: NOW.y, m: NOW.m, d: rec.day };
+    postBtn.textContent = rec.type === "income"
+      ? "Marquer reçu ce mois"
+      : (compareDateParts(due, NOW) > 0 ? "Planifier ce mois" : "Marquer payée ce mois");
+  }
   fillAccountOptions("rAccount", rec && rec.accountId);
   if (rec) {
     document.getElementById("rTitle").value = rec.title;
@@ -5693,8 +5911,8 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   };
   if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
   const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
-  if (existing) { Object.assign(existing, data); toast("Paiement régulier modifié"); }
-  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Paiement régulier ajouté"); }
+  if (existing) { Object.assign(existing, data); toast("Récurrence mensuelle modifiée"); }
+  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Récurrence mensuelle ajoutée"); }
   saveState();
   backdrop.classList.remove("open");
   render();
@@ -5713,11 +5931,13 @@ document.getElementById("rPost").addEventListener("click", () => {
   }
   saveState();
   backdrop.classList.remove("open");
-  toast("Paiement enregistré — retiré des prévisions");
+  toast(rec.type === "income"
+    ? "Revenu mensuel enregistré"
+    : "Facture mensuelle enregistrée — retirée des prévisions");
   render();
 });
 document.getElementById("rDelete").addEventListener("click", () => {
-  if (!editingRecId || !confirm("Supprimer ce paiement régulier ? (les mouvements déjà saisis restent)")) return;
+  if (!editingRecId || !confirm("Supprimer cette récurrence mensuelle ? (les mouvements déjà saisis restent)")) return;
   pushUndo();
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);

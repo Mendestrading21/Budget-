@@ -1,5 +1,111 @@
 # Budget decision log
 
+## ADR-027 — Récurrents en retard engagés et couverture stricte par `recurringId`
+
+Date: 2026-07-29
+Status: accepted
+
+### Context
+
+L'audit du lot d'accueil simplifié a révélé deux écarts financiers dans la
+PWA. `snapshot()` ne conservait dans les prévisions que les récurrents dont le
+jour était encore à venir (`day > aujourd'hui`) : une charge échue mais non
+payée disparaissait donc du montant engagé et pouvait surestimer le
+`Disponible`. En parallèle, `recurringOccurrence()` acceptait comme couverture
+un mouvement sans lien ayant seulement le même intitulé et le même compte. Une
+opération indépendante pouvait ainsi masquer à tort l'échéance récurrente.
+
+### Decision
+
+1. Toute occurrence récurrente applicable au mois et non couverte reste
+   engagée, que son jour soit futur, présent ou déjà passé. Une échéance en
+   retard ne disparaît jamais des prévisions avant sa matérialisation.
+2. Une occurrence est couverte uniquement par un mouvement du même mois dont
+   `recurringId` est strictement égal à l'identifiant de sa définition. Le
+   rapprochement implicite par intitulé, montant ou compte n'est pas une preuve
+   de couverture.
+3. L'identité financière d'une occurrence mensuelle est
+   `recurringId + année + mois`. Une action répétée, un double clic, un
+   rechargement ou un nouveau rendu ne peut créer qu'un mouvement lié pour
+   cette identité.
+4. La matérialisation conserve le compte et la vraie date d'échéance. Une date
+   future produit un mouvement `planned`; une date arrivée ou passée produit
+   un mouvement `posted`, conformément à la politique de date d'ADR-025.
+5. Le passage de prévision à mouvement est une substitution, jamais une
+   addition : avant matérialisation la somme vit dans `recurringCharges` ou
+   `recurringIncome`; après matérialisation elle vit soit dans `plannedOut`,
+   soit dans le solde et les agrégats comptabilisés.
+6. Les factures ponctuelles de `S.bills` restent distinctes des définitions
+   récurrentes. Deux objets ne sont jamais fusionnés automatiquement sur leur
+   intitulé ou leur montant.
+
+### Consequences
+
+- Une charge mensuelle impayée continue de réduire le disponible et apparaît
+  explicitement en retard.
+- Un mouvement manuel portant le même nom ne solde plus silencieusement une
+  occurrence.
+- Le widget mensuel de l'accueil peut agréger les obligations sans double
+  comptage, tandis qu'ADR-026 reste limitée à la navigation et à la
+  présentation.
+- Les sauvegardes et identifiants existants restent lisibles ; aucun
+  rapprochement historique ambigu n'est inventé.
+
+### Verification
+
+Tests dédiés : récurrent passé non payé présent exactement une fois dans le
+snapshot ; mouvement homonyme non lié sans effet ; lien du mois précédent sans
+effet sur le mois courant ; double matérialisation créant un seul mouvement ;
+compte, montant, date et statut conservés ; `Disponible` identique avant/après
+la substitution prévision→planifié/comptabilisé ; promotion d'une échéance
+future une seule fois.
+
+## ADR-026 — Navigation simple et accueil synthétique sur PWA et iPhone
+
+Date: 2026-07-29
+Status: accepted
+
+### Context
+
+Le propriétaire confirme que l'accueil doit cesser d'être un tableau de bord
+technique : trop de boutons à gauche, à droite et au centre, trop de sections,
+et les factures qui reviennent chaque mois ne sont pas assez évidentes. La
+version iPhone a déjà adopté les libellés simples `Mois · Historique · Budget ·
+Comptes · Gérer`, tandis que la PWA conserve encore quatre onglets, un bouton
+central et les mouvements cachés dans `Plus`. Cette divergence contredit le
+retour produit explicite et complique le lien de test public.
+
+### Decision
+
+1. Les deux plateformes convergent vers cinq destinations stables :
+   `Mois · Historique · Budget · Comptes · Gérer`.
+2. Le bouton global central ou flottant est supprimé. L'accueil conserve une
+   seule action principale « Ajouter un mouvement » ; les autres créations
+   vivent dans l'écran qui les concerne.
+3. Le premier niveau de l'accueil montre uniquement le mois, le montant
+   `Disponible`, les quatre montants `Entré · Dépensé · À payer · Mis de
+   côté`, puis les factures mensuelles. Les analyses, courbes, objectifs,
+   patrimoine, réglages et imports restent dans leurs destinations dédiées.
+4. L'accueil regroupe les factures mensuelles dans un widget unique. Leur
+   vérité financière et leur déduplication sont définies séparément par
+   ADR-027 ; cette ADR ne les recalcule pas.
+5. Cette décision change uniquement l'architecture de navigation et la
+   présentation. Les formules, modèles, clés de stockage, sauvegardes,
+   imports, devises et règles de persistance restent inchangés.
+
+### Consequences
+
+La PWA de test et l'app iPhone présentent la même logique. L'accueil répond en
+quelques secondes aux questions essentielles, tandis que les fonctions
+avancées restent disponibles sans concurrencer les montants du mois.
+
+### Verification
+
+Tests de destinations, absence du bouton global, ordre du premier viewport,
+widget mensuel unique, 320 px, texte agrandi, cibles 44 px, zéro erreur
+console et suites de parité. Les assertions financières des récurrents relèvent
+d'ADR-027.
+
 ## ADR-025 — Correctif de fiabilité : dates, fiscalité, historique et restaurations
 
 Date: 2026-07-29

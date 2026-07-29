@@ -32,12 +32,9 @@ async function goHome() {
   await page.waitForSelector("#tabbar button", { timeout: 10000 });
 }
 
-// L'écran Mouvements vit dans Plus (retour propriétaire du tour) :
-// même écran, même contenu, atteint par le hub.
+// L'historique est une destination principale : aucun détour par Gérer.
 async function goMovements() {
-  await page.click(`#tabbar button[aria-label="Plus"]`);
-  await page.waitForTimeout(150);
-  await page.click('#screen [data-more="movements"]');
+  await page.click(`#tabbar button[aria-label="Historique"]`);
   await page.waitForTimeout(200);
 }
 
@@ -68,8 +65,14 @@ await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
 let homeHTML = await page.$eval("#screen", el => el.innerHTML);
 check(homeHTML.includes("Bonjour Elio &amp; Sara") || homeHTML.includes("Bonjour Elio & Sara"), "le couple doit être salué à deux prénoms");
-check(homeHTML.includes("Salaire"), "le salaire configuré doit nourrir l'accueil");
-check(homeHTML.includes("Fonds d'urgence"), "l'objectif choisi à la bienvenue doit exister et apparaître sur Mois");
+const onboardingData = await page.evaluate(() => ({
+  salaries: RECURRINGS.filter(r => r.type === "income").map(r => r.title),
+  goals: GOALS.map(g => g.name),
+}));
+check(onboardingData.salaries.includes("Salaire Elio") && onboardingData.salaries.includes("Salaire Sara"),
+  "les salaires configurés doivent être conservés sans charger l'accueil");
+check(onboardingData.goals.includes("Fonds d'urgence"),
+  "l'objectif choisi à la bienvenue doit être conservé hors du premier niveau de l'accueil");
 const bannerHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(bannerHidden, "pas de bannière « données fictives » après un vrai départ");
 // persistance : recharger garde l'utilisateur onboardé
@@ -78,10 +81,10 @@ await page.waitForSelector("#tabbar button");
 homeHTML = await page.$eval("#screen", el => el.innerHTML);
 check(homeHTML.includes("Elio") && homeHTML.includes("Sara"), "prénoms perdus après rechargement");
 
-// ---------- Test 1 : chaque onglet s'ouvre (Mouvements vit dans Plus) ----------
+// ---------- Test 1 : les cinq destinations principales s'ouvrent directement ----------
 currentTest = "onglets";
 await goHome();
-for (const label of ["Mois", "Budget", "Comptes", "Plus"]) {
+for (const label of ["Mois", "Historique", "Budget", "Comptes", "Gérer"]) {
   await page.click(`#tabbar button[aria-label="${label}"]`);
   await page.waitForTimeout(120);
   const content = await page.$eval("#screen", el => el.innerHTML.length);
@@ -90,30 +93,97 @@ for (const label of ["Mois", "Budget", "Comptes", "Plus"]) {
 await goMovements();
 const movContent = await page.$eval("#screen", el => el.innerHTML);
 check(movContent.length > 200 && movContent.includes("moreSearchInput"),
-  "écran Mouvements accessible depuis Plus (recherche présente)");
+  "Historique doit être accessible directement (recherche présente)");
 
-// ---------- Test 1b : rituel « Check du mois » — valider le salaire boucle le mois ----------
-currentTest = "check du mois";
-await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.waitForTimeout(150);
+// ---------- Test 1b : une facture mensuelle revient, signale le retard et ne se duplique pas ----------
+currentTest = "facture mensuelle";
+const monthlyRecurring = await page.evaluate(() => {
+  const recurring = {
+    id: "r-adr026-monthly",
+    title: "Loyer mensuel ADR026",
+    amount: 975,
+    type: "expense",
+    cat: "Logement",
+    day: 1,
+    accountId: defaultCashAccount(),
+    icon: "🏠",
+  };
+  const old = RECURRINGS.findIndex(r => r.id === recurring.id);
+  if (old >= 0) RECURRINGS.splice(old, 1);
+  for (let i = transactions.length - 1; i >= 0; i--) {
+    if (transactions[i].recurringId === recurring.id) transactions.splice(i, 1);
+  }
+  RECURRINGS.push(recurring);
+  const firstMonth = shiftMonth({ y: NOW.y, m: NOW.m }, -1);
+  const secondMonth = shiftMonth(firstMonth, 1);
+  const manualId = ++txSeq;
+  addTx({
+    id: manualId,
+    y: firstMonth.y,
+    m: firstMonth.m,
+    d: 1,
+    title: recurring.title,
+    amount: recurring.amount,
+    type: "expense",
+    cat: recurring.cat,
+    acc: recurring.accountId,
+    dest: null,
+    status: "posted",
+  });
+  const manualIgnored = recurringOccurrence(recurring, firstMonth.y, firstMonth.m) === null;
+
+  activeTab = "home";
+  moreView = null;
+  accountView = null;
+  cursor = firstMonth;
+  saveState();
+  render();
+  const firstText = document.getElementById("screen").innerText;
+  cursor = secondMonth;
+  render();
+  const secondText = document.getElementById("screen").innerText;
+
+  const first = materializeRecurring(recurring, firstMonth.y, firstMonth.m);
+  const firstAgain = materializeRecurring(recurring, firstMonth.y, firstMonth.m);
+  const second = materializeRecurring(recurring, secondMonth.y, secondMonth.m);
+  const secondAgain = materializeRecurring(recurring, secondMonth.y, secondMonth.m);
+  const occurrences = transactions.filter(t => t.recurringId === recurring.id);
+  const perMonth = [firstMonth, secondMonth].map(month =>
+    occurrences.filter(t => inMonth(t, month.y, month.m)).length
+  );
+
+  for (let i = transactions.length - 1; i >= 0; i--) {
+    if (transactions[i].recurringId === recurring.id || transactions[i].id === manualId) {
+      transactions.splice(i, 1);
+    }
+  }
+  const index = RECURRINGS.findIndex(r => r.id === recurring.id);
+  if (index >= 0) RECURRINGS.splice(index, 1);
+  cursor = { y: NOW.y, m: NOW.m };
+  saveState();
+  render();
+  return {
+    firstText,
+    secondText,
+    manualIgnored,
+    created: [first.created, firstAgain.created, second.created, secondAgain.created],
+    perMonth,
+  };
+});
+check(/factures mensuelles/i.test(monthlyRecurring.firstText)
+    && monthlyRecurring.firstText.includes("Loyer mensuel ADR026"),
+  "la facture mensuelle doit être visible sur le mois précédent");
+check(/En retard/i.test(monthlyRecurring.firstText),
+  "une échéance mensuelle dépassée doit être signalée explicitement « En retard »");
+check(/factures mensuelles/i.test(monthlyRecurring.secondText)
+    && monthlyRecurring.secondText.includes("Loyer mensuel ADR026"),
+  "la même facture récurrente doit revenir le mois suivant");
+check(monthlyRecurring.created.join(",") === "true,false,true,false"
+    && monthlyRecurring.perMonth.join(",") === "1,1",
+  `une seule occurrence par mois, sans doublon (${JSON.stringify(monthlyRecurring)})`);
+check(monthlyRecurring.manualIgnored,
+  "un mouvement manuel de même titre et même compte ne doit pas couvrir la facture récurrente");
 let screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Check du mois"), "carte « Check du mois » absente");
-check(screenHTML.includes("0/2 validé"), "progression initiale 0/2 absente (deux salaires à valider)");
-await page.click('[data-postrec]');
-await page.waitForTimeout(200);
-await page.click('[data-postrec]'); // le second salaire
-await page.waitForTimeout(200);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Mois bouclé"), "« Mois bouclé » absent après validation des deux salaires");
-check(screenHTML.includes("Mois bouclés récents"), "pastilles d'historique des mois absentes");
-check(screenHTML.includes("à rattraper"), "l'invitation à rattraper le mois précédent doit apparaître");
-await page.click('[data-gotomonth]');
-await page.waitForTimeout(200);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("0/2 validé"), "le rattrapage doit ouvrir le mois précédent avec ses éléments");
-await page.click("#backToNow");
-await page.waitForTimeout(150);
-check(screenHTML.includes("9'700.00") || screenHTML.includes("5'500.00"), "les salaires validés doivent nourrir les revenus");
 
 // ---------- Test 2 : menu ＋ → Mouvement → dépense créée + persistée ----------
 currentTest = "creation mouvement";
@@ -126,13 +196,18 @@ await page.fill("#fTitle", "Test E2E dépense");
 await page.fill("#fAmount", "42.50");
 await page.click('#txForm button[type="submit"]');
 await page.waitForTimeout(200);
+const createdTx = await page.evaluate(() =>
+  transactions.find(t => t.title === "Test E2E dépense")?.amount);
+check(createdTx === 42.5, "dépense absente du modèle après création");
+await goMovements();
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Test E2E dépense"), "dépense absente après création");
+check(screenHTML.includes("Test E2E dépense"), "dépense absente de l'Historique après création");
 // persistance après reload
 await page.reload();
 await page.waitForSelector("#tabbar button");
+await goMovements();
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Test E2E dépense"), "dépense perdue après reload");
+check(screenHTML.includes("Test E2E dépense"), "dépense perdue dans l'Historique après reload");
 
 // ---------- Test 3 : modifier puis supprimer le mouvement ----------
 currentTest = "edition/suppression";
@@ -150,11 +225,12 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 
-// ---------- Test 4 : épargne rapide — destination peuplée, fortune préservée ----------
+// ---------- Test 4 : épargne depuis l'action unique — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
 await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.click("[data-quicksend]");
+await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
+await page.click('#txForm [data-ftype="saving"]');
 const destOptions = await page.$eval("#fDest", el => el.options.length);
 check(destOptions > 0, "aucune destination proposée pour une épargne");
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
@@ -162,13 +238,15 @@ await page.fill("#fTitle", "Épargne E2E");
 await page.fill("#fAmount", "100");
 await page.click('#txForm button[type="submit"]');
 await page.waitForTimeout(200);
+await goMovements();
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Épargne E2E"), "épargne absente de l'écran Accueil");
+check(screenHTML.includes("Épargne E2E"), "épargne absente de l'Historique");
 
-// ---------- Test 5 : Échap ferme la feuille (le ＋ de la barre est partout) ----------
+// ---------- Test 5 : Échap ferme la feuille ouverte depuis l'action unique ----------
 currentTest = "echap";
-await page.click("#fab");
-await page.waitForSelector("#quickMenu", { state: "visible" });
+await page.click(`#tabbar button[aria-label="Mois"]`);
+await page.click("[data-addtx]");
+await page.waitForSelector("#txForm", { state: "visible" });
 await page.keyboard.press("Escape");
 await page.waitForTimeout(150);
 const sheetOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
@@ -215,9 +293,9 @@ if (payButton) {
   check(!(await page.$("[data-paybill]")) || screenHTML.includes("payée"), "facture non payée après clic");
 }
 
-// ---------- Test 7b : échéance de contrat proche → alerte sur l'Accueil ----------
+// ---------- Test 7b : échéance de contrat proche → détail dans Gérer, accueil allégé ----------
 currentTest = "echeance contrat";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="insurance"]');
 await page.waitForTimeout(150);
 await page.click("[data-addins]");
@@ -228,15 +306,18 @@ const dueSoon = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
 await page.fill("#insDue", dueSoon);
 await page.click('#insForm button[type="submit"]');
 await page.waitForTimeout(200);
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("RC ménage E2E"),
+  "le contrat doit rester visible dans son écran dédié");
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("RC ménage E2E") && screenHTML.includes("arrive à échéance"),
-  "l'échéance de contrat à 10 jours doit alerter sur l'Accueil");
+check(!screenHTML.includes("RC ménage E2E") && !screenHTML.includes("arrive à échéance"),
+  "une échéance d'assurance ne doit pas recharger le premier niveau de l'accueil");
 
 // ---------- Test 8 : navigation retour navigateur ----------
 currentTest = "retour navigateur";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="bills"]');
 await page.waitForTimeout(150);
 await page.goBack();
@@ -246,7 +327,7 @@ check(!screenHTML.includes("data-addbill"), "retour navigateur ne remonte pas");
 
 // ---------- Test 9 : verrouillage par code ----------
 currentTest = "verrouillage";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.click("[data-togglelock]");
 await page.waitForSelector("#codeForm", { state: "visible" });
@@ -271,7 +352,7 @@ check(!screenHTML.includes("Budget est verrouillé"), "bon code refusé");
 
 // ---------- Test 10 : courbe patrimoine avec valeurs constantes (pas de NaN) ----------
 currentTest = "courbe";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
 const svgOK = await page.$eval("#screen", el => !el.innerHTML.includes("NaN"));
@@ -287,7 +368,7 @@ await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mis de côté") && screenHTML.includes("Mois bouclés"), "écran Année en revue incomplet");
 check(!screenHTML.includes("NaN"), "NaN dans l'année en revue");
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
 await page.click('[data-projprofile="ambitious"]');
@@ -313,13 +394,13 @@ await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 await page.click(`[data-postrec="r-debt-${leasingId}"]`);
 await page.waitForTimeout(200);
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("1'100.00"), "la mensualité payée doit décrémenter la dette (1200 → 1100)");
 
-// ---------- Test 11 : écran Mouvements (dans Plus) — recherche et filtres ----------
+// ---------- Test 11 : Historique direct — recherche et filtres ----------
 currentTest = "mouvements";
 await goMovements();
 check(await page.$("#moreSearchInput") !== null, "champ de recherche absent");
@@ -335,7 +416,7 @@ check(!listHTML.includes("Aucun résultat pour cette recherche"), "recherche vid
 
 // ---------- Test 12 : effacer les opérations ≠ réinitialisation complète ----------
 currentTest = "double suppression";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 const budgetsBefore = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("budget-app-state-v1")).budgets || {}).length);
@@ -379,7 +460,7 @@ check(!screenHTML.includes("CHF "), "plus aucun total en CHF quand la référenc
 
 // ---------- Test 14 : Réglages essentiels — guide, pays, devise ----------
 currentTest = "reglages";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
@@ -390,7 +471,7 @@ check(screenHTML.includes("Devise de référence") && screenHTML.includes("EUR")
 
 // ---------- Test 15 : profil de projection persisté ----------
 currentTest = "projection persistée";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
 await page.click('[data-projprofile="prudent"]');
@@ -414,14 +495,14 @@ await page.waitForTimeout(150);
 
 // ---------- Test 17 : démo localisée France ----------
 currentTest = "démo pays";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]"); // confirm auto-accepté → reload
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
 const demoBanner = await page.$eval(".demo-banner", el => el.style.display !== "none");
 check(demoBanner, "bannière démo absente après chargement de la démonstration");
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="insurance"]');
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
@@ -476,7 +557,7 @@ check(afterRestore.version === 1 && afterRestore.profile && afterRestore.profile
 
 // ---------- Test 20 : le bouton Annuler de « Devise de référence » agit (P0 bouton mort) ----------
 currentTest = "annuler devise";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-editbase]");
@@ -513,7 +594,7 @@ check(!guardOpen, "sans saisie, le clic sur le fond ferme sans obstacle");
 currentTest = "solde negatif";
 // Repartir de la démo pour disposer d'un compte avec historique (le bouton
 // « Mettre le solde à jour » n'apparaît que si le compte a des mouvements).
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
@@ -537,10 +618,11 @@ check(screenHTML.includes("-") && screenHTML.includes("250.00"), "un solde néga
 currentTest = "retour ferme feuille";
 await page.click(`#tabbar button[aria-label="Budget"]`);
 await page.waitForTimeout(150);
-await page.click("#fab");
-await page.waitForSelector('#quickMenu [data-quick="tx"]', { state: "visible" });
-await page.click('#quickMenu [data-quick="tx"]'); // feuille propre (non modifiée)
-await page.waitForSelector("#txForm", { state: "visible" });
+await page.evaluate(() => {
+  const existing = budgetLines(cursor.y, cursor.m)[0];
+  openLineSheet(existing ? existing.cat : null);
+});
+await page.waitForSelector("#lineForm", { state: "visible" });
 await page.goBack();
 await page.waitForTimeout(200);
 const backClosed = await page.$eval("#sheetBackdrop", el => !el.classList.contains("open"));
@@ -569,36 +651,43 @@ const txSheetShown = await page.$eval("#txForm", el => el.style.display !== "non
 check(txSheetShown, "l'action de l'état vide des Mouvements doit ouvrir la feuille d'ajout");
 await page.click("#fCancel");
 
-// ---------- Test 25 : menu « Plus » regroupé par intention ----------
-currentTest = "menu plus groupé";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+// ---------- Test 25 : menu « Gérer » regroupé, Historique sorti du hub ----------
+currentTest = "menu gérer groupé";
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 for (const group of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
-  check(screenHTML.includes(group), `groupe « ${group} » absent du menu Plus`);
+  check(screenHTML.includes(group), `groupe « ${group} » absent du menu Gérer`);
 }
-check(screenHTML.includes('data-more="movements"'), "l'entrée Mouvements doit rester dans le menu Plus");
+check(!screenHTML.includes('data-more="movements"'),
+  "Historique ne doit plus être caché dans Gérer");
+check(await page.$('#tabbar button[aria-label="Historique"]') !== null,
+  "Historique doit être une destination principale directe");
 check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more="networth"'),
-  "les destinations du menu Plus doivent rester atteignables après regroupement");
+  "les destinations du menu Gérer doivent rester atteignables après regroupement");
 
-// ---------- Test 26 : accueil essentiel — 4 actions directes + patrimoine replié ----------
+// ---------- Test 26 : accueil essentiel — héros, 4 montants et factures mensuelles ----------
 currentTest = "accueil essentiel";
 await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-for (const act of ["data-quickexp", "data-quickinc", "data-quicksend", "data-quickinv"]) {
-  check(screenHTML.includes(act), `action rapide ${act} absente de l'accueil`);
-}
-// le patrimoine est replié (details fermé) mais son contenu reste dans le DOM
-check(screenHTML.includes("home-fold") && screenHTML.includes("Fortune nette totale"),
-  "le patrimoine doit être replié sur l'accueil sans disparaître");
-// « Investir » ouvre la feuille pré-réglée sur investissement
-await page.click("[data-quickinv]");
-await page.waitForSelector("#txForm", { state: "visible" });
-const presetInvest = await page.$eval("#fType", el => el.value);
-check(presetInvest === "investment", "« Investir » doit pré-régler le type sur investissement");
-await page.click("#fCancel");
+const homeEssentials = await page.evaluate(() => ({
+  hero: !!document.querySelector("#screen .card.hero"),
+  stats: [...document.querySelectorAll("#screen .stat .card-label")].map(el => el.textContent.trim()),
+  addActions: document.querySelectorAll("#screen [data-addtx]").length,
+  quickActions: document.querySelectorAll("#screen .quick-row .btn").length,
+  customization: !!document.querySelector("#screen [data-customize]"),
+  foldedWealth: !!document.querySelector("#screen .home-fold"),
+  text: document.getElementById("screen").innerText,
+}));
+check(homeEssentials.hero, "le montant disponible doit rester le héros de l'accueil");
+check(homeEssentials.stats.join(",") === "Entré,Dépensé,À payer,Mis de côté",
+  `les quatre montants essentiels sont attendus (${homeEssentials.stats.join(",")})`);
+check(homeEssentials.addActions === 1, "une seule action « Ajouter un mouvement » sur l'accueil");
+check(/factures mensuelles/i.test(homeEssentials.text), "la section Factures mensuelles doit être visible");
+check(homeEssentials.quickActions === 0 && !homeEssentials.customization && !homeEssentials.foldedWealth,
+  "l'accueil ne doit plus afficher actions rapides, personnalisation ou patrimoine replié");
 
 // ---------- Test 27 : la sauvegarde n'emporte jamais le code de verrouillage ----------
 currentTest = "sauvegarde sans code";
@@ -665,17 +754,17 @@ check(obsidian.applied === "dark", "une préférence claire héritée ne doit pl
 check(obsidian.pref === "light", "S.theme doit être PRÉSERVÉ dans l'état (compatibilité des sauvegardes)");
 check(obsidian.canvas === "#090C12", `le token --canvas doit valoir #090C12 (obtenu ${obsidian.canvas})`);
 // Le sélecteur d'apparence a été retiré des Réglages.
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 const themeToggle = await page.$("[data-toggletheme]");
 check(themeToggle === null, "le sélecteur d'apparence ne doit plus exister dans les Réglages");
 
-// ---------- Test 30 : Horizon L2 — une recommandation utile sur l'accueil ----------
-currentTest = "recommandation du mois";
+// ---------- Test 30 : accueil sans recommandation technique ----------
+currentTest = "accueil sans recommandation";
 await goHome();
 // repartir de la démo : factures, paiements réguliers et objectifs présents
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
@@ -683,10 +772,13 @@ await page.waitForSelector("#tabbar button", { timeout: 10000 });
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Priorité :") || screenHTML.includes("Attention :") || screenHTML.includes("Tout est en ordre"),
-  "l'accueil doit afficher une recommandation du mois");
-const recCount = (screenHTML.match(/Priorité :|Attention :|Tout est en ordre/g) || []).length;
-check(recCount === 1, `une SEULE recommandation à la fois (obtenu ${recCount})`);
+check(!screenHTML.includes("Priorité :") && !screenHTML.includes("Attention :")
+    && !screenHTML.includes("Tout est en ordre"),
+  "l'accueil simplifié ne doit plus afficher de recommandation technique");
+check(!screenHTML.includes("Ce qui reste, 6 derniers mois")
+    && !screenHTML.includes("Fortune nette totale")
+    && !screenHTML.includes("Objectif prioritaire"),
+  "courbes, patrimoine et objectifs doivent rester dans leurs écrans dédiés");
 
 // ---------- Test 31 : Horizon L3 — comparaison au mois précédent ----------
 currentTest = "comparaison mois";
@@ -700,11 +792,12 @@ check(screenHTML.includes("Budget consommé"),
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Mois dernier :"), "l'accueil doit rappeler le coût de la vie du mois dernier");
+check(!screenHTML.includes("Mois dernier :"),
+  "la comparaison analytique doit rester dans Budget, pas sur l'accueil");
 
 // ---------- Test 32 : Horizon L5 — charges de l'année et provision mensuelle ----------
 currentTest = "charges annuelles";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="bills"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
@@ -713,7 +806,7 @@ check(screenHTML.includes("par mois"), "la provision mensuelle de lissage doit �
 
 // ---------- Test 33 : Horizon L6 — scénario et calcul expliqué sur les objectifs ----------
 currentTest = "scenario objectifs";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="goals"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
@@ -724,7 +817,7 @@ check(screenHTML.includes("estimation, pas une promesse"),
 
 // ---------- Test 34 : H01 — sauvegarde guidée dans Réglages ----------
 currentTest = "sauvegarde guidee";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
@@ -736,43 +829,43 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Dernière sauvegarde : aujourd'hui"),
   "après export, la date de sauvegarde doit se mettre à jour");
 
-// ---------- Test 35 : Horizon R2 — l'écran « Mois » suit le blueprint ----------
+// ---------- Test 35 : l'écran « Mois » suit le blueprint simplifié ----------
 currentTest = "mois blueprint";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Ce qui reste, 6 derniers mois"), "la mini-courbe 6 mois doit être sur l'écran Mois");
-check(screenHTML.includes("Budget restant :"), "le widget budget restant doit être sur l'écran Mois");
-check(screenHTML.includes('data-more="goals"'), "l'objectif prioritaire doit mener aux objectifs");
+check(screenHTML.includes("Disponible"), "le montant disponible doit dominer l'écran Mois");
+check(screenHTML.includes("Factures mensuelles"), "les factures mensuelles doivent suivre les quatre montants");
+check(!screenHTML.includes("Ce qui reste, 6 derniers mois")
+    && !screenHTML.includes("Budget restant :")
+    && !screenHTML.includes('data-more="goals"'),
+  "courbe, budget détaillé et objectif ne doivent plus charger l'écran Mois");
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
 check(tabLabel === "Mois", "l'onglet d'accueil s'appelle « Mois »");
 
-// ---------- Test 36 : Horizon R4 — widgets personnalisables et persistés ----------
-currentTest = "widgets personnalisables";
+// ---------- Test 36 : préférence historique préservée, personnalisation retirée ----------
+currentTest = "compatibilite widgets historiques";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
-await page.click("[data-customize]");
-await page.waitForSelector("#widgetForm", { state: "visible" });
-await page.uncheck('#widgetChoices [data-wkey="trend6"]');
-await page.click('#widgetForm button[type="submit"]');
-await page.waitForTimeout(250);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(!screenHTML.includes("Ce qui reste, 6 derniers mois"), "un widget masqué doit disparaître de l'écran Mois");
+await page.evaluate(() => {
+  S.homeWidgets = { hidden: ["trend6"] };
+  saveState();
+});
 await page.reload();
 await page.waitForSelector("#tabbar button");
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(!screenHTML.includes("Ce qui reste, 6 derniers mois"), "le masquage doit survivre au rechargement");
-check(screenHTML.includes("Argent disponible"), "l'essentiel (héros) reste toujours visible");
-await page.click("[data-customize]");
-await page.waitForSelector("#widgetForm", { state: "visible" });
-await page.click("#wRestore");
-await page.waitForTimeout(250);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Ce qui reste, 6 derniers mois"), "la disposition recommandée doit tout restaurer");
+const legacyWidgets = await page.evaluate(() => ({
+  hidden: S.homeWidgets?.hidden || [],
+  customize: !!document.querySelector("#screen [data-customize]"),
+  essential: /disponible/i.test(document.getElementById("screen").innerText),
+}));
+check(legacyWidgets.hidden.includes("trend6"),
+  "l'ancienne préférence widget doit survivre pour la compatibilité des sauvegardes");
+check(!legacyWidgets.customize && legacyWidgets.essential,
+  "aucun réglage technique de widgets sur l'accueil, sans perdre le héros essentiel");
 
 // ---------- Test 37 : Horizon R7 — assistant local déterministe ----------
 currentTest = "assistant";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="assistant"]');
 await page.waitForTimeout(200);
@@ -943,23 +1036,23 @@ await page.evaluate(() => { // nettoyage complet des fixtures multi-devises
 
 /* ================= PILOTE OBSIDIAN L3 (Tests 44-48) ================= */
 
-// ---------- Test 44 : Mois L3 — ordre, 4 métriques, priorité entière, extrême ----------
+// ---------- Test 44 : Mois L3 — ordre simplifié, 4 métriques, factures, extrême ----------
 currentTest = "mois L3 structure";
 await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-// Ordre du premier viewport : salutation (grand titre) → héros → métriques → priorité.
+// Ordre du premier niveau : salutation → héros → métriques → factures mensuelles.
 const orderIdx = {
   hello: screenHTML.indexOf("Bonjour"),
-  hero: screenHTML.indexOf("Argent disponible"),
-  metrics: screenHTML.indexOf('class="stat-grid"'),
-  quick: screenHTML.indexOf('class="quick-row"'),
+  hero: screenHTML.indexOf("Disponible"),
+  metrics: screenHTML.indexOf('class="stat-grid'),
+  bills: screenHTML.indexOf("Factures mensuelles"),
 };
 check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
 check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
 check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
-check(orderIdx.metrics < orderIdx.quick, "métriques avant les actions rapides");
+check(orderIdx.metrics < orderIdx.bills, "métriques avant les factures mensuelles");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
 // Exactement 4 métriques, avec les mots du contrat.
 const statLabels = await page.$$eval(".stat-grid .stat .card-label", els => els.map(e => e.textContent.trim()));
@@ -967,14 +1060,8 @@ check(statLabels.length === 4, `exactement 4 métriques (obtenu ${statLabels.len
 for (const label of ["Entré", "Dépensé", "À payer", "Mis de côté"]) {
   check(statLabels.includes(label), `métrique « ${label} » absente (${statLabels.join(", ")})`);
 }
-// La priorité n'est JAMAIS tronquée (multi-ligne, pas d'ellipse).
-const prio = await page.$(".priority-card .meta .t");
-if (prio) {
-  const ws = await prio.evaluate(el => getComputedStyle(el).whiteSpace);
-  check(ws === "normal", `la priorité doit pouvoir passer à la ligne (white-space=${ws})`);
-  const clipped = await prio.evaluate(el => el.scrollWidth > el.clientWidth + 1);
-  check(!clipped, "le texte de la priorité ne doit pas déborder horizontalement");
-}
+check(await page.$(".priority-card") === null, "aucune carte de priorité technique sur l'accueil");
+check((await page.$$(".quick-row .btn")).length === 0, "aucune rangée d'actions rapides sur l'accueil");
 // Montant extrême : le héros reste entier, sans débordement.
 await page.evaluate(() => {
   addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(NOW.d, 28), title: "Extrême L3",
@@ -996,35 +1083,27 @@ await page.evaluate(() => {
   saveState(); render();
 });
 
-// ---------- Test 45 : Mois L3 — 320 px sans chevauchement FAB, vide guidé, démo explicite ----------
+// ---------- Test 45 : Mois L3 — 320 px, aucun FAB, vide guidé, démo explicite ----------
 currentTest = "mois L3 320px/vide/demo";
 await page.setViewportSize({ width: 320, height: 844 });
 await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
-// Aucun chevauchement : le FAB ne recouvre le centre d'AUCUN bouton visible.
-const fabOverlap = await page.evaluate(() => {
-  const screen = document.getElementById("screen");
-  screen.scrollTop = screen.scrollHeight; // tout en bas, là où L1 échouait
-  const fab = document.getElementById("fab").getBoundingClientRect();
-  const hits = [];
-  for (const b of screen.querySelectorAll("button, [role='button']")) {
-    const r = b.getBoundingClientRect();
-    if (r.width === 0 || r.height === 0) continue;
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    if (cx >= fab.left && cx <= fab.right && cy >= fab.top && cy <= fab.bottom) {
-      hits.push((b.textContent || b.ariaLabel || "?").trim().slice(0, 20));
-    }
-  }
-  return hits;
-});
-check(fabOverlap.length === 0, `le FAB recouvre : ${fabOverlap.join(", ")}`);
+const shell45 = await page.evaluate(() => ({
+  fab: !!document.getElementById("fab"),
+  labels: [...document.querySelectorAll("#tabbar button[data-tab]")]
+    .map(button => button.getAttribute("aria-label")),
+}));
+check(!shell45.fab, "le bouton flottant global doit être absent");
+check(shell45.labels.join(",") === "Mois,Historique,Budget,Comptes,Gérer",
+  `les cinq destinations doivent rester visibles à 320 px (${shell45.labels.join(",")})`);
 const noOverflow320 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 check(noOverflow320, "aucun débordement horizontal à 320 px");
 // Cibles ≥ 44 px sur les éléments interactifs du premier viewport.
 const small320 = await page.evaluate(() => {
   document.getElementById("screen").scrollTop = 0;
-  return [...document.querySelectorAll(".quick-row .btn, .hero .btn, .month-nav button")]
+  return [...document.querySelectorAll(".hero .btn, .month-nav button, #screen [role='button']")]
+    .filter(el => el.offsetParent !== null)
     .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || "?").trim().slice(0, 18) }))
     .filter(x => x.h < 43.5);
 });
@@ -1049,13 +1128,12 @@ await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Aucune dépense ce mois"), "état vide guidé : dépenses");
-check(screenHTML.includes("Aucune facture ce mois"), "état vide guidé : factures");
-check(screenHTML.includes("Argent disponible"), "le héros existe même sans mouvement");
+check(screenHTML.includes("Factures mensuelles"), "état vide guidé : section factures mensuelles");
+check(screenHTML.includes("Disponible"), "le héros existe même sans mouvement");
 const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(demoHidden, "pas de bannière démo pour un vrai départ");
 // Mode démo clairement identifié (chargée depuis les Réglages).
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
@@ -1174,13 +1252,18 @@ await page.fill("#fAmount", "12.35");
 const freqCat = await page.$eval("#fCat", el => el.value);
 await page.click('#txForm button[type="submit"]');
 await page.waitForTimeout(250);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(!(await page.$eval("#sheetBackdrop", el => el.classList.contains("open"))), "la feuille se ferme après sauvegarde réussie");
-check(screenHTML.includes("12.35"), "le mouvement en trois gestes apparaît sur Mois");
+const quickSaved = await page.evaluate(() =>
+  transactions.some(t => t.amount === 12.35 && t.title === document.getElementById("fCat").value));
+check(quickSaved, "le mouvement en trois gestes est enregistré dans le modèle");
+await goMovements();
+screenHTML = await page.$eval("#screen", el => el.innerHTML);
+check(screenHTML.includes("12.35"), "le mouvement en trois gestes apparaît dans l'Historique");
 await page.reload();
 await page.waitForSelector("#tabbar button");
+await goMovements();
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("12.35"), "le mouvement en trois gestes survit au rechargement");
+check(screenHTML.includes("12.35"), "le mouvement en trois gestes survit au rechargement dans l'Historique");
 // Édition sans perte : rouvrir, changer le montant, le nom par défaut reste.
 await page.click(`#screen [data-txid] >> text=${freqCat}`);
 await page.waitForSelector("#txForm", { state: "visible" });
@@ -1201,6 +1284,7 @@ await page.evaluate(() => { // nettoyage
   saveState(); render();
 });
 // Virement : résumé explicite et neutralité affichée (bouton héros).
+await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.click("[data-addtx]");
 await page.waitForSelector("#txForm", { state: "visible" });
 await page.click('#typeGrid button[data-ftype="transfer"]');
@@ -1244,12 +1328,13 @@ const rtSurface = await page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue("--surface").trim());
 check(rtSurface === "#151B26", `transparence réduite : surface opaque attendue (obtenu ${rtSurface})`);
 await page.evaluate(() => { delete document.documentElement.dataset.reducedTransparency; });
-// Libellés accessibles des graphiques et du FAB.
+// Libellés accessibles des graphiques et de l'action principale.
 const a11yLabels = await page.evaluate(() => ({
-  fab: document.getElementById("fab").getAttribute("aria-label") || "",
+  add: (document.querySelector("#screen [data-addtx]")?.textContent || "").trim(),
   charts: [...document.querySelectorAll("#screen svg[role='img']")].every(s => (s.getAttribute("aria-label") || "").length > 5),
 }));
-check(a11yLabels.fab.includes("Ajouter"), "le FAB porte un libellé accessible");
+check(a11yLabels.add.includes("Ajouter un mouvement"),
+  "l'action principale porte un libellé compréhensible");
 check(a11yLabels.charts, "chaque graphique SVG porte une étiquette accessible");
 // Budget à 320 px : aucun débordement.
 await page.setViewportSize({ width: 320, height: 844 });
@@ -1266,7 +1351,7 @@ await page.setViewportSize({ width: 390, height: 844 });
 currentTest = "mouvements L5";
 await goHome();
 // Repartir de la démo pour des données riches et déterministes.
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(150);
 await page.click("[data-resetdemo]");
@@ -1420,7 +1505,7 @@ check(signs51.every(t => /^[+−-]/.test(t) || t.length > 0), "chaque montant po
 
 // ---------- Test 52 : Factures L6 — héros, retard écrit, paiement lié SANS double comptage, vide ----------
 currentTest = "factures L6";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="bills"]');
 await page.waitForTimeout(250);
@@ -1442,6 +1527,8 @@ await page.evaluate(() => {
     dueD: Math.min(NOW.d + 2, 28), cat: "Logement", paidTxId: null, note: "" });
   saveState(); render();
 });
+// La carte synthétique de l'accueil permet de régler l'échéance sans
+// transformer l'écran Factures dédié en second bouton redondant.
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 await page.click('[data-paybill="l6bill"]');
@@ -1454,7 +1541,7 @@ const afterPay52 = await page.evaluate(() => {
 });
 check(afterPay52.linkedCount === 1 && afterPay52.sameId, "« Payer » crée UN seul mouvement, lié à la facture");
 check(afterPay52.type === "expense" && afterPay52.status === "posted", "le paiement est une dépense comptabilisée");
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="bills"]');
 await page.waitForTimeout(250);
@@ -1484,7 +1571,7 @@ await page.evaluate(() => {
 
 // ---------- Test 53 : Objectifs + Impôts L6 — états écrits, stats distinctes, rien d'inventé ----------
 currentTest = "objectifs+impôts L6";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="goals"]');
 await page.waitForTimeout(250);
@@ -1496,7 +1583,7 @@ const goals53 = await page.evaluate(() =>
 check(goals53.length > 0, "des objectifs sont affichés en démo");
 check(goals53.every(g => g.hasPill), "chaque objectif porte un état ÉCRIT (jamais couleur seule)");
 check(goals53.every(g => g.hasProgress), "chaque objectif expose sa progression en role=progressbar");
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="taxes"]');
 await page.waitForTimeout(250);
@@ -1523,7 +1610,7 @@ await page.evaluate(() => { transactions.push(...window.__l6txs); delete window.
 
 // ---------- Test 54 : Patrimoine + Prévoyance + Assurances + Récurrents L6 ----------
 currentTest = "patrimoine+prévoyance L6";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
@@ -1544,7 +1631,7 @@ const neg54 = await page.evaluate(() => {
 });
 check(neg54.neg && neg54.signed, "fortune nette négative : classe neg ET signe écrit");
 await page.evaluate(() => { const i = LIABILITIES.findIndex(l => l.id === "l6debt"); if (i >= 0) LIABILITIES.splice(i, 1); render(); });
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="insurance"]');
 await page.waitForTimeout(250);
@@ -1571,19 +1658,20 @@ await page.waitForTimeout(200);
 const pen54 = await page.$eval('[data-penid="l6pen"]', el => el.textContent);
 check(!pen54.includes("Projection"), "une position SANS projection de certificat n'en reçoit JAMAIS une");
 await page.evaluate(() => { const i = PENSIONS.findIndex(p => p.id === "l6pen"); if (i >= 0) PENSIONS.splice(i, 1); render(); });
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="recurring"]');
 await page.waitForTimeout(250);
 const rec54 = await page.evaluate(() => [...document.querySelectorAll("#screen [data-recid]")].map(r => r.textContent));
 check(rec54.length > 0, "des paiements réguliers sont affichés en démo");
-check(rec54.every(t => /Saisi ce mois|À venir/.test(t)), "chaque paiement régulier porte son état écrit (pill)");
+check(rec54.every(t => /Payée ce mois|Reçu ce mois|Planifiée|En retard|À venir/.test(t)),
+  "chaque paiement mensuel porte son état écrit (pill)");
 
 // ---------- Test 55 : a11y L6 — 320 px sur les 6 modules, extrême, cibles 44 px ----------
 currentTest = "a11y L6";
 await page.setViewportSize({ width: 320, height: 844 });
 for (const view55 of ["bills", "goals", "taxes", "networth", "insurance", "recurring"]) {
-  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
   await page.waitForTimeout(120);
   await page.click(`#screen [data-more="${view55}"]`);
   await page.waitForTimeout(200);
@@ -1592,7 +1680,7 @@ for (const view55 of ["bills", "goals", "taxes", "networth", "insurance", "recur
 }
 // Actif extrême : le héros Patrimoine se réduit (classe long) sans tronquer ni déborder.
 await page.evaluate(() => { ASSETS.push({ id: "l6extreme", name: "Actif extrême", value: 9999999.99, include: true }); render(); });
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(120);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
@@ -1670,9 +1758,9 @@ check(final56.salary === 5000, "le salaire facultatif devient un paiement régul
 check(final56.accounts >= 2 && final56.saved, "la finalisation crée les comptes et écrit l'état UNE fois");
 await ctx56.close();
 
-// ---------- Test 57 : hub Plus L7 — groupes par intention, AUCUN lien mort ----------
-currentTest = "hub Plus L7";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+// ---------- Test 57 : hub Gérer L7 — groupes par intention, AUCUN lien mort ----------
+currentTest = "hub Gérer L7";
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 for (const group57 of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
@@ -1684,8 +1772,8 @@ const rows57 = await page.evaluate(() =>
 check(rows57.length >= 10, `toutes les destinations sont listées (obtenu ${rows57.length})`);
 check(rows57.every(r => r.h >= 43.5), "chaque ligne du hub fait au moins 44 px");
 check(rows57.every(r => r.sub.trim().length > 0), "chaque ligne explique ce qu'on y fait");
-for (const dest57 of ["movements", "bills", "recurring", "taxes", "insurance", "networth", "goals", "year", "importcsv", "assistant", "settings"]) {
-  await page.click(`#tabbar button[aria-label="Plus"]`);
+for (const dest57 of ["bills", "recurring", "taxes", "insurance", "networth", "goals", "year", "importcsv", "assistant", "settings"]) {
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
   await page.waitForTimeout(120);
   await page.click(`#screen [data-more="${dest57}"]`);
   await page.waitForTimeout(200);
@@ -1703,7 +1791,7 @@ check(summary58.includes("24.07.2026") && summary58.includes("2 mouvements") && 
   "le résumé de restauration montre la date et le contenu RÉELS");
 check(summary58.includes("REMPLACE") && summary58.includes("code de verrouillage") && summary58.includes("fichiers de documents"),
   "le résumé annonce la portée exacte et ce que la sauvegarde ne contient PAS");
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(120);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(250);
@@ -1734,83 +1822,67 @@ check(undone58 > 0, "l'annulation restaure les opérations effacées");
 currentTest = "a11y L7";
 await page.setViewportSize({ width: 320, height: 844 });
 for (const view59 of ["settings", "importcsv"]) {
-  await page.click(`#tabbar button[aria-label="Plus"]`);
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
   await page.waitForTimeout(120);
   await page.click(`#screen [data-more="${view59}"]`);
   await page.waitForTimeout(200);
   const ok59 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
   check(ok59, `« ${view59} » sans débordement à 320 px`);
 }
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 const plus59 = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
-check(plus59, "hub Plus sans débordement à 320 px");
+check(plus59, "hub Gérer sans débordement à 320 px");
 const targets59 = await page.evaluate(() =>
   [...document.querySelectorAll("#screen .btn, #screen [data-more]")]
     .map(el => ({ h: el.getBoundingClientRect().height, t: (el.textContent || "?").trim().slice(0, 18) }))
     .filter(x => x.h > 0 && x.h < 43.5));
-check(targets59.length === 0, `cibles < 44 px dans Plus : ${targets59.map(x => x.t).join(", ")}`);
+check(targets59.length === 0, `cibles < 44 px dans Gérer : ${targets59.map(x => x.t).join(", ")}`);
 await page.setViewportSize({ width: 390, height: 844 });
 
 /* ============= CORRECTIF L7 (Tests 60-62) ============= */
 
-// ---------- Test 60 : zone d'EXCLUSION du ＋ PWA — viewport, éléments visibles, symbole ----------
-currentTest = "exclusion FAB L7";
-async function assertFabExclusion(tag) {
+// ---------- Test 60 : shell simplifié — cinq destinations, aucun ＋ global ----------
+currentTest = "shell simplifié L7";
+async function assertSimpleShell(tag) {
   const check60 = await page.evaluate(() => {
-    const fabEl = document.getElementById("fab");
-    const fab = fabEl.getBoundingClientRect();
-    const screenR = document.getElementById("screen").getBoundingClientRect();
-    // Balayage des RECTANGLES VISIBLES (rognés au viewport), pas des
-    // centres de boutons : cartes, textes, boutons, montants, titres.
-    const bad = [];
-    const nodes = document.querySelectorAll("#screen .card, #screen .card *, #screen .section-title, #screen .btn, #screen .screen-title");
-    for (const el of nodes) {
-      const r = el.getBoundingClientRect();
-      if (!r.width || !r.height) continue;
-      const top = Math.max(r.top, screenR.top);
-      const bottom = Math.min(r.bottom, screenR.bottom);
-      if (bottom <= top) continue; // entièrement coupé hors viewport
-      const left = Math.max(r.left, screenR.left);
-      const right = Math.min(r.right, screenR.right);
-      const intersects = !(right <= fab.left || left >= fab.right || bottom <= fab.top || top >= fab.bottom);
-      if (intersects) bad.push((el.className || el.tagName).toString().slice(0, 30));
-    }
+    const tabs = [...document.querySelectorAll("#tabbar button[data-tab]")];
     return {
-      bad: bad.slice(0, 5),
-      viewportClear: screenR.bottom <= fab.top + 0.5,
-      plusVisible: getComputedStyle(fabEl).display !== "none" && fabEl.textContent.trim() === "+"
-        && fab.width >= 44 && fab.height >= 44,
-      inBar: document.getElementById("tabbar").contains(fabEl),
+      labels: tabs.map(tab => tab.getAttribute("aria-label")),
+      noFab: !document.getElementById("fab"),
+      smallTabs: tabs.filter(tab => {
+        const rect = tab.getBoundingClientRect();
+        return rect.width < 43.5 || rect.height < 43.5;
+      }).length,
       noHScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
     };
   });
-  check(check60.viewportClear, `${tag} : le viewport s'arrête AU-DESSUS du ＋ (exclusion permanente)`);
-  check(check60.bad.length === 0, `${tag} : éléments visibles sous le ＋ : ${check60.bad.join(", ")}`);
-  check(check60.plusVisible, `${tag} : le symbole ＋ est présent, visible et ≥ 44 px`);
-  check(check60.inBar, `${tag} : le ＋ vit dans la barre du bas — jamais enterré sous le contenu`);
+  check(check60.labels.join(",") === "Mois,Historique,Budget,Comptes,Gérer",
+    `${tag} : cinq destinations directes (${check60.labels.join(",")})`);
+  check(check60.noFab, `${tag} : aucun bouton ＋ global`);
+  check(check60.smallTabs === 0, `${tag} : destinations du shell ≥ 44 px`);
   check(check60.noHScroll, `${tag} : aucun débordement horizontal`);
 }
 for (const [w, tag60] of [[390, "390"], [320, "320"]]) {
   await page.setViewportSize({ width: w, height: 844 });
   for (const view60 of ["plus-hub", "settings", "importcsv"]) {
-    await page.click(`#tabbar button[aria-label="Plus"]`);
+    await page.click(`#tabbar button[aria-label="Gérer"]`);
     await page.waitForTimeout(150);
     if (view60 !== "plus-hub") {
       await page.click(`#screen [data-more="${view60}"]`);
       await page.waitForTimeout(200);
     }
-    await assertFabExclusion(`${tag60}/${view60} à l'ouverture`);
+    await assertSimpleShell(`${tag60}/${view60} à l'ouverture`);
     await page.evaluate(() => { document.getElementById("screen").scrollTop = 999999; });
     await page.waitForTimeout(150);
-    await assertFabExclusion(`${tag60}/${view60} après défilement`);
+    await assertSimpleShell(`${tag60}/${view60} après défilement`);
   }
 }
 await page.setViewportSize({ width: 390, height: 844 });
 
 // ---------- Test 61 : import CSV L7 — mapping, compte CHOISI, aperçu, confirmation, idempotence, rollback ----------
 currentTest = "import L7";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="importcsv"]');
 await page.waitForTimeout(200);
@@ -1882,7 +1954,7 @@ check(rolled61.gone && rolled61.count === before61, "le rollback retire UNIQUEME
 
 // ---------- Test 62 : documents L7 — modification réelle + concordance des actions destructives ----------
 currentTest = "documents L7";
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="importcsv"]');
 await page.waitForTimeout(200);
@@ -1924,7 +1996,7 @@ await page.waitForTimeout(250);
 check(await page.evaluate(id => !S.documents.some(d => d.id === id), added62.id),
   "la suppression retire les métadonnées du document nommé");
 // Concordance EXACTE : les textes utilisent les noms des boutons visibles.
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(120);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(250);
@@ -2123,7 +2195,7 @@ const negSel64 = await page.evaluate(() => {
 check(negSel64.visible && negSel64.inFrame, "point sélectionné VISIBLE et dans le cadre sur une série constante négative");
 check(negSel64.cap.includes("-CHF 100.00"), `l'étiquette lit −100 exactement (obtenu « ${negSel64.cap} »)`);
 
-// ---------- Test 65 : isolation par compte, 320/390, transparence et mouvement réduits, FAB ----------
+// ---------- Test 65 : isolation par compte, 320/390, transparence et mouvement réduits ----------
 currentTest = "isolation et états L8";
 // La sélection End sur « Dette fixture L8 » ne doit PAS fuir vers un autre compte.
 await page.click("#screen [data-accback]");
@@ -2148,7 +2220,7 @@ check(iso65b === "", "la sélection faite sur le compte zéro ne fuit pas non pl
 // 320 × 844 + transparence réduite : Patrimoine sélectionné au clavier.
 await page.setViewportSize({ width: 320, height: 844 });
 await page.evaluate(() => { document.documentElement.setAttribute("data-reduced-transparency", "true"); });
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
@@ -2158,20 +2230,20 @@ await page.waitForTimeout(60);
 const narrow65 = await page.evaluate(() => {
   const scrub = document.querySelector('[data-chart="nw"] .scrub');
   const r = scrub.getBoundingClientRect();
-  const fab = document.getElementById("fab").getBoundingClientRect();
-  const screenR = document.getElementById("screen").getBoundingClientRect();
   return {
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     cap: document.querySelector('[data-chartcaption="nw"]').textContent,
     w: r.width, h: r.height,
-    fabClear: fab.top >= screenR.bottom - 0.5,
+    noFab: !document.getElementById("fab"),
+    tabs: document.querySelectorAll("#tabbar button[data-tab]").length,
   };
 });
 check(!narrow65.overflow, "320 px en transparence réduite : zéro débordement horizontal");
 check(narrow65.cap.includes("fortune nette") && narrow65.cap.includes(":"),
   "l'étiquette sélectionnée reste lisible à 320 px");
 check(narrow65.w >= 44 && narrow65.h >= 44, `cible ≥ 44 px aussi à 320 px (${Math.round(narrow65.w)}×${Math.round(narrow65.h)})`);
-check(narrow65.fabClear, "la zone de contenu s'arrête AU-DESSUS du ＋ à 320 px — aucune intersection");
+check(narrow65.noFab && narrow65.tabs === 5,
+  "le shell simplifié conserve cinq onglets sans bouton flottant à 320 px");
 const edge65b = await page.evaluate(() =>
   parseFloat(document.querySelector('[data-chart="nw"] [data-scrubdot]').getAttribute("cx")));
 check(edge65b + 4.5 <= 300, `320 px, dernier mois : cercle complet dans le cadre (cx ${edge65b})`);
@@ -2185,21 +2257,21 @@ check(edge65a.cx - 4.5 >= 0 && edge65a.cap.includes("fortune nette"),
   `320 px, premier mois : cercle complet et étiquette lisible (cx ${edge65a.cx})`);
 await page.evaluate(() => { document.documentElement.removeAttribute("data-reduced-transparency"); });
 await page.setViewportSize({ width: 390, height: 844 });
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
-const fab65 = await page.evaluate(() => {
-  const fab = document.getElementById("fab").getBoundingClientRect();
-  const screenR = document.getElementById("screen").getBoundingClientRect();
-  return fab.top >= screenR.bottom - 0.5;
-});
-check(fab65, "la zone de contenu s'arrête AU-DESSUS du ＋ à 390 px — aucune intersection");
+const shell65 = await page.evaluate(() => ({
+  noFab: !document.getElementById("fab"),
+  tabs: document.querySelectorAll("#tabbar button[data-tab]").length,
+}));
+check(shell65.noFab && shell65.tabs === 5,
+  "le shell simplifié conserve cinq onglets sans bouton flottant à 390 px");
 // Reduced motion : la garde existante coupe l'animation d'entrée des cartes.
 await page.emulateMedia({ reducedMotion: "reduce" });
 await page.click(`#tabbar button[aria-label="Comptes"]`);
 await page.waitForTimeout(150);
-await page.click(`#tabbar button[aria-label="Plus"]`);
+await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(200);
 const motion65 = await page.evaluate(() => {
   const card = document.querySelector("#screen .card");
@@ -2505,23 +2577,23 @@ await page.waitForTimeout(200);
     await page.waitForTimeout(150);
   }
 }
-// Plus (qui héberge Mouvements) : Obsidian également.
-await page.click('#tabbar button[aria-label="Plus"]');
+// Gérer et Historique : Obsidian, chacun directement accessible.
+await page.click('#tabbar button[aria-label="Gérer"]');
 await page.waitForTimeout(200);
 const plusPiloted73 = await page.$eval("#screen", el => el.classList.contains("nu-pilot-screen"));
-check(!plusPiloted73, "Plus n'est PAS piloté (identité Obsidian préservée)");
+check(!plusPiloted73, "Gérer n'est PAS piloté (identité Obsidian préservée)");
 await goMovements();
 const mvtPiloted73 = await page.$eval("#screen", el => el.classList.contains("nu-pilot-screen"));
-check(!mvtPiloted73, "Mouvements (dans Plus) n'est PAS piloté");
-// La barre d'onglets et le ＋ appartiennent au shell (NU4) : intacts.
+check(!mvtPiloted73, "Historique n'est PAS piloté");
+// Le shell simplifié expose cinq destinations et aucun bouton flottant.
 const shell73 = await page.evaluate(() => ({
-  tabs: [...document.querySelectorAll("#tabbar [data-tab]")].map(b => b.dataset.tab),
+  tabs: [...document.querySelectorAll("#tabbar [data-tab]")].map(b => b.getAttribute("aria-label")),
   fab: !!document.querySelector("#tabbar #fab"),
   barBg: getComputedStyle(document.getElementById("tabbar")).backgroundColor,
 }));
-check(shell73.tabs.join(",") === "home,budget,accounts,more",
-  `les quatre onglets PWA sont inchangés (obtenu ${shell73.tabs.join(",")})`);
-check(shell73.fab, "le ＋ reste membre centré de la barre d'onglets");
+check(shell73.tabs.join(",") === "Mois,Historique,Budget,Comptes,Gérer",
+  `les cinq destinations PWA sont attendues (obtenu ${shell73.tabs.join(",")})`);
+check(!shell73.fab, "aucun ＋ flottant ou central dans la barre d'onglets");
 check(shell73.barBg !== "rgb(11, 13, 19)",
   `la barre d'onglets reste Obsidian (le shell appartient à NU4, obtenu ${shell73.barBg})`);
 
@@ -2607,32 +2679,13 @@ await page.waitForTimeout(250);
   check(cleaned74 === 0, `Budget : la ligne de test est retirée (obtenu ${cleaned74})`);
 }
 
-// ---------- Test 75 : NU2 — ＋ → Ajouter → Nouveau mouvement RÉELLEMENT enregistré ----------
+// ---------- Test 75 : NU2 — action unique → Nouveau mouvement RÉELLEMENT enregistré ----------
 currentTest = "NU2 ajouter un mouvement";
 await goHome();
 {
   const before75 = await page.evaluate(() => transactions.length);
-  await page.click("#fab");
-  await page.waitForSelector("#quickMenu", { state: "visible" });
-  const menu75 = await page.evaluate(() => {
-    const menu = document.getElementById("quickMenu");
-    return {
-      piloted: menu.classList.contains("nu-pilot-sheet"),
-      dests: [...menu.querySelectorAll("[data-quick]")].map(b => b.dataset.quick),
-      small: [...menu.querySelectorAll("[data-quick]")]
-        .filter(b => b.getBoundingClientRect().height < 44).length,
-      surface: getComputedStyle(menu).backgroundColor,
-      cta: menu.querySelectorAll(".btn.nu-cta").length,
-    };
-  });
-  check(menu75.piloted, "le menu Ajouter est une feuille pilote Neon Ultra");
-  check(menu75.dests.join(",") === "tx,bill,acc,goal,rec,item,ins,pen",
-    `les huit destinations du menu rapide sont intactes (obtenu ${menu75.dests.join(",")})`);
-  check(menu75.small === 0,
-    `menu Ajouter : toutes les cibles font au moins 44 px (obtenu ${menu75.small} trop petites)`);
-  check(menu75.cta === 0,
-    `menu Ajouter : aucun faux point focal, les huit choix restent égaux (obtenu ${menu75.cta})`);
-  await page.click('#quickMenu [data-quick="tx"]');
+  check(await page.$("#fab") === null, "aucun bouton flottant avant l'ajout");
+  await page.click("#screen [data-addtx]");
   await page.waitForSelector("#txForm", { state: "visible" });
   const form75 = await page.evaluate(() => {
     const form = document.getElementById("txForm");
@@ -2697,9 +2750,7 @@ await goHome();
 // ---------- Test 76 : NU2 — erreur de formulaire lisible, PRÈS du champ ----------
 currentTest = "NU2 erreur de formulaire";
 {
-  await page.click("#fab");
-  await page.waitForSelector("#quickMenu", { state: "visible" });
-  await page.click('#quickMenu [data-quick="tx"]');
+  await page.click("#screen [data-addtx]");
   await page.waitForSelector("#txForm", { state: "visible" });
   await page.fill("#fAmount", "");
   await page.click('#txForm button[type="submit"]');
@@ -2930,7 +2981,7 @@ currentTest = "NU2 HTTP, service worker et hors-ligne";
     };
   });
   check(offline78.onLine === false, "hors-ligne : le navigateur est réellement déconnecté");
-  check(offline78.tabs === 4 && offline78.fab,
+  check(offline78.tabs === 5 && !offline78.fab,
     `hors-ligne : l'app s'ouvre entière (obtenu ${offline78.tabs} onglets, ＋ ${offline78.fab})`);
   check(offline78.name === "Robin",
     `hors-ligne : les données du foyer sont intactes (obtenu « ${offline78.name} »)`);

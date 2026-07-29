@@ -62,8 +62,9 @@ Respect Dynamic Type, VoiceOver, WCAG AA body text, 44-point targets, reduced
 motion, increased contrast, and reduced transparency. When transparency is
 reduced, replace any blur with the opaque surface `#151923`.
 
-## Navigation (open product decision)
+## Navigation (ADR-026)
 
-PWA: 4 tabs + centered ＋ (Mouvements lives in Plus). iOS: 5 tabs + floating
-＋. This divergence is documented in the Neon Ultra screen matrix and must NOT
-be reconciled without a separate explicit owner decision.
+PWA and iOS use the same five stable destinations: `Mois`, `Historique`,
+`Budget`, `Comptes`, `Gérer`. There is no global centered or floating
+add button. The home screen carries one primary movement action; each other
+screen owns only its useful contextual action.

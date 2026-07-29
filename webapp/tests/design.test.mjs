@@ -719,9 +719,10 @@ void clippedIn;
       metrics: document.querySelectorAll("#screen .stat").length,
       priorities: document.querySelectorAll("#screen .priority-card").length,
       quick: document.querySelectorAll("#screen .quick-row .btn").length,
-      // Ordre du premier viewport : salutation → mois → héros → métriques → priorité.
-      order: [html.indexOf("Bonjour"), html.indexOf("Argent disponible"),
-              html.indexOf('class="stat-grid"'), html.indexOf('class="quick-row"')],
+      bills: /factures mensuelles/i.test(s.innerText),
+      // Ordre du premier niveau : salutation → héros → métriques → factures.
+      order: [html.indexOf("Bonjour"), html.indexOf("Disponible"),
+              html.indexOf('class="stat-grid'), html.indexOf("Factures mensuelles")],
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
       blurred: [...document.querySelectorAll("#screen .card")]
@@ -740,11 +741,12 @@ void clippedIn;
   check(mois.ctaColor === "rgb(255, 255, 255)", "texte du CTA en blanc pur");
   check(mois.amountShadow === "none" && mois.glowing === 0, "AUCUN glow autour d'un montant");
   check(mois.metrics === 4, `exactement 4 métriques (obtenu ${mois.metrics})`);
-  check(mois.priorities <= 1, `au plus UNE priorité (obtenu ${mois.priorities})`);
-  check(mois.quick === 4, `4 actions rapides (obtenu ${mois.quick})`);
+  check(mois.priorities === 0, `aucune priorité technique sur l'accueil (obtenu ${mois.priorities})`);
+  check(mois.quick === 0, `aucune rangée d'actions rapides (obtenu ${mois.quick})`);
+  check(mois.bills, "la section « Factures mensuelles » est visible");
   check(mois.order.every(i => i >= 0) && mois.order[0] < mois.order[1]
     && mois.order[1] < mois.order[2] && mois.order[2] < mois.order[3],
-    `ordre du premier viewport : salutation → héros → métriques → actions (${mois.order})`);
+    `ordre du premier niveau : salutation → héros → métriques → factures (${mois.order})`);
   check(mois.gradientCtas === 1, `UN SEUL CTA gradient sur Mois (obtenu ${mois.gradientCtas})`);
   check(mois.blurred === 0, "aucune carte de liste floutée sur une surface pilote");
   // Cibles ≥ 44 px et aucune troncature interne.
@@ -833,29 +835,11 @@ void clippedIn;
   check(loaded.gradientCtas <= 1, `Budget chargé : au plus un CTA gradient (obtenu ${loaded.gradientCtas})`);
   check(loaded.overflow <= 0, `Budget chargé : aucun débordement horizontal (${loaded.overflow}px)`);
 
-  // Feuilles pilotes : menu Ajouter puis Nouveau mouvement.
+  // Feuille pilote : l'action unique ouvre directement Nouveau mouvement.
   await page.click(`#tabbar button[aria-label="Mois"]`);
   await page.waitForTimeout(200);
-  await page.click("#fab");
-  await page.waitForSelector("#quickMenu", { state: "visible" });
-  const menu = await page.evaluate(() => {
-    const m = document.getElementById("quickMenu");
-    return {
-      pilot: m.classList.contains("nu-pilot-sheet"),
-      bg: getComputedStyle(m).backgroundColor,
-      blur: getComputedStyle(m).backdropFilter,
-      destinations: m.querySelectorAll("[data-quick]").length,
-      gradient: [...m.querySelectorAll(".btn")]
-        .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
-      small: [...m.querySelectorAll(".btn")].filter(b => b.getBoundingClientRect().height < 43.5).length,
-    };
-  });
-  check(menu.pilot && menu.bg === "rgb(24, 28, 38)", "le menu Ajouter est une feuille pilote élevée");
-  check(menu.blur === "none", "aucun blur sur la feuille pilote");
-  check(menu.destinations === 8, `les 8 destinations sont conservées (obtenu ${menu.destinations})`);
-  check(menu.gradient === 0, `aucune grille de CTA lumineux (obtenu ${menu.gradient})`);
-  check(menu.small === 0, "toutes les tuiles du menu ≥ 44 px");
-  await page.click('#quickMenu [data-quick="tx"]');
+  check(await page.$("#fab") === null, "aucun bouton flottant global");
+  await page.click("#screen [data-addtx]");
   await page.waitForSelector("#txForm", { state: "visible" });
   const form = await page.evaluate(() => {
     const f = document.getElementById("txForm");
@@ -920,7 +904,7 @@ void clippedIn;
 
   // ISOLATION : les écrans restants gardent EXACTEMENT leur rendu Obsidian.
   const OBSIDIAN_SURFACES = ["rgba(20, 25, 37, 0.72)", "rgba(27, 34, 48, 0.88)"];
-  for (const label of ["Comptes", "Plus"]) {
+  for (const label of ["Comptes", "Gérer"]) {
     await page.click(`#tabbar button[aria-label="${label}"]`);
     await page.waitForTimeout(250);
     const iso = await page.evaluate(() => {
@@ -961,16 +945,18 @@ void clippedIn;
       }
     }
   }
-  // Mouvements (dans Plus) : Obsidian également.
-  await page.click('#screen [data-more="movements"]');
+  // Historique : destination principale Obsidian.
+  await page.click('#tabbar button[aria-label="Historique"]');
   await page.waitForTimeout(250);
   const mov = await page.evaluate(() => ({
     pilot: document.getElementById("screen").classList.contains("nu-pilot-screen"),
-    tabs: document.querySelectorAll("#tabbar button[data-tab]").length,
+    labels: [...document.querySelectorAll("#tabbar button[data-tab]")]
+      .map(button => button.getAttribute("aria-label")),
     fab: !!document.getElementById("fab"),
   }));
-  check(!mov.pilot, "Mouvements (dans Plus) reste Obsidian");
-  check(mov.tabs === 4 && mov.fab, "barre à 4 onglets + ＋ central INCHANGÉE");
+  check(!mov.pilot, "Historique reste Obsidian");
+  check(mov.labels.join(",") === "Mois,Historique,Budget,Comptes,Gérer" && !mov.fab,
+    `barre à 5 destinations sans ＋ (${mov.labels.join(",")}, fab=${mov.fab})`);
   await page.context().close();
 }
 
@@ -1051,4 +1037,4 @@ if (failures.length) {
 }
 console.log("\n✓ Design system Obsidian : tokens, parité, contrastes, galerie 320/390, cibles 44px, focus, reduced motion/transparency — OK, zéro erreur console");
 console.log("✓ Fondations Neon Ultra (NU1) : tokens exacts, isolation de l'app, parité Swift, contrastes AA, galerie 320/390, focus cyan, états, texte 200 %, reduced motion/transparency — OK");
-console.log("✓ Surfaces pilotes Neon Ultra (NU2) : chargement unique, aucune valeur brute dans l'app, tokens Obsidian intacts, scoping Mois/Budget + txForm/quickMenu, CTA unique, cartes mates, montants sans glow, 44 px, focus cyan, états vide/erreur/extrême, texte agrandi, reduced motion/transparency, isolation des écrans Obsidian — OK");
+console.log("✓ Surfaces pilotes Neon Ultra (NU2) : chargement unique, aucune valeur brute dans l'app, tokens Obsidian intacts, scoping Mois/Budget + txForm, accueil simplifié, 5 destinations sans FAB, CTA unique, cartes mates, montants sans glow, 44 px, focus cyan, états vide/erreur/extrême, texte agrandi, reduced motion/transparency, isolation des écrans Obsidian — OK");
