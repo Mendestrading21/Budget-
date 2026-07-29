@@ -1,36 +1,65 @@
 import SwiftUI
 
-/// "Plus" hub organisé par INTENTIONS (L7) : chaque ligne dit ce qu'on y
-/// fait en langage simple, pas seulement un nom de module. Toutes les
-/// destinations existantes sont conservées.
+/// Hub secondaire volontairement court : le quotidien d'abord, les fonctions
+/// avancées ensuite. Les destinations restent accessibles sans exposer une
+/// longue liste technique au premier regard.
 struct MoreTab: View {
     var body: some View {
         NavigationStack {
             List {
-                section("À organiser") {
-                    row("Récurrents et abonnements", subtitle: "Charges, revenus et abonnements qui reviennent",
-                        systemImage: "arrow.triangle.2.circlepath") { RecurringListView() }
+                section("Mon mois") {
+                    row(
+                        "Factures mensuelles",
+                        subtitle: "Loyer, abonnements et revenus qui reviennent",
+                        systemImage: "calendar.badge.clock"
+                    ) { RecurringListView() }
+                    row(
+                        "Impôts",
+                        subtitle: "Ce qui est payé et ce qu'il reste à prévoir",
+                        systemImage: "doc.text"
+                    ) { TaxesView() }
                 }
-                section("À prévoir") {
-                    row("Impôts", subtitle: "Estimé = payé + encore dû", systemImage: "doc.text") { TaxesView() }
-                    row("Assurances", subtitle: "Primes et délais de résiliation", systemImage: "shield") { InsuranceListView() }
-                    row("Prévoyance", subtitle: "LPP, 3e pilier — selon vos certificats", systemImage: "shield.checkered") { PensionView() }
+
+                section("Mon avenir") {
+                    row(
+                        "Objectifs",
+                        subtitle: "Projets et montants à atteindre",
+                        systemImage: "target"
+                    ) { GoalsListView() }
+                    row(
+                        "Patrimoine",
+                        subtitle: "Tout ce que vous possédez moins vos dettes",
+                        systemImage: "chart.bar"
+                    ) { NetWorthView() }
                 }
-                section("À construire") {
-                    row("Objectifs", subtitle: "Épargne, projets, caps à atteindre", systemImage: "target") { GoalsListView() }
-                    row("Patrimoine", subtitle: "Fortune nette et évolution", systemImage: "chart.bar") { NetWorthView() }
-                    row("Année en revue", subtitle: "Bilan et taux d'épargne", systemImage: "calendar") { YearReviewView() }
+
+                section("Voir plus") {
+                    row(
+                        "Assurances et prévoyance",
+                        subtitle: "Primes, LPP et 3e pilier",
+                        systemImage: "shield.checkered"
+                    ) { FinancialProtectionHubView() }
+                    row(
+                        "Bilan de l'année",
+                        subtitle: "Revenus, dépenses et argent mis de côté",
+                        systemImage: "calendar"
+                    ) { YearReviewView() }
+                    row(
+                        "Documents et import",
+                        subtitle: "Justificatifs et relevés bancaires",
+                        systemImage: "folder"
+                    ) { DataHubView() }
                 }
-                section("Mes données") {
-                    row("Documents", subtitle: "Vos justificatifs, copiés dans l'app", systemImage: "folder") { DocumentsListView() }
-                    row("Import CSV", subtitle: "Relevés bancaires, aperçu avant écriture", systemImage: "square.and.arrow.down") { ImportWizardView() }
-                }
+
                 section("Application") {
-                    row("Réglages", subtitle: "Sécurité, sauvegarde, confidentialité", systemImage: "gearshape") { SettingsView() }
+                    row(
+                        "Réglages",
+                        subtitle: "Sécurité, sauvegarde et confidentialité",
+                        systemImage: "gearshape"
+                    ) { SettingsView() }
                 }
             }
             .scrollContentBackground(.hidden)
-            .obsidianFABClearance()
             .background(BudgetScreenBackground())
             .navigationTitle("Plus")
         }
@@ -42,8 +71,6 @@ struct MoreTab: View {
         } header: {
             Text(title)
                 .font(BudgetFont.sectionTitle)
-                // Les en-têtes de List assombrissent .secondary — couleur
-                // de token EXPLICITE pour rester lisible (contraste ≥ 4.5).
                 .foregroundStyle(BudgetColor.textSecondary)
                 .textCase(nil)
         }
@@ -51,7 +78,9 @@ struct MoreTab: View {
     }
 
     private func row<Destination: View>(
-        _ title: String, subtitle: String, systemImage: String,
+        _ title: String,
+        subtitle: String,
+        systemImage: String,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         NavigationLink {
@@ -73,6 +102,28 @@ struct MoreTab: View {
             .frame(minHeight: 44)
         }
         .accessibilityIdentifier("more.entry.\(title)")
+    }
+}
+
+/// Regroupe deux écrans avancés afin d'éviter deux lignes voisines dans Plus.
+private struct FinancialProtectionHubView: View {
+    var body: some View {
+        List {
+            NavigationLink("Assurances") { InsuranceListView() }
+            NavigationLink("Prévoyance") { PensionView() }
+        }
+        .navigationTitle("Protection financière")
+    }
+}
+
+/// Regroupe les entrées liées aux fichiers et aux imports.
+private struct DataHubView: View {
+    var body: some View {
+        List {
+            NavigationLink("Mes documents") { DocumentsListView() }
+            NavigationLink("Importer un relevé CSV") { ImportWizardView() }
+        }
+        .navigationTitle("Documents et import")
     }
 }
 
