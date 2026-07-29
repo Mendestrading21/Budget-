@@ -54,7 +54,7 @@ final class SafeSaveTests: XCTestCase {
             onError: { message = $0 }
         )
 
-        XCTAssertTrue(succeded)
+        XCTAssertTrue(succeeded)
         XCTAssertEqual(saveCount, 1)
         XCTAssertEqual(rollbackCount, 0)
         XCTAssertNil(message)
