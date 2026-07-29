@@ -130,6 +130,9 @@ enum BackupError: LocalizedError, Equatable {
     case newerSchema(found: Int, supported: Int)
     case unsupportedCurrency(codes: [String])
     case corruptAmount(String)
+    case unknownValue(field: String, value: String)
+    case missingReference(field: String, id: UUID)
+    case duplicateIdentifier(entity: String, id: UUID)
 
     var errorDescription: String? {
         switch self {
@@ -141,6 +144,12 @@ enum BackupError: LocalizedError, Equatable {
             "Cette sauvegarde contient des comptes en \(codes.joined(separator: ", ")). Budget V1 gère uniquement le CHF — vos données actuelles n'ont pas été modifiées."
         case .corruptAmount(let raw):
             "Cette sauvegarde contient un montant illisible (« \(raw) ») — la restauration a été annulée, vos données actuelles n'ont pas été modifiées."
+        case .unknownValue(let field, let value):
+            "Cette sauvegarde contient une valeur inconnue pour \(field) (« \(value) ») — la restauration a été annulée, vos données actuelles n'ont pas été modifiées."
+        case .missingReference(let field, let id):
+            "Cette sauvegarde contient une relation \(field) vers un élément absent (\(id.uuidString)) — la restauration a été annulée, vos données actuelles n'ont pas été modifiées."
+        case .duplicateIdentifier(let entity, let id):
+            "Cette sauvegarde contient deux éléments \(entity) avec le même identifiant (\(id.uuidString)) — la restauration a été annulée, vos données actuelles n'ont pas été modifiées."
         }
     }
 }
@@ -159,6 +168,29 @@ struct BackupService {
         // on refuse la sauvegarde, la restauration transactionnelle annule tout.
         guard let value = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")) else {
             throw BackupError.corruptAmount(string)
+        }
+        return value
+    }
+
+    private func enumValue<T: RawRepresentable>(
+        _ type: T.Type,
+        rawValue: String,
+        field: String
+    ) throws -> T where T.RawValue == String {
+        guard let value = T(rawValue: rawValue) else {
+            throw BackupError.unknownValue(field: field, value: rawValue)
+        }
+        return value
+    }
+
+    private func resolved<T>(
+        _ id: UUID?,
+        in values: [UUID: T],
+        field: String
+    ) throws -> T? {
+        guard let id else { return nil }
+        guard let value = values[id] else {
+            throw BackupError.missingReference(field: field, id: id)
         }
         return value
     }
@@ -350,6 +382,7 @@ struct BackupService {
         guard file.schemaVersion <= Self.currentSchemaVersion else {
             throw BackupError.newerSchema(found: file.schemaVersion, supported: Self.currentSchemaVersion)
         }
+        try validate(file)
         return Summary(
             exportedAt: file.exportedAt,
             schemaVersion: file.schemaVersion,
@@ -359,6 +392,156 @@ struct BackupService {
             recurrings: file.recurrings.count,
             documents: file.documents.count
         )
+    }
+
+    /// Validates every enum and relationship before restore mutates the
+    /// context. Optional relationships remain optional for older backups,
+    /// but a UUID that is present must resolve unambiguously.
+    private func validate(_ file: BackupFile) throws {
+        func requireUnique(_ ids: [UUID], entity: String) throws {
+            var seen = Set<UUID>()
+            for id in ids {
+                guard seen.insert(id).inserted else {
+                    throw BackupError.duplicateIdentifier(entity: entity, id: id)
+                }
+            }
+        }
+
+        func requireReference(
+            _ id: UUID?,
+            in ids: Set<UUID>,
+            field: String
+        ) throws {
+            guard let id else { return }
+            guard ids.contains(id) else {
+                throw BackupError.missingReference(field: field, id: id)
+            }
+        }
+
+        try requireUnique(file.households.map(\.id), entity: "ménage")
+        try requireUnique(file.members.map(\.id), entity: "membre")
+        try requireUnique(file.accounts.map(\.id), entity: "compte")
+        try requireUnique(file.categories.map(\.id), entity: "catégorie")
+        try requireUnique(file.transactions.map(\.id), entity: "mouvement")
+        try requireUnique(file.budgets.map(\.id), entity: "budget")
+        try requireUnique(file.budgetLines.map(\.id), entity: "ligne de budget")
+        try requireUnique(file.recurrings.map(\.id), entity: "récurrent")
+        try requireUnique(file.taxProfiles.map(\.id), entity: "profil fiscal")
+        try requireUnique(file.taxProvisions.map(\.id), entity: "provision fiscale")
+        try requireUnique(file.goals.map(\.id), entity: "objectif")
+        try requireUnique(file.insuranceContracts.map(\.id), entity: "assurance")
+        try requireUnique(file.pensionAssets.map(\.id), entity: "prévoyance")
+        try requireUnique(file.assets.map(\.id), entity: "actif")
+        try requireUnique(file.liabilities.map(\.id), entity: "dette")
+        try requireUnique(file.netWorthSnapshots.map(\.id), entity: "instantané de patrimoine")
+        try requireUnique(file.documents.map(\.id), entity: "document")
+        try requireUnique((file.importBatches ?? []).map(\.id), entity: "lot d'import")
+
+        let householdIDs = Set(file.households.map(\.id))
+        let memberIDs = Set(file.members.map(\.id))
+        let accountIDs = Set(file.accounts.map(\.id))
+        let categoryIDs = Set(file.categories.map(\.id))
+        let budgetIDs = Set(file.budgets.map(\.id))
+        let profileIDs = Set(file.taxProfiles.map(\.id))
+        let batchIDs = Set((file.importBatches ?? []).map(\.id))
+
+        for dto in file.households {
+            _ = try decimal(dto.taxRate)
+        }
+        for dto in file.members {
+            _ = try enumValue(HouseholdRole.self, rawValue: dto.role, field: "membre.role")
+            try requireReference(dto.householdID, in: householdIDs, field: "membre.ménage")
+        }
+        for dto in file.accounts {
+            _ = try enumValue(AccountType.self, rawValue: dto.type, field: "compte.type")
+            _ = try decimal(dto.openingBalance)
+            if let value = dto.reconciledBalance { _ = try decimal(value) }
+            try requireReference(dto.ownerID, in: memberIDs, field: "compte.propriétaire")
+        }
+        for dto in file.categories {
+            _ = try enumValue(CategoryKind.self, rawValue: dto.kind, field: "catégorie.type")
+            try requireReference(dto.parentID, in: categoryIDs, field: "catégorie.parent")
+        }
+        for dto in file.transactions {
+            _ = try enumValue(TransactionType.self, rawValue: dto.type, field: "mouvement.type")
+            _ = try enumValue(TransactionStatus.self, rawValue: dto.status, field: "mouvement.statut")
+            _ = try decimal(dto.amount)
+            try requireReference(dto.accountID, in: accountIDs, field: "mouvement.compte")
+            try requireReference(dto.destinationAccountID, in: accountIDs, field: "mouvement.compte destination")
+            try requireReference(dto.categoryID, in: categoryIDs, field: "mouvement.catégorie")
+            try requireReference(dto.memberID, in: memberIDs, field: "mouvement.membre")
+            // Historical movements may legitimately outlive a deleted
+            // recurring definition. Import batches were absent from older
+            // backup schemas, so only validate them when the array exists.
+            if file.importBatches != nil {
+                try requireReference(dto.importBatchID, in: batchIDs, field: "mouvement.lot d'import")
+            }
+        }
+        for dto in file.budgetLines {
+            _ = try decimal(dto.planned)
+            try requireReference(dto.budgetID, in: budgetIDs, field: "ligne de budget.budget")
+            try requireReference(dto.categoryID, in: categoryIDs, field: "ligne de budget.catégorie")
+        }
+        for dto in file.recurrings {
+            _ = try enumValue(TransactionType.self, rawValue: dto.type, field: "récurrent.type")
+            _ = try enumValue(RecurrenceUnit.self, rawValue: dto.unit, field: "récurrent.fréquence")
+            _ = try decimal(dto.amount)
+            try requireReference(dto.accountID, in: accountIDs, field: "récurrent.compte")
+            try requireReference(dto.destinationAccountID, in: accountIDs, field: "récurrent.compte destination")
+            try requireReference(dto.categoryID, in: categoryIDs, field: "récurrent.catégorie")
+            try requireReference(dto.memberID, in: memberIDs, field: "récurrent.membre")
+        }
+        for dto in file.taxProfiles {
+            _ = try decimal(dto.rate)
+        }
+        for dto in file.taxProvisions {
+            if let value = dto.override_ { _ = try decimal(value) }
+            _ = try decimal(dto.reserved)
+            _ = try decimal(dto.arrears)
+            try requireReference(dto.profileID, in: profileIDs, field: "provision.profil")
+        }
+        for dto in file.goals {
+            _ = try enumValue(GoalKind.self, rawValue: dto.kind, field: "objectif.type")
+            _ = try enumValue(GoalPriority.self, rawValue: dto.priority, field: "objectif.priorité")
+            _ = try enumValue(GoalStatus.self, rawValue: dto.status, field: "objectif.statut")
+            _ = try decimal(dto.target)
+            _ = try decimal(dto.manualCurrent)
+            _ = try decimal(dto.plannedMonthly)
+            try requireReference(dto.linkedAccountID, in: accountIDs, field: "objectif.compte")
+        }
+        for dto in file.insuranceContracts {
+            _ = try enumValue(InsuranceKind.self, rawValue: dto.kind, field: "assurance.type")
+            _ = try enumValue(RecurrenceUnit.self, rawValue: dto.unit, field: "assurance.fréquence")
+            _ = try decimal(dto.premium)
+            if let value = dto.deductible { _ = try decimal(value) }
+            try requireReference(dto.memberID, in: memberIDs, field: "assurance.membre")
+        }
+        for dto in file.pensionAssets {
+            _ = try enumValue(PensionPillar.self, rawValue: dto.pillar, field: "prévoyance.pilier")
+            _ = try decimal(dto.currentValue)
+            _ = try decimal(dto.annualContribution)
+            if let value = dto.projected { _ = try decimal(value) }
+            try requireReference(dto.ownerID, in: memberIDs, field: "prévoyance.propriétaire")
+        }
+        for dto in file.assets {
+            _ = try enumValue(AssetKind.self, rawValue: dto.kind, field: "actif.type")
+            _ = try decimal(dto.value)
+        }
+        for dto in file.liabilities {
+            _ = try enumValue(LiabilityKind.self, rawValue: dto.kind, field: "dette.type")
+            _ = try decimal(dto.outstanding)
+        }
+        for dto in file.netWorthSnapshots {
+            _ = try decimal(dto.accounts)
+            _ = try decimal(dto.assets)
+            _ = try decimal(dto.pension)
+            _ = try decimal(dto.liabilities)
+            _ = try decimal(dto.netWorth)
+        }
+        for dto in file.documents {
+            _ = try enumValue(DocumentKind.self, rawValue: dto.kind, field: "document.type")
+            try requireReference(dto.memberID, in: memberIDs, field: "document.membre")
+        }
     }
 
     /// JSON, so a still-present file stays reachable via its restored
@@ -381,6 +564,7 @@ struct BackupService {
         guard foreignCodes.isEmpty else {
             throw BackupError.unsupportedCurrency(codes: foreignCodes)
         }
+        try validate(file)
 
         // Entities only — document files never travel in the JSON backup,
         // so deleting them here would irreversibly orphan every restored
@@ -404,7 +588,7 @@ struct BackupService {
         for dto in file.members {
             let member = HouseholdMember(
                 id: dto.id, firstName: dto.firstName,
-                role: HouseholdRole(rawValue: dto.role) ?? .owner,
+                role: try enumValue(HouseholdRole.self, rawValue: dto.role, field: "membre.role"),
                 birthDate: dto.birthDate, employmentStatus: dto.employmentStatus,
                 includeInBudget: dto.includeInBudget
             )
@@ -428,7 +612,7 @@ struct BackupService {
         for dto in file.categories {
             let category = BudgetCategory(
                 id: dto.id, name: dto.name,
-                kind: CategoryKind(rawValue: dto.kind) ?? .expense,
+                kind: try enumValue(CategoryKind.self, rawValue: dto.kind, field: "catégorie.type"),
                 iconToken: dto.iconToken, emoji: dto.emoji,
                 isEssential: dto.isEssential, isActive: dto.isActive, sortOrder: dto.sortOrder
             )
@@ -436,20 +620,21 @@ struct BackupService {
             context.insert(category)
         }
         for dto in file.categories where dto.parentID != nil {
-            categories[dto.id]?.parent = dto.parentID.flatMap { categories[$0] }
+            categories[dto.id]?.parent = try resolved(dto.parentID, in: categories, field: "catégorie.parent")
         }
 
         var accounts: [UUID: Account] = [:]
         for dto in file.accounts {
             let account = Account(
                 id: dto.id, name: dto.name, institutionName: dto.institution,
-                type: AccountType(rawValue: dto.type) ?? .other, currencyCode: dto.currency,
+                type: try enumValue(AccountType.self, rawValue: dto.type, field: "compte.type"),
+                currencyCode: dto.currency,
                 openingBalance: try decimal(dto.openingBalance),
                 isShared: dto.isShared, isActive: dto.isActive,
                 includeInAvailableCash: dto.includeInAvailableCash,
                 includeInNetWorth: dto.includeInNetWorth,
                 createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
-                owner: dto.ownerID.flatMap { members[$0] }
+                owner: try resolved(dto.ownerID, in: members, field: "compte.propriétaire")
             )
             account.reconciledBalance = try dto.reconciledBalance.map(decimal)
             account.reconciledAt = dto.reconciledAt
@@ -460,17 +645,17 @@ struct BackupService {
         for dto in file.transactions {
             context.insert(BudgetTransaction(
                 id: dto.id, date: dto.date, amount: try decimal(dto.amount),
-                type: TransactionType(rawValue: dto.type) ?? .expense,
-                status: TransactionStatus(rawValue: dto.status) ?? .posted,
+                type: try enumValue(TransactionType.self, rawValue: dto.type, field: "mouvement.type"),
+                status: try enumValue(TransactionStatus.self, rawValue: dto.status, field: "mouvement.statut"),
                 title: dto.title, note: dto.note, merchant: dto.merchant,
                 adjustmentIncreasesBalance: dto.adjustmentIncreasesBalance,
                 importFingerprint: dto.importFingerprint, recurringID: dto.recurringID,
                 importBatchID: dto.importBatchID,
                 createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
-                account: dto.accountID.flatMap { accounts[$0] },
-                destinationAccount: dto.destinationAccountID.flatMap { accounts[$0] },
-                category: dto.categoryID.flatMap { categories[$0] },
-                member: dto.memberID.flatMap { members[$0] }
+                account: try resolved(dto.accountID, in: accounts, field: "mouvement.compte"),
+                destinationAccount: try resolved(dto.destinationAccountID, in: accounts, field: "mouvement.compte destination"),
+                category: try resolved(dto.categoryID, in: categories, field: "mouvement.catégorie"),
+                member: try resolved(dto.memberID, in: members, field: "mouvement.membre")
             ))
         }
 
@@ -483,26 +668,26 @@ struct BackupService {
         for dto in file.budgetLines {
             let line = BudgetLine(
                 id: dto.id, plannedAmount: try decimal(dto.planned),
-                category: dto.categoryID.flatMap { categories[$0] }
+                category: try resolved(dto.categoryID, in: categories, field: "ligne de budget.catégorie")
             )
-            line.budget = dto.budgetID.flatMap { budgets[$0] }
+            line.budget = try resolved(dto.budgetID, in: budgets, field: "ligne de budget.budget")
             context.insert(line)
         }
 
         for dto in file.recurrings {
             context.insert(RecurringTransaction(
                 id: dto.id, title: dto.title, amount: try decimal(dto.amount),
-                type: TransactionType(rawValue: dto.type) ?? .expense,
-                intervalUnit: RecurrenceUnit(rawValue: dto.unit) ?? .month,
+                type: try enumValue(TransactionType.self, rawValue: dto.type, field: "récurrent.type"),
+                intervalUnit: try enumValue(RecurrenceUnit.self, rawValue: dto.unit, field: "récurrent.fréquence"),
                 intervalCount: dto.count, firstOccurrence: dto.firstOccurrence,
                 endDate: dto.endDate, isActive: dto.isActive,
                 isProfessional: dto.isProfessional, isSubscription: dto.isSubscription,
                 renewalDate: dto.renewalDate, cancellationDeadline: dto.cancellationDeadline,
                 note: dto.note,
-                account: dto.accountID.flatMap { accounts[$0] },
-                destinationAccount: dto.destinationAccountID.flatMap { accounts[$0] },
-                category: dto.categoryID.flatMap { categories[$0] },
-                member: dto.memberID.flatMap { members[$0] }
+                account: try resolved(dto.accountID, in: accounts, field: "récurrent.compte"),
+                destinationAccount: try resolved(dto.destinationAccountID, in: accounts, field: "récurrent.compte destination"),
+                category: try resolved(dto.categoryID, in: categories, field: "récurrent.catégorie"),
+                member: try resolved(dto.memberID, in: members, field: "récurrent.membre")
             ))
         }
 
@@ -522,60 +707,65 @@ struct BackupService {
                 reservedAmount: try decimal(dto.reserved), arrearsAmount: try decimal(dto.arrears),
                 dueDates: dto.dueDates, notes: dto.notes
             )
-            provision.profile = dto.profileID.flatMap { profiles[$0] }
+            provision.profile = try resolved(dto.profileID, in: profiles, field: "provision.profil")
             context.insert(provision)
         }
 
         for dto in file.goals {
             context.insert(FinancialGoal(
-                id: dto.id, name: dto.name, kind: GoalKind(rawValue: dto.kind) ?? .custom,
+                id: dto.id, name: dto.name,
+                kind: try enumValue(GoalKind.self, rawValue: dto.kind, field: "objectif.type"),
                 emoji: dto.emoji, targetAmount: try decimal(dto.target), targetDate: dto.targetDate,
                 manualCurrentAmount: try decimal(dto.manualCurrent),
                 plannedMonthlyContribution: try decimal(dto.plannedMonthly),
-                priority: GoalPriority(rawValue: dto.priority) ?? .normal,
-                status: GoalStatus(rawValue: dto.status) ?? .active,
+                priority: try enumValue(GoalPriority.self, rawValue: dto.priority, field: "objectif.priorité"),
+                status: try enumValue(GoalStatus.self, rawValue: dto.status, field: "objectif.statut"),
                 note: dto.note,
-                linkedAccount: dto.linkedAccountID.flatMap { accounts[$0] }
+                linkedAccount: try resolved(dto.linkedAccountID, in: accounts, field: "objectif.compte")
             ))
         }
 
         for dto in file.insuranceContracts {
             context.insert(InsuranceContract(
                 id: dto.id, insurerName: dto.insurer, policyName: dto.policyName,
-                policyNumber: dto.policyNumber, kind: InsuranceKind(rawValue: dto.kind) ?? .other,
+                policyNumber: dto.policyNumber,
+                kind: try enumValue(InsuranceKind.self, rawValue: dto.kind, field: "assurance.type"),
                 premiumAmount: try decimal(dto.premium),
-                premiumUnit: RecurrenceUnit(rawValue: dto.unit) ?? .month,
+                premiumUnit: try enumValue(RecurrenceUnit.self, rawValue: dto.unit, field: "assurance.fréquence"),
                 premiumIntervalCount: dto.count, deductible: try dto.deductible.map(decimal),
                 startDate: dto.startDate, renewalDate: dto.renewalDate,
                 cancellationDeadline: dto.cancellationDeadline, noticePeriodDays: dto.noticePeriodDays,
                 coverageSummary: dto.coverageSummary, documentReference: dto.documentReference,
                 isActive: dto.isActive, note: dto.note,
-                member: dto.memberID.flatMap { members[$0] }
+                member: try resolved(dto.memberID, in: members, field: "assurance.membre")
             ))
         }
 
         for dto in file.pensionAssets {
             context.insert(PensionAsset(
-                id: dto.id, pillar: PensionPillar(rawValue: dto.pillar) ?? .pillar3a,
+                id: dto.id,
+                pillar: try enumValue(PensionPillar.self, rawValue: dto.pillar, field: "prévoyance.pilier"),
                 institutionName: dto.institution, currentValue: try decimal(dto.currentValue),
                 annualContribution: try decimal(dto.annualContribution),
                 projectedValueAtRetirement: try dto.projected.map(decimal),
                 retirementAge: dto.retirementAge, sourceDocumentDate: dto.sourceDate,
                 sourceReference: dto.sourceReference, isActive: dto.isActive, note: dto.note,
-                owner: dto.ownerID.flatMap { members[$0] }
+                owner: try resolved(dto.ownerID, in: members, field: "prévoyance.propriétaire")
             ))
         }
 
         for dto in file.assets {
             context.insert(Asset(
-                id: dto.id, name: dto.name, kind: AssetKind(rawValue: dto.kind) ?? .other,
+                id: dto.id, name: dto.name,
+                kind: try enumValue(AssetKind.self, rawValue: dto.kind, field: "actif.type"),
                 currentValue: try decimal(dto.value), includeInNetWorth: dto.include,
                 valuationDate: dto.valuationDate, note: dto.note
             ))
         }
         for dto in file.liabilities {
             context.insert(Liability(
-                id: dto.id, name: dto.name, kind: LiabilityKind(rawValue: dto.kind) ?? .other,
+                id: dto.id, name: dto.name,
+                kind: try enumValue(LiabilityKind.self, rawValue: dto.kind, field: "dette.type"),
                 outstandingAmount: try decimal(dto.outstanding), includeInNetWorth: dto.include,
                 note: dto.note
             ))
@@ -591,12 +781,13 @@ struct BackupService {
             // Metadata only: files do not travel in the JSON backup — the
             // reference is kept so a still-present file stays reachable.
             context.insert(FinancialDocument(
-                id: dto.id, title: dto.title, kind: DocumentKind(rawValue: dto.kind) ?? .other,
+                id: dto.id, title: dto.title,
+                kind: try enumValue(DocumentKind.self, rawValue: dto.kind, field: "document.type"),
                 year: dto.year, provider: dto.provider, note: dto.note,
                 fileReference: dto.fileReference, fileSizeBytes: dto.fileSizeBytes,
                 addedAt: dto.addedAt ?? file.exportedAt,
                 updatedAt: dto.updatedAt ?? file.exportedAt,
-                member: dto.memberID.flatMap { members[$0] }
+                member: try resolved(dto.memberID, in: members, field: "document.membre")
             ))
         }
         for dto in file.importBatches ?? [] {

@@ -2,9 +2,8 @@ import XCTest
 import SwiftData
 @testable import Budget
 
-/// Production-completion P1 : une SEULE vérité fiscale. Le tableau de
-/// bord (snapshot mensuel) et le module Impôts lisent la même réserve
-/// annuelle et les mêmes arriérés via TaxService.monthReserveGap.
+/// Production-completion P1 : une SEULE vérité fiscale annuelle. Le tableau
+/// de bord (snapshot mensuel) et le module Impôts lisent TaxService.report.
 /// Couvre aussi ADR-017 : V1 mono-devise, restauration non-CHF refusée.
 final class UnifiedTaxReserveTests: XCTestCase {
     private var calendar: Calendar!
@@ -34,52 +33,7 @@ final class UnifiedTaxReserveTests: XCTestCase {
         )
     }
 
-    // MARK: - monthReserveGap (formule unique)
-
-    func testGapWithoutProvisionIsShortfall() {
-        XCTAssertEqual(
-            taxService.monthReserveGap(
-                monthIncome: Decimal("10000.00"), monthPaid: Decimal("1000.00"),
-                rate: Decimal("0.30"), provision: nil
-            ),
-            Decimal("2000.00")
-        )
-    }
-
-    func testAnnualReserveCoversTheMonthGap() {
-        XCTAssertEqual(
-            taxService.monthReserveGap(
-                monthIncome: Decimal("10000.00"), monthPaid: .zero,
-                rate: Decimal("0.30"), provision: makeProvision(reserved: Decimal("5000.00"))
-            ),
-            .zero,
-            "Une réserve annuelle suffisante annule le manque du mois"
-        )
-    }
-
-    func testArrearsIncreaseTheGap() {
-        XCTAssertEqual(
-            taxService.monthReserveGap(
-                monthIncome: Decimal("10000.00"), monthPaid: .zero,
-                rate: Decimal("0.30"),
-                provision: makeProvision(reserved: Decimal("1000.00"), arrears: Decimal("800.00"))
-            ),
-            Decimal("2800.00"),
-            "3000 − 1000 de réserve + 800 d'arriérés"
-        )
-    }
-
-    func testOverpaidMonthNeverProducesNegativeGap() {
-        XCTAssertEqual(
-            taxService.monthReserveGap(
-                monthIncome: Decimal("1000.00"), monthPaid: Decimal("900.00"),
-                rate: Decimal("0.30"), provision: makeProvision(reserved: Decimal("100.00"))
-            ),
-            .zero
-        )
-    }
-
-    // MARK: - Le snapshot mensuel lit la même vérité
+    // MARK: - Le snapshot mensuel lit la même vérité annuelle
 
     func testSnapshotUsesAnnualReserveAndArrears() {
         let account = Account(name: "Courant", type: .current, openingBalance: Decimal("8000.00"))
@@ -122,33 +76,32 @@ final class UnifiedTaxReserveTests: XCTestCase {
                        "La réserve 2025 ne couvre pas juin 2026")
     }
 
-    func testDashboardAndTaxesModuleAgree() {
-        // Un seul mois de données : le rapport annuel et le snapshot
-        // mensuel doivent produire le MÊME manque de réserve.
+    func testDashboardAndTaxesModuleAgreeAcrossSeveralMonths() {
         let account = Account(name: "Courant", type: .current)
-        let income = BudgetTransaction(
-            date: now, amount: Decimal("9000.00"), type: .income,
-            title: "Salaire", account: account
-        )
-        income.status = .posted
-        let paid = BudgetTransaction(
-            date: now, amount: Decimal("700.00"), type: .taxPayment,
-            title: "Acompte", account: account
-        )
-        paid.status = .posted
-        let provision = makeProvision(reserved: Decimal("1200.00"), arrears: Decimal("300.00"))
+        let incomes = (1...6).map { month in
+            BudgetTransaction(
+                date: calendar.date(from: DateComponents(year: 2026, month: month, day: 15, hour: 9))!,
+                amount: Decimal("10000.00"), type: .income, status: .posted,
+                title: "Salaire", account: account
+            )
+        }
+        let provision = makeProvision(reserved: Decimal("5000.00"))
 
         let report = taxService.report(
             year: 2026, profile: nil, provision: provision,
-            transactions: [income, paid]
+            transactions: incomes
         )
         let snapshot = snapshotService.snapshot(
             monthOf: now, now: now, household: nil,
-            accounts: [account], transactions: [income, paid],
+            accounts: [account], transactions: incomes,
             taxProvisions: [provision]
         )
+        XCTAssertEqual(report.estimatedTax, Decimal("18000.00"))
+        XCTAssertEqual(report.reserveGap, Decimal("13000.00"))
+        XCTAssertEqual(snapshot.taxProvision.recommended, Decimal("18000.00"))
         XCTAssertEqual(snapshot.taxProvision.gap, report.reserveGap,
-                       "Accueil et module Impôts doivent afficher le même manque")
+                       "La réserve annuelle ne peut pas masquer cinq mois de manque sur l'Accueil")
+        XCTAssertEqual(snapshot.available.taxReserveGap, Decimal("13000.00"))
     }
 
     // MARK: - ADR-017 : restauration mono-devise

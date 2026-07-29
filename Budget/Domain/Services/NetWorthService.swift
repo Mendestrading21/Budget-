@@ -76,7 +76,7 @@ struct NetWorthService {
             netWorth: breakdown.netWorth
         )
         context.insert(snapshot)
-        try context.save()
+        try context.saveOrRollback()
         return snapshot
     }
 

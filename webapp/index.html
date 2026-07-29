@@ -939,6 +939,8 @@
       </select>
       <label for="rCat">Catégorie</label>
       <select id="rCat"></select>
+      <label for="rAccount">Compte utilisé</label>
+      <select id="rAccount"></select>
       <label for="rDay">Jour du mois (1-28)</label>
       <input id="rDay" inputmode="numeric" placeholder="1" autocomplete="off" />
       <div class="error" id="rError" role="alert"></div>
@@ -1059,6 +1061,11 @@
       <input id="bDue" type="date" min="2000-01-01" max="2100-12-31" />
       <label for="bCat">Catégorie</label>
       <select id="bCat"></select>
+      <label for="bAccount">Compte utilisé</label>
+      <select id="bAccount"></select>
+      <p class="caption" id="bLockedNote" style="display:none;margin:2px 0 0">
+        Marquez la facture non payée pour modifier son montant, son échéance ou son compte.
+      </p>
       <div class="error" id="bError" role="alert"></div>
       <div class="actions">
         <button type="button" class="btn secondary" id="bCancel">Annuler</button>
@@ -1230,9 +1237,12 @@ const FX_DEFAULTS = {
   USD: { CHF: 1.25, EUR: 1.16 },
 };
 function money(n, currency, signed) {
+  if (n == null) return "Montant non convertible";
+  const numeric = Number(n);
+  if (!Number.isFinite(numeric)) return "Montant non convertible";
   // Décider le signe sur la valeur ARRONDIE au centime : un résidu
   // flottant (-5e-17) ne doit jamais afficher « -CHF 0.00 ».
-  const cents = Math.round((Number(n) || 0) * 100);
+  const cents = Math.round(numeric * 100);
   const neg = cents < 0;
   const abs = Math.abs(cents) / 100;
   const [int, dec] = abs.toFixed(2).split(".");
@@ -1293,37 +1303,52 @@ function accountCurrency(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
   return (account && account.currency) || baseCurrency();
 }
+function transactionSourceCurrency(t) {
+  return (t && CURRENCIES.includes(t.sourceCurrency))
+    ? t.sourceCurrency : accountCurrency(t && t.acc);
+}
+function fxRateFor(currency, state = S) {
+  if (!currency || currency === (state.baseCurrency || "CHF")) return 1;
+  const rate = Number((state.fxRates || {})[currency]);
+  return Number.isFinite(rate) && rate > 0 ? rate : null;
+}
 /* Conversion vers la devise de référence via les taux MANUELS (aucun réseau). */
 function toCHF(amount, currency) {
   if (!currency || currency === baseCurrency()) return amount;
-  const rate = (S.fxRates || {})[currency];
-  return amount * (rate > 0 ? rate : 1);
+  const rate = fxRateFor(currency);
+  return rate == null ? null : amount * rate;
 }
 function txCHF(t) {
-  const cur = accountCurrency(t.acc);
+  const cur = transactionSourceCurrency(t);
   if (!cur || cur === baseCurrency()) return t.amount;
   // P0 : l'historique est figé — le taux estampillé à la création prime,
-  // tant que la devise de référence n'a pas changé depuis.
+  // tant que la devise de référence n'a pas changé depuis. Une base
+  // différente est refusée au réglage dès qu'un historique existe.
   if (t.fx > 0 && t.fxBase === baseCurrency()) return t.amount * t.fx;
-  return toCHF(t.amount, cur);
+  return null;
 }
 /* P0 change historique : l'estampillage financier d'un mouvement passe par
    UNE seule fonction, utilisée à la création (addTx) ET à la modification.
    Elle purge d'abord les anciennes valeurs, puis fige le taux du jour
-   (t.fx, t.fxBase — repli 1:1 EXPLICITE si aucun taux valide, pour que le
-   mouvement ne dépende jamais d'un futur taux) et le montant crédité côté
+   (t.fx, t.fxBase — jamais de repli 1:1 silencieux) et le montant crédité côté
    destination (t.destAmount). Modifier un taux ensuite n'altère plus le passé. */
 function stampTx(t) {
   delete t.fx; delete t.fxBase; delete t.destAmount;
   const srcCur = accountCurrency(t.acc);
+  t.sourceCurrency = srcCur;
   if (srcCur && srcCur !== baseCurrency()) {
-    const r = (S.fxRates || {})[srcCur];
-    t.fx = r > 0 ? r : 1;
+    const r = fxRateFor(srcCur);
+    if (r == null) throw new Error(`Taux de change manquant pour ${srcCur}`);
+    t.fx = r;
     t.fxBase = baseCurrency();
   }
   if (t.dest) {
     const destCur = accountCurrency(t.dest);
-    if (destCur !== srcCur) t.destAmount = round2(convertAmount(t.amount, srcCur, destCur));
+    if (destCur !== srcCur) {
+      const converted = convertAmount(t.amount, srcCur, destCur);
+      if (!Number.isFinite(converted)) throw new Error(`Taux de change manquant pour ${srcCur} → ${destCur}`);
+      t.destAmount = round2(converted);
+    }
   }
   return t;
 }
@@ -1341,19 +1366,31 @@ function stampAllTransactions(state) {
     const account = (state.accounts || []).find(a => a.id === id);
     return (account && account.currency) || base;
   };
-  const rateOf = c => { const r = (state.fxRates || {})[c]; return r > 0 ? r : 1; };
+  const rateOf = c => {
+    if (!c || c === base) return 1;
+    const r = Number((state.fxRates || {})[c]);
+    return Number.isFinite(r) && r > 0 ? r : null;
+  };
   let stamped = 0;
   for (const t of state.transactions || []) {
-    const srcCur = currencyOf(t.acc);
+    const srcCur = CURRENCIES.includes(t.sourceCurrency) ? t.sourceCurrency : currencyOf(t.acc);
+    if (t.sourceCurrency !== srcCur) { t.sourceCurrency = srcCur; stamped++; }
     if (srcCur !== base && !(t.fx > 0 && t.fxBase === base)) {
-      t.fx = rateOf(srcCur); t.fxBase = base; stamped++;
+      const sourceRate = rateOf(srcCur);
+      if (sourceRate != null) {
+        t.fx = sourceRate; t.fxBase = base; stamped++;
+      }
     }
     if (t.dest) {
       const destCur = currencyOf(t.dest);
       if (destCur !== srcCur && t.destAmount == null) {
-        const inBase = srcCur === base ? t.amount : t.amount * rateOf(srcCur);
-        t.destAmount = round2(destCur === base ? inBase : inBase / rateOf(destCur));
-        stamped++;
+        const sourceRate = rateOf(srcCur);
+        const destinationRate = rateOf(destCur);
+        if (sourceRate != null && destinationRate != null) {
+          const inBase = t.amount * sourceRate;
+          t.destAmount = round2(inBase / destinationRate);
+          stamped++;
+        }
       }
     } else if (t.destAmount != null) {
       delete t.destAmount; stamped++; // destination disparue : rien de périmé
@@ -1364,19 +1401,74 @@ function stampAllTransactions(state) {
 
 /* E05 : un montant saisi dans la devise du compte SOURCE se convertit
    dans celle du compte DESTINATION (via la devise de référence).
-   Taux absent → 1:1, même repli assumé que toCHF. */
+   Un taux absent rend le montant non convertible : jamais de 1:1 implicite. */
 function convertAmount(amount, fromCur, toCur) {
   if (!fromCur || !toCur || fromCur === toCur) return amount;
   const base = toCHF(amount, fromCur);
+  if (!Number.isFinite(base)) return null;
   if (toCur === baseCurrency()) return base;
-  const rate = (S.fxRates || {})[toCur];
-  return rate > 0 ? base / rate : base;
+  const rate = fxRateFor(toCur);
+  return rate == null ? null : base / rate;
+}
+function missingFxCurrencies() {
+  const missing = new Set();
+  for (const account of ACCOUNTS) {
+    const currency = account.currency || baseCurrency();
+    if (currency !== baseCurrency() && fxRateFor(currency) == null) missing.add(currency);
+  }
+  for (const transaction of transactions) {
+    const currency = transactionSourceCurrency(transaction);
+    if (currency !== baseCurrency()
+        && !(transaction.fx > 0 && transaction.fxBase === baseCurrency())) {
+      missing.add(currency);
+    }
+  }
+  return [...missing].sort();
+}
+function fxWarningHTML() {
+  const missing = missingFxCurrencies();
+  return missing.length ? `<div class="card" role="alert" style="border-color:var(--warning)">
+    <p class="card-label warn">Montants non convertibles</p>
+    <p class="caption" style="margin:4px 0 0">Taux manquant pour ${missing.map(esc).join(", ")}.
+      Ces montants sont exclus des totaux en ${baseCurrency()} — aucun taux 1:1 n'est inventé.
+      Ajoutez le taux dans Réglages.</p>
+  </div>` : "";
 }
 function pct(f) { return (f * 100).toFixed(f * 100 % 1 ? 1 : 0).replace(".", ",") + " %"; }
 
 /* ---------- Données de démonstration (miroir de DemoDataFactory) ---------- */
 const TODAY_REAL = new Date();
 const NOW = { y: TODAY_REAL.getFullYear(), m: TODAY_REAL.getMonth() + 1, d: TODAY_REAL.getDate() };
+function todayParts(date = new Date()) {
+  return { y: date.getFullYear(), m: date.getMonth() + 1, d: date.getDate() };
+}
+function compareDateParts(a, b) {
+  return (a.y - b.y) || (a.m - b.m) || (a.d - b.d);
+}
+function isFutureDate(y, m, d, today = todayParts()) {
+  return compareDateParts({ y: Number(y), m: Number(m), d: Number(d) }, today) > 0;
+}
+function statusForDate(y, m, d) {
+  return isFutureDate(y, m, d) ? "planned" : "posted";
+}
+/* Sur le web, le statut est entièrement dérivé de la date : une opération
+   future reste neutre, puis devient comptabilisée au premier chargement ou
+   rendu effectué le jour de son échéance. */
+function promoteDuePlannedTransactions(state, today = todayParts()) {
+  let promoted = 0;
+  for (const transaction of state.transactions || []) {
+    if (transaction.status === "planned"
+        && validCalendarDate(transaction.y, transaction.m, transaction.d)
+        && compareDateParts(
+          { y: transaction.y, m: transaction.m, d: transaction.d },
+          today
+        ) <= 0) {
+      transaction.status = "posted";
+      promoted++;
+    }
+  }
+  return promoted;
+}
 const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 function shiftMonth(base, delta) {
   const d = new Date(base.y, base.m - 1 + delta, 1);
@@ -1414,10 +1506,23 @@ const BUDGET_TEMPLATE = [
 ];
 
 let txSeq = 0;
+function validTransactionID(id) {
+  return (Number.isSafeInteger(id) && id > 0)
+    || (typeof id === "string" && id.length > 0 && id.length <= 128 && id.trim() === id);
+}
+function transactionSequenceFloor(list, floor = 0) {
+  return (list || []).reduce((max, transaction) => {
+    const id = transaction && transaction.id;
+    const numeric = Number.isSafeInteger(id)
+      ? id
+      : (typeof id === "string" && /^\d+$/.test(id) ? Number(id) : 0);
+    return Number.isSafeInteger(numeric) && numeric > max ? numeric : max;
+  }, Number.isSafeInteger(floor) ? floor : 0);
+}
 function monthTemplate(y, m) {
   const mk = (d, title, amount, type, cat, acc, dest) => ({
     id: ++txSeq, y, m, d, title, amount, type, cat: cat || null, acc, dest: dest || null,
-    status: (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted",
+    status: statusForDate(y, m, d),
   });
   return [
     mk(1, "Loyer", 2150, "expense", "Logement", "cur"),
@@ -1557,6 +1662,19 @@ function emptyState() {
   };
 }
 
+/* Ces constantes sont déclarées avant le premier chargement : la même
+   validation stricte sert aux restaurations ET à l'état déjà présent dans
+   localStorage, avant que les alias financiers ne soient créés. */
+const RESTORE_ARRAY_KEYS = [
+  "transactions", "accounts", "recurrings", "goals", "assets",
+  "liabilities", "pensions", "insurances", "bills", "documents",
+];
+const RESTORE_TRANSACTION_TYPES = new Set([
+  "income", "expense", "refund", "saving", "investment", "transfer",
+  "taxPayment", "debtPayment", "adjustment",
+]);
+const RESTORE_TRANSACTION_STATUSES = new Set(["posted", "planned"]);
+
 function loadState() {
   const raw = localStorage.getItem(APP_STATE_KEY);
   if (!raw) return null; // vraie première ouverture (ou migration héritée)
@@ -1613,7 +1731,17 @@ function loadState() {
       s.budgets = Object.fromEntries(seedMonths().map(({ y, m }) =>
         [`${y}-${m}`, BUDGET_TEMPLATE.map(([cat, amount]) => ({ cat, amount }))]));
     }
-    return s;
+    // P0 : ne jamais laisser un état partiellement valide atteindre txSeq,
+    // les alias ou le rendu. Une entrée comme transactions:[null] est mise
+    // en secours puis l'app repart sur un état vierge, sans écraser le blob.
+    const validated = validatedRestoreState(s, { preserveDeviceLock: true });
+    promoteDuePlannedTransactions(validated);
+    // La validation réalise aussi les migrations additives (devise/taux
+    // historiques, comptes des factures). Elles doivent être persistées
+    // immédiatement, sinon un second lancement recommencerait la migration.
+    try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(validated)); }
+    catch (e) { /* état valide en mémoire ; saveState avertira à la prochaine mutation */ }
+    return validated;
   } catch (e) {
     // La normalisation d'un état v1 a échoué : illisible, mais on le
     // préserve au lieu de l'écraser en silence.
@@ -1638,7 +1766,7 @@ if (!S) {
     S = emptyState();
   }
 }
-txSeq = S.transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
+txSeq = transactionSequenceFloor(S.transactions, txSeq);
 
 /* P0 change historique : tout état chargé (ancien utilisateur, sauvegarde
    JSON restaurée) passe par la normalisation d'estampillage, puis l'état
@@ -1684,7 +1812,10 @@ const OUTFLOWS = new Set(["expense", "saving", "investment", "transfer", "taxPay
    puis reconvertir supprime la dérive des flottants (0.10 + 0.20 = 0.30,
    pas 0.30000000000000004). Étape moteur ; le stockage reste en unités
    décimales tant que la migration G02 n'est pas faite. */
-function toCents(x) { return Math.round((Number(x) || 0) * 100); }
+function toCents(x) {
+  const value = Number(x);
+  return x != null && Number.isFinite(value) ? Math.round(value * 100) : 0;
+}
 function fromCents(c) { return c / 100; }
 function round2(x) { return fromCents(toCents(x)); } // arrondi au centime d'une valeur composée
 
@@ -1710,6 +1841,75 @@ function balance(accId) {
 }
 
 function inMonth(t, y, m) { return t.y === y && t.m === m; }
+function recurringAccountId(recurring) {
+  return recurring && ACCOUNTS.some(a => a.id === recurring.accountId)
+    ? recurring.accountId : defaultCashAccount();
+}
+function recurringOccurrence(recurring, y, m) {
+  const accountId = recurringAccountId(recurring);
+  return transactions.find(t => inMonth(t, y, m) && (
+    t.recurringId === recurring.id
+    || (!t.recurringId && t.title === recurring.title && t.acc === accountId)
+  )) || null;
+}
+function recurringAmountInBase(recurring) {
+  return toCHF(recurring.amount, accountCurrency(recurringAccountId(recurring)));
+}
+function materializeRecurring(recurring, y, m) {
+  const existing = recurringOccurrence(recurring, y, m);
+  if (existing) return { transaction: existing, created: false };
+  const lastDay = new Date(y, m, 0).getDate();
+  const day = Math.min(recurring.day, lastDay);
+  const transaction = {
+    id: ++txSeq, y, m, d: day,
+    title: recurring.title, amount: recurring.amount, type: recurring.type,
+    cat: recurring.cat || null, acc: recurringAccountId(recurring), dest: null,
+    status: statusForDate(y, m, day), recurringId: recurring.id,
+  };
+  addTx(transaction);
+  return { transaction, created: true };
+}
+function billLinkedTransaction(bill) {
+  if (!bill) return null;
+  return transactions.find(t => t.id === bill.paidTxId)
+    || transactions.find(t => t.billId === bill.id) || null;
+}
+function billIsCovered(bill) { return bill && bill.paidTxId === -1 || !!billLinkedTransaction(bill); }
+function billIsPaid(bill) {
+  if (bill && bill.paidTxId === -1) return true; // ancien marqueur de démo « payée avant suivi »
+  const linked = billLinkedTransaction(bill);
+  return !!linked && linked.status === "posted";
+}
+function billIsScheduled(bill) {
+  const linked = billLinkedTransaction(bill);
+  return !!linked && linked.status === "planned";
+}
+function billAccountId(bill) {
+  return bill && ACCOUNTS.some(a => a.id === bill.accountId)
+    ? bill.accountId : defaultCashAccount();
+}
+function billAmountInBase(bill) {
+  return toCHF(bill.amount, accountCurrency(billAccountId(bill)));
+}
+function materializeBill(bill) {
+  const linked = billLinkedTransaction(bill);
+  if (linked) {
+    bill.paidTxId = linked.id;
+    return { transaction: linked, created: false };
+  }
+  const y = bill.dueY, m = bill.dueM;
+  const lastDay = new Date(y, m, 0).getDate();
+  const day = Math.min(bill.dueD || lastDay, lastDay);
+  const transaction = {
+    id: ++txSeq, y, m, d: day,
+    title: bill.name, amount: bill.amount, type: "expense",
+    cat: bill.cat || null, acc: billAccountId(bill), dest: null,
+    status: statusForDate(y, m, day), billId: bill.id,
+  };
+  addTx(transaction);
+  bill.paidTxId = transaction.id;
+  return { transaction, created: true };
+}
 
 function snapshot(y, m) {
   const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
@@ -1728,17 +1928,17 @@ function snapshot(y, m) {
 
   const plannedIncome = sum(planned, "income");
   const openBillsDue = fromCents((S.bills || [])
-    .filter(b => !b.paidTxId && b.dueY === y && b.dueM === m)
-    .reduce((a, b) => a + toCents(b.amount), 0));
+    .filter(b => !billIsCovered(b) && b.dueY === y && b.dueM === m)
+    .reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
   const plannedOut = round2(["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
     + openBillsDue);
 
-  // Même vérité que l'écran Impôts : la réserve annuelle constituée
-  // couvre d'abord le manque du mois (jamais deux formules).
-  const taxRecommended = Math.round(income * (S.taxRate ?? 0.30) * 100) / 100;
-  const monthShortfall = Math.max(0, taxRecommended - taxes);
-  const annualCover = Math.max(0, (S.taxReserve ?? 0));
-  const taxGap = Math.max(0, monthShortfall - annualCover);
+  // UNE vérité fiscale : l'accueil consomme exactement le même résumé
+  // annuel que l'écran Impôts. La réserve annuelle n'est jamais soustraite
+  // séparément à chacun des mois.
+  const taxYear = taxSummary(y);
+  const taxRecommended = taxYear.estimated;
+  const taxGap = taxYear.reserveGap;
 
   const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const isCurrent = (y === NOW.y && m === NOW.m);
@@ -1747,11 +1947,12 @@ function snapshot(y, m) {
   // règle native : chaque charge apparaît exactement une fois.
   const upcomingRecurrings = isCurrent
     ? RECURRINGS.filter(r => r.day > NOW.d
-        && !transactions.some(t => inMonth(t, y, m)
-            && (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
+        && !recurringOccurrence(r, y, m))
     : [];
-  const recurringCharges = fromCents(upcomingRecurrings.reduce((a, r) => a + (r.type === "expense" ? toCents(r.amount) : 0), 0));
-  const recurringIncome = fromCents(upcomingRecurrings.reduce((a, r) => a + (r.type === "income" ? toCents(r.amount) : 0), 0));
+  const recurringCharges = fromCents(upcomingRecurrings.reduce((a, r) =>
+    a + (r.type === "expense" ? toCents(recurringAmountInBase(r)) : 0), 0));
+  const recurringIncome = fromCents(upcomingRecurrings.reduce((a, r) =>
+    a + (r.type === "income" ? toCents(recurringAmountInBase(r)) : 0), 0));
   // Revenus irréguliers (indépendants) : sans récurrent de revenu, la
   // prévision utilise la moyenne des 3 derniers mois comptabilisés.
   let irregularIncome = 0;
@@ -1800,8 +2001,6 @@ function closedStreak(y, m) {
 }
 
 function monthCheckItems(y, m) {
-  const inThisMonth = transactions.filter(t => inMonth(t, y, m));
-  const recDone = r => inThisMonth.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title));
   const items = [];
   const salary = salaryRecurring();
   for (const r of RECURRINGS) {
@@ -1809,14 +2008,14 @@ function monthCheckItems(y, m) {
     items.push({
       icon: r.icon || (r.type === "income" ? "💰" : "🔁"),
       label: r.title, amount: r.amount, income: r.type === "income",
-      done: recDone(r), action: "postrec", ref: r.id,
+      done: !!recurringOccurrence(r, y, m), action: "postrec", ref: r.id,
       cta: r.type === "income" ? "✓ Reçu" : "✓ Fait",
     });
   }
   for (const b of (S.bills || []).filter(b => b.dueY === y && b.dueM === m)) {
     items.push({
       icon: "🧾", label: b.name, amount: b.amount, income: false,
-      done: !!b.paidTxId, action: "paybill", ref: b.id, cta: "Payer",
+      done: billIsCovered(b), action: "paybill", ref: b.id, cta: "Payer",
     });
   }
   return items;
@@ -1953,7 +2152,7 @@ function monthPriority(y, m, s, report) {
   const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
   if (prevOpen) return { icon: "⏪", text: `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`, nav: `data-gotomonth="${prev.y}-${prev.m}"`, why: "le mois précédent contient des éléments non validés" };
   if (lateBills.length) return { icon: "🧾", text: `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`, nav: 'data-more="bills"', why: "une facture en retard coûte des rappels et de la charge mentale" };
-  if (s.taxGap > 0) return { icon: "📮", text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts de ce mois.`, nav: 'data-more="taxes"', why: "la réserve d'impôts du mois n'est pas encore couverte" };
+  if (s.taxGap > 0) return { icon: "📮", text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts ${y}.`, nav: 'data-more="taxes"', why: `la réserve d'impôts ${y} n'est pas encore couverte` };
   if (overCats.length) return { icon: "⚖️", text: `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`, nav: 'data-gototab="budget"', why: "une enveloppe dépasse son montant planifié" };
   if (goal) return { icon: "🎯", text: `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`, nav: 'data-more="goals"', why: "rien d'urgent : le surplus peut nourrir votre objectif prioritaire" };
   return null;
@@ -2152,6 +2351,7 @@ function renderHome() {
     ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
     : "Bonjour 👋"}</h2>
     ${monthNav()}
+    ${fxWarningHTML()}
     ${hero}
     ${metrics}
     ${recommendation}
@@ -2230,11 +2430,11 @@ function renderHome() {
 
     <p class="section-title">💰 Salaire et revenus</p>
     ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
-        && !posted.some(t => (t.recurringId ? t.recurringId === r.id : t.title === r.title)))
+        && !recurringOccurrence(r, y, m))
       .map(r => `
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div><div style="font-size:14px;font-weight:600">${esc(r.title)} pas encore reçu</div>
-        <div class="caption">${chf(r.amount)} attendu le ${r.day}</div></div>
+        <div class="caption">${chf(recurringAmountInBase(r))} attendu le ${r.day}</div></div>
       <button class="btn" data-postrec="${esc(r.id)}" style="width:auto;padding:9px 14px;font-size:13px">✓ Reçu</button>
     </div>`).join("") : ""}
     ${salaryReceived.map(txMini).join("")}
@@ -2246,9 +2446,9 @@ function renderHome() {
     ${monthBills.map(b => `<div class="card row tx">
       <div class="ico" aria-hidden="true">🧾</div>
       <div class="meta" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
-        <div class="s">Échéance ${billDueLabel(b)}${b.paidTxId ? " · payée ✓" : ""}</div></div>
-      ${b.paidTxId ? `<span class="amount pos">${chf(b.amount)}</span>`
-        : `<button class="btn" data-paybill="${esc(b.id)}" style="width:auto;padding:8px 12px;font-size:12px">Payer ${chf(b.amount)}</button>`}
+        <div class="s">Échéance ${billDueLabel(b)}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
+      ${billIsCovered(b) ? `<span class="amount ${billIsPaid(b) ? "pos" : "warn"}">${chf(billAmountInBase(b))}</span>`
+        : `<button class="btn" data-paybill="${esc(b.id)}" style="width:auto;padding:8px 12px;font-size:12px">Payer ${chf(billAmountInBase(b))}</button>`}
     </div>`).join("")}
 
     <p class="section-title">💸 Dépenses du mois — ${chf(spentTotal)}</p>
@@ -2270,7 +2470,7 @@ function renderHome() {
       <div class="ico" aria-hidden="true">${r.icon}</div>
       <div class="meta"><div class="t">${esc(r.title)}<span class="badge planned">Prévu</span></div>
         <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · paiement régulier mensuel</div></div>
-      <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(r.amount)}</span>
+      <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(recurringAmountInBase(r))}</span>
     </div>`).join("")}` : "")}
 
     ${w("wealth", `<details class="home-fold">
@@ -2675,13 +2875,14 @@ function backBar(title) {
    Utilisée par l'écran Impôts ET par le dashboard — jamais deux formules. */
 function taxSummary(year) {
   const rate = S.taxRate ?? 0.30;
-  // Revenus COMPTABILISÉS de l'année, mois par mois — jamais les prévus.
+  // Revenus COMPTABILISÉS depuis le 1er janvier — jamais les prévus, jamais
+  // une projection artificielle sur douze mois. Parité avec TaxService natif.
   const monthlyIncomes = Array.from({ length: 12 }, (_, i) =>
     transactions.filter(t => inMonth(t, year, i + 1) && t.type === "income" && t.status === "posted")
       .reduce((a, t) => a + txCHF(t), 0));
   const observed = monthlyIncomes.filter(v => v > 0);
-  const monthlyAverage = observed.length ? observed.reduce((a, b) => a + b, 0) / observed.length : 0;
-  const estimated = Math.round(monthlyAverage * 12 * rate * 100) / 100;
+  const yearIncome = monthlyIncomes.reduce((a, b) => a + b, 0);
+  const estimated = Math.round(yearIncome * rate * 100) / 100;
   // Payés COMPTABILISÉS de la même année uniquement.
   const paid = transactions
     .filter(t => t.type === "taxPayment" && t.status === "posted" && t.y === year)
@@ -2690,8 +2891,8 @@ function taxSummary(year) {
   const reserved = S.taxReserve ?? 0;
   const reserveGap = Math.max(0, due - reserved);
   // Échéances réelles : les factures de catégorie Impôts encore ouvertes.
-  const taxBills = (S.bills || []).filter(b => !b.paidTxId && b.cat === "Impôts" && b.dueY === year);
-  return { rate, estimated, paid, due, reserved, reserveGap, observedMonths: observed.length, taxBills };
+  const taxBills = (S.bills || []).filter(b => !billIsCovered(b) && b.cat === "Impôts" && b.dueY === year);
+  return { rate, yearIncome, estimated, paid, due, reserved, reserveGap, observedMonths: observed.length, taxBills };
 }
 
 function renderTaxes() {
@@ -2708,7 +2909,7 @@ function renderTaxes() {
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Moyenne des ${observedMonths || 0} mois de revenus enregistrés × 12 × ${pct(rate)}</span></div>
+        <span class="caption">Revenus comptabilisés depuis le 1er janvier × ${pct(rate)} (${observedMonths || 0} mois avec revenu)</span></div>
       <div class="stat"><span class="card-label">Déjà payé en ${cursor.y}</span><span class="amount pos">${chf(paid)}</span>
         <span class="caption">Mouvements « Paiement d'impôts » enregistrés</span></div>
       <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span>
@@ -2723,7 +2924,7 @@ function renderTaxes() {
     ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🗓</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">Échéance ${billDueLabel(b)}</div></div>
-      <span class="amount">${chf(b.amount)}</span></div>`).join("")
+      <span class="amount">${chf(billAmountInBase(b))}</span></div>`).join("")
       : `<div class="card row"><span class="caption">Aucune échéance saisie. Ajoutez vos acomptes comme FACTURES en catégorie « Impôts » (＋ → Facture) : elles apparaîtront ici et dans le mois.</span></div>`}
     <button class="btn secondary" data-adjusttax style="margin-top:8px">Ajuster le taux et la réserve</button>
     <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal — seuls vos mouvements enregistrés de ${cursor.y} comptent. Estimé = payé + encore dû, toujours.</p>`;
@@ -2776,7 +2977,9 @@ function balanceAt(accId, y, m) {
 function yearStats(y) {
   const posted = transactions.filter(t => t.y === y && t.status === "posted");
   const sum = types => posted.filter(t => types.includes(t.type)).reduce((a, t) => a + txCHF(t), 0);
-  const income = sum(["income", "refund"]);
+  // Un remboursement remet du cash et réduit le coût de la vie, mais ne
+  // crée pas un second revenu : son effet favorable n'est compté qu'une fois.
+  const income = sum(["income"]);
   const living = sum(["expense"]) - sum(["refund"]);
   const saved = sum(["saving", "investment"]);
   const taxes = sum(["taxPayment"]);
@@ -3004,15 +3207,16 @@ function renderInsurance() {
 function renderRecurring() {
   const rows = RECURRINGS.length ? RECURRINGS.map(r => {
     const isIncome = r.type === "income";
-    const materialized = transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === r.id : t.title === r.title));
+    const materialized = !!recurringOccurrence(r, NOW.y, NOW.m);
+    const account = ACCOUNTS.find(a => a.id === recurringAccountId(r));
     const statusPill = materialized ? '<span class="pill pos">Saisi ce mois</span>' : '<span class="pill">À venir</span>';
     const status = materialized ? "déjà saisi ce mois"
       : `prochaine occurrence : ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
     return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
       <div class="meta"><div class="t">${esc(r.title)}${statusPill}</div>
-        <div class="s">Mensuel, le ${r.day} · ${status}</div></div>
-      <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(r.amount)}</span></div>`;
+        <div class="s">Mensuel, le ${r.day} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
+      <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   }).join("") : `<div class="card row"><span class="caption">Aucun paiement régulier. Loyer, primes, abonnements, salaire… tout ce qui revient à date fixe.</span></div>`;
   return backBar("Paiements réguliers") + rows + `
     <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un paiement régulier</button>
@@ -3055,15 +3259,24 @@ function parseSwissDate(raw) {
   if (match) return { y: +match[3], m: +match[2], d: +match[1] };
   return null;
 }
-/* Empreinte d'idempotence : même date + montant + intitulé = doublon. */
-function importFingerprint(y, m, d, amount, title) {
-  return `${y}-${m}-${d}|${amount.toFixed(2)}|${title.toLowerCase()}`;
+/* Empreinte d'idempotence : le compte, le type ET le signe font partie de
+   l'identité. Deux opérations légitimes sur deux comptes ne se suppriment
+   jamais mutuellement. */
+function importSign(type, amount, adjustmentUp) {
+  if (type === "adjustment") return adjustmentUp ? Math.abs(amount) : -Math.abs(amount);
+  return (type === "income" || type === "refund") ? Math.abs(amount) : -Math.abs(amount);
+}
+function importFingerprint(y, m, d, amount, title, accountId, type, signedAmount) {
+  return `${y}-${m}-${d}|${String(accountId || "")}|${String(type || "")}|`
+    + `${Number(signedAmount).toFixed(2)}|${title.toLowerCase()}`;
 }
 function existingFingerprints() {
-  return new Set(transactions.map(t => importFingerprint(t.y, t.m, t.d, t.amount, t.title)));
+  return new Set(transactions.map(t => importFingerprint(
+    t.y, t.m, t.d, t.amount, t.title, t.acc, t.type, importSign(t.type, t.amount, t.up)
+  )));
 }
 /* Analyse complète d'un texte CSV → lignes évaluées, sans rien écrire. */
-function analyzeCSV(textContent, mappingOverride) {
+function analyzeCSV(textContent, mappingOverride, accountId) {
   const rawLines = textContent.split(/\r?\n/).filter(l => l.trim() !== "");
   if (!rawLines.length) return { rows: [], header: null, columns: { date: 0, amount: 1, title: 2, cat: -1 } };
   const delimiter = detectDelimiter(rawLines.slice(0, 5).join("\n"));
@@ -3090,7 +3303,7 @@ function analyzeCSV(textContent, mappingOverride) {
     const evaluate = () => {
       const date = parseSwissDate(fields[columns.date] || "");
       if (!date) return { state: "invalid", reason: "date illisible" };
-      if (date.y < 2000 || date.y > 2100 || date.m < 1 || date.m > 12 || date.d < 1 || date.d > 31) {
+      if (date.y < 2000 || date.y > 2100 || !validCalendarDate(date.y, date.m, date.d)) {
         return { state: "invalid", reason: "date hors limites" };
       }
       const amountRaw = (fields[columns.amount] || "").trim();
@@ -3099,14 +3312,16 @@ function analyzeCSV(textContent, mappingOverride) {
       if (!(amount > 0)) return { state: "invalid", reason: "montant illisible" };
       const title = (fields[columns.title] || "").trim();
       if (!title) return { state: "invalid", reason: "intitulé manquant" };
-      const fingerprint = importFingerprint(date.y, date.m, date.d, amount, title);
+      const type = negative ? "expense" : "income";
+      const signedAmount = negative ? -amount : amount;
+      const fingerprint = importFingerprint(date.y, date.m, date.d, amount, title, accountId, type, signedAmount);
       if (seen.has(fingerprint)) return { state: "duplicate" };
       seen.add(fingerprint);
       const cat = columns.cat >= 0 ? (fields[columns.cat] || "").trim() : "";
       return {
         state: "ready",
         // Convention des exports suisses : négatif = dépense, positif = revenu.
-        tx: { ...date, amount, title, type: negative ? "expense" : "income",
+        tx: { ...date, amount, title, type,
               cat: CATEGORIES[cat] ? cat : null },
       };
     };
@@ -3126,7 +3341,7 @@ function applyImport(analysis, fileName, accountId) {
       // L7 : import dans le compte CHOISI par l'utilisateur — le compte
       // par défaut n'est qu'une pré-sélection, jamais une décision.
       acc: accountId || defaultCashAccount(), dest: null,
-      status: (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted",
+      status: statusForDate(y, m, d),
       importBatch: batchId,
     });
     imported++;
@@ -3169,7 +3384,7 @@ function renderImport() {
     </div>
     ${(() => {
       if (!importDraft) return "";
-      const analysis = analyzeCSV(importDraft.content, importDraft.mapping);
+      const analysis = analyzeCSV(importDraft.content, importDraft.mapping, importDraft.accountId);
       const ready = analysis.rows.filter(r => r.state === "ready").length;
       const dupes = analysis.rows.filter(r => r.state === "duplicate").length;
       const bad = analysis.rows.length - ready - dupes;
@@ -3237,12 +3452,12 @@ function renderImport() {
       <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
-    <p class="caption" style="padding:6px 4px 0">Ré-importer le même fichier ne crée jamais de doublon : chaque ligne porte une empreinte (date + montant + intitulé).</p>`;
+    <p class="caption" style="padding:6px 4px 0">Ré-importer le même fichier sur le même compte ne crée jamais de doublon : chaque ligne porte une empreinte (date + compte + type + signe + montant + intitulé).</p>`;
 }
 
 /* ---------- Factures (W5) ---------- */
 function billIsOverdue(b) {
-  return !b.paidTxId && (b.dueY < NOW.y || (b.dueY === NOW.y && (b.dueM < NOW.m || (b.dueM === NOW.m && b.dueD < NOW.d))));
+  return !billIsCovered(b) && (b.dueY < NOW.y || (b.dueY === NOW.y && (b.dueM < NOW.m || (b.dueM === NOW.m && b.dueD < NOW.d))));
 }
 function billDueLabel(b) {
   return `${String(b.dueD).padStart(2, "0")}.${String(b.dueM).padStart(2, "0")}.${b.dueY}`;
@@ -3250,20 +3465,22 @@ function billDueLabel(b) {
 function renderBills() {
   const bills = S.bills || [];
   const overdue = bills.filter(billIsOverdue);
-  const upcoming = bills.filter(b => !b.paidTxId && !billIsOverdue(b))
+  const upcoming = bills.filter(b => !billIsCovered(b) && !billIsOverdue(b))
     .sort((a, b) => new Date(a.dueY, a.dueM - 1, a.dueD) - new Date(b.dueY, b.dueM - 1, b.dueD));
-  const paid = bills.filter(b => b.paidTxId);
+  const scheduled = bills.filter(billIsScheduled);
+  const paid = bills.filter(billIsPaid);
   const row = (b, cls) => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
     <div class="ico" aria-hidden="true">🧾</div>
     <div class="meta"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
-      <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${b.paidTxId ? " · payée ✓" : ""}</div></div>
-    <span class="amount ${cls}">${chf(b.amount)}</span>
+      <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
+    <span class="amount ${cls}">${chf(billAmountInBase(b))}</span>
   </div>`;
   // L5 — vue annuelle : factures de l'année + primes d'assurance, et la
   // provision mensuelle qui lisse ces charges (pédagogique, pas un conseil).
   const yearBills = bills.filter(b => b.dueY === NOW.y);
-  const yearBillsTotal = fromCents(yearBills.reduce((a, b) => a + toCents(b.amount), 0));
-  const yearBillsOpen = fromCents(yearBills.filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0));
+  const yearBillsTotal = fromCents(yearBills.reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
+  const yearBillsOpen = fromCents(yearBills.filter(b => !billIsCovered(b))
+    .reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
   const insuranceYear = round2(INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0) * 12);
   const yearTotal = round2(yearBillsTotal + insuranceYear);
   const annualCard = yearTotal > 0 ? `
@@ -3280,9 +3497,10 @@ function renderBills() {
   // L6 : héros « Encore à payer » — sommes d'AFFICHAGE de valeurs
   // existantes (les factures ouvertes pèsent déjà sur le disponible,
   // jamais deux fois : marquer payée LIE la facture au mouvement créé).
-  const openTotal = fromCents(bills.filter(b => !b.paidTxId).reduce((a, b) => a + toCents(b.amount), 0));
-  const paidThisMonth = fromCents(bills.filter(b => b.paidTxId && b.dueY === NOW.y && b.dueM === NOW.m)
-    .reduce((a, b) => a + toCents(b.amount), 0));
+  const openTotal = fromCents(bills.filter(b => !billIsCovered(b))
+    .reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
+  const paidThisMonth = fromCents(bills.filter(b => billIsPaid(b) && b.dueY === NOW.y && b.dueM === NOW.m)
+    .reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
   const nextDue = upcoming[0] || null;
   const billsHero = `<div class="card hero">
       <p class="card-label">Encore à payer</p>
@@ -3302,6 +3520,7 @@ function renderBills() {
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
     ${bills.length ? `<p class="section-title">À payer</p>` : ""}
     ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`) : ""}
+    ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
     ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture</button>` : ""}
     <p class="caption" style="padding:6px 4px 0">« Marquer payée » crée le mouvement de dépense correspondant — la facture et le mouvement restent liés. Les factures ouvertes du mois pèsent déjà sur le « Vraiment disponible ».</p>`;
@@ -3421,6 +3640,7 @@ let assistantQ = null;
 function renderAssistant() {
   const s = snapshot(NOW.y, NOW.m);
   const report = budgetReport(NOW.y, NOW.m);
+  const tax = taxSummary(NOW.y);
   const weekDays = Math.min(7, Math.max(1, s.daysRemaining));
   const weekBudget = round2(s.daily * weekDays);
   const prio = monthPriority(NOW.y, NOW.m, s, report);
@@ -3444,8 +3664,8 @@ function renderAssistant() {
     tax: {
       q: "Combien garder pour mes impôts ?",
       icon: "📮",
-      result: s.taxGap > 0 ? `Encore ${chf(s.taxGap)} ce mois` : "Votre réserve du mois est couverte ✓",
-      why: `Recommandé ce mois : ${chf(s.taxRecommended)} (${pct(S.taxRate ?? 0.30)} des revenus) · déjà payé : ${chf(s.taxes)} · réserve constituée : ${chf(Math.max(0, S.taxReserve ?? 0))}.`,
+      result: tax.reserveGap > 0 ? `Encore ${chf(tax.reserveGap)} pour ${NOW.y}` : `Votre réserve ${NOW.y} est couverte ✓`,
+      why: `Estimation ${NOW.y} : ${chf(tax.estimated)} (${pct(tax.rate)} des revenus observés) · déjà payé : ${chf(tax.paid)} · réserve constituée : ${chf(tax.reserved)}.`,
       hyp: "Estimation d'organisation personnelle basée sur votre taux réglable — pas un conseil fiscal.",
       action: ["Ouvrir Impôts", 'data-more="taxes"'],
     },
@@ -3486,7 +3706,7 @@ const MORE_GROUPS = [
     ["movements", "🔎", "Mouvements", "Liste du mois, recherche et filtres"],
     ["bills", "🧾", "Factures", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
-      const open = (S.bills || []).filter(b => !b.paidTxId).length;
+      const open = (S.bills || []).filter(b => !billIsCovered(b)).length;
       return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé 🎉");
     }],
     ["recurring", "🔁", "Paiements réguliers", "Charges, revenus et abonnements"],
@@ -3813,11 +4033,13 @@ function finishOnboarding() {
     kind: "brokerage", opening: 0, cash: false, currency: obBase });
   if (obSalary) {
     RECURRINGS.push({ id: "r-salaire", title: obPartner ? `Salaire ${obName}` : "Salaire",
-                      amount: obSalary, type: "income", cat: "Salaire", day: obSalaryDay, icon: "💰" });
+                      amount: obSalary, type: "income", cat: "Salaire", day: obSalaryDay,
+                      accountId: defaultCashAccount(), icon: "💰" });
   }
   if (obSalary2 && obPartner) {
     RECURRINGS.push({ id: "r-salaire-2", title: `Salaire ${obPartner}`, amount: obSalary2,
-                      type: "income", cat: "Salaire", day: obSalaryDay2, icon: "💰" });
+                      type: "income", cat: "Salaire", day: obSalaryDay2,
+                      accountId: defaultCashAccount(), icon: "💰" });
   }
   if (obGoal) {
     const savingsAcc = ACCOUNTS.find(a => a.kind === "savings");
@@ -3854,6 +4076,9 @@ function renderLockScreen() {
 const RENDERERS = { home: renderHome, budget: renderBudget, accounts: renderAccounts, more: renderMore };
 
 function render() {
+  // Une PWA peut rester ouverte pendant plusieurs jours : la promotion
+  // d'échéance se fait aussi au rendu, pas seulement au rechargement.
+  if (promoteDuePlannedTransactions(S) > 0) saveState();
   // L'écran Mouvements vit désormais dans Plus : toute ancienne
   // destination « onglet Mouvements » (historique, liens) y est routée.
   if (activeTab === "movements") { activeTab = "more"; moreView = "movements"; }
@@ -4028,40 +4253,34 @@ document.getElementById("screen").addEventListener("click", (e) => {
     const rec = RECURRINGS.find(r => r.id === postRecBtn.dataset.postrec);
     if (!rec) return;
     const { y, m } = cursor;
-    const already = transactions.some(t => inMonth(t, y, m)
-      && (t.recurringId ? t.recurringId === rec.id : t.title === rec.title));
-    if (already) return;
+    if (recurringOccurrence(rec, y, m)) return;
     pushUndo();
-    const lastDay = new Date(y, m, 0).getDate();
-    const isCurrentMonth = (y === NOW.y && m === NOW.m);
-    addTx({
-      id: ++txSeq, y, m, d: Math.min(rec.day, isCurrentMonth ? NOW.d : lastDay),
-      title: rec.title, amount: rec.amount, type: rec.type,
-      cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
-      recurringId: rec.id,
-    });
+    let result;
+    try { result = materializeRecurring(rec, y, m); }
+    catch (error) { toast(error.message || "Taux de change manquant — paiement non enregistré"); return; }
+    if (!result.created) return;
     saveState();
-    toast(rec.type === "income" ? `${rec.title} reçu : ${chf(rec.amount)} 🎉` : `« ${rec.title} » validé — ${chf(rec.amount)}`, true);
+    const scheduled = result.transaction.status === "planned";
+    toast(scheduled ? `« ${rec.title} » planifié — ${chf(recurringAmountInBase(rec))}`
+      : (rec.type === "income" ? `${rec.title} reçu : ${chf(recurringAmountInBase(rec))} 🎉`
+        : `« ${rec.title} » validé — ${chf(recurringAmountInBase(rec))}`), true);
     render();
     return;
   }
   const payBillBtn = e.target.closest("[data-paybill]");
   if (payBillBtn) {
     const bill = S.bills.find(b => b.id === payBillBtn.dataset.paybill);
-    if (!bill || bill.paidTxId) return;
+    if (!bill || billIsCovered(bill)) return;
     pushUndo();
     const payY = cursor.y, payM = cursor.m;
-    const lastDayOfMonth = new Date(payY, payM, 0).getDate();
-    const tx = {
-      id: ++txSeq, y: payY, m: payM,
-      d: (payY === NOW.y && payM === NOW.m) ? NOW.d : Math.min(bill.dueD || lastDayOfMonth, lastDayOfMonth),
-      title: bill.name, amount: bill.amount, type: "expense",
-      cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
-    };
-    addTx(tx);
-    bill.paidTxId = tx.id;
+    let result;
+    try { result = materializeBill(bill, payY, payM); }
+    catch (error) { toast(error.message || "Taux de change manquant — facture non enregistrée"); return; }
+    if (!result.created) return;
     saveState();
-    toast(`Facture payée : ${chf(bill.amount)}`, true);
+    toast(result.transaction.status === "planned"
+      ? `Facture planifiée : ${chf(billAmountInBase(bill))}`
+      : `Facture payée : ${chf(billAmountInBase(bill))}`, true);
     render();
     return;
   }
@@ -4152,7 +4371,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   if (e.target.closest("[data-impconfirm]")) {
     if (!importDraft) return;
-    const analysis = analyzeCSV(importDraft.content, importDraft.mapping);
+    const analysis = analyzeCSV(importDraft.content, importDraft.mapping, importDraft.accountId);
     if (!analysis.rows.some(r => r.state === "ready")) { toast("Aucune ligne prête à importer"); return; }
     const report = applyImport(analysis, importDraft.fileName, importDraft.accountId);
     importDraft = null;
@@ -4235,6 +4454,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     try {
       localStorage.removeItem(APP_STATE_KEY);
       localStorage.removeItem(LEGACY_TX_KEY);
+      localStorage.removeItem(RESCUE_KEY);
     } catch (err) {}
     location.reload();
     return;
@@ -4392,7 +4612,7 @@ function undoLast() {
     ? restored.fxRates : { ...FX_DEFAULTS[S.baseCurrency] };
   S.monthChecks = (restored.monthChecks && typeof restored.monthChecks === "object")
     ? restored.monthChecks : {};
-  txSeq = transactions.reduce((max, t) => Math.max(max, t.id || 0), txSeq);
+  txSeq = transactionSequenceFloor(transactions, txSeq);
   saveState();
   return true;
 }
@@ -4515,7 +4735,7 @@ function updateSheetNotes() {
   const dateMatchNote = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("fDate").value || "");
   const statusNote = document.getElementById("fStatusNote");
   if (dateMatchNote) {
-    const isFuture = (+dateMatchNote[1] === NOW.y && +dateMatchNote[2] === NOW.m && +dateMatchNote[3] > NOW.d);
+    const isFuture = isFutureDate(+dateMatchNote[1], +dateMatchNote[2], +dateMatchNote[3]);
     statusNote.textContent = isFuture
       ? "Sera compté comme : Prévu (la date est à venir)."
       : "Sera compté comme : Comptabilisé.";
@@ -4626,11 +4846,12 @@ document.getElementById("fDelete").addEventListener("click", () => {
   if (!confirm("Supprimer définitivement ce mouvement ?")) return;
   pushUndo();
   const index = transactions.findIndex(t => t.id === editingTxId);
+  const deleted = index >= 0 ? transactions[index] : null;
   if (index >= 0) transactions.splice(index, 1);
   // Une facture réglée par ce mouvement redevient « à payer » : on ne
   // laisse jamais une facture pointer vers un mouvement disparu.
   for (const bill of (S.bills || [])) {
-    if (bill.paidTxId === editingTxId) bill.paidTxId = null;
+    if (bill.paidTxId === editingTxId || (deleted && deleted.billId === bill.id)) bill.paidTxId = null;
   }
   saveState();
   backdrop.classList.remove("open");
@@ -4674,24 +4895,31 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   // Intitulé facultatif (parcours fréquent en trois gestes) : défaut =
   // catégorie, sinon le libellé du type. Jamais de mouvement sans nom.
   const title = rawTitle || cat || TYPE_LABEL[type] || "Mouvement";
-  const status = (y === NOW.y && m === NOW.m && d > NOW.d) ? "planned" : "posted";
+  const status = statusForDate(y, m, d);
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
-  if (existing) {
-    Object.assign(existing, {
-      title, amount: Math.round(amount * 100) / 100,
-      y, m, d, status, type, cat: type === "adjustment" ? null : cat, dest, acc: sourceId,
-    });
-    // P0 change historique : une modification ré-estampille (purge puis
-    // re-fige fx/fxBase/destAmount) — jamais d'estampille périmée.
-    stampTx(existing);
-    toast("Mouvement modifié");
-  } else {
-    addTx({
-      id: ++txSeq, y, m, d,
-      title, amount: Math.round(amount * 100) / 100,
-      type, cat, acc: sourceId, dest, status,
-    });
-    toast(status === "planned" ? "Mouvement planifié" : "Mouvement ajouté");
+  try {
+    if (existing) {
+      // Valider et estampiller une copie AVANT de remplacer l'objet vivant :
+      // un taux manquant ne laisse jamais une édition partielle en mémoire.
+      const candidate = stampTx({
+        ...existing,
+        title, amount: Math.round(amount * 100) / 100,
+        y, m, d, status, type, cat: type === "adjustment" ? null : cat, dest, acc: sourceId,
+      });
+      const index = transactions.indexOf(existing);
+      if (index >= 0) transactions[index] = candidate;
+      toast("Mouvement modifié");
+    } else {
+      addTx({
+        id: ++txSeq, y, m, d,
+        title, amount: Math.round(amount * 100) / 100,
+        type, cat, acc: sourceId, dest, status,
+      });
+      toast(status === "planned" ? "Mouvement planifié" : "Mouvement ajouté");
+    }
+  } catch (error) {
+    fieldError("fAccount", error && error.message ? error.message : "Taux de change manquant pour ce compte.");
+    return;
   }
   saveState();
   cursor = { y, m };
@@ -4780,7 +5008,294 @@ function restoreSummaryText(payload) {
     + `Non contenu dans la sauvegarde : le code de verrouillage (il sera désactivé) `
     + `et les fichiers de documents (la version web n'en stocke jamais).\n\nContinuer ?`;
 }
+function isPlainRecord(value) {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function validCalendarDate(y, m, d) {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)
+      || y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1) return false;
+  return d <= new Date(y, m, 0).getDate();
+}
+function assertSafeJSONTree(value, path = "state", depth = 0, budget = { nodes: 0 }) {
+  if (++budget.nodes > 250000 || depth > 20) throw new Error("sauvegarde trop complexe");
+  if (value == null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${path} contient un nombre invalide`);
+    return;
+  }
+  if (typeof value !== "object") throw new Error(`${path} contient une valeur non prise en charge`);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertSafeJSONTree(item, `${path}[${index}]`, depth + 1, budget));
+    return;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (["__proto__", "prototype", "constructor"].includes(key)) {
+      throw new Error(`${path} contient une clé interdite`);
+    }
+    assertSafeJSONTree(item, `${path}.${key}`, depth + 1, budget);
+  }
+}
+/* Validation de domaine AVANT toute écriture. Les champs optionnels historiques
+   sont normalisés, mais une entrée financière mal typée, une relation orpheline,
+   une date impossible ou un taux requis absent font refuser tout le fichier. */
+function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
+  if (!isPlainRecord(input)) throw new Error("état absent");
+  assertSafeJSONTree(input);
+  const state = JSON.parse(JSON.stringify(input));
+  if (state.version !== 1) throw new Error("version d'état incompatible");
+  if (!Array.isArray(state.transactions) || !Array.isArray(state.accounts)) {
+    throw new Error("comptes ou mouvements absents");
+  }
+  for (const key of RESTORE_ARRAY_KEYS) {
+    if (state[key] == null && key !== "transactions" && key !== "accounts") state[key] = [];
+    if (!Array.isArray(state[key])) throw new Error(`${key} doit être une liste`);
+    if (state[key].some(item => !isPlainRecord(item))) throw new Error(`${key} contient une entrée invalide`);
+  }
+  if (state.baseCurrency == null) state.baseCurrency = "CHF";
+  if (!CURRENCIES.includes(state.baseCurrency)) throw new Error("devise de référence invalide");
+  if (state.country == null) state.country = "CH";
+  if (!COUNTRIES[state.country]) throw new Error("pays invalide");
+  if (state.fxRates == null) state.fxRates = { ...FX_DEFAULTS[state.baseCurrency] };
+  if (!isPlainRecord(state.fxRates)) throw new Error("taux de change invalides");
+  if (!isPlainRecord(state.budgets || {})) throw new Error("budgets invalides");
+  state.budgets = state.budgets || {};
+  for (const [month, lines] of Object.entries(state.budgets)) {
+    if (!/^\d{4}-(?:[1-9]|1[0-2])$/.test(month) || !Array.isArray(lines)
+        || lines.some(line => !isPlainRecord(line) || typeof line.cat !== "string"
+          || !Number.isFinite(line.amount) || line.amount < 0)) {
+      throw new Error(`budget ${month} invalide`);
+    }
+  }
+
+  const accountIds = new Set();
+  for (const account of state.accounts) {
+    if (typeof account.id !== "string" || !account.id || accountIds.has(account.id)
+        || typeof account.name !== "string" || !Number.isFinite(account.opening)
+        || !CURRENCIES.includes(account.currency || state.baseCurrency)) {
+      throw new Error("compte invalide ou dupliqué");
+    }
+    account.currency = account.currency || state.baseCurrency;
+    accountIds.add(account.id);
+  }
+  const defaultAccount = state.accounts.find(a => a.cash && a.currency === state.baseCurrency)
+    || state.accounts.find(a => a.cash) || state.accounts[0] || null;
+  const usedCurrencies = new Set(state.accounts.map(a => a.currency));
+  for (const currency of usedCurrencies) {
+    if (currency !== state.baseCurrency) {
+      const rate = Number(state.fxRates[currency]);
+      if (!Number.isFinite(rate) || rate <= 0) throw new Error(`taux ${currency} manquant`);
+    }
+  }
+
+  const transactionIds = new Set();
+  for (const transaction of state.transactions) {
+    if (!validTransactionID(transaction.id)
+        || transactionIds.has(String(transaction.id))
+        || typeof transaction.title !== "string" || !Number.isFinite(transaction.amount)
+        || !(transaction.amount > 0)
+        || !RESTORE_TRANSACTION_TYPES.has(transaction.type)
+        || !RESTORE_TRANSACTION_STATUSES.has(transaction.status)
+        || !validCalendarDate(transaction.y, transaction.m, transaction.d)
+        || typeof transaction.acc !== "string" || !accountIds.has(transaction.acc)
+        || (transaction.dest != null && (!accountIds.has(transaction.dest) || transaction.dest === transaction.acc))) {
+      throw new Error("mouvement invalide, dupliqué ou orphelin");
+    }
+    if (transaction.fx != null && (!Number.isFinite(transaction.fx) || transaction.fx <= 0)) {
+      throw new Error("taux historique invalide");
+    }
+    if (transaction.destAmount != null
+        && (!Number.isFinite(transaction.destAmount) || transaction.destAmount < 0)) {
+      throw new Error("montant de destination invalide");
+    }
+    if (transaction.importBatch != null
+        && (typeof transaction.importBatch !== "string" || !transaction.importBatch)) {
+      throw new Error("lot d'import du mouvement invalide");
+    }
+    transaction.sourceCurrency = CURRENCIES.includes(transaction.sourceCurrency)
+      ? transaction.sourceCurrency : state.accounts.find(a => a.id === transaction.acc).currency;
+    usedCurrencies.add(transaction.sourceCurrency);
+    transactionIds.add(String(transaction.id));
+  }
+  for (const currency of usedCurrencies) {
+    if (currency !== state.baseCurrency) {
+      const rate = Number(state.fxRates[currency]);
+      if (!Number.isFinite(rate) || rate <= 0) throw new Error(`taux ${currency} manquant`);
+    }
+  }
+
+  const recurringIds = new Set();
+  for (const recurring of state.recurrings) {
+    if (typeof recurring.id !== "string" || !recurring.id || recurringIds.has(recurring.id)
+        || typeof recurring.title !== "string" || !recurring.title
+        || !Number.isFinite(recurring.amount) || !(recurring.amount > 0)
+        || !["income", "expense"].includes(recurring.type)
+        || !Number.isInteger(recurring.day) || recurring.day < 1 || recurring.day > 28) {
+      throw new Error("paiement régulier invalide");
+    }
+    recurringIds.add(recurring.id);
+    recurring.accountId = recurring.accountId || (defaultAccount && defaultAccount.id);
+    const onboardingWithoutAccount = state.onboarded === false && accountIds.size === 0
+      && recurring.accountId == null;
+    if (!onboardingWithoutAccount && (!recurring.accountId || !accountIds.has(recurring.accountId))) {
+      throw new Error("compte de paiement régulier introuvable");
+    }
+  }
+  const billIds = new Set();
+  for (const bill of state.bills) {
+    if (typeof bill.id !== "string" || !bill.id || billIds.has(bill.id)
+        || typeof bill.name !== "string" || !bill.name
+        || !Number.isFinite(bill.amount) || !(bill.amount > 0)
+        || !validCalendarDate(bill.dueY, bill.dueM, bill.dueD)) {
+      throw new Error("facture invalide");
+    }
+    billIds.add(bill.id);
+    bill.accountId = bill.accountId || (defaultAccount && defaultAccount.id);
+    if (!bill.accountId || !accountIds.has(bill.accountId)) throw new Error("compte de facture introuvable");
+    if (bill.paidTxId != null && bill.paidTxId !== -1) {
+      if (!validTransactionID(bill.paidTxId)
+          || !transactionIds.has(String(bill.paidTxId))) {
+        throw new Error("mouvement de paiement de facture introuvable");
+      }
+    }
+  }
+  const requireEntity = (value, entity, ids) => {
+    if (typeof value.id !== "string" || !value.id || ids.has(value.id)
+        || typeof value.name !== "string" || !value.name.trim()) {
+      throw new Error(`${entity} invalide ou dupliqué`);
+    }
+    ids.add(value.id);
+  };
+  const validNonNegative = value => Number.isFinite(value) && value >= 0;
+  const goalIds = new Set();
+  for (const goal of state.goals) {
+    requireEntity(goal, "objectif", goalIds);
+    if (!(Number.isFinite(goal.target) && goal.target > 0)
+        || !validNonNegative(goal.manualCurrent ?? 0)
+        || !validNonNegative(goal.monthly ?? 0)
+        || !Number.isInteger(goal.dueY) || goal.dueY < 2000 || goal.dueY > 2100
+        || !Number.isInteger(goal.dueM) || goal.dueM < 1 || goal.dueM > 12) {
+      throw new Error("objectif financier invalide");
+    }
+    if (goal.linked != null && !accountIds.has(goal.linked)) throw new Error("objectif lié à un compte introuvable");
+    goal.manualCurrent = goal.manualCurrent ?? 0;
+    goal.monthly = goal.monthly ?? 0;
+    goal.achieved = goal.achieved === true;
+    goal.priority = goal.priority === true;
+  }
+  const assetIds = new Set();
+  for (const asset of state.assets) {
+    requireEntity(asset, "actif", assetIds);
+    if (!validNonNegative(asset.value)) throw new Error("valeur d'actif invalide");
+    asset.include = asset.include !== false;
+  }
+  const liabilityIds = new Set();
+  for (const liability of state.liabilities) {
+    requireEntity(liability, "dette", liabilityIds);
+    if (!validNonNegative(liability.value)
+        || !validNonNegative(liability.monthly ?? 0)) {
+      throw new Error("valeur de dette invalide");
+    }
+    liability.monthly = liability.monthly ?? 0;
+    liability.include = liability.include !== false;
+  }
+  const pensionIds = new Set();
+  for (const pension of state.pensions) {
+    requireEntity(pension, "position de prévoyance", pensionIds);
+    if (!validNonNegative(pension.value)
+        || (pension.projection != null && !validNonNegative(pension.projection))) {
+      throw new Error("valeur de prévoyance invalide");
+    }
+  }
+  const insuranceIds = new Set();
+  for (const insurance of state.insurances) {
+    requireEntity(insurance, "assurance", insuranceIds);
+    const premium = insurance.premium ?? insurance.monthly;
+    if (!validNonNegative(premium)
+        || (insurance.unit != null && !["month", "year"].includes(insurance.unit))
+        || ((insurance.dueM != null || insurance.dueD != null)
+          && !validCalendarDate(2000, insurance.dueM, insurance.dueD))) {
+      throw new Error("contrat d'assurance invalide");
+    }
+  }
+  const documentIds = new Set();
+  for (const document of state.documents) {
+    requireEntity(document, "document", documentIds);
+    if (document.kind != null && typeof document.kind !== "string") {
+      throw new Error("type de document invalide");
+    }
+  }
+  if (state.lastImport != null) {
+    const report = state.lastImport;
+    if (!isPlainRecord(report)
+        || typeof report.fileName !== "string" || !report.fileName
+        || typeof report.batchId !== "string" || !report.batchId
+        || !Number.isSafeInteger(report.total) || report.total < 0
+        || !Number.isSafeInteger(report.imported) || report.imported < 0
+        || !Number.isSafeInteger(report.duplicates) || report.duplicates < 0
+        || !Array.isArray(report.invalids)
+        || report.invalids.some(item => !isPlainRecord(item)
+          || !Number.isSafeInteger(item.line) || item.line <= 0
+          || typeof item.raw !== "string" || typeof item.reason !== "string")
+        || report.imported + report.duplicates + report.invalids.length !== report.total) {
+      throw new Error("rapport du dernier import invalide");
+    }
+  }
+  if (state.profile != null && !isPlainRecord(state.profile)) throw new Error("profil invalide");
+  if (state.profile != null
+      && ((state.profile.name != null && typeof state.profile.name !== "string")
+        || (state.profile.partner != null && typeof state.profile.partner !== "string"))) {
+    throw new Error("profil utilisateur invalide");
+  }
+  if (state.taxRate != null && (!Number.isFinite(state.taxRate) || state.taxRate < 0 || state.taxRate > 1)) {
+    throw new Error("taux fiscal invalide");
+  }
+  if (state.taxReserve != null && (!Number.isFinite(state.taxReserve) || state.taxReserve < 0)) {
+    throw new Error("réserve fiscale invalide");
+  }
+  state.taxRate = state.taxRate ?? 0.30;
+  state.taxReserve = state.taxReserve ?? 0;
+  state.profile = state.profile || { name: null };
+  state.projectionProfile = PROJECTION_PROFILES[state.projectionProfile]
+    ? state.projectionProfile : "balanced";
+  state.monthChecks = isPlainRecord(state.monthChecks) ? state.monthChecks : {};
+  state.lastImport = state.lastImport || null;
+  state.onboarded = state.onboarded !== false;
+  state.isDemo = state.isDemo === true;
+  // Le verrouillage reste propre à l'appareil courant : un chargement local
+  // le conserve, tandis qu'une sauvegarde importée ne peut jamais l'activer.
+  if (preserveDeviceLock) {
+    const validLocalLock = state.faceIDEnabled === true
+      && typeof state.lockCode === "string"
+      && /^-?\d{1,11}$/.test(state.lockCode);
+    state.faceIDEnabled = validLocalLock;
+    state.lockCode = validLocalLock ? state.lockCode : null;
+  } else {
+    state.faceIDEnabled = false;
+    state.lockCode = null;
+  }
+
+  stampAllTransactions(state);
+  for (const transaction of state.transactions) {
+    if (transaction.sourceCurrency !== state.baseCurrency
+        && !(transaction.fx > 0 && transaction.fxBase === state.baseCurrency)) {
+      throw new Error("mouvement étranger sans taux historique");
+    }
+    if (transaction.dest) {
+      const destination = state.accounts.find(a => a.id === transaction.dest);
+      if (destination.currency !== transaction.sourceCurrency
+          && !Number.isFinite(transaction.destAmount)) {
+        throw new Error("virement étranger non convertible");
+      }
+    }
+  }
+  assertSafeJSONTree(state);
+  return state;
+}
 function restoreFromFile(file) {
+  if (!file || file.size > 20 * 1024 * 1024) {
+    toast("Sauvegarde trop volumineuse — rien n'a été modifié");
+    return;
+  }
   const reader = new FileReader();
   reader.onload = () => {
     let payload = null;
@@ -4797,11 +5312,29 @@ function restoreFromFile(file) {
       toast("Sauvegarde d'une autre version — rien n'a été modifié");
       return;
     }
-    if (!confirm(restoreSummaryText(payload))) return;
+    let restoredState;
+    try { restoredState = validatedRestoreState(payload.state); }
+    catch (error) {
+      toast("Sauvegarde invalide — rien n'a été modifié");
+      return;
+    }
+    const validatedPayload = { ...payload, state: restoredState };
+    if (!confirm(restoreSummaryText(validatedPayload))) return;
+    const previousRaw = localStorage.getItem(APP_STATE_KEY);
     try {
-      localStorage.setItem(APP_STATE_KEY, JSON.stringify(payload.state));
+      const serialized = JSON.stringify(restoredState);
+      // localStorage remplace une valeur en une opération. On relit avant le
+      // reload et restaure explicitement l'ancien blob si l'écriture diverge.
+      localStorage.setItem(APP_STATE_KEY, serialized);
+      if (localStorage.getItem(APP_STATE_KEY) !== serialized) throw new Error("écriture incomplète");
       location.reload();
-    } catch (e) { toast("Stockage indisponible — restauration impossible"); }
+    } catch (e) {
+      try {
+        if (previousRaw == null) localStorage.removeItem(APP_STATE_KEY);
+        else localStorage.setItem(APP_STATE_KEY, previousRaw);
+      } catch (rollbackError) {}
+      toast("Stockage indisponible — restauration impossible, données actuelles intactes");
+    }
   };
   reader.readAsText(file);
 }
@@ -4849,13 +5382,16 @@ function openAccSheet(account) {
     document.getElementById("aCurrency").value = account.currency || baseCurrency();
     document.getElementById("aOpening").value = account.opening.toFixed(2);
     // L'historique ne se réécrit pas : solde d'ouverture verrouillé dès
-    // qu'un mouvement existe — passer par « Réconcilier » (ajustement daté).
+    // qu'un mouvement existe — idem pour la devise. Passer par
+    // « Réconcilier » pour le solde ; une autre devise exige un nouveau compte.
     const hasHistory = transactions.some(t => t.acc === account.id || t.dest === account.id);
     document.getElementById("aOpening").disabled = hasHistory;
+    document.getElementById("aCurrency").disabled = hasHistory;
     document.getElementById("aReconcile").style.display = hasHistory ? "block" : "none";
     document.getElementById("aCash").checked = !!account.cash;
   } else {
     document.getElementById("aCurrency").value = baseCurrency();
+    document.getElementById("aCurrency").disabled = false;
     document.getElementById("aOpening").disabled = false;
     document.getElementById("aReconcile").style.display = "none";
     document.getElementById("aCash").checked = true;
@@ -4880,8 +5416,10 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const kind = document.getElementById("aKind").value;
   const cash = document.getElementById("aCash").checked;
   const inst = document.getElementById("aInst").value.trim();
-  const currency = document.getElementById("aCurrency").value;
   const existing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
+  const currencyLocked = !!(existing
+    && transactions.some(t => t.acc === existing.id || t.dest === existing.id));
+  const currency = currencyLocked ? existing.currency : document.getElementById("aCurrency").value;
   if (existing) {
     Object.assign(existing, { name, inst, kind, opening, cash, currency });
     toast("Compte modifié");
@@ -4895,10 +5433,15 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   render();
 });
 function accountDeleteBlocker(id) {
-  // Règle .deny du natif : ni mouvement, ni objectif ne doit se retrouver
-  // orphelin (un objectif lié verrait son solde retomber à 0 en silence).
+  // Règle .deny du natif : aucune donnée liée ne doit se retrouver orpheline.
   if (transactions.some(t => t.acc === id || t.dest === id)) {
     return "Ce compte porte des mouvements — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
+  }
+  if (RECURRINGS.some(recurring => recurring.accountId === id)) {
+    return "Un paiement régulier utilise ce compte — choisissez d'abord un autre compte pour ce paiement.";
+  }
+  if ((S.bills || []).some(bill => bill.accountId === id)) {
+    return "Une facture utilise ce compte — choisissez d'abord un autre compte pour cette facture.";
   }
   if ((S.goals || []).some(g => g.linked === id)) {
     return "Un objectif suit ce compte — déliez-le d'abord, sinon sa progression retomberait à zéro.";
@@ -5054,7 +5597,7 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
   const monthly = monthlyRaw === "" ? 0 : parseAmountField(monthlyRaw);
   if (Number.isNaN(monthly)) { err.textContent = "Contribution mensuelle invalide."; return; }
   const dueMatch = /^(\d{4})-(\d{2})$/.exec(document.getElementById("gDue").value);
-  if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  if (!covered && !dueMatch) { err.textContent = "Choisissez une échéance."; return; }
   const data = {
     name, emoji: document.getElementById("gEmoji").value.trim() || "🎯",
     target, manualCurrent, monthly,
@@ -5098,14 +5641,24 @@ function refreshRecCatOptions() {
     .map(([c]) => `<option>${esc(c)}</option>`).join("");
 }
 document.getElementById("rType").addEventListener("change", refreshRecCatOptions);
+function fillAccountOptions(selectId, selectedId) {
+  const select = document.getElementById(selectId);
+  select.innerHTML = ACCOUNTS.map(account =>
+    `<option value="${esc(account.id)}">${esc(account.name)}${account.currency && account.currency !== baseCurrency() ? ` (${account.currency})` : ""}</option>`
+  ).join("");
+  const fallback = selectedId && ACCOUNTS.some(a => a.id === selectedId)
+    ? selectedId : defaultCashAccount();
+  if (fallback) select.value = fallback;
+}
 function openRecSheet(rec) {
   editingRecId = rec ? rec.id : null;
   document.getElementById("recForm").reset();
   document.getElementById("recSheetTitle").textContent = rec ? "Modifier le paiement régulier" : "Nouveau paiement régulier";
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
-  const alreadyThisMonth = rec && transactions.some(t => inMonth(t, NOW.y, NOW.m) && (t.recurringId ? t.recurringId === rec.id : t.title === rec.title));
+  const alreadyThisMonth = rec && recurringOccurrence(rec, NOW.y, NOW.m);
   postBtn.style.display = rec && !alreadyThisMonth ? "block" : "none";
+  fillAccountOptions("rAccount", rec && rec.accountId);
   if (rec) {
     document.getElementById("rTitle").value = rec.title;
     document.getElementById("rAmount").value = rec.amount.toFixed(2);
@@ -5136,7 +5689,9 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     title, amount, day,
     type: document.getElementById("rType").value,
     cat: document.getElementById("rCat").value,
+    accountId: document.getElementById("rAccount").value,
   };
+  if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
   const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (existing) { Object.assign(existing, data); toast("Paiement régulier modifié"); }
   else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Paiement régulier ajouté"); }
@@ -5147,13 +5702,15 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
 document.getElementById("rPost").addEventListener("click", () => {
   const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (!rec) return;
+  if (recurringOccurrence(rec, NOW.y, NOW.m)) return;
   pushUndo();
-  addTx({
-    id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(rec.day, NOW.d),
-    title: rec.title, amount: rec.amount, type: rec.type,
-    cat: rec.cat || null, acc: defaultCashAccount(), dest: null, status: "posted",
-    recurringId: rec.id,
-  });
+  try {
+    const result = materializeRecurring(rec, NOW.y, NOW.m);
+    if (!result.created) return;
+  } catch (error) {
+    document.getElementById("rError").textContent = error.message || "Taux de change manquant.";
+    return;
+  }
   saveState();
   backdrop.classList.remove("open");
   toast("Paiement enregistré — retiré des prévisions");
@@ -5226,7 +5783,8 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
     const idx = RECURRINGS.findIndex(r => r.id === recId);
     if (monthly > 0) {
       const rec = { id: recId, title: `Mensualité ${saved.name}`, amount: monthly,
-                    type: "expense", cat: null, day: 3, icon: "📄" };
+                    type: "expense", cat: null, day: 3,
+                    accountId: (idx >= 0 && RECURRINGS[idx].accountId) || defaultCashAccount(), icon: "📄" };
       if (idx >= 0) Object.assign(RECURRINGS[idx], rec); else RECURRINGS.push(rec);
     } else if (idx >= 0) RECURRINGS.splice(idx, 1);
   }
@@ -5272,12 +5830,13 @@ let accChartSel = null;
 const MORE_TX_PAGE = 200;
 let moreTxPage = 0;
 function startImportDraft(content, fileName) {
-  const analysis = analyzeCSV(content);
+  const accountId = defaultCashAccount();
+  const analysis = analyzeCSV(content, null, accountId);
   if (!analysis.rows.length) { toast("Rien à importer dans ce contenu"); return; }
   importDraft = {
     content, fileName: fileName || "collage",
     mapping: { ...analysis.columns },
-    accountId: defaultCashAccount(),
+    accountId,
   };
   render();
 }
@@ -5472,12 +6031,18 @@ function openBillSheet(bill) {
   document.getElementById("billForm").reset();
   document.getElementById("billSheetTitle").textContent = bill ? "Modifier la facture" : "Nouvelle facture";
   document.getElementById("bDelete").style.display = bill ? "block" : "none";
-  document.getElementById("bPay").style.display = bill && !bill.paidTxId ? "block" : "none";
-  document.getElementById("bUnpay").style.display = bill && bill.paidTxId ? "block" : "none";
+  document.getElementById("bPay").style.display = bill && !billIsCovered(bill) ? "block" : "none";
+  document.getElementById("bUnpay").style.display = bill && billIsCovered(bill) ? "block" : "none";
+  const covered = !!(bill && billIsCovered(bill));
+  document.getElementById("bAmount").disabled = covered;
+  document.getElementById("bDue").disabled = covered;
+  document.getElementById("bAccount").disabled = covered;
+  document.getElementById("bLockedNote").style.display = covered ? "" : "none";
   const catSelectBill = document.getElementById("bCat");
   catSelectBill.innerHTML = Object.entries(CATEGORIES)
     .filter(([, k]) => k === "expense")
     .map(([c]) => `<option>${esc(c)}</option>`).join("");
+  fillAccountOptions("bAccount", bill && bill.accountId);
   if (bill) {
     document.getElementById("bName").value = bill.name;
     document.getElementById("bAmount").value = bill.amount.toFixed(2);
@@ -5495,14 +6060,29 @@ document.getElementById("billForm").addEventListener("submit", (e) => {
   const err = document.getElementById("bError");
   const name = document.getElementById("bName").value.trim();
   if (!name) { err.textContent = "Donnez un nom à la facture."; return; }
-  const amount = parseAmountField(document.getElementById("bAmount").value);
-  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 184.30"; return; }
-  const dueMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("bDue").value);
-  if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
-  const data = { name, amount, dueY: +dueMatch[1], dueM: +dueMatch[2], dueD: +dueMatch[3],
-                 cat: document.getElementById("bCat").value };
   const existing = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
-  if (existing) { Object.assign(existing, data); toast("Facture modifiée"); }
+  const covered = !!(existing && billIsCovered(existing));
+  const amount = covered ? existing.amount : parseAmountField(document.getElementById("bAmount").value);
+  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 184.30"; return; }
+  const dueMatch = covered ? null
+    : /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("bDue").value);
+  const dueY = covered ? existing.dueY : +(dueMatch && dueMatch[1]);
+  const dueM = covered ? existing.dueM : +(dueMatch && dueMatch[2]);
+  const dueD = covered ? existing.dueD : +(dueMatch && dueMatch[3]);
+  if (!covered && !dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  const data = { name, amount, dueY, dueM, dueD,
+                 cat: document.getElementById("bCat").value,
+                 accountId: covered ? existing.accountId : document.getElementById("bAccount").value };
+  if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
+  if (existing) {
+    Object.assign(existing, data);
+    const linked = billLinkedTransaction(existing);
+    if (linked) {
+      linked.title = name;
+      linked.cat = data.cat;
+    }
+    toast("Facture modifiée");
+  }
   else { S.bills.push({ id: "bill-" + Date.now().toString(36), paidTxId: null, note: "", ...data }); toast("Facture ajoutée"); }
   saveState();
   backdrop.classList.remove("open");
@@ -5510,28 +6090,25 @@ document.getElementById("billForm").addEventListener("submit", (e) => {
 });
 document.getElementById("bPay").addEventListener("click", () => {
   const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
-  if (!bill || bill.paidTxId) return;
+  if (!bill || billIsCovered(bill)) return;
   pushUndo();
-  const payY = cursor.y, payM = cursor.m;
-  const lastDayOfMonth = new Date(payY, payM, 0).getDate();
-  const tx = {
-    id: ++txSeq, y: payY, m: payM,
-    d: (payY === NOW.y && payM === NOW.m) ? NOW.d : Math.min(bill.dueD || lastDayOfMonth, lastDayOfMonth),
-    title: bill.name, amount: bill.amount, type: "expense",
-    cat: bill.cat || null, acc: defaultCashAccount(), dest: null, status: "posted", billId: bill.id,
-  };
-  addTx(tx);
-  bill.paidTxId = tx.id;
+  let result;
+  try { result = materializeBill(bill); }
+  catch (error) { document.getElementById("bError").textContent = error.message || "Taux de change manquant."; return; }
+  if (!result.created) return;
   saveState();
   backdrop.classList.remove("open");
-  toast("Facture payée — mouvement créé", true);
+  toast(result.transaction.status === "planned"
+    ? "Facture planifiée — mouvement prévu créé"
+    : "Facture payée — mouvement créé", true);
   render();
 });
 document.getElementById("bUnpay").addEventListener("click", () => {
   const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
-  if (!bill || !bill.paidTxId) return;
+  if (!bill || !billIsCovered(bill)) return;
   pushUndo();
-  const index = transactions.findIndex(t => t.id === bill.paidTxId);
+  const linked = billLinkedTransaction(bill);
+  const index = linked ? transactions.indexOf(linked) : -1;
   if (index >= 0) transactions.splice(index, 1);
   bill.paidTxId = null;
   saveState();
@@ -5588,7 +6165,8 @@ document.getElementById("salaryForm").addEventListener("submit", (e) => {
   if (!Number.isInteger(day) || day < 1 || day > 28) { err.textContent = "Jour entre 1 et 28."; return; }
   const existing = salaryRecurring();
   if (existing) Object.assign(existing, { amount, day });
-  else RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount, type: "income", cat: "Salaire", day, icon: "💰" });
+  else RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount, type: "income",
+    cat: "Salaire", day, accountId: defaultCashAccount(), icon: "💰" });
   saveState();
   backdrop.classList.remove("open");
   toast(`Salaire enregistré : ${chf(amount)} le ${day} de chaque mois`);
@@ -5628,6 +6206,10 @@ document.getElementById("baseForm").addEventListener("submit", (e) => {
   const chosen = document.getElementById("bCurrency").value;
   if (!CURRENCIES.includes(chosen)) return;
   if (chosen !== baseCurrency()) {
+    if (transactions.length > 0) {
+      toast("La devise de référence est verrouillée dès le premier mouvement — créez un nouveau profil pour en changer");
+      return;
+    }
     S.baseCurrency = chosen;
     S.fxRates = { ...FX_DEFAULTS[chosen] };
     saveState();

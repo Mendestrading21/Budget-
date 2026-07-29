@@ -43,6 +43,26 @@ final class AppContainer {
             : try PersistenceFactory.makeProductionContainer()
     }
 
+    /// Applies the canonical day-based posting rule when the app starts or
+    /// returns to the foreground. A failed save is rolled back and retried
+    /// on the next activation; existing balances are never partially changed.
+    @MainActor
+    @discardableResult
+    func postDuePlannedTransactions() -> Bool {
+        let context = modelContainer.mainContext
+        do {
+            let transactions = try context.fetch(FetchDescriptor<BudgetTransaction>())
+            let promoted = TransactionPostingPolicy(calendar: calendar)
+                .promoteDueTransactions(transactions, now: dateProvider.now)
+            guard promoted > 0 else { return true }
+            try context.saveOrRollback()
+            return true
+        } catch {
+            context.rollback()
+            return false
+        }
+    }
+
     private func rebuildContainer() {
         do {
             if isDemoMode {

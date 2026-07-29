@@ -198,6 +198,6 @@ final class OnboardingViewModel {
             ))
         }
 
-        try context.save()
+        try context.saveOrRollback()
     }
 }

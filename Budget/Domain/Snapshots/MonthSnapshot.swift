@@ -55,7 +55,8 @@ struct AvailableBreakdown: Equatable {
     /// Recurring charge occurrences of the month not yet materialized —
     /// every active recurring charge appears in the forecast exactly once.
     let recurringCharges: Decimal
-    /// Recommended tax reserve for the month's income not yet covered.
+    /// Remaining recommended reserve for the selected calendar year, after
+    /// posted tax payments and cash explicitly reserved by the user.
     let taxReserveGap: Decimal
 
     var total: Decimal {
@@ -64,22 +65,21 @@ struct AvailableBreakdown: Equatable {
     }
 }
 
-/// Monthly view of the tax provision. The gap is computed by
-/// TaxService.monthReserveGap — the SAME truth as the Impôts module
-/// (réserve annuelle constituée et arriérés inclus), never a local
-/// formula here.
+/// Tax provision for the calendar year containing the selected month.
+/// Every value comes from TaxService.report — the SAME truth as the Impôts
+/// module (annual income, payments, reserve, override and arrears).
 struct TaxProvisionSummary: Equatable {
     /// Configured household rate (fraction).
     let rate: Decimal
-    /// income × rate for this month.
+    /// Estimated tax for the year (or the user's annual override).
     let recommended: Decimal
-    /// Posted tax payments of the month.
+    /// Posted tax payments of the year.
     let paid: Decimal
     /// Annual cash reserved in the Impôts module, counted as cover.
     let reserved: Decimal
     /// User-entered arrears from previous years, still due.
     let arrears: Decimal
-    /// TaxService.monthReserveGap(recommended − paid + arrears − reserved, floor 0).
+    /// TaxYearReport.reserveGap (outstanding + arrears − reserved, floor 0).
     let gap: Decimal
 }
 

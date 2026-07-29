@@ -140,9 +140,13 @@ struct BudgetLineFormView: View {
                 modelContext.insert(line)
                 budget.updatedAt = now
             }
-            try modelContext.save()
-            dismiss()
+            if modelContext.saveOrRollback(onError: { _ in
+                errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+            }) {
+                dismiss()
+            }
         } catch {
+            modelContext.rollback()
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
         }
     }
@@ -151,11 +155,10 @@ struct BudgetLineFormView: View {
         guard let line = editedLine else { return }
         line.budget?.updatedAt = appContainer.dateProvider.now
         modelContext.delete(line)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

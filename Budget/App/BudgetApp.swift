@@ -36,7 +36,9 @@ struct BudgetApp: App {
                 }
             }
             .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .background {
+                if newPhase == .active {
+                    _ = appContainer.postDuePlannedTransactions()
+                } else if newPhase == .background {
                     appContainer.lockManager.lockIfEnabled()
                 }
             }
@@ -61,6 +63,7 @@ struct BudgetApp: App {
                                 container.isDemoMode = true
                             }
                         }
+                        _ = container.postDuePlannedTransactions()
                         appContainer = container
                     } catch {
                         startupError = error

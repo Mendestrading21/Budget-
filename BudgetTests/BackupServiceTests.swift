@@ -284,6 +284,81 @@ final class BackupServiceTests: XCTestCase {
         }
     }
 
+    func testRestoreRejectsUnknownEnumBeforeReplacingStore() throws {
+        try populateSampleStore()
+        let before = try counts(in: context)
+        var json = try JSONSerialization.jsonObject(
+            with: service.makeBackup(context: context, now: now)
+        ) as! [String: Any]
+        var transactions = json["transactions"] as! [[String: Any]]
+        XCTAssertFalse(transactions.isEmpty)
+        transactions[0]["type"] = "type-inconnu"
+        json["transactions"] = transactions
+        let tampered = try JSONSerialization.data(withJSONObject: json)
+
+        XCTAssertThrowsError(
+            try service.restore(data: tampered, context: context, documentFileStore: nil)
+        ) { error in
+            XCTAssertEqual(
+                error as? BackupError,
+                .unknownValue(field: "mouvement.type", value: "type-inconnu")
+            )
+        }
+        XCTAssertEqual(try counts(in: context), before)
+        XCTAssertEqual(try counts(in: ModelContext(container)), before,
+                       "Le refus intervient avant la purge et le store persistant reste intact")
+    }
+
+    func testRestoreRejectsDanglingUUIDBeforeReplacingStore() throws {
+        try populateSampleStore()
+        let before = try counts(in: context)
+        let missingAccountID = UUID()
+        var json = try JSONSerialization.jsonObject(
+            with: service.makeBackup(context: context, now: now)
+        ) as! [String: Any]
+        var transactions = json["transactions"] as! [[String: Any]]
+        XCTAssertFalse(transactions.isEmpty)
+        transactions[0]["accountID"] = missingAccountID.uuidString
+        json["transactions"] = transactions
+        let tampered = try JSONSerialization.data(withJSONObject: json)
+
+        XCTAssertThrowsError(
+            try service.restore(data: tampered, context: context, documentFileStore: nil)
+        ) { error in
+            XCTAssertEqual(
+                error as? BackupError,
+                .missingReference(field: "mouvement.compte", id: missingAccountID)
+            )
+        }
+        XCTAssertEqual(try counts(in: context), before)
+        XCTAssertEqual(try counts(in: ModelContext(container)), before)
+    }
+
+    func testRestoreRejectsDuplicateIdentifierBeforeReplacingStore() throws {
+        try populateSampleStore()
+        let before = try counts(in: context)
+        var json = try JSONSerialization.jsonObject(
+            with: service.makeBackup(context: context, now: now)
+        ) as! [String: Any]
+        var accounts = json["accounts"] as! [[String: Any]]
+        let duplicate = try XCTUnwrap(accounts.first)
+        let duplicateID = try XCTUnwrap(UUID(uuidString: duplicate["id"] as! String))
+        accounts.append(duplicate)
+        json["accounts"] = accounts
+        let tampered = try JSONSerialization.data(withJSONObject: json)
+
+        XCTAssertThrowsError(
+            try service.restore(data: tampered, context: context, documentFileStore: nil)
+        ) { error in
+            XCTAssertEqual(
+                error as? BackupError,
+                .duplicateIdentifier(entity: "compte", id: duplicateID)
+            )
+        }
+        XCTAssertEqual(try counts(in: context), before)
+        XCTAssertEqual(try counts(in: ModelContext(container)), before)
+    }
+
     // MARK: - Complete deletion
 
     func testDeleteAllEmptiesEveryEntityAndDocumentFiles() throws {

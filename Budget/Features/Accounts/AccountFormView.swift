@@ -121,36 +121,35 @@ struct AccountFormView: View {
         }
 
         let now = appContainer.dateProvider.now
-        do {
-            if let account = editedAccount {
-                account.name = trimmedName
-                account.institutionName = institutionName.trimmingCharacters(in: .whitespaces)
-                account.type = type
-                if !hasMovements {
-                    account.openingBalance = openingBalance
-                }
-                account.isShared = isShared
-                account.includeInAvailableCash = includeInAvailableCash
-                account.includeInNetWorth = includeInNetWorth
-                account.updatedAt = now
-            } else {
-                let account = Account(
-                    name: trimmedName,
-                    institutionName: institutionName.trimmingCharacters(in: .whitespaces),
-                    type: type,
-                    openingBalance: openingBalance,
-                    isShared: isShared,
-                    includeInAvailableCash: includeInAvailableCash,
-                    includeInNetWorth: includeInNetWorth,
-                    createdAt: now,
-                    updatedAt: now
-                )
-                modelContext.insert(account)
+        if let account = editedAccount {
+            account.name = trimmedName
+            account.institutionName = institutionName.trimmingCharacters(in: .whitespaces)
+            account.type = type
+            if !hasMovements {
+                account.openingBalance = openingBalance
             }
-            try modelContext.save()
-            dismiss()
-        } catch {
+            account.isShared = isShared
+            account.includeInAvailableCash = includeInAvailableCash
+            account.includeInNetWorth = includeInNetWorth
+            account.updatedAt = now
+        } else {
+            let account = Account(
+                name: trimmedName,
+                institutionName: institutionName.trimmingCharacters(in: .whitespaces),
+                type: type,
+                openingBalance: openingBalance,
+                isShared: isShared,
+                includeInAvailableCash: includeInAvailableCash,
+                includeInNetWorth: includeInNetWorth,
+                createdAt: now,
+                updatedAt: now
+            )
+            modelContext.insert(account)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 }

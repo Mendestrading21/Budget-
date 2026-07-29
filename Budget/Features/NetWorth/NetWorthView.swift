@@ -20,6 +20,7 @@ struct NetWorthView: View {
     @State private var editedLiability: Liability?
     @State private var isPresentingNewAsset = false
     @State private var isPresentingNewLiability = false
+    @State private var snapshotErrorMessage: String?
 
     /// Profil d'hypothèses du « chemin » — un réglage d'affichage, pas
     /// une donnée financière : UserDefaults suffit.
@@ -156,16 +157,30 @@ struct NetWorthView: View {
         .sheet(item: $editedLiability) { liability in
             LiabilityFormView(mode: .edit(liability))
         }
+        .alert(
+            snapshotErrorMessage ?? "",
+            isPresented: Binding(
+                get: { snapshotErrorMessage != nil },
+                set: { if !$0 { snapshotErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        }
         .onAppear(perform: recordDailySnapshot)
     }
 
     private func recordDailySnapshot() {
-        try? service.recordSnapshotIfNeeded(
-            breakdown: breakdown,
-            existing: snapshots,
-            now: appContainer.dateProvider.now,
-            context: modelContext
-        )
+        do {
+            try service.recordSnapshotIfNeeded(
+                breakdown: breakdown,
+                existing: snapshots,
+                now: appContainer.dateProvider.now,
+                context: modelContext
+            )
+        } catch {
+            modelContext.rollback()
+            snapshotErrorMessage = "L'instantané du patrimoine n'a pas pu être enregistré. Réessayez."
+        }
     }
 
     // MARK: - Hero

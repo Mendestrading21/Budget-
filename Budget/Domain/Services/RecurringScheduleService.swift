@@ -176,8 +176,8 @@ struct RecurringScheduleService {
         return FinanceMath.roundedToCents(raw)
     }
 
-    /// Materializes one forecast occurrence into a real posted transaction
-    /// linked back to its recurring definition.
+    /// Materializes one forecast occurrence, linked back to its recurring
+    /// definition. A future due date stays planned until that day.
     func makeTransaction(
         from recurring: RecurringTransaction,
         on date: Date,
@@ -187,7 +187,8 @@ struct RecurringScheduleService {
             date: date,
             amount: recurring.amount,
             type: recurring.type,
-            status: .posted,
+            status: TransactionPostingPolicy(calendar: calendar)
+                .automaticStatus(for: date, now: now),
             title: recurring.title,
             note: recurring.note,
             recurringID: recurring.id,
@@ -198,5 +199,23 @@ struct RecurringScheduleService {
             category: recurring.category,
             member: recurring.member
         )
+    }
+
+    /// Materializes an occurrence once. The exact due date is the stable
+    /// identity of a newly generated recurring movement; this guard closes
+    /// the double-tap/rerender window before SwiftData refreshes the query.
+    func makeTransactionIfNeeded(
+        from recurring: RecurringTransaction,
+        occurrence: ForecastOccurrence,
+        existingTransactions: [BudgetTransaction],
+        now: Date
+    ) -> BudgetTransaction? {
+        guard recurring.id == occurrence.recurringID else { return nil }
+        let alreadyMaterialized = existingTransactions.contains {
+            $0.recurringID == recurring.id
+                && calendar.isDate($0.date, inSameDayAs: occurrence.date)
+        }
+        guard !alreadyMaterialized else { return nil }
+        return makeTransaction(from: recurring, on: occurrence.date, now: now)
     }
 }

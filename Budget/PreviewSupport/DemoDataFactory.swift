@@ -412,7 +412,7 @@ enum DemoDataFactory {
         context.insert(missingFileDocument)
 
         do {
-            try context.save()
+            try context.saveOrRollback()
         } catch {
             assertionFailure("Demo data save failed: \(error)")
         }

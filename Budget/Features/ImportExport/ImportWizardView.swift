@@ -418,7 +418,14 @@ struct ImportWizardView: View {
     /// Re-runs pure validation whenever mapping/targets change.
     private func revalidate() {
         guard let parsed = model.parsed, model.mapping.isUsable else { return }
-        let existing = (try? importService.existingFingerprints(context: modelContext)) ?? []
+        let existing: Set<String>
+        do {
+            existing = try importService.existingFingerprints(context: modelContext)
+        } catch {
+            model.validatedRows = []
+            model.errorMessage = "Les doublons existants n'ont pas pu être vérifiés. Réessayez avant d'importer."
+            return
+        }
         model.validatedRows = importService.validate(
             parsed: parsed,
             mapping: model.mapping,

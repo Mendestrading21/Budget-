@@ -2,8 +2,9 @@ import Foundation
 import SwiftData
 
 /// Derived tax picture for one year. Every amount is either user-entered
-/// (reserved, arrears, override) or derived from posted transactions —
-/// so `estimatedTax == paid + outstanding` always reconciles.
+/// (reserved, arrears, override) or derived from posted transactions.
+/// `outstanding` is floored at zero, so an overpayment is represented by
+/// `paid > estimatedTax` rather than by a negative outstanding balance.
 struct TaxYearReport: Equatable {
     let year: Int
     /// Fraction used when no override is set.
@@ -79,23 +80,6 @@ struct TaxService {
         )
     }
 
-    /// Monthly reserve gap shown on the dashboard — the SINGLE tax truth
-    /// shared with the Impôts module : le manque du mois (revenus × taux
-    /// − impôts payés du mois, plancher zéro), augmenté des arriérés
-    /// saisis, diminué de la réserve annuelle déjà constituée. Le
-    /// snapshot mensuel n'a plus de formule locale (production-completion).
-    func monthReserveGap(
-        monthIncome: Decimal,
-        monthPaid: Decimal,
-        rate: Decimal,
-        provision: TaxProvision?
-    ) -> Decimal {
-        let shortfall = max(.zero, FinanceMath.roundedToCents(monthIncome * rate) - monthPaid)
-        let reserved = provision?.reservedAmount ?? .zero
-        let arrears = provision?.arrearsAmount ?? .zero
-        return max(.zero, shortfall + arrears - reserved)
-    }
-
     /// Due dates of the provision not yet in the past, soonest first.
     func upcomingDueDates(provision: TaxProvision?, now: Date) -> [TaxDueDate] {
         (provision?.dueDates ?? [])
@@ -127,7 +111,7 @@ struct TaxService {
             updatedAt: now
         )
         context.insert(profile)
-        try context.save()
+        try context.saveOrRollback()
         return profile
     }
 
@@ -140,7 +124,7 @@ struct TaxService {
         let provision = TaxProvision(year: year, createdAt: now, updatedAt: now)
         provision.profile = profile
         context.insert(provision)
-        try context.save()
+        try context.saveOrRollback()
         return provision
     }
 }

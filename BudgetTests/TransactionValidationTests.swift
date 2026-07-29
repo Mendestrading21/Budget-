@@ -59,8 +59,57 @@ final class TransactionValidationTests: XCTestCase {
 
     func testPostedFutureDateFails() {
         var draft = validDraft()
-        draft.date = now.addingTimeInterval(3 * 86_400)
+        draft.date = now.addingTimeInterval(86_400)
         XCTAssertTrue(service.validate(draft, now: now).contains(.postedDateInFuture))
+    }
+
+    func testAutomaticPostingPolicyUsesCalendarDayAcrossYearBoundary() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let policy = TransactionPostingPolicy(calendar: calendar)
+        let newYearsEve = calendar.date(
+            from: DateComponents(year: 2026, month: 12, day: 31, hour: 23)
+        )!
+        let newYear = calendar.date(
+            from: DateComponents(year: 2027, month: 1, day: 1, hour: 0)
+        )!
+
+        XCTAssertEqual(policy.automaticStatus(for: newYearsEve, now: newYearsEve), .posted)
+        XCTAssertEqual(policy.automaticStatus(for: newYear, now: newYearsEve), .planned)
+    }
+
+    func testDuePlannedTransactionsPromoteOnceAndFutureStaysNeutral() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let policy = TransactionPostingPolicy(calendar: calendar)
+        let today = calendar.date(from: DateComponents(year: 2026, month: 7, day: 29, hour: 12))!
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
+        let dueBefore = BudgetTransaction(
+            date: yesterday, amount: 40, type: .expense,
+            status: .planned, title: "Échue", account: activeAccount
+        )
+        let dueToday = BudgetTransaction(
+            date: today, amount: 50, type: .expense,
+            status: .planned, title: "Aujourd'hui", account: activeAccount
+        )
+        let future = BudgetTransaction(
+            date: tomorrow, amount: 60, type: .expense,
+            status: .planned, title: "Demain", account: activeAccount
+        )
+
+        XCTAssertEqual(
+            policy.promoteDueTransactions([dueBefore, dueToday, future], now: today),
+            2
+        )
+        XCTAssertEqual(dueBefore.status, .posted)
+        XCTAssertEqual(dueToday.status, .posted)
+        XCTAssertEqual(future.status, .planned)
+        XCTAssertEqual(
+            policy.promoteDueTransactions([dueBefore, dueToday, future], now: today),
+            0,
+            "Une échéance déjà promue ne doit jamais être recomptée"
+        )
     }
 
     func testPlannedFutureDateIsAllowed() {

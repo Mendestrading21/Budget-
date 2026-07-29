@@ -1,5 +1,68 @@
 # Budget decision log
 
+## ADR-025 — Correctif de fiabilité : dates, fiscalité, historique et restaurations
+
+Date: 2026-07-29
+Status: accepted
+
+### Context
+
+Un audit du code fusionné a invalidé plusieurs conclusions historiques :
+les dates d'un mois ou d'une année future pouvaient être comptabilisées
+immédiatement dans la PWA, le tableau mensuel comparait une recommandation
+fiscale mensuelle à une réserve annuelle, les remboursements amélioraient
+deux fois le bilan annuel, et une sauvegarde PWA insuffisamment validée
+pouvait remplacer un état sain. La devise courante d'un compte pouvait aussi
+réinterpréter son historique web, tandis que certaines erreurs SwiftData
+restaient en attente après un échec de sauvegarde.
+
+### Decision
+
+1. Une politique de date unique compare les jours calendaires : toute date
+   strictement future est `.planned`; elle est utilisée par la saisie, les
+   imports et les échéances. Au premier chargement/rendu web et au
+   lancement/retour au premier plan natif, les mouvements planifiés arrivés
+   à échéance deviennent `.posted` une seule fois.
+2. Une occurrence récurrente conserve sa date d'échéance et ne peut être
+   matérialisée qu'une fois. Côté web, factures et récurrents portent
+   explicitement leur compte.
+3. Un remboursement réduit le coût de la vie, sans devenir également un
+   revenu annuel.
+4. `TaxService.report` est la seule vérité native annuelle. Le tableau de
+   bord et l'écran Impôts exposent le même manque :
+   `max(0, estimation − payé + arriérés − réserve)`. Cette décision remplace
+   la formule mensuelle d'ADR-018.
+5. La PWA estampille chaque mouvement avec sa devise source et son taux vers
+   la devise de référence. Un taux absent rend le montant non convertible et
+   visible comme tel ; aucun taux 1:1 n'est inventé. Les devises d'un compte
+   et du profil sont verrouillées dès qu'un historique existe.
+6. Une restauration est intégralement validée avant toute purge ou écriture.
+   La PWA valide aussi les collections secondaires, l'historique d'import et
+   les identifiants ; son compteur ignore sans ambiguïté les anciens IDs
+   textuels, et elle restaure l'ancien blob si l'écriture échoue. Le natif
+   refuse enums inconnus, UUID orphelins, identifiants dupliqués et montants
+   illisibles avant de toucher au store.
+7. Toute mutation SwiftData utilisateur utilise `saveOrRollback`; les deux
+   sauvegardes directes restantes appartiennent aux transactions atomiques
+   de restauration/suppression totale et possèdent leur rollback explicite.
+
+### Consequences
+
+- Les mouvements futurs ne réduisent plus le solde réel avant leur date.
+- L'accueil ne peut plus annoncer une réserve fiscale couverte lorsque le
+  rapport annuel expose encore un manque.
+- Modifier un taux actuel ne réécrit plus un mouvement historique web.
+- Une sauvegarde mal formée ou une erreur de persistance laisse les données
+  précédentes intactes.
+- NU3 reste gelé jusqu'à CI complète et publication vérifiée de ce correctif.
+
+### Verification
+
+Tests web dédiés de restauration, dates, impôts, remboursements, devises,
+comptes et doublons ; tests Swift de politique de date, import CSV,
+récurrences, fiscalité multi-mois, bilan annuel, validation de sauvegarde et
+rollback. La CI macOS reste l'autorité pour le build et les tests SwiftData.
+
 ## ADR-024 — Direction visuelle « Budget Neon Ultra » (remplace les clauses visuelles Obsidian)
 
 Date: 2026-07-27

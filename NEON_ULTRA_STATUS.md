@@ -17,6 +17,36 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Correctif critique de fiabilité (29.07.2026) — VERIFYING
+
+La poursuite visuelle reste gelée avant NU3 pendant la validation d'un lot
+correctif transversal découvert par audit. Ce lot ne change pas la direction
+Neon Ultra et ne clôt aucun lot visuel.
+
+- dates futures centralisées : une date après aujourd'hui reste planifiée,
+  y compris après import CSV et matérialisation d'une échéance, puis devient
+  comptabilisée une seule fois le jour dû (chargement/rendu web et
+  lancement/retour au premier plan iOS) ;
+- factures et paiements réguliers liés au compte choisi, dédupliqués par
+  échéance et conservant leur date réelle ;
+- remboursements annuels comptés une seule fois ;
+- accueil et écran Impôts alimentés par le même rapport fiscal annuel ;
+- restauration PWA validée intégralement avant remplacement de l'état
+  (collections secondaires, rapport d'import, IDs et relations), avec retour
+  à l'ancien blob si l'écriture échoue ;
+- historique multi-devise PWA estampillé avec sa devise et son taux source,
+  sans repli silencieux 1:1 ; devise du compte et devise de référence
+  verrouillées dès qu'un historique existe ;
+- restauration native refusant avant purge les enums inconnus, UUID orphelins,
+  identifiants dupliqués et montants illisibles ;
+- mutations SwiftData sauvegardées avec rollback explicite en cas d'échec.
+
+Les tests dédiés sont ajoutés au web et au natif. Validation locale web :
+**86 parcours e2e** (78 conservés + 8 scénarios critiques), zéro erreur
+console, et **5 fixtures de parité** vertes. L'état reste **VERIFYING**
+jusqu'à réussite de la CI complète au SHA exact puis vérification du
+déploiement GitHub Pages. **NU3 reste READY et non commencé.**
+
 ## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — DONE
 
 Quatre surfaces — et quatre seulement — portent désormais l'identité Neon

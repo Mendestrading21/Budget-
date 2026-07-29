@@ -289,9 +289,7 @@ struct AccountDetailView: View {
     private func setActive(_ active: Bool) {
         account.isActive = active
         account.updatedAt = appContainer.dateProvider.now
-        do {
-            try modelContext.save()
-        } catch {
+        modelContext.saveOrRollback { _ in
             actionErrorMessage = "L'opération a échoué. Réessayez."
         }
     }
@@ -299,11 +297,10 @@ struct AccountDetailView: View {
     private func deleteAccount() {
         guard !hasMovements else { return }
         modelContext.delete(account)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             actionErrorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

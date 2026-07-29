@@ -339,8 +339,11 @@ struct TaxesView: View {
                 provision.estimatedAnnualTaxOverride = value.map(FinanceMath.roundedToCents)
             }
             provision.updatedAt = now
-            try modelContext.save()
+            _ = modelContext.saveOrRollback { _ in
+                errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+            }
         } catch {
+            modelContext.rollback()
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
         }
     }
@@ -353,8 +356,11 @@ struct TaxesView: View {
             let trimmed = label.trimmingCharacters(in: .whitespaces)
             provision.dueDates.append(TaxDueDate(date: date, label: trimmed.isEmpty ? "Acompte" : trimmed))
             provision.updatedAt = now
-            try modelContext.save()
+            _ = modelContext.saveOrRollback { _ in
+                errorMessage = "L'ajout de l'échéance a échoué. Réessayez."
+            }
         } catch {
+            modelContext.rollback()
             errorMessage = "L'ajout de l'échéance a échoué. Réessayez."
         }
     }

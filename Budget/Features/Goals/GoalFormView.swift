@@ -177,50 +177,48 @@ struct GoalFormView: View {
         let manual = FinanceMath.roundedToCents(manualParsed ?? .zero)
         let planned = FinanceMath.roundedToCents(plannedParsed ?? .zero)
 
-        do {
-            if let goal = editedGoal {
-                goal.name = trimmedName
-                goal.kind = kind
-                goal.emoji = kind.defaultEmoji
-                goal.targetAmount = FinanceMath.roundedToCents(target)
-                goal.targetDate = hasTargetDate ? targetDate : nil
-                goal.linkedAccount = linkedAccount
-                goal.manualCurrentAmount = linkedAccount == nil ? manual : .zero
-                goal.plannedMonthlyContribution = planned
-                goal.priority = priority
-                goal.status = status
-                goal.updatedAt = now
-            } else {
-                let goal = FinancialGoal(
-                    name: trimmedName,
-                    kind: kind,
-                    targetAmount: FinanceMath.roundedToCents(target),
-                    targetDate: hasTargetDate ? targetDate : nil,
-                    manualCurrentAmount: linkedAccount == nil ? manual : .zero,
-                    plannedMonthlyContribution: planned,
-                    priority: priority,
-                    status: status,
-                    createdAt: now,
-                    updatedAt: now,
-                    linkedAccount: linkedAccount
-                )
-                modelContext.insert(goal)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let goal = editedGoal {
+            goal.name = trimmedName
+            goal.kind = kind
+            goal.emoji = kind.defaultEmoji
+            goal.targetAmount = FinanceMath.roundedToCents(target)
+            goal.targetDate = hasTargetDate ? targetDate : nil
+            goal.linkedAccount = linkedAccount
+            goal.manualCurrentAmount = linkedAccount == nil ? manual : .zero
+            goal.plannedMonthlyContribution = planned
+            goal.priority = priority
+            goal.status = status
+            goal.updatedAt = now
+        } else {
+            let goal = FinancialGoal(
+                name: trimmedName,
+                kind: kind,
+                targetAmount: FinanceMath.roundedToCents(target),
+                targetDate: hasTargetDate ? targetDate : nil,
+                manualCurrentAmount: linkedAccount == nil ? manual : .zero,
+                plannedMonthlyContribution: planned,
+                priority: priority,
+                status: status,
+                createdAt: now,
+                updatedAt: now,
+                linkedAccount: linkedAccount
+            )
+            modelContext.insert(goal)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
     private func deleteGoal() {
         guard let goal = editedGoal else { return }
         modelContext.delete(goal)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

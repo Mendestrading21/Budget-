@@ -272,50 +272,49 @@ struct RecurringFormView: View {
         let interval = resolvedInterval
         let now = appContainer.dateProvider.now
 
-        do {
-            if let recurring = editedRecurring {
-                recurring.title = trimmedTitle
-                recurring.amount = amount
-                recurring.type = type
-                recurring.intervalUnit = interval.unit
-                recurring.intervalCount = interval.count
-                recurring.firstOccurrence = firstOccurrence
-                recurring.endDate = hasEndDate ? endDate : nil
-                recurring.account = account
-                recurring.destinationAccount = type.supportsDestinationAccount ? destinationAccount : nil
-                recurring.category = category
-                recurring.isSubscription = isSubscription
-                recurring.isProfessional = isProfessional
-                recurring.isActive = isActive
-                recurring.renewalDate = (isSubscription && hasRenewalDate) ? renewalDate : nil
-                recurring.cancellationDeadline = (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil
-                recurring.updatedAt = now
-            } else {
-                let recurring = RecurringTransaction(
-                    title: trimmedTitle,
-                    amount: amount,
-                    type: type,
-                    intervalUnit: interval.unit,
-                    intervalCount: interval.count,
-                    firstOccurrence: firstOccurrence,
-                    endDate: hasEndDate ? endDate : nil,
-                    isActive: isActive,
-                    isProfessional: isProfessional,
-                    isSubscription: isSubscription,
-                    renewalDate: (isSubscription && hasRenewalDate) ? renewalDate : nil,
-                    cancellationDeadline: (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil,
-                    createdAt: now,
-                    updatedAt: now,
-                    account: account,
-                    destinationAccount: type.supportsDestinationAccount ? destinationAccount : nil,
-                    category: category
-                )
-                modelContext.insert(recurring)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let recurring = editedRecurring {
+            recurring.title = trimmedTitle
+            recurring.amount = amount
+            recurring.type = type
+            recurring.intervalUnit = interval.unit
+            recurring.intervalCount = interval.count
+            recurring.firstOccurrence = firstOccurrence
+            recurring.endDate = hasEndDate ? endDate : nil
+            recurring.account = account
+            recurring.destinationAccount = type.supportsDestinationAccount ? destinationAccount : nil
+            recurring.category = category
+            recurring.isSubscription = isSubscription
+            recurring.isProfessional = isProfessional
+            recurring.isActive = isActive
+            recurring.renewalDate = (isSubscription && hasRenewalDate) ? renewalDate : nil
+            recurring.cancellationDeadline = (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil
+            recurring.updatedAt = now
+        } else {
+            let recurring = RecurringTransaction(
+                title: trimmedTitle,
+                amount: amount,
+                type: type,
+                intervalUnit: interval.unit,
+                intervalCount: interval.count,
+                firstOccurrence: firstOccurrence,
+                endDate: hasEndDate ? endDate : nil,
+                isActive: isActive,
+                isProfessional: isProfessional,
+                isSubscription: isSubscription,
+                renewalDate: (isSubscription && hasRenewalDate) ? renewalDate : nil,
+                cancellationDeadline: (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil,
+                createdAt: now,
+                updatedAt: now,
+                account: account,
+                destinationAccount: type.supportsDestinationAccount ? destinationAccount : nil,
+                category: category
+            )
+            modelContext.insert(recurring)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 }

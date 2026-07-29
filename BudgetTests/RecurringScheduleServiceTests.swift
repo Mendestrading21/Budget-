@@ -240,6 +240,43 @@ final class RecurringScheduleServiceTests: XCTestCase {
         XCTAssertEqual(transaction.account?.id, account.id)
     }
 
+    func testFutureOccurrenceKeepsItsDueDateAndStaysPlanned() {
+        let recurring = makeRecurring(first: date(5, 7))
+        let due = date(5, 7)
+        let transaction = service.makeTransaction(from: recurring, on: due, now: now)
+
+        XCTAssertEqual(transaction.date, due)
+        XCTAssertEqual(transaction.status, .planned)
+    }
+
+    func testOccurrenceMaterializesOnlyOnce() throws {
+        let recurring = makeRecurring(first: date(5, 7))
+        let occurrence = try XCTUnwrap(
+            service.monthForecast(
+                recurrings: [recurring],
+                in: MonthInterval(containing: date(5, 7), calendar: calendar),
+                transactions: []
+            ).first
+        )
+        let first = try XCTUnwrap(
+            service.makeTransactionIfNeeded(
+                from: recurring,
+                occurrence: occurrence,
+                existingTransactions: [],
+                now: now
+            )
+        )
+        XCTAssertNil(
+            service.makeTransactionIfNeeded(
+                from: recurring,
+                occurrence: occurrence,
+                existingTransactions: [first],
+                now: now
+            ),
+            "La même échéance liée ne peut pas être matérialisée deux fois"
+        )
+    }
+
     // MARK: - Snapshot integration
 
     func testRecurringChargesAndIncomeEnterAvailableBreakdown() {

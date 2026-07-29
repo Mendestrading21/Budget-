@@ -59,11 +59,10 @@ struct ReconcileSheet: View {
         account.reconciledBalance = FinanceMath.roundedToCents(parsed)
         account.reconciledAt = appContainer.dateProvider.now
         account.updatedAt = account.reconciledAt ?? Date()
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

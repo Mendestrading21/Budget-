@@ -102,8 +102,17 @@ struct DocumentsListView: View {
                 updatedAt: now
             )
             modelContext.insert(document)
-            try modelContext.save()
-            editedDocument = document
+            if modelContext.saveOrRollback(onError: { _ in
+                errorMessage = "L'ajout du document a échoué. Réessayez."
+            }) {
+                editedDocument = document
+            } else {
+                do {
+                    try appContainer.documentFileStore.delete(stored.fileReference)
+                } catch {
+                    errorMessage = "L'ajout a échoué et le fichier temporaire n'a pas pu être nettoyé."
+                }
+            }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
                 ?? "L'ajout du document a échoué. Réessayez."
@@ -275,24 +284,26 @@ struct DocumentFormView: View {
         document.note = note.trimmingCharacters(in: .whitespaces).isEmpty ? nil : note.trimmingCharacters(in: .whitespaces)
         document.member = member
         document.updatedAt = appContainer.dateProvider.now
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 
     private func deleteDocument() {
+        let fileReference = document.fileReference
+        modelContext.delete(document)
+        guard modelContext.saveOrRollback(onError: { _ in
+            errorMessage = "La suppression a échoué. Réessayez."
+        }) else { return }
         do {
-            if !document.fileReference.isEmpty {
-                try appContainer.documentFileStore.delete(document.fileReference)
+            if !fileReference.isEmpty {
+                try appContainer.documentFileStore.delete(fileReference)
             }
-            modelContext.delete(document)
-            try modelContext.save()
             dismiss()
         } catch {
-            errorMessage = "La suppression a échoué. Réessayez."
+            errorMessage = "Le document a été retiré de la liste, mais son fichier local n'a pas pu être effacé."
         }
     }
 }

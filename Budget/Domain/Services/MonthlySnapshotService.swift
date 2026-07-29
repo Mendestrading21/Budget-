@@ -56,24 +56,25 @@ struct MonthlySnapshotService {
             - totalTaxPayments
             - totalDebtPayments
 
-        // The tax profile is the source of truth once it exists; the
-        // household field only covers pre-Phase-7 stores (ADR-008).
-        // The gap itself comes from TaxService — same truth as Impôts.
-        let rate = taxProfile?.provisionRate ?? household?.taxProvisionRate ?? Decimal("0.30")
+        // The dashboard and Impôts module use the exact same annual report.
+        // Comparing one month's recommendation with an annual reserve could
+        // incorrectly hide a large year-to-date gap.
         let provisionYear = calendar.component(.year, from: interval.start)
         let yearProvision = taxProvisions.first { $0.year == provisionYear }
+        let taxReport = TaxService(calendar: calendar).report(
+            year: provisionYear,
+            profile: taxProfile,
+            provision: yearProvision,
+            transactions: transactions,
+            fallbackRate: household?.taxProvisionRate ?? Decimal("0.30")
+        )
         let taxProvision = TaxProvisionSummary(
-            rate: rate,
-            recommended: FinanceMath.roundedToCents(totalIncome * rate),
-            paid: totalTaxPayments,
-            reserved: yearProvision?.reservedAmount ?? .zero,
-            arrears: yearProvision?.arrearsAmount ?? .zero,
-            gap: TaxService(calendar: calendar).monthReserveGap(
-                monthIncome: totalIncome,
-                monthPaid: totalTaxPayments,
-                rate: rate,
-                provision: yearProvision
-            )
+            rate: taxReport.rate,
+            recommended: taxReport.estimatedTax,
+            paid: taxReport.paid,
+            reserved: taxReport.reserved,
+            arrears: taxReport.arrears,
+            gap: taxReport.reserveGap
         )
 
         let liquidBalance = accounts

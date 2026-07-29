@@ -1,5 +1,12 @@
 # Budget project status
 
+> **État opérationnel actuel (29.07.2026)** — le programme actif est
+> **Budget Neon Ultra** sur `refonte/budget-neon-ultra-v1`. Sa progression et
+> le correctif critique en validation sont décrits dans
+> `NEON_ULTRA_STATUS.md`; ADR-025 remplace la formule fiscale mensuelle
+> historique d'ADR-018. Les sections Obsidian ci-dessous sont conservées
+> uniquement comme historique et ne sont plus une source de vérité courante.
+
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L9 (2026-07-25)
 
 L9 « Audit final et préparation réelle » exécuté (`/budget-v1 execute

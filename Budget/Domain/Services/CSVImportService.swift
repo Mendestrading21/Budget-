@@ -350,7 +350,8 @@ struct CSVImportService {
                     date: date,
                     amount: amount,
                     type: type,
-                    status: .posted,
+                    status: TransactionPostingPolicy(calendar: calendar)
+                        .automaticStatus(for: date, now: now),
                     title: title,
                     importFingerprint: row.fingerprint,
                     importBatchID: batch.id,
@@ -374,7 +375,7 @@ struct CSVImportService {
         batch.duplicateCount = duplicates
         batch.invalidCount = invalid
         batch.createdCategories = createdNames.count
-        try context.save()
+        try context.saveOrRollback()
 
         return ImportReport(
             batchID: batch.id,
@@ -403,7 +404,7 @@ struct CSVImportService {
         )).first {
             context.delete(batch)
         }
-        try context.save()
+        try context.saveOrRollback()
         return transactions.count
     }
 

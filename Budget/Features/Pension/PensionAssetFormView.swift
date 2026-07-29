@@ -174,51 +174,49 @@ struct PensionAssetFormView: View {
         let now = appContainer.dateProvider.now
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
 
-        do {
-            if let asset = editedAsset {
-                asset.pillar = pillar
-                asset.institutionName = trimmedInstitution
-                asset.currentValue = FinanceMath.roundedToCents(current)
-                asset.annualContribution = contribution ?? .zero
-                asset.projectedValueAtRetirement = projected
-                asset.retirementAge = retirementAge
-                asset.owner = owner
-                asset.sourceDocumentDate = hasDocumentDate ? documentDate : nil
-                asset.note = trimmedNote.isEmpty ? nil : trimmedNote
-                asset.isActive = isActive
-                asset.updatedAt = now
-            } else {
-                let asset = PensionAsset(
-                    pillar: pillar,
-                    institutionName: trimmedInstitution,
-                    currentValue: FinanceMath.roundedToCents(current),
-                    annualContribution: contribution ?? .zero,
-                    projectedValueAtRetirement: projected,
-                    retirementAge: retirementAge,
-                    sourceDocumentDate: hasDocumentDate ? documentDate : nil,
-                    isActive: isActive,
-                    note: trimmedNote.isEmpty ? nil : trimmedNote,
-                    createdAt: now,
-                    updatedAt: now,
-                    owner: owner
-                )
-                modelContext.insert(asset)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let asset = editedAsset {
+            asset.pillar = pillar
+            asset.institutionName = trimmedInstitution
+            asset.currentValue = FinanceMath.roundedToCents(current)
+            asset.annualContribution = contribution ?? .zero
+            asset.projectedValueAtRetirement = projected
+            asset.retirementAge = retirementAge
+            asset.owner = owner
+            asset.sourceDocumentDate = hasDocumentDate ? documentDate : nil
+            asset.note = trimmedNote.isEmpty ? nil : trimmedNote
+            asset.isActive = isActive
+            asset.updatedAt = now
+        } else {
+            let asset = PensionAsset(
+                pillar: pillar,
+                institutionName: trimmedInstitution,
+                currentValue: FinanceMath.roundedToCents(current),
+                annualContribution: contribution ?? .zero,
+                projectedValueAtRetirement: projected,
+                retirementAge: retirementAge,
+                sourceDocumentDate: hasDocumentDate ? documentDate : nil,
+                isActive: isActive,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                createdAt: now,
+                updatedAt: now,
+                owner: owner
+            )
+            modelContext.insert(asset)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
     private func deleteAsset() {
         guard let asset = editedAsset else { return }
         modelContext.delete(asset)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

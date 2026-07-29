@@ -110,6 +110,24 @@ final class CSVImportServiceTests: XCTestCase {
         XCTAssertEqual(rows[0].amount, Decimal("2150.00"), "Le montant stocké reste positif")
     }
 
+    func testFutureImportedDatesStayPlannedAcrossMonthAndYearBoundaries() throws {
+        let csv = """
+        Date;Montant;Nom
+        14.06.2026;-10.00;Passée
+        01.07.2026;-20.00;Mois suivant
+        01.01.2027;-30.00;Année suivante
+        """
+        _ = try service.apply(
+            rows: validated(csv), fileName: "dates.csv", account: account,
+            categories: [], confirmedNewCategories: [], now: now, context: context
+        )
+
+        let imported = try context.fetch(FetchDescriptor<BudgetTransaction>())
+        XCTAssertEqual(imported.first { $0.title == "Passée" }?.status, .posted)
+        XCTAssertEqual(imported.first { $0.title == "Mois suivant" }?.status, .planned)
+        XCTAssertEqual(imported.first { $0.title == "Année suivante" }?.status, .planned)
+    }
+
     // MARK: - Idempotence (acceptance criterion)
 
     func testFingerprintIsStable() {

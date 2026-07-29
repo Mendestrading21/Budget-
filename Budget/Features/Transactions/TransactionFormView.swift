@@ -22,7 +22,6 @@ struct TransactionFormView: View {
     @Query(sort: \BudgetCategory.sortOrder) private var allCategories: [BudgetCategory]
 
     @State private var type: TransactionType = .expense
-    @State private var status: TransactionStatus = .posted
     @State private var title: String = ""
     @State private var amountText: String = ""
     @State private var date: Date = Date()
@@ -53,7 +52,20 @@ struct TransactionFormView: View {
     /// L5 : suppression toujours CONFIRMÉE — jamais en un geste.
     @State private var isConfirmingDelete = false
 
-    private let validationService = TransactionValidationService()
+    private var validationService: TransactionValidationService {
+        TransactionValidationService(calendar: appContainer.calendar)
+    }
+
+    private var postingPolicy: TransactionPostingPolicy {
+        TransactionPostingPolicy(calendar: appContainer.calendar)
+    }
+
+    private var automaticStatus: TransactionStatus {
+        postingPolicy.automaticStatus(
+            for: date,
+            now: appContainer.dateProvider.now
+        )
+    }
 
     private var editedTransaction: BudgetTransaction? {
         if case .edit(let transaction) = mode { return transaction }
@@ -117,12 +129,21 @@ struct TransactionFormView: View {
 
                 Section("Date et statut") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
-                    Picker("Statut", selection: $status) {
-                        ForEach(TransactionStatus.allCases) { status in
-                            Text(status.displayName).tag(status)
-                        }
+                    LabeledContent("Statut") {
+                        Text(automaticStatus.displayName)
+                            .foregroundStyle(
+                                automaticStatus == .planned
+                                    ? BudgetColor.warning
+                                    : BudgetColor.positive
+                            )
                     }
-                    .pickerStyle(.segmented)
+                    Text(
+                        automaticStatus == .planned
+                            ? "Cette date est à venir : le mouvement restera neutre jusqu'au jour prévu."
+                            : "Ce mouvement sera inclus dans vos soldes."
+                    )
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
                     if type == .adjustment {
                         Picker("Sens de l'ajustement", selection: $adjustmentIncreasesBalance) {
                             Text("Augmente le solde").tag(true)
@@ -229,21 +250,19 @@ struct TransactionFormView: View {
     private func duplicate(_ transaction: BudgetTransaction) {
         let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
         modelContext.insert(copy)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             saveErrorMessage = "La duplication a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
     private func delete(_ transaction: BudgetTransaction) {
         modelContext.delete(transaction)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             saveErrorMessage = "La suppression a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
@@ -286,7 +305,6 @@ struct TransactionFormView: View {
             amountFocused = true
         case .edit(let transaction):
             type = transaction.type
-            status = transaction.status
             title = transaction.title
             amountText = "\(transaction.amount)"
             date = transaction.date
@@ -311,11 +329,12 @@ struct TransactionFormView: View {
             ? (category?.name ?? type.displayName)
             : typedTitle
 
+        let effectiveStatus = automaticStatus
         let draft = TransactionDraft(
             date: date,
             amount: amount,
             type: type,
-            status: status,
+            status: effectiveStatus,
             title: effectiveTitle,
             account: account,
             destinationAccount: type.supportsDestinationAccount ? destinationAccount : nil,
@@ -335,45 +354,44 @@ struct TransactionFormView: View {
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
         let trimmedMerchant = merchant.trimmingCharacters(in: .whitespaces)
 
-        do {
-            if let transaction = editedTransaction {
-                transaction.date = date
-                transaction.amount = roundedAmount
-                transaction.type = type
-                transaction.status = status
-                transaction.title = trimmedTitle
-                transaction.note = trimmedNote.isEmpty ? nil : trimmedNote
-                transaction.merchant = trimmedMerchant.isEmpty ? nil : trimmedMerchant
-                transaction.adjustmentIncreasesBalance = adjustmentIncreasesBalance
-                transaction.account = account
-                transaction.destinationAccount = draft.destinationAccount
-                transaction.category = draft.category
-                transaction.updatedAt = now
-            } else {
-                let transaction = BudgetTransaction(
-                    date: date,
-                    amount: roundedAmount,
-                    type: type,
-                    status: status,
-                    title: trimmedTitle,
-                    note: trimmedNote.isEmpty ? nil : trimmedNote,
-                    merchant: trimmedMerchant.isEmpty ? nil : trimmedMerchant,
-                    adjustmentIncreasesBalance: adjustmentIncreasesBalance,
-                    createdAt: now,
-                    updatedAt: now,
-                    account: account,
-                    destinationAccount: draft.destinationAccount,
-                    category: draft.category
-                )
-                modelContext.insert(transaction)
-            }
-            try modelContext.save()
+        if let transaction = editedTransaction {
+            transaction.date = date
+            transaction.amount = roundedAmount
+            transaction.type = type
+            transaction.status = effectiveStatus
+            transaction.title = trimmedTitle
+            transaction.note = trimmedNote.isEmpty ? nil : trimmedNote
+            transaction.merchant = trimmedMerchant.isEmpty ? nil : trimmedMerchant
+            transaction.adjustmentIncreasesBalance = adjustmentIncreasesBalance
+            transaction.account = account
+            transaction.destinationAccount = draft.destinationAccount
+            transaction.category = draft.category
+            transaction.updatedAt = now
+        } else {
+            let transaction = BudgetTransaction(
+                date: date,
+                amount: roundedAmount,
+                type: type,
+                status: effectiveStatus,
+                title: trimmedTitle,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                merchant: trimmedMerchant.isEmpty ? nil : trimmedMerchant,
+                adjustmentIncreasesBalance: adjustmentIncreasesBalance,
+                createdAt: now,
+                updatedAt: now,
+                account: account,
+                destinationAccount: draft.destinationAccount,
+                category: draft.category
+            )
+            modelContext.insert(transaction)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
+            saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
             if Self.hapticTriggerAdvances(validationErrors: errors, saveSucceeded: true) {
                 saveSuccessCount += 1
             }
             dismiss()
-        } catch {
-            saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
         }
     }
 }

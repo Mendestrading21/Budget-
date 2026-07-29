@@ -238,7 +238,7 @@ struct BudgetPlanningService {
         let (year, month) = yearAndMonth(of: anchor)
         let budget = MonthlyBudget(year: year, month: month, createdAt: now, updatedAt: now)
         context.insert(budget)
-        try context.save()
+        try context.saveOrRollback()
         return budget
     }
 
@@ -274,7 +274,7 @@ struct BudgetPlanningService {
             context.insert(copy)
         }
         target.updatedAt = now
-        try context.save()
+        try context.saveOrRollback()
         return copyableLines.count
     }
 }

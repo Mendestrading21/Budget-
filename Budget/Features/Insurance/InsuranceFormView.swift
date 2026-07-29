@@ -188,46 +188,45 @@ struct InsuranceFormView: View {
         let trimmedNumber = policyNumber.trimmingCharacters(in: .whitespaces)
         let trimmedCoverage = coverageSummary.trimmingCharacters(in: .whitespaces)
 
-        do {
-            if let contract = editedContract {
-                contract.policyName = trimmedPolicy
-                contract.insurerName = trimmedInsurer
-                contract.policyNumber = trimmedNumber.isEmpty ? nil : trimmedNumber
-                contract.kind = kind
-                contract.premiumAmount = FinanceMath.roundedToCents(premium)
-                contract.premiumUnit = interval.unit
-                contract.premiumIntervalCount = interval.count
-                contract.deductible = deductible
-                contract.member = member
-                contract.renewalDate = hasRenewalDate ? renewalDate : nil
-                contract.cancellationDeadline = hasCancellationDeadline ? cancellationDeadline : nil
-                contract.coverageSummary = trimmedCoverage.isEmpty ? nil : trimmedCoverage
-                contract.isActive = isActive
-                contract.updatedAt = now
-            } else {
-                let contract = InsuranceContract(
-                    insurerName: trimmedInsurer,
-                    policyName: trimmedPolicy,
-                    policyNumber: trimmedNumber.isEmpty ? nil : trimmedNumber,
-                    kind: kind,
-                    premiumAmount: FinanceMath.roundedToCents(premium),
-                    premiumUnit: interval.unit,
-                    premiumIntervalCount: interval.count,
-                    deductible: deductible,
-                    renewalDate: hasRenewalDate ? renewalDate : nil,
-                    cancellationDeadline: hasCancellationDeadline ? cancellationDeadline : nil,
-                    coverageSummary: trimmedCoverage.isEmpty ? nil : trimmedCoverage,
-                    isActive: isActive,
-                    createdAt: now,
-                    updatedAt: now,
-                    member: member
-                )
-                modelContext.insert(contract)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let contract = editedContract {
+            contract.policyName = trimmedPolicy
+            contract.insurerName = trimmedInsurer
+            contract.policyNumber = trimmedNumber.isEmpty ? nil : trimmedNumber
+            contract.kind = kind
+            contract.premiumAmount = FinanceMath.roundedToCents(premium)
+            contract.premiumUnit = interval.unit
+            contract.premiumIntervalCount = interval.count
+            contract.deductible = deductible
+            contract.member = member
+            contract.renewalDate = hasRenewalDate ? renewalDate : nil
+            contract.cancellationDeadline = hasCancellationDeadline ? cancellationDeadline : nil
+            contract.coverageSummary = trimmedCoverage.isEmpty ? nil : trimmedCoverage
+            contract.isActive = isActive
+            contract.updatedAt = now
+        } else {
+            let contract = InsuranceContract(
+                insurerName: trimmedInsurer,
+                policyName: trimmedPolicy,
+                policyNumber: trimmedNumber.isEmpty ? nil : trimmedNumber,
+                kind: kind,
+                premiumAmount: FinanceMath.roundedToCents(premium),
+                premiumUnit: interval.unit,
+                premiumIntervalCount: interval.count,
+                deductible: deductible,
+                renewalDate: hasRenewalDate ? renewalDate : nil,
+                cancellationDeadline: hasCancellationDeadline ? cancellationDeadline : nil,
+                coverageSummary: trimmedCoverage.isEmpty ? nil : trimmedCoverage,
+                isActive: isActive,
+                createdAt: now,
+                updatedAt: now,
+                member: member
+            )
+            modelContext.insert(contract)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 }

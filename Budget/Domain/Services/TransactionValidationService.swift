@@ -1,5 +1,41 @@
 import Foundation
 
+/// One canonical rule for deciding whether a movement belongs to actuals.
+///
+/// Financial dates are day-based: a movement dated after today's calendar
+/// day is planned, regardless of whether it is created manually, imported or
+/// materialized from a recurring definition.
+struct TransactionPostingPolicy {
+    let calendar: Calendar
+
+    func isFuture(_ date: Date, relativeTo now: Date) -> Bool {
+        calendar.startOfDay(for: date) > calendar.startOfDay(for: now)
+    }
+
+    func automaticStatus(for date: Date, now: Date) -> TransactionStatus {
+        isFuture(date, relativeTo: now) ? .planned : .posted
+    }
+
+    /// Promotes due movements once their calendar day arrives. This keeps
+    /// balances neutral before the due date without leaving automatically
+    /// planned imports or recurring bills neutral forever.
+    @discardableResult
+    func promoteDueTransactions(
+        _ transactions: [BudgetTransaction],
+        now: Date
+    ) -> Int {
+        var promoted = 0
+        for transaction in transactions
+        where transaction.status == .planned
+            && !isFuture(transaction.date, relativeTo: now) {
+            transaction.status = .posted
+            transaction.updatedAt = now
+            promoted += 1
+        }
+        return promoted
+    }
+}
+
 /// Editable transaction fields before persistence.
 struct TransactionDraft {
     var date: Date?
@@ -60,6 +96,12 @@ enum TransactionValidationError: LocalizedError, Equatable {
 
 /// Pure validation of the mandatory rules from the data-model spec.
 struct TransactionValidationService {
+    let postingPolicy: TransactionPostingPolicy
+
+    init(calendar: Calendar = Calendar(identifier: .gregorian)) {
+        postingPolicy = TransactionPostingPolicy(calendar: calendar)
+    }
+
     /// `allowInactiveAccounts` permits historical edits on archived accounts.
     func validate(
         _ draft: TransactionDraft,
@@ -69,10 +111,8 @@ struct TransactionValidationService {
         var errors: [TransactionValidationError] = []
 
         if let date = draft.date {
-            // Grace of one day absorbs time zones and midnight edits.
             if draft.status == .posted,
-               let tomorrow = Calendar(identifier: .gregorian).date(byAdding: .day, value: 1, to: now),
-               date > tomorrow {
+               postingPolicy.isFuture(date, relativeTo: now) {
                 errors.append(.postedDateInFuture)
             }
         } else {

@@ -110,43 +110,41 @@ struct AssetFormView: View {
         }
         let now = appContainer.dateProvider.now
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
-        do {
-            if let asset = editedAsset {
-                asset.name = trimmedName
-                asset.kind = kind
-                asset.currentValue = FinanceMath.roundedToCents(value)
-                asset.includeInNetWorth = includeInNetWorth
-                asset.valuationDate = hasValuationDate ? valuationDate : nil
-                asset.note = trimmedNote.isEmpty ? nil : trimmedNote
-                asset.updatedAt = now
-            } else {
-                let asset = Asset(
-                    name: trimmedName,
-                    kind: kind,
-                    currentValue: FinanceMath.roundedToCents(value),
-                    includeInNetWorth: includeInNetWorth,
-                    valuationDate: hasValuationDate ? valuationDate : nil,
-                    note: trimmedNote.isEmpty ? nil : trimmedNote,
-                    createdAt: now,
-                    updatedAt: now
-                )
-                modelContext.insert(asset)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let asset = editedAsset {
+            asset.name = trimmedName
+            asset.kind = kind
+            asset.currentValue = FinanceMath.roundedToCents(value)
+            asset.includeInNetWorth = includeInNetWorth
+            asset.valuationDate = hasValuationDate ? valuationDate : nil
+            asset.note = trimmedNote.isEmpty ? nil : trimmedNote
+            asset.updatedAt = now
+        } else {
+            let asset = Asset(
+                name: trimmedName,
+                kind: kind,
+                currentValue: FinanceMath.roundedToCents(value),
+                includeInNetWorth: includeInNetWorth,
+                valuationDate: hasValuationDate ? valuationDate : nil,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                createdAt: now,
+                updatedAt: now
+            )
+            modelContext.insert(asset)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
     private func deleteAsset() {
         guard let asset = editedAsset else { return }
         modelContext.delete(asset)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }
@@ -255,41 +253,39 @@ struct LiabilityFormView: View {
         }
         let now = appContainer.dateProvider.now
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
-        do {
-            if let liability = editedLiability {
-                liability.name = trimmedName
-                liability.kind = kind
-                liability.outstandingAmount = FinanceMath.roundedToCents(amount)
-                liability.includeInNetWorth = includeInNetWorth
-                liability.note = trimmedNote.isEmpty ? nil : trimmedNote
-                liability.updatedAt = now
-            } else {
-                let liability = Liability(
-                    name: trimmedName,
-                    kind: kind,
-                    outstandingAmount: FinanceMath.roundedToCents(amount),
-                    includeInNetWorth: includeInNetWorth,
-                    note: trimmedNote.isEmpty ? nil : trimmedNote,
-                    createdAt: now,
-                    updatedAt: now
-                )
-                modelContext.insert(liability)
-            }
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if let liability = editedLiability {
+            liability.name = trimmedName
+            liability.kind = kind
+            liability.outstandingAmount = FinanceMath.roundedToCents(amount)
+            liability.includeInNetWorth = includeInNetWorth
+            liability.note = trimmedNote.isEmpty ? nil : trimmedNote
+            liability.updatedAt = now
+        } else {
+            let liability = Liability(
+                name: trimmedName,
+                kind: kind,
+                outstandingAmount: FinanceMath.roundedToCents(amount),
+                includeInNetWorth: includeInNetWorth,
+                note: trimmedNote.isEmpty ? nil : trimmedNote,
+                createdAt: now,
+                updatedAt: now
+            )
+            modelContext.insert(liability)
+        }
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            dismiss()
         }
     }
 
     private func deleteLiability() {
         guard let liability = editedLiability else { return }
         modelContext.delete(liability)
-        do {
-            try modelContext.save()
-            dismiss()
-        } catch {
+        if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "La suppression a échoué. Réessayez."
+        }) {
+            dismiss()
         }
     }
 }

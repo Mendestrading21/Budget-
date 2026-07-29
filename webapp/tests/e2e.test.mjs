@@ -602,17 +602,27 @@ await page.click("#fCancel");
 
 // ---------- Test 27 : la sauvegarde n'emporte jamais le code de verrouillage ----------
 currentTest = "sauvegarde sans code";
-const leaked = await page.evaluate(() => {
-  S.lockCode = "HASH_SECRET_123"; S.faceIDEnabled = true;
+const backupWithoutLock = await page.evaluate(() => {
+  S.lockCode = codeHash("1234"); S.faceIDEnabled = true;
+  const lockHash = S.lockCode;
   let captured = "";
   const orig = downloadFile;
   downloadFile = (name, text) => { captured = text; };
   exportBackup();
   downloadFile = orig;
-  return captured;
+  return { captured, lockHash };
 });
-check(!leaked.includes("HASH_SECRET_123") && !leaked.includes("lockCode"),
+check(!backupWithoutLock.captured.includes(backupWithoutLock.lockHash)
+    && !backupWithoutLock.captured.includes("lockCode"),
   "le fichier de sauvegarde ne doit contenir ni le hash du code ni le champ lockCode");
+await page.reload();
+await page.waitForSelector("#lockInput", { timeout: 10000 });
+const localLockPreserved = await page.evaluate(() => ({
+  enabled: S.faceIDEnabled,
+  valid: S.lockCode === codeHash("1234"),
+}));
+check(localLockPreserved.enabled && localLockPreserved.valid,
+  "le verrouillage local doit rester actif après un rechargement normal");
 
 // ---------- Test 28 : moteur en centimes — 0.10 + 0.20 = 0.30 EXACT (G01) ----------
 currentTest = "precision centimes";
@@ -1849,6 +1859,11 @@ check(after61.report && after61.report.invalids.length === 1, "la ligne invalide
 await page.fill("#importPaste", csv61);
 await page.click("[data-importpaste]");
 await page.waitForTimeout(250);
+await page.evaluate(id => {
+  document.getElementById("impAccount").value = id;
+  document.getElementById("impAccount").dispatchEvent(new Event("change", { bubbles: true }));
+}, otherAccount61);
+await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("0 prête") && screenHTML.includes("2 doublons"),
   "réimporter le même fichier ne propose AUCUN doublon");
@@ -2945,6 +2960,368 @@ currentTest = "NU2 HTTP, service worker et hors-ligne";
   server78.close();
 }
 
+// ---------- Tests 79–86 : correctif critique de fiabilité ----------
+// Contexte isolé : ces scénarios manipulent volontairement les dates,
+// sauvegardes, devises et relations financières.
+const context79 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const page79 = await context79.newPage();
+const errors79 = [];
+page79.on("pageerror", err => errors79.push(`[${currentTest}] pageerror: ${err.message}`));
+page79.on("console", msg => { if (msg.type() === "error") errors79.push(`[${currentTest}] ${msg.text()}`); });
+page79.on("dialog", dialog => dialog.accept());
+
+async function seedCorrectnessPage() {
+  await page79.goto(APP_URL);
+  await page79.waitForSelector("body", { timeout: 10000 });
+  await page79.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(seedState()));
+    location.reload();
+  });
+  await page79.waitForSelector("#tabbar button", { timeout: 10000 });
+}
+
+await seedCorrectnessPage();
+
+// 79 — demain, mois suivant et année suivante restent planifiés.
+currentTest = "correctness dates futures";
+const dates79 = await page79.evaluate(() => {
+  const parts = date => ({
+    y: date.getFullYear(), m: date.getMonth() + 1, d: date.getDate(),
+  });
+  const tomorrow = parts(new Date(NOW.y, NOW.m - 1, NOW.d + 1));
+  const nextMonth = parts(new Date(NOW.y, NOW.m, 1));
+  const nextYear = { y: NOW.y + 1, m: 1, d: 1 };
+  const yesterday = parts(new Date(NOW.y, NOW.m - 1, NOW.d - 1));
+  return {
+    tomorrow: statusForDate(tomorrow.y, tomorrow.m, tomorrow.d),
+    nextMonth: statusForDate(nextMonth.y, nextMonth.m, nextMonth.d),
+    nextYear: statusForDate(nextYear.y, nextYear.m, nextYear.d),
+    yesterday: statusForDate(yesterday.y, yesterday.m, yesterday.d),
+  };
+});
+check(dates79.tomorrow === "planned", `demain doit être planifié (obtenu ${dates79.tomorrow})`);
+check(dates79.nextMonth === "planned", `le mois suivant doit être planifié (obtenu ${dates79.nextMonth})`);
+check(dates79.nextYear === "planned", `l'année suivante doit être planifiée (obtenu ${dates79.nextYear})`);
+check(dates79.yesterday === "posted", `une date passée doit être comptabilisée (obtenu ${dates79.yesterday})`);
+
+// 80 — import futur planifié, date impossible refusée et empreinte complète.
+currentTest = "correctness import";
+const import80 = await page79.evaluate(() => {
+  transactions.length = 0;
+  const nextMonth = shiftMonth(NOW, 1);
+  const nextYear = NOW.y + 1;
+  const csv = [
+    "Date;Montant;Nom",
+    `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(Math.max(1, NOW.d - 1)).padStart(2, "0")};-10.00;Import passé`,
+    `${nextMonth.y}-${String(nextMonth.m).padStart(2, "0")}-01;-20.00;Import mois suivant`,
+    `${nextYear}-01-01;-30.00;Import année suivante`,
+  ].join("\n");
+  const first = analyzeCSV(csv, null, "cur");
+  applyImport(first, "dates.csv", "cur");
+
+  const duplicateCSV = `Date;Montant;Nom\n${nextYear}-02-01;-45.00;Empreinte complète`;
+  const onCurrent = analyzeCSV(duplicateCSV, null, "cur");
+  applyImport(onCurrent, "cur.csv", "cur");
+  const onSavings = analyzeCSV(duplicateCSV, null, "sav");
+  const positiveSameAccount = analyzeCSV(
+    `Date;Montant;Nom\n${nextYear}-02-01;45.00;Empreinte complète`, null, "cur"
+  );
+  const impossible = analyzeCSV(
+    `Date;Montant;Nom\n${nextYear}-02-31;-12.00;Date impossible`, null, "cur"
+  );
+  return {
+    past: transactions.find(t => t.title === "Import passé")?.status,
+    month: transactions.find(t => t.title === "Import mois suivant")?.status,
+    year: transactions.find(t => t.title === "Import année suivante")?.status,
+    otherAccount: onSavings.rows[0]?.state,
+    otherSign: positiveSameAccount.rows[0]?.state,
+    impossible: impossible.rows[0]?.state,
+  };
+});
+check(import80.past === "posted", `import passé comptabilisé attendu (obtenu ${import80.past})`);
+check(import80.month === "planned", `import du mois suivant planifié attendu (obtenu ${import80.month})`);
+check(import80.year === "planned", `import de l'année suivante planifié attendu (obtenu ${import80.year})`);
+check(import80.otherAccount === "ready", "deux comptes ne doivent pas produire un faux doublon");
+check(import80.otherSign === "ready", "deux signes/types ne doivent pas produire un faux doublon");
+check(import80.impossible === "invalid", "le 31 février doit être refusé");
+
+// 81 — le remboursement améliore le résultat annuel une seule fois.
+currentTest = "correctness remboursement";
+const refund81 = await page79.evaluate(() => {
+  transactions.length = 0;
+  addTx({ id: 8101, y: NOW.y, m: 1, d: 2, title: "Revenu", amount: 1000,
+    type: "income", cat: "Salaire", acc: "cur", dest: null, status: "posted" });
+  addTx({ id: 8102, y: NOW.y, m: 1, d: 3, title: "Dépense", amount: 500,
+    type: "expense", cat: "Logement", acc: "cur", dest: null, status: "posted" });
+  const before = yearStats(NOW.y);
+  addTx({ id: 8103, y: NOW.y, m: 1, d: 4, title: "Remboursement", amount: 120,
+    type: "refund", cat: "Logement", acc: "cur", dest: null, status: "posted" });
+  const after = yearStats(NOW.y);
+  return {
+    incomeBefore: before.income,
+    incomeAfter: after.income,
+    resultDelta: (after.income - after.living) - (before.income - before.living),
+  };
+});
+check(refund81.incomeAfter === refund81.incomeBefore,
+  "un remboursement ne doit pas aussi devenir un revenu");
+check(refund81.resultDelta === 120,
+  `le résultat annuel doit s'améliorer de 120 une seule fois (obtenu ${refund81.resultDelta})`);
+
+// 82 — l'accueil et Impôts partagent le même manque annuel multi-mois.
+currentTest = "correctness fiscalité";
+const tax82 = await page79.evaluate(() => {
+  transactions.length = 0;
+  S.taxRate = 0.30;
+  S.taxReserve = 5000;
+  for (let month = 1; month <= 6; month++) {
+    addTx({ id: 8200 + month, y: NOW.y, m: month, d: 15, title: `Salaire ${month}`,
+      amount: 10000, type: "income", cat: "Salaire", acc: "cur", dest: null, status: "posted" });
+  }
+  const report = taxSummary(NOW.y);
+  const home = snapshot(NOW.y, NOW.m);
+  return {
+    estimated: report.estimated,
+    reportGap: report.reserveGap,
+    homeGap: home.taxGap,
+  };
+});
+check(tax82.estimated === 18000,
+  `estimation fiscale attendue 18'000 (obtenu ${tax82.estimated})`);
+check(tax82.reportGap === 13000,
+  `manque fiscal attendu 13'000 (obtenu ${tax82.reportGap})`);
+check(tax82.homeGap === tax82.reportGap,
+  `Accueil (${tax82.homeGap}) et Impôts (${tax82.reportGap}) doivent être identiques`);
+
+// 83 — taux et devise historiques figés, sans repli silencieux 1:1.
+currentTest = "correctness devises";
+const fx83 = await page79.evaluate(() => {
+  transactions.length = 0;
+  S.baseCurrency = "CHF";
+  S.fxRates = { EUR: 0.93, USD: 0.80 };
+  if (!ACCOUNTS.some(a => a.id === "eur-correctness")) {
+    ACCOUNTS.push({ id: "eur-correctness", name: "Compte EUR", inst: "",
+      kind: "current", opening: 0, cash: true, currency: "EUR" });
+  }
+  const movement = addTx({ id: 8301, y: NOW.y, m: NOW.m, d: NOW.d,
+    title: "Historique EUR", amount: 100, type: "expense", cat: "Logement",
+    acc: "eur-correctness", dest: null, status: "posted" });
+  const before = txCHF(movement);
+  S.fxRates.EUR = 2;
+  const after = txCHF(movement);
+  openAccSheet(ACCOUNTS.find(a => a.id === "eur-correctness"));
+  const accountCurrencyLocked = document.getElementById("aCurrency").disabled;
+  backdrop.classList.remove("open");
+  document.getElementById("bCurrency").value = "EUR";
+  document.getElementById("baseForm").dispatchEvent(
+    new Event("submit", { bubbles: true, cancelable: true })
+  );
+  const baseLocked = S.baseCurrency === "CHF";
+  delete S.fxRates.EUR;
+  const countBefore = transactions.length;
+  let missingRateRejected = false;
+  try {
+    addTx({ id: 8302, y: NOW.y, m: NOW.m, d: NOW.d, title: "Sans taux",
+      amount: 50, type: "expense", cat: "Logement",
+      acc: "eur-correctness", dest: null, status: "posted" });
+  } catch (error) {
+    missingRateRejected = true;
+  }
+  return {
+    before, after, sourceCurrency: movement.sourceCurrency, stampedRate: movement.fx,
+    accountCurrencyLocked, baseLocked, missingRateRejected,
+    noPartialInsert: transactions.length === countBefore,
+  };
+});
+check(fx83.before === 93 && fx83.after === 93,
+  `un taux actuel ne doit pas réécrire l'historique (${fx83.before} → ${fx83.after})`);
+check(fx83.sourceCurrency === "EUR" && fx83.stampedRate === 0.93,
+  "devise et taux source doivent être estampillés sur le mouvement");
+check(fx83.accountCurrencyLocked && fx83.baseLocked,
+  "les devises du compte et du profil doivent être verrouillées après historique");
+check(fx83.missingRateRejected && fx83.noPartialInsert,
+  "un taux absent doit refuser la saisie sans insertion partielle ni taux 1:1");
+
+// 84 — récurrents/factures utilisent leur compte et une échéance unique.
+currentTest = "correctness factures et récurrents";
+const recurring84 = await page79.evaluate(() => {
+  transactions.length = 0;
+  RECURRINGS.length = 0;
+  S.bills = [];
+  if (!ACCOUNTS.some(a => a.id === "alt-correctness")) {
+    ACCOUNTS.push({ id: "alt-correctness", name: "Compte factures", inst: "",
+      kind: "current", opening: 0, cash: true, currency: "CHF" });
+  }
+  const next = shiftMonth(NOW, 1);
+  const recurring = { id: "r-correctness", title: "Loyer futur", amount: 800,
+    type: "expense", cat: "Logement", day: 5, accountId: "alt-correctness" };
+  RECURRINGS.push(recurring);
+  const firstRecurring = materializeRecurring(recurring, next.y, next.m);
+  const secondRecurring = materializeRecurring(recurring, next.y, next.m);
+  const bill = { id: "bill-correctness", name: "Facture future", amount: 250,
+    dueY: NOW.y + 1, dueM: 1, dueD: 10, cat: "Logement",
+    accountId: "alt-correctness", paidTxId: null, note: "" };
+  S.bills.push(bill);
+  const firstBill = materializeBill(bill);
+  const secondBill = materializeBill(bill);
+  const recurringStatusAtCreation = firstRecurring.transaction.status;
+  const billStatusAtCreation = firstBill.transaction.status;
+  const balanceBeforeDue = balance("alt-correctness");
+  const promotedRecurring = promoteDuePlannedTransactions(S, {
+    y: firstRecurring.transaction.y, m: firstRecurring.transaction.m, d: firstRecurring.transaction.d,
+  });
+  const balanceAfterRecurring = balance("alt-correctness");
+  const billStillPlanned = firstBill.transaction.status === "planned";
+  const promotedBill = promoteDuePlannedTransactions(S, {
+    y: firstBill.transaction.y, m: firstBill.transaction.m, d: firstBill.transaction.d,
+  });
+  const balanceAfterBill = balance("alt-correctness");
+
+  openBillSheet(bill);
+  const locked = ["bAmount", "bDue", "bAccount"].every(id => document.getElementById(id).disabled);
+  document.getElementById("bName").value = "Facture renommée";
+  document.getElementById("billForm").dispatchEvent(
+    new Event("submit", { bubbles: true, cancelable: true })
+  );
+  const linked = billLinkedTransaction(bill);
+  return {
+    recurringAccount: firstRecurring.transaction.acc,
+    recurringStatus: recurringStatusAtCreation,
+    recurringDay: firstRecurring.transaction.d,
+    recurringDuplicate: secondRecurring.created,
+    billAccount: firstBill.transaction.acc,
+    billStatus: billStatusAtCreation,
+    billDay: firstBill.transaction.d,
+    billDuplicate: secondBill.created,
+    transactionCount: transactions.length,
+    balanceBeforeDue,
+    promotedRecurring,
+    balanceAfterRecurring,
+    billStillPlanned,
+    promotedBill,
+    balanceAfterBill,
+    deleteBlocked: !!accountDeleteBlocker("alt-correctness"),
+    locked,
+    linkedTitle: linked && linked.title,
+    formError: document.getElementById("bError").textContent,
+  };
+});
+check(recurring84.recurringAccount === "alt-correctness" && recurring84.billAccount === "alt-correctness",
+  "facture et récurrent doivent débiter le compte choisi");
+check(recurring84.recurringStatus === "planned" && recurring84.billStatus === "planned",
+  "les échéances futures doivent rester planifiées");
+check(recurring84.recurringDay === 5 && recurring84.billDay === 10,
+  "les échéances futures doivent conserver leur jour exact");
+check(recurring84.balanceBeforeDue === 0
+    && recurring84.promotedRecurring === 1
+    && recurring84.balanceAfterRecurring === -800
+    && recurring84.billStillPlanned
+    && recurring84.promotedBill === 1
+    && recurring84.balanceAfterBill === -1050,
+  "une échéance doit rester neutre avant sa date puis être comptabilisée une seule fois");
+check(!recurring84.recurringDuplicate && !recurring84.billDuplicate && recurring84.transactionCount === 2,
+  `une seule transaction par échéance attendue (obtenu ${recurring84.transactionCount})`);
+check(recurring84.deleteBlocked, "un compte utilisé par une facture/récurrence ne doit pas être supprimable");
+check(recurring84.locked && recurring84.linkedTitle === "Facture renommée" && !recurring84.formError,
+  "une facture couverte doit figer ses champs financiers et garder son mouvement synchronisé");
+
+// 85 — sauvegarde invalide refusée, état sain inchangé.
+currentTest = "correctness restauration atomique";
+const restore85 = await page79.evaluate(async () => {
+  // Le test précédent supprimait volontairement le taux EUR. On rétablit
+  // un état valide pour que l'erreur ci-dessous provienne bien de goals.
+  S.fxRates.EUR = 0.93;
+  saveState();
+  const before = localStorage.getItem("budget-app-state-v1");
+  const state = JSON.parse(before);
+  state.transactions = [null];
+  const invalid = { app: "budget-web", version: 1, exportedAt: new Date().toISOString(), state };
+  restoreFromFile(new File([JSON.stringify(invalid)], "invalid-budget.json", { type: "application/json" }));
+  await new Promise(resolve => setTimeout(resolve, 250));
+  const malformedGoal = JSON.parse(before);
+  malformedGoal.goals = [{}];
+  let malformedGoalError = "";
+  try { validatedRestoreState(malformedGoal); }
+  catch (error) { malformedGoalError = String(error && error.message || error); }
+  const malformedImport = JSON.parse(before);
+  malformedImport.lastImport = {};
+  let malformedImportError = "";
+  try { validatedRestoreState(malformedImport); }
+  catch (error) { malformedImportError = String(error && error.message || error); }
+  const stringTransactionID = JSON.parse(before);
+  stringTransactionID.transactions[0].id = "legacy-abc";
+  const restoredStringID = validatedRestoreState(stringTransactionID);
+  const restoredSequence = transactionSequenceFloor(restoredStringID.transactions);
+  const stateWithLock = JSON.parse(before);
+  stateWithLock.faceIDEnabled = true;
+  stateWithLock.lockCode = codeHash("1234");
+  const imported = validatedRestoreState(stateWithLock);
+  return {
+    unchanged: localStorage.getItem("budget-app-state-v1") === before,
+    message: document.getElementById("toast").textContent,
+    malformedGoalError,
+    malformedImportError,
+    stringTransactionIDSafe: Number.isSafeInteger(restoredSequence)
+      && restoredSequence >= 0,
+    importedLockDisabled: imported.faceIDEnabled === false && imported.lockCode == null,
+  };
+});
+check(restore85.unchanged, "une sauvegarde invalide ne doit jamais remplacer l'état sain");
+check(/invalide|illisible/.test(restore85.message),
+  `le refus doit être expliqué (obtenu « ${restore85.message.trim()} »)`);
+check(/objectif/.test(restore85.malformedGoalError),
+  `une collection secondaire mal formée doit être refusée pour la bonne raison (${restore85.malformedGoalError})`);
+check(/dernier import/.test(restore85.malformedImportError),
+  `un rapport d'import incomplet doit être refusé avant d'ouvrir l'écran Import (${restore85.malformedImportError})`);
+check(restore85.stringTransactionIDSafe,
+  "un ancien identifiant textuel ne doit jamais transformer le compteur de mouvements en NaN");
+check(restore85.importedLockDisabled,
+  "une sauvegarde importée ne doit jamais importer le verrouillage d'un autre appareil");
+
+// 86 — un ancien blob corrompu ne plante plus au démarrage et le reset
+// complet efface aussi la copie de secours.
+currentTest = "correctness démarrage et reset";
+const invalidRaw86 = await page79.evaluate(() => {
+  const state = seedState();
+  state.transactions = [null];
+  const raw = JSON.stringify(state);
+  localStorage.setItem("budget-app-state-v1", raw);
+  return raw;
+});
+await page79.reload();
+await page79.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
+const rescue86 = await page79.evaluate(raw => ({
+  rescued: localStorage.getItem("budget-app-state-rescue") === raw,
+  hasWelcome: !!document.querySelector('[data-obcountry="CH"]'),
+}), invalidRaw86);
+check(rescue86.rescued && rescue86.hasWelcome,
+  "un blob corrompu doit être conservé en secours et l'app doit rester utilisable");
+await page79.evaluate(() => {
+  S.onboarded = true;
+  S.profile = { name: "Reset" };
+  if (!ACCOUNTS.length) {
+    ACCOUNTS.push({ id: "reset-account", name: "Compte reset", inst: "",
+      kind: "current", opening: 0, cash: true, currency: "CHF" });
+  }
+  saveState();
+  activeTab = "more";
+  moreView = "settings";
+  render();
+});
+await page79.click("[data-fullreset]");
+await page79.waitForSelector('[data-obcountry="CH"]', { timeout: 10000 });
+const reset86 = await page79.evaluate(() => ({
+  state: localStorage.getItem("budget-app-state-v1"),
+  legacy: localStorage.getItem("budget-proto-mouvements"),
+  rescue: localStorage.getItem("budget-app-state-rescue"),
+}));
+check(reset86.state === null && reset86.legacy === null && reset86.rescue === null,
+  "le reset complet doit effacer état principal, clé historique et copie de secours");
+check(errors79.length === 0,
+  `correctif critique : zéro pageerror / erreur console (obtenu ${errors79.slice(0, 3).join(" | ") || "aucune"})`);
+await context79.close();
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -2954,4 +3331,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 78 parcours verts (48 historiques + 5 pilote L3 + 3 mouvements/comptes L5 + 4 modules financiers L6 + 4 onboarding/confiance L7 + 3 correctif L7 + 4 widgets/mouvement L8 + 1 charset L9 + 6 pilote Neon Ultra NU2), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 86 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité), zéro erreur console ✓");

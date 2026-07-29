@@ -400,11 +400,19 @@ struct HomeTab: View {
         }
 
         let now = appContainer.dateProvider.now
-        let transaction = scheduleService.makeTransaction(
+        let persistedTransactions: [BudgetTransaction]
+        do {
+            persistedTransactions = try modelContext.fetch(FetchDescriptor<BudgetTransaction>())
+        } catch {
+            saveErrorMessage = "La facture n'a pas pu être vérifiée. Réessayez."
+            return
+        }
+        guard let transaction = scheduleService.makeTransactionIfNeeded(
             from: recurring,
-            on: min(occurrence.date, now),
+            occurrence: occurrence,
+            existingTransactions: persistedTransactions,
             now: now
-        )
+        ) else { return }
         modelContext.insert(transaction)
         modelContext.saveOrRollback { saveErrorMessage = $0 }
     }

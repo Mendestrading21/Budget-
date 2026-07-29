@@ -2,8 +2,8 @@ import Foundation
 
 /// « Année en revue » : agrégats annuels dérivés des mouvements
 /// comptabilisés — mêmes conventions que le snapshot mensuel (les
-/// remboursements réduisent le coût de la vie, les envois vers les
-/// placements ne sont jamais des dépenses).
+/// remboursements réduisent le coût de la vie UNE seule fois, les envois
+/// vers les placements ne sont jamais des dépenses).
 struct YearStats: Equatable {
     let income: Decimal
     let livingExpenses: Decimal
@@ -27,7 +27,7 @@ struct YearStatsService {
             posted.filter { types.contains($0.type) }.reduce(.zero) { $0 + $1.amount }
         }
         return YearStats(
-            income: sum([.income, .refund]),
+            income: sum([.income]),
             livingExpenses: sum([.expense]) - sum([.refund]),
             saved: sum([.saving, .investment]),
             taxesPaid: sum([.taxPayment])
