@@ -636,15 +636,19 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 /* Une ligne de mois est faite pour être LUE, pas compressée : contrairement
    aux listes de mouvements, son texte revient à la ligne au lieu d'être
    coupé par une ellipse — y compris à 320 px et à 200 % de texte. */
-#screen.nu-pilot-screen .year-month { align-items: flex-start; }
+#screen.nu-pilot-screen .year-month,
+#screen.nu-pilot-screen .sub-row { align-items: flex-start; }
 #screen.nu-pilot-screen .year-month .t,
-#screen.nu-pilot-screen .year-month .s {
+#screen.nu-pilot-screen .year-month .s,
+#screen.nu-pilot-screen .sub-row .t,
+#screen.nu-pilot-screen .sub-row .s {
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   line-height: 1.35;
 }
-#screen.nu-pilot-screen .year-month .amount { white-space: nowrap; }
+#screen.nu-pilot-screen .year-month .amount,
+#screen.nu-pilot-screen .sub-row .amount { white-space: nowrap; }
 
 /* --- Jauges : barres simples, sans gradient décoratif --- */
 #screen.nu-pilot-screen .track { background: var(--nu-border); }

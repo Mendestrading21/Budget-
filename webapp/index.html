@@ -928,6 +928,16 @@
       <select id="rCat"></select>
       <label for="rAccount">Compte utilisé</label>
       <select id="rAccount"></select>
+      <label for="rEvery">Rythme</label>
+      <select id="rEvery">
+        <option value="month">Tous les mois</option>
+        <option value="year">Une fois par an</option>
+      </select>
+      <div id="rDueWrap" style="display:none">
+        <label for="rDueM">Mois d'échéance</label>
+        <select id="rDueM"></select>
+        <p class="caption" id="rDueNote" style="margin:4px 0 0"></p>
+      </div>
       <label for="rDay">Jour du mois (1-28)</label>
       <input id="rDay" inputmode="numeric" placeholder="1" autocomplete="off" />
       <div class="error" id="rError" role="alert"></div>
@@ -936,6 +946,8 @@
         <button type="submit" class="btn">Enregistrer</button>
       </div>
       <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Régler ce mois</button>
+      <button type="button" class="btn secondary" id="rEnd"
+              style="display:none;margin-top:10px">Résilier à partir de ce mois</button>
       <button type="button" class="btn secondary" id="rDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette récurrence</button>
     </form>
@@ -1561,6 +1573,11 @@ const RECURRINGS_SEED = [
   { id: "r-salaire", title: "Salaire", amount: 8450.00, type: "income", cat: "Salaire", day: 25, icon: "💰" },
   { id: "r-streaming", title: "Streaming vidéo", amount: 21.90, type: "expense", cat: "Restaurants et sorties", day: 22, icon: "📺" },
   { id: "r-sport", title: "Salle de sport", amount: 89.00, type: "expense", cat: "Restaurants et sorties", day: 28, icon: "🏋" },
+  // Abonnement ANNUEL de démonstration : il ne pèse que sur son mois
+  // d'échéance, jamais douze fois. Montre le cas que le tableur ne sait
+  // pas modéliser sans fausser le total.
+  { id: "r-cloud", title: "Stockage en ligne (annuel)", amount: 130.00, type: "expense",
+    cat: "Restaurants et sorties", day: 14, icon: "☁️", every: "year", dueM: 3 },
 ];
 
 /* Objectifs (Phase 8) — contribution requise = (cible − actuel) ÷ mois restants. */
@@ -1873,6 +1890,47 @@ function recurringOccurrence(recurring, y, m) {
 function recurringAmountInBase(recurring) {
   return toCHF(recurring.amount, accountCurrency(recurringAccountId(recurring)));
 }
+
+/* ---------- Rythme d'une charge régulière (mensuel ou annuel) ----------
+   Champs ADDITIFS : une récurrence sans `every` reste mensuelle, donc les
+   données déjà enregistrées gardent exactement le même sens.
+   - `every` : "month" (défaut) ou "year"
+   - `dueM`  : mois d'échéance 1-12, utile UNIQUEMENT en annuel
+   - `endedOn` : null, ou { y, m } à partir duquel la charge est résiliée
+   Décision propriétaire : un abonnement ANNUEL n'est engagé QUE sur son
+   mois d'échéance. Il n'est jamais lissé sur douze mois — l'app n'affiche
+   pas un prélèvement qui n'existe pas. */
+function recurringEvery(recurring) {
+  return recurring && recurring.every === "year" ? "year" : "month";
+}
+function recurringDueMonth(recurring) {
+  if (recurringEvery(recurring) !== "year") return null;
+  const m = Number(recurring.dueM);
+  return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
+}
+/* Résiliée : à partir du mois indiqué INCLUS, la charge ne pèse plus. */
+function recurringEnded(recurring, y, m) {
+  const end = recurring && recurring.endedOn;
+  if (!end || !Number.isInteger(end.y) || !Number.isInteger(end.m)) return false;
+  return y > end.y || (y === end.y && m >= end.m);
+}
+function recurringIsActive(recurring) {
+  return !recurringEnded(recurring, NOW.y, NOW.m);
+}
+/* La charge est-elle ENGAGÉE sur ce mois précis ? Seule porte d'entrée des
+   récurrences dans les prévisions : mensuel = chaque mois, annuel = son
+   seul mois d'échéance, résilié = plus jamais. */
+function recurringDueIn(recurring, y, m) {
+  if (recurringEnded(recurring, y, m)) return false;
+  if (recurringEvery(recurring) === "year") return m === recurringDueMonth(recurring);
+  return true;
+}
+/* Coût RAMENÉ au mois et à l'année — pour comparer des rythmes différents
+   sans jamais prétendre que l'annuel est prélevé tous les mois. */
+function recurringYearlyCost(recurring) {
+  const amount = recurringAmountInBase(recurring);
+  return recurringEvery(recurring) === "year" ? amount : fromCents(toCents(amount) * 12);
+}
 function materializeRecurring(recurring, y, m) {
   const existing = recurringOccurrence(recurring, y, m);
   if (existing) return { transaction: existing, created: false };
@@ -1963,8 +2021,11 @@ function snapshot(y, m) {
   // Toutes les occurrences mensuelles non couvertes restent engagées,
   // même après leur échéance. Elles sont dédupliquées uniquement par leur
   // recurringId : une charge en retard ne disparaît jamais du disponible.
+  // Seules les charges ENGAGÉES sur ce mois pèsent : une charge annuelle ne
+  // compte que sur son mois d'échéance (jamais douze fois), une charge
+  // résiliée ne compte plus du tout.
   const upcomingRecurrings = RECURRINGS.filter(r =>
-    !recurringOccurrence(r, y, m)
+    recurringDueIn(r, y, m) && !recurringOccurrence(r, y, m)
   );
   const recurringCharges = fromCents(upcomingRecurrings.reduce((a, r) =>
     a + (r.type === "expense" ? toCents(recurringAmountInBase(r)) : 0), 0));
@@ -2020,7 +2081,10 @@ function closedStreak(y, m) {
 function monthCheckItems(y, m) {
   const items = [];
   const salary = salaryRecurring();
-  for (const r of RECURRINGS) {
+  // Le rituel ne demande de valider que ce qui est DÛ ce mois : sans ce
+  // filtre, une charge annuelle resterait éternellement à cocher et le mois
+  // ne pourrait plus jamais être bouclé.
+  for (const r of RECURRINGS.filter(r => recurringDueIn(r, y, m))) {
     const isSalary = salary && r.id === salary.id;
     items.push({
       icon: r.icon || (r.type === "income" ? "💰" : "🔁"),
@@ -2049,7 +2113,11 @@ function monthlyObligations(y, m) {
     if (linked && linked.status === "planned") return "scheduled";
     return compareDateParts(due, NOW) < 0 ? "late" : "upcoming";
   };
-  const recurring = RECURRINGS.filter(r => r.type === "expense").map(r => {
+  // Même règle que le disponible : une charge annuelle n'est une obligation
+  // QUE sur son mois d'échéance, une charge résiliée ne l'est plus jamais.
+  // Sans ce filtre, un abonnement annuel apparaîtrait « en retard » onze
+  // mois sur douze.
+  const recurring = RECURRINGS.filter(r => r.type === "expense" && recurringDueIn(r, y, m)).map(r => {
     const due = { y, m, d: Math.min(r.day, lastDay) };
     const linked = recurringOccurrence(r, y, m);
     return {
@@ -2519,7 +2587,7 @@ function renderHome() {
 
     <p class="section-title">💰 Salaire et revenus</p>
     ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
-        && !recurringOccurrence(r, y, m))
+        && recurringDueIn(r, y, m) && !recurringOccurrence(r, y, m))
       .map(r => `
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div><div style="font-size:14px;font-weight:600">${esc(r.title)} pas encore reçu</div>
@@ -3499,7 +3567,11 @@ function renderRecurring() {
     const account = ACCOUNTS.find(a => a.id === recurringAccountId(r));
     let pill;
     let status;
-    if (occurrence && occurrence.status === "posted") {
+    if (!recurringDueIn(r, NOW.y, NOW.m)) {
+      // Charge annuelle hors de son mois : rien n'est dû, rien n'est en retard.
+      pill = '<span class="pill">Pas ce mois</span>';
+      status = `prochaine échéance en ${MONTH_NAMES[(recurringDueMonth(r) || 1) - 1]}`;
+    } else if (occurrence && occurrence.status === "posted") {
       pill = `<span class="pill pos">${isIncome ? "Reçu" : "Payée"} ce mois</span>`;
       status = isIncome ? "revenu reçu" : "facture payée";
     } else if (occurrence) {
@@ -3512,20 +3584,108 @@ function renderRecurring() {
       pill = '<span class="pill">À venir</span>';
       status = `prévue le ${String(r.day).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}`;
     }
+    const rhythm = recurringEvery(r) === "year"
+      ? `Chaque année en ${MONTH_NAMES[recurringDueMonth(r) - 1]}, le ${r.day}`
+      : `Tous les mois, le ${r.day}`;
     return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
       <div class="meta"><div class="t">${esc(r.title)}${pill}</div>
-        <div class="s">Tous les mois, le ${r.day} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
+        <div class="s">${rhythm} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   };
-  const expenses = RECURRINGS.filter(r => r.type === "expense");
-  const incomes = RECURRINGS.filter(r => r.type === "income");
+  // Cet écran s'appelle « Factures mensuelles » : il ne montre donc que ce
+  // qui revient CHAQUE mois et n'est pas résilié. Les charges annuelles et
+  // les résiliations vivent dans l'écran Abonnements, qui porte le rythme.
+  const monthly = r => recurringEvery(r) === "month" && recurringIsActive(r);
+  const expenses = RECURRINGS.filter(r => r.type === "expense" && monthly(r));
+  const incomes = RECURRINGS.filter(r => r.type === "income" && monthly(r));
+  const annualCount = RECURRINGS.filter(r => recurringEvery(r) === "year" && recurringIsActive(r)).length;
   return backBar("Factures mensuelles") + `
     <p class="caption" style="margin:0 0 12px">Ajoutez une facture une seule fois : elle revient automatiquement chaque mois, à la bonne date et sur le bon compte.</p>
     ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune facture mensuelle. Ajoutez par exemple le loyer, les primes ou un abonnement.</span></div>`}
     ${incomes.length ? `<p class="section-title">Revenus mensuels</p>${incomes.map(row).join("")}` : ""}
     <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une facture ou un revenu mensuel</button>
+    ${annualCount ? `<div class="card row tx" data-more="subs" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
+      <div class="ico" aria-hidden="true">🎬</div>
+      <div class="meta"><div class="t">${annualCount} charge${annualCount > 1 ? "s" : ""} annuelle${annualCount > 1 ? "s" : ""}</div>
+        <div class="s">Elles ne reviennent pas chaque mois — voir Abonnements</div></div>
+      <span style="color:var(--coolgray)">›</span></div>` : ""}
     <p class="caption" style="padding:6px 4px 0">Une échéance reste à payer tant qu'aucun mouvement lié ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
+}
+
+/* ---------- Abonnements ----------
+   Même donnée que les charges régulières, lue par le rythme : ce que je
+   paie qui revient tout seul, mensuel ou annuel, actif ou résilié.
+   Deux totaux HONNÊTES et jamais mélangés : le poids d'un mois moyen et le
+   coût réel d'une année. Additionner un prix annuel à un prix mensuel dans
+   la même colonne ne veut rien dire — l'app ne le fait jamais. */
+function renderSubs() {
+  const all = RECURRINGS.filter(r => r.type === "expense");
+  const active = all.filter(recurringIsActive);
+  const ended = all.filter(r => !recurringIsActive(r));
+  const byAmount = (a, b) => recurringYearlyCost(b) - recurringYearlyCost(a);
+
+  const yearlyC = active.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0);
+  const yearly = fromCents(yearlyC);
+  const perMonth = fromCents(Math.round(yearlyC / 12));
+  const monthlyOnes = active.filter(r => recurringEvery(r) === "month");
+  const annualOnes = active.filter(r => recurringEvery(r) === "year");
+  const monthlySum = fromCents(monthlyOnes.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
+  const annualSum = fromCents(annualOnes.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
+
+  const row = r => {
+    const every = recurringEvery(r);
+    const isYear = every === "year";
+    const dueM = recurringDueMonth(r);
+    const amount = recurringAmountInBase(r);
+    const rhythm = isYear
+      ? `<span class="pill">Annuel</span>`
+      : `<span class="pill">Mensuel</span>`;
+    const when = isYear
+      ? `Chaque année en ${MONTH_NAMES[dueM - 1]}, le ${r.day}`
+      : `Tous les mois, le ${r.day}`;
+    // Le coût comparable est toujours écrit, jamais deviné.
+    const compare = isYear
+      ? `soit ${chf(fromCents(Math.round(toCents(amount) / 12)))} par mois`
+      : `soit ${chf(recurringYearlyCost(r))} par an`;
+    const endedNote = recurringIsActive(r) ? ""
+      : ` · résilié depuis ${MONTH_NAMES[r.endedOn.m - 1]} ${r.endedOn.y}`;
+    return `<div class="card row tx sub-row" data-recid="${esc(r.id)}" role="button" tabindex="0"
+         style="cursor:pointer" aria-label="Modifier ${esc(r.title)}">
+      <div class="ico t-expense" aria-hidden="true">${r.icon || "🔁"}</div>
+      <div class="meta"><div class="t">${esc(r.title)} ${rhythm}</div>
+        <div class="s">${when} · ${compare}${endedNote}</div></div>
+      <span class="amount neg">−${chf(amount)}</span></div>`;
+  };
+
+  const hero = active.length === 0 ? `
+    <div class="card hero">
+      <p class="card-label">Aucun abonnement suivi</p>
+      <p style="font-size:15px;color:var(--nu-text-secondary);margin:6px 0 14px;line-height:1.45">Ajoutez ce qui se renouvelle tout seul — streaming, logiciels, assurances. Vous verrez enfin ce que ça coûte vraiment sur une année.</p>
+      <button class="btn nu-cta" data-addrec>＋ Ajouter un abonnement</button>
+    </div>` : `
+    <div class="card hero">
+      <p class="card-label">Ce que vos abonnements coûtent par an</p>
+      <p class="hero-amount neg${yearly >= 1000000 ? " long" : ""}">${chf(yearly)}</p>
+      <span class="caption">Soit ${chf(perMonth)} par mois en moyenne, sur ${active.length} abonnement${active.length > 1 ? "s" : ""} actif${active.length > 1 ? "s" : ""}.</span>
+      <div class="breakdown" style="margin-top:10px">
+        ${monthlyOnes.length ? `<div><span>${monthlyOnes.length} mensuel${monthlyOnes.length > 1 ? "s" : ""}</span><span>${chf(monthlySum)} / mois</span></div>` : ""}
+        ${annualOnes.length ? `<div><span>${annualOnes.length} annuel${annualOnes.length > 1 ? "s" : ""}</span><span>${chf(annualSum)} / an</span></div>` : ""}
+      </div>
+    </div>`;
+
+  return backBar("Abonnements") + hero + `
+    ${active.length ? `<p class="section-title">Actifs — du plus coûteux au moins coûteux</p>
+      ${active.sort(byAmount).map(row).join("")}` : ""}
+    ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un abonnement</button>` : ""}
+    ${ended.length ? `<p class="section-title">Résiliés</p>
+      <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Conservés pour l'historique : ils ne pèsent plus sur vos prévisions.</p>
+      ${ended.sort(byAmount).map(row).join("")}` : ""}
+    <div class="card" style="margin-top:12px">
+      <p class="card-label">Comment c'est compté</p>
+      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> n'est déduit que le mois où il tombe — jamais lissé sur douze mois. Votre argent disponible reflète donc vos vrais prélèvements.</p>
+      <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> disparaît des prévisions dès le mois indiqué, mais reste visible ici.</p>
+    </div>`;
 }
 
 /* ---------- Import CSV réel (Phase 11 / W4) ---------- */
@@ -4008,7 +4168,14 @@ function renderAssistant() {
 // Hub « Gérer » par intentions (ADR-026).
 const MORE_GROUPS = [
   ["À organiser", [
-    ["recurring", "🔁", "Factures mensuelles", "Loyer, primes, abonnements et revenus réguliers"],
+    ["recurring", "🔁", "Factures mensuelles", "Loyer, primes et revenus réguliers"],
+    ["subs", "🎬", "Abonnements", () => {
+      const active = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
+      if (!active.length) return "Streaming, logiciels, assurances";
+      const perMonth = fromCents(Math.round(
+        active.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
+      return `${active.length} actif${active.length > 1 ? "s" : ""} · ${chf(perMonth)} par mois`;
+    }],
     ["bills", "🧾", "Factures ponctuelles", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
       const open = (S.bills || []).filter(b => !billIsCovered(b)).length;
@@ -4037,7 +4204,7 @@ const MORE_GROUPS = [
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
-                         year: renderYearReview,
+                         year: renderYearReview, subs: renderSubs,
                          movements: () => backBar("Mouvements") + renderMovements().replace('<h2 class="screen-title">Mouvements</h2>', "") };
 
 function renderMore() {
@@ -5461,6 +5628,25 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
         || !Number.isInteger(recurring.day) || recurring.day < 1 || recurring.day > 28) {
       throw new Error("paiement régulier invalide");
     }
+    // Rythme et résiliation : champs ADDITIFS. Absents = mensuel, actif —
+    // le sens des sauvegardes antérieures est donc strictement préservé.
+    // Une valeur PRÉSENTE mais illisible fait refuser la restauration
+    // plutôt que d'être silencieusement ramenée à une valeur par défaut.
+    if (recurring.every !== undefined && !["month", "year"].includes(recurring.every)) {
+      throw new Error("rythme de paiement régulier invalide");
+    }
+    if (recurring.every === "year") {
+      if (!Number.isInteger(recurring.dueM) || recurring.dueM < 1 || recurring.dueM > 12) {
+        throw new Error("mois d'échéance annuelle invalide");
+      }
+    }
+    if (recurring.endedOn !== undefined && recurring.endedOn !== null) {
+      const end = recurring.endedOn;
+      if (typeof end !== "object" || !Number.isInteger(end.y) || !Number.isInteger(end.m)
+          || end.y < 2000 || end.y > 2100 || end.m < 1 || end.m > 12) {
+        throw new Error("date de résiliation invalide");
+      }
+    }
     recurringIds.add(recurring.id);
     recurring.accountId = recurring.accountId || (defaultAccount && defaultAccount.id);
     const onboardingWithoutAccount = state.onboarded === false && accountIds.size === 0
@@ -5989,7 +6175,10 @@ function openRecSheet(rec) {
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
   const alreadyThisMonth = rec && recurringOccurrence(rec, NOW.y, NOW.m);
-  postBtn.style.display = rec && !alreadyThisMonth ? "block" : "none";
+  // On ne propose de régler que ce qui est réellement DÛ ce mois : une
+  // charge annuelle hors de son mois, ou résiliée, n'a rien à valider.
+  const dueThisMonth = rec && recurringDueIn(rec, NOW.y, NOW.m);
+  postBtn.style.display = rec && dueThisMonth && !alreadyThisMonth ? "block" : "none";
   if (rec) {
     const due = { y: NOW.y, m: NOW.m, d: rec.day };
     postBtn.textContent = rec.type === "income"
@@ -6007,10 +6196,64 @@ function openRecSheet(rec) {
   } else {
     refreshRecCatOptions();
   }
+  // Rythme et mois d'échéance : les options existent toujours, le bloc
+  // annuel n'apparaît que si le rythme l'exige.
+  const dueSel = document.getElementById("rDueM");
+  dueSel.innerHTML = MONTH_NAMES
+    .map((name, i) => `<option value="${i + 1}">${name.charAt(0).toUpperCase() + name.slice(1)}</option>`)
+    .join("");
+  document.getElementById("rEvery").value = rec ? recurringEvery(rec) : "month";
+  dueSel.value = String(rec ? (recurringDueMonth(rec) || NOW.m) : NOW.m);
+  refreshRecRhythm();
+  // Résiliation : proposée seulement sur une récurrence existante.
+  const endBtn = document.getElementById("rEnd");
+  endBtn.style.display = rec ? "block" : "none";
+  if (rec) {
+    endBtn.textContent = recurringIsActive(rec)
+      ? "Résilier à partir de ce mois"
+      : "Réactiver cet abonnement";
+  }
   document.getElementById("rError").textContent = "";
   openSheet("recForm");
   document.getElementById("rTitle").focus();
 }
+/* Le bloc « mois d'échéance » suit le rythme choisi, et la note dit
+   explicitement ce que l'app fera du montant — aucun lissage caché. */
+function refreshRecRhythm() {
+  const every = document.getElementById("rEvery").value;
+  const wrap = document.getElementById("rDueWrap");
+  wrap.style.display = every === "year" ? "block" : "none";
+  const note = document.getElementById("rDueNote");
+  const raw = parseAmountField(document.getElementById("rAmount").value);
+  if (every === "year" && raw > 0) {
+    const perMonth = fromCents(Math.round(toCents(raw) / 12));
+    note.textContent = `Déduit en une fois ce mois-là — jamais lissé. À titre de comparaison : ${chf(perMonth)} par mois.`;
+  } else if (every === "year") {
+    note.textContent = "Le montant sera déduit en une fois, le mois choisi — jamais lissé sur douze mois.";
+  } else {
+    note.textContent = "";
+  }
+}
+document.getElementById("rEvery").addEventListener("change", refreshRecRhythm);
+document.getElementById("rAmount").addEventListener("input", refreshRecRhythm);
+/* Résiliation / réactivation : bascule d'un champ, aucun mouvement touché.
+   L'historique déjà comptabilisé reste intact — seules les prévisions
+   futures changent. */
+document.getElementById("rEnd").addEventListener("click", () => {
+  const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
+  if (!rec) return;
+  if (recurringIsActive(rec)) {
+    if (!confirm(`Résilier « ${rec.title} » à partir de ${MONTH_NAMES[NOW.m - 1]} ${NOW.y} ? Les mouvements déjà enregistrés ne changent pas ; il disparaît seulement des prévisions à venir.`)) return;
+    rec.endedOn = { y: NOW.y, m: NOW.m };
+    toast(`« ${rec.title} » résilié — retiré des prévisions`);
+  } else {
+    rec.endedOn = null;
+    toast(`« ${rec.title} » réactivé`);
+  }
+  saveState();
+  backdrop.classList.remove("open");
+  render();
+});
 document.getElementById("rCancel").addEventListener("click", () => backdrop.classList.remove("open"));
 document.getElementById("recForm").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -6023,16 +6266,33 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   if (!Number.isInteger(day) || day < 1 || day > 28) {
     err.textContent = "Jour entre 1 et 28 (les mois courts sont ainsi toujours couverts)."; return;
   }
+  const every = document.getElementById("rEvery").value === "year" ? "year" : "month";
+  const dueM = every === "year" ? Number(document.getElementById("rDueM").value) : null;
+  if (every === "year" && !(Number.isInteger(dueM) && dueM >= 1 && dueM <= 12)) {
+    err.textContent = "Choisissez le mois d'échéance."; return;
+  }
   const data = {
-    title, amount, day,
+    title, amount, day, every,
     type: document.getElementById("rType").value,
     cat: document.getElementById("rCat").value,
     accountId: document.getElementById("rAccount").value,
   };
+  // Le mois d'échéance n'existe qu'en annuel : repasser en mensuel le
+  // retire réellement plutôt que de laisser un champ orphelin.
+  if (every === "year") data.dueM = dueM; else data.dueM = undefined;
   if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
   const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
-  if (existing) { Object.assign(existing, data); toast("Récurrence mensuelle modifiée"); }
-  else { RECURRINGS.push({ id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data }); toast("Récurrence mensuelle ajoutée"); }
+  const label = every === "year" ? "Abonnement annuel" : "Récurrence mensuelle";
+  if (existing) {
+    Object.assign(existing, data);
+    if (data.dueM === undefined) delete existing.dueM;
+    toast(`${label} modifié${every === "year" ? "" : "e"}`);
+  } else {
+    const created = { id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data };
+    if (created.dueM === undefined) delete created.dueM;
+    RECURRINGS.push(created);
+    toast(`${label} ajouté${every === "year" ? "" : "e"}`);
+  }
   saveState();
   backdrop.classList.remove("open");
   render();
@@ -6041,6 +6301,12 @@ document.getElementById("rPost").addEventListener("click", () => {
   const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (!rec) return;
   if (recurringOccurrence(rec, NOW.y, NOW.m)) return;
+  // Ceinture : rien ne se règle sur un mois où la charge n'est pas due.
+  if (!recurringDueIn(rec, NOW.y, NOW.m)) {
+    document.getElementById("rError").textContent =
+      `Cette charge n'est due qu'en ${MONTH_NAMES[(recurringDueMonth(rec) || 1) - 1]}.`;
+    return;
+  }
   pushUndo();
   try {
     const result = materializeRecurring(rec, NOW.y, NOW.m);

@@ -193,6 +193,7 @@ const PILOT_RENDERERS = new Set([
   "renderBudget",      // Budget
   "renderYearReview",  // Année (née dans l'identité Neon Ultra)
   "yearMonthRow",      // ligne de la page Année
+  "renderSubs",        // Abonnements (née dans l'identité Neon Ultra)
 ]);
 {
   const lines = indexSrc.split("\n");

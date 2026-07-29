@@ -3491,6 +3491,142 @@ currentTest = "Année ouvre le mois";
   check(!clean88, "les mouvements du parcours Année sont retirés (aucune trace)");
 }
 
+// ---------- Test 89 : abonnement ANNUEL — engagé une seule fois, jamais douze ----------
+currentTest = "abonnement annuel compté une fois";
+await goHome();
+{
+  const math89 = await page.evaluate(() => {
+    const keep = RECURRINGS.splice(0, RECURRINGS.length);
+    RECURRINGS.push({ id: "t-mens", title: "Mensuel E2E", amount: 100, type: "expense",
+      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id });
+    RECURRINGS.push({ id: "t-ann", title: "Annuel E2E", amount: 1200, type: "expense",
+      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id, every: "year", dueM: 3 });
+    const charge = (y, m) => snapshot(y, m).recurringCharges;
+    const result = {
+      dueMonth: charge(NOW.y, 3),
+      otherMonth: charge(NOW.y, 4),
+      twelve: Array.from({ length: 12 }, (_, i) => charge(NOW.y, i + 1))
+        .reduce((a, b) => a + b, 0),
+      yearlyMonthly: recurringYearlyCost(RECURRINGS[0]),
+      yearlyAnnual: recurringYearlyCost(RECURRINGS[1]),
+      // Le rituel de bouclage ne demande pas de valider un annuel hors échéance.
+      checkAprilHasAnnual: monthCheckItems(NOW.y, 4).some(i => i.label === "Annuel E2E"),
+      checkMarchHasAnnual: monthCheckItems(NOW.y, 3).some(i => i.label === "Annuel E2E"),
+      // Les obligations du mois non plus.
+      oblAprilHasAnnual: monthlyObligations(NOW.y, 4).some(o => o.title === "Annuel E2E"),
+      oblMarchHasAnnual: monthlyObligations(NOW.y, 3).some(o => o.title === "Annuel E2E"),
+    };
+    RECURRINGS.splice(0, RECURRINGS.length, ...keep);
+    return result;
+  });
+  check(math89.dueMonth === 1300,
+    `mois d'échéance : mensuel + annuel engagés (attendu 1300, obtenu ${math89.dueMonth})`);
+  check(math89.otherMonth === 100,
+    `hors échéance : le mensuel SEUL est engagé (attendu 100, obtenu ${math89.otherMonth})`);
+  check(math89.twelve === 2400,
+    `l'annuel pèse UNE fois sur l'année, pas douze (attendu 2400, obtenu ${math89.twelve})`);
+  check(math89.yearlyMonthly === 1200,
+    `coût annuel d'un mensuel de 100 = 1200 (obtenu ${math89.yearlyMonthly})`);
+  check(math89.yearlyAnnual === 1200,
+    `coût annuel d'un annuel de 1200 = 1200 (obtenu ${math89.yearlyAnnual})`);
+  check(math89.checkMarchHasAnnual && !math89.checkAprilHasAnnual,
+    `le rituel ne demande de valider l'annuel QUE sur son mois (mars ${math89.checkMarchHasAnnual}, avril ${math89.checkAprilHasAnnual})`);
+  check(math89.oblMarchHasAnnual && !math89.oblAprilHasAnnual,
+    `l'annuel n'est une obligation QUE sur son mois (mars ${math89.oblMarchHasAnnual}, avril ${math89.oblAprilHasAnnual})`);
+}
+
+// ---------- Test 90 : écran Abonnements — deux totaux honnêtes, résiliation ----------
+currentTest = "écran Abonnements";
+{
+  await page.evaluate(() => {
+    RECURRINGS.push({ id: "t-sub-m", title: "Mensuel Abo E2E", amount: 20, type: "expense",
+      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id });
+    RECURRINGS.push({ id: "t-sub-y", title: "Annuel Abo E2E", amount: 240, type: "expense",
+      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id, every: "year", dueM: 3 });
+    saveState(); render();
+  });
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
+  await page.waitForTimeout(150);
+  await page.click('#screen [data-more="subs"]');
+  await page.waitForTimeout(300);
+  const subs90 = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const row = id => s.querySelector(`[data-recid="${id}"]`);
+    return {
+      piloted: s.classList.contains("nu-pilot-screen"),
+      canvas: getComputedStyle(s).backgroundColor,
+      hero: (s.querySelector(".hero") || {}).innerText || "",
+      monthRow: (row("t-sub-m") || {}).innerText || "",
+      yearRow: (row("t-sub-y") || {}).innerText || "",
+      // Les deux totaux calculés à la main depuis l'état, pour comparaison.
+      expectedYear: chf(fromCents(RECURRINGS
+        .filter(r => r.type === "expense" && recurringIsActive(r))
+        .reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0))),
+    };
+  });
+  check(subs90.piloted && subs90.canvas === "rgb(5, 6, 10)",
+    `Abonnements est une surface pilote Neon Ultra (obtenu ${subs90.canvas})`);
+  check(subs90.hero.includes(subs90.expectedYear),
+    `le héros affiche le coût annuel EXACT ${subs90.expectedYear} (obtenu « ${subs90.hero.replace(/\n/g, " ").slice(0, 90)} »)`);
+  check(/par mois en moyenne/.test(subs90.hero),
+    "le héros donne aussi la moyenne mensuelle, sans la confondre avec un prélèvement");
+  check(/Mensuel/.test(subs90.monthRow) && /Tous les mois/.test(subs90.monthRow),
+    `un mensuel porte son rythme écrit (obtenu « ${subs90.monthRow.replace(/\n/g, " ")} »)`);
+  check(/Annuel/.test(subs90.yearRow) && /Chaque année en mars/.test(subs90.yearRow),
+    `un annuel porte son mois d'échéance écrit (obtenu « ${subs90.yearRow.replace(/\n/g, " ")} »)`);
+  check(subs90.yearRow.includes("20.00"),
+    `un annuel affiche son équivalent mensuel comparatif (240/12 = 20.00, obtenu « ${subs90.yearRow.replace(/\n/g, " ")} »)`);
+  // Résiliation : la charge quitte les prévisions mais reste visible.
+  const ended90 = await page.evaluate(async () => {
+    const before = snapshot(NOW.y, NOW.m).recurringCharges;
+    RECURRINGS.find(r => r.id === "t-sub-m").endedOn = { y: NOW.y, m: NOW.m };
+    saveState(); render();
+    await new Promise(r => setTimeout(r, 200));
+    const s = document.getElementById("screen");
+    return {
+      before,
+      after: snapshot(NOW.y, NOW.m).recurringCharges,
+      stillListed: !!s.querySelector('[data-recid="t-sub-m"]'),
+      endedSection: /Résiliés/.test(s.innerText),
+      note: (s.querySelector('[data-recid="t-sub-m"]') || {}).innerText || "",
+    };
+  });
+  check(Math.round(ended90.after * 100) === Math.round((ended90.before - 20) * 100),
+    `résilier retire EXACTEMENT la charge des prévisions (${ended90.before} → ${ended90.after})`);
+  check(ended90.stillListed && ended90.endedSection,
+    "une charge résiliée reste visible dans une section « Résiliés »");
+  check(/résilié depuis/.test(ended90.note),
+    `la résiliation est ÉCRITE avec sa date (obtenu « ${ended90.note.replace(/\n/g, " ")} »)`);
+  // Une sauvegarde contenant un rythme illisible est REFUSÉE, données intactes.
+  const guard90 = await page.evaluate(() => {
+    const good = JSON.parse(JSON.stringify(S));
+    let refusedEvery = false, refusedDue = false, refusedEnd = false;
+    const tryState = mutate => {
+      const draft = JSON.parse(JSON.stringify(good));
+      mutate(draft);
+      try { validatedRestoreState(draft); return false; } catch (e) { return true; }
+    };
+    refusedEvery = tryState(d => { d.recurrings[0].every = "week"; });
+    refusedDue = tryState(d => { d.recurrings[0].every = "year"; d.recurrings[0].dueM = 13; });
+    refusedEnd = tryState(d => { d.recurrings[0].endedOn = { y: 1999, m: 1 }; });
+    return { refusedEvery, refusedDue, refusedEnd, intact: RECURRINGS.length === good.recurrings.length };
+  });
+  check(guard90.refusedEvery, "une sauvegarde avec un rythme inconnu est REFUSÉE");
+  check(guard90.refusedDue, "un mois d'échéance hors 1-12 est REFUSÉ");
+  check(guard90.refusedEnd, "une date de résiliation invalide est REFUSÉE");
+  check(guard90.intact, "après chaque refus, les données en place sont intactes");
+  // Nettoyage.
+  await page.evaluate(() => {
+    for (let i = RECURRINGS.length - 1; i >= 0; i--) {
+      if (String(RECURRINGS[i].id).startsWith("t-sub-")) RECURRINGS.splice(i, 1);
+    }
+    saveState(); activeTab = "home"; moreView = null; render();
+  });
+  const clean90 = await page.evaluate(() =>
+    RECURRINGS.some(r => String(r.id).startsWith("t-sub-")));
+  check(!clean90, "les abonnements de test sont retirés (aucune trace)");
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3500,4 +3636,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 88 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 90 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel), zéro erreur console ✓");
