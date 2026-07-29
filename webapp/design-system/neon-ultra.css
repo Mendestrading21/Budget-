@@ -3,13 +3,13 @@
    ------------------------------------------------------------
    FONDATION PARTAGÉE (depuis NU2) : cette feuille est chargée
    UNE seule fois par `neon-ultra-gallery.html` (galerie NU1) et
-   par `webapp/index.html` (surfaces PILOTES NU2 : Mois, Budget,
-   menu Ajouter, formulaire Nouveau mouvement).
+   par `webapp/index.html` (surfaces PILOTES NU2 : Mois, Budget
+   et formulaire Nouveau mouvement).
    ISOLATION : hors du bloc `:root` et des bascules déterministes
    d'accessibilité, AUCUNE règle ne s'applique en dehors d'un
    conteneur portant une classe NU (`.nu-body`, `.nu-pilot-screen`,
-   `.nu-pilot-sheet`). Les écrans Obsidian restants (Comptes,
-   Mouvements, Plus, feuilles, onboarding, barre d'onglets) ne
+   `.nu-pilot-sheet`). Les écrans Obsidian restants (Historique,
+   Comptes, Gérer, feuilles, onboarding, barre d'onglets) ne
    reçoivent donc aucune règle Neon Ultra.
    Préfixe systématique `--nu-` /
    `.nu-` : aucune collision possible avec les variables Obsidian.
@@ -397,6 +397,31 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   border: 1px solid var(--nu-border);
   border-radius: var(--nu-radius-card);
 }
+#screen.nu-pilot-screen .home-simple .home-metrics .stat {
+  min-width: 0;
+  padding: 16px 14px;
+}
+#screen.nu-pilot-screen .home-metric-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+#screen.nu-pilot-screen .home-metric-currency {
+  color: var(--nu-text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+}
+#screen.nu-pilot-screen .home-simple .home-metrics .amount {
+  display: block;
+  max-width: 100%;
+  font-size: clamp(16px, 5vw, 22px);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+#screen.nu-pilot-screen .home-simple .home-metrics .amount.long {
+  font-size: clamp(12px, 3.8vw, 16px);
+}
 #screen.nu-pilot-screen .card.hero {
   background: var(--nu-surface-elevated);
   border: 1px solid var(--nu-hero-edge);
@@ -437,6 +462,94 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   background: var(--nu-violet);
   margin-right: 6px;
   vertical-align: 2px;
+}
+
+/* --- Accueil simple : un seul widget mensuel, lisible à 320 px --- */
+#screen.nu-pilot-screen .home-bills-card { padding: 18px; }
+#screen.nu-pilot-screen .home-bills-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+#screen.nu-pilot-screen .home-bills-total {
+  margin: 2px 0;
+  color: var(--nu-text-primary);
+  font-size: clamp(22px, 7vw, 30px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+#screen.nu-pilot-screen .home-manage {
+  flex: none;
+  width: auto;
+  padding: 8px 12px;
+}
+#screen.nu-pilot-screen .home-bills-progress { margin: 14px 0 8px; }
+#screen.nu-pilot-screen .home-bills-list {
+  display: grid;
+  border-top: 1px solid var(--nu-border);
+}
+#screen.nu-pilot-screen .home-bill-row {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--nu-border);
+}
+#screen.nu-pilot-screen .home-bill-row:has(.home-bill-action) {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+}
+#screen.nu-pilot-screen .home-bill-row .meta {
+  min-width: 0;
+  cursor: pointer;
+}
+#screen.nu-pilot-screen .home-bill-row .meta .t {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+#screen.nu-pilot-screen .home-bill-row > .amount {
+  max-width: 120px;
+  font-size: clamp(12px, 3.4vw, 15px);
+  overflow-wrap: anywhere;
+  text-align: right;
+  white-space: normal;
+}
+#screen.nu-pilot-screen .home-bill-action {
+  grid-column: 2 / -1;
+  justify-self: end;
+  width: auto;
+  padding: 8px 12px;
+}
+#screen.nu-pilot-screen .home-more-link {
+  min-height: 44px;
+  width: 100%;
+  margin-top: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--nu-cyan);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+#screen.nu-pilot-screen .home-bills-empty { padding-top: 12px; }
+@media (max-width: 340px) {
+  #screen.nu-pilot-screen .home-bill-row {
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 8px;
+  }
+  #screen.nu-pilot-screen .home-bill-row .ico { width: 38px; height: 38px; }
+  #screen.nu-pilot-screen .home-bill-row > .amount {
+    grid-column: 2;
+    justify-self: start;
+    max-width: none;
+    text-align: left;
+  }
+  #screen.nu-pilot-screen .home-bill-action { grid-column: 2; justify-self: start; }
 }
 
 /* --- Priorité : texte + symbole + FORME (barre latérale), jamais la couleur seule --- */
