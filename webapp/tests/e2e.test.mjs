@@ -3373,6 +3373,124 @@ check(errors79.length === 0,
   `correctif critique : zéro pageerror / erreur console (obtenu ${errors79.slice(0, 3).join(" | ") || "aucune"})`);
 await context79.close();
 
+// ---------- Test 87 : page Année — les douze mois, états écrits, ouverture d'un mois ----------
+currentTest = "page Année";
+await goHome();
+{
+  // Deux mois avec du réel, un mois bouclé : les états doivent se distinguer.
+  await page.evaluate(() => {
+    const mk = (m, d, type, amount, title) => ({
+      id: ++txSeq, y: NOW.y, m, d, title, type,
+      cat: type === "expense" ? "Logement" : null,
+      acc: ACCOUNTS[0].id, dest: null, status: "posted", amount,
+    });
+    transactions.push(mk(1, 5, "income", 6000, "Salaire Année E2E"));
+    transactions.push(mk(1, 8, "expense", 1500, "Loyer Année E2E"));
+    transactions.push(mk(2, 5, "income", 4000, "Salaire Année E2E"));
+    transactions.push(mk(2, 8, "expense", 5000, "Gros achat Année E2E"));
+    S.monthChecks[`${NOW.y}-1`] = Date.now();
+    delete S.monthChecks[`${NOW.y}-2`];
+    saveState(); render();
+  });
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
+  await page.waitForTimeout(150);
+  await page.click('#screen [data-more="year"]');
+  await page.waitForTimeout(300);
+  const year87 = await page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const row = m => s.querySelector(`[data-gotomonth="${NOW.y}-${m}"]`);
+    return {
+      piloted: s.classList.contains("nu-pilot-screen"),
+      canvas: getComputedStyle(s).backgroundColor,
+      months: s.querySelectorAll("[data-gotomonth]").length,
+      bars: s.querySelectorAll(".year-bar").length,
+      title: (s.querySelector("h2.screen-title") || {}).textContent || "",
+      jan: (row(1) || {}).innerText || "",
+      feb: (row(2) || {}).innerText || "",
+      chartLabel: (s.querySelector(".year-bars") || {}).getAttribute
+        ? s.querySelector(".year-bars").getAttribute("aria-label") : "",
+      // Aucune barre ne sort de son cadre.
+      overflowing: [...s.querySelectorAll(".year-bar i")]
+        .filter(el => el.getBoundingClientRect().height > 46).length,
+    };
+  });
+  check(year87.months === 12, `la page Année liste les douze mois (obtenu ${year87.months})`);
+  check(year87.bars === 12, `douze barres de solde, une par mois (obtenu ${year87.bars})`);
+  check(year87.piloted && year87.canvas === "rgb(5, 6, 10)",
+    `Année est une surface pilote Neon Ultra (obtenu ${year87.canvas})`);
+  check(/Année \d{4}/.test(year87.title), `titre « Année AAAA » (obtenu « ${year87.title}` + "»)");
+  // Janvier : +4'500 (6000 entré − 1500 sorti), bouclé.
+  check(/Bouclé/i.test(year87.jan), `janvier bouclé est ÉCRIT (obtenu « ${year87.jan.replace(/\n/g, " ")} »)`);
+  check(year87.jan.includes("6'000.00") && year87.jan.includes("1'500.00"),
+    `janvier montre l'entré ET le sorti exacts (obtenu « ${year87.jan.replace(/\n/g, " ")} »)`);
+  check(year87.jan.includes("4'500.00"),
+    `janvier : solde +4'500.00 (obtenu « ${year87.jan.replace(/\n/g, " ")} »)`);
+  // Février : négatif (4000 entré − 5000 sorti), non bouclé.
+  check(/À boucler|En cours/i.test(year87.feb),
+    `février non bouclé porte un état actionnable (obtenu « ${year87.feb.replace(/\n/g, " ")} »)`);
+  check(year87.feb.includes("1'000.00"),
+    `février : solde négatif de 1'000.00 affiché (obtenu « ${year87.feb.replace(/\n/g, " ")} »)`);
+  check(/Solde mensuel/.test(year87.chartLabel),
+    `le graphique est annoncé aux lecteurs d'écran (obtenu « ${year87.chartLabel.slice(0, 40)} »)`);
+  check(year87.overflowing === 0,
+    `aucune barre ne dépasse son cadre (obtenu ${year87.overflowing})`);
+}
+
+// ---------- Test 88 : Année — un mois s'ouvre RÉELLEMENT dans l'écran Mois ----------
+currentTest = "Année ouvre le mois";
+{
+  const opened88 = await page.evaluate(async () => {
+    document.querySelector(`[data-gotomonth="${NOW.y}-2"]`).click();
+    await new Promise(r => setTimeout(r, 300));
+    return {
+      tab: activeTab,
+      moreView,
+      cursorY: cursor.y,
+      cursorM: cursor.m,
+      piloted: document.getElementById("screen").classList.contains("nu-pilot-screen"),
+      text: document.getElementById("screen").innerText.slice(0, 60),
+    };
+  });
+  check(opened88.tab === "home" && opened88.moreView === null,
+    `taper un mois ouvre l'écran Mois (obtenu onglet ${opened88.tab}, vue ${opened88.moreView})`);
+  check(opened88.cursorM === 2,
+    `le mois OUVERT est bien celui tapé (attendu 2, obtenu ${opened88.cursorM})`);
+  check(opened88.piloted, "l'écran Mois ouvert depuis Année reste piloté");
+  // Navigation d'année : bornes et retour à l'année courante.
+  await page.click(`#tabbar button[aria-label="Gérer"]`);
+  await page.waitForTimeout(150);
+  await page.click('#screen [data-more="year"]');
+  await page.waitForTimeout(250);
+  await page.click("#prevY");
+  await page.waitForTimeout(250);
+  const nav88 = await page.evaluate(() => ({
+    year: yearCursor,
+    title: (document.querySelector("#screen h2.screen-title") || {}).textContent || "",
+    back: !!document.getElementById("backToYear"),
+  }));
+  check(nav88.year === new Date().getFullYear() - 1,
+    `« ‹ » recule d'une année (obtenu ${nav88.year})`);
+  check(nav88.title.includes(String(nav88.year)),
+    `le titre suit l'année affichée (obtenu « ${nav88.title} »)`);
+  check(nav88.back, "un retour « cette année » apparaît hors de l'année courante");
+  await page.click("#backToYear");
+  await page.waitForTimeout(250);
+  const home88 = await page.evaluate(() => yearCursor);
+  check(home88 === new Date().getFullYear(),
+    `« cette année » revient à l'année courante (obtenu ${home88})`);
+  // Nettoyage : les mouvements du parcours Année disparaissent.
+  await page.evaluate(() => {
+    for (let i = transactions.length - 1; i >= 0; i--) {
+      if (String(transactions[i].title).includes("Année E2E")) transactions.splice(i, 1);
+    }
+    delete S.monthChecks[`${NOW.y}-1`];
+    saveState(); activeTab = "home"; moreView = null; cursor = { y: NOW.y, m: NOW.m }; render();
+  });
+  const clean88 = await page.evaluate(() =>
+    transactions.some(t => String(t.title).includes("Année E2E")));
+  check(!clean88, "les mouvements du parcours Année sont retirés (aucune trace)");
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3382,4 +3500,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 86 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 88 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année), zéro erreur console ✓");

@@ -2147,6 +2147,7 @@ let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si a
 let lockMessage = "";
 let editingTxId = null;
 let moreSearch = "";
+let yearCursor = NOW.y;       // année affichée par la page « Année »
 let lastNavKey = null; // dernière destination rendue (animation d'entrée)
 let moreFilter = "all"; // all | expense | income | saving | transfer
 function fold(value) {
@@ -3183,16 +3184,108 @@ function yearStats(y) {
   };
 }
 
+/* Une ligne de l'année : ce qui est réellement ENTRÉ et SORTI du mois,
+   comptabilisé uniquement (le planifié ne se mélange jamais au réel).
+   Les virements internes restent neutres : ils ne sont ni entrée ni sortie. */
+function yearMonthRow(y, m) {
+  const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
+  const cents = types => posted
+    .filter(t => types.includes(t.type))
+    .reduce((a, t) => a + toCents(txCHF(t)), 0);
+  const inC = cents(["income", "refund"]);
+  // Sorti = tout ce qui quitte les poches du mois, épargne et impôts
+  // compris : c'est la question « combien est parti ? », pas le coût de la vie.
+  const outC = cents(["expense", "saving", "investment", "taxPayment"]);
+  return {
+    y, m,
+    entered: fromCents(inC),
+    spent: fromCents(outC),
+    net: fromCents(inC - outC),
+    closed: !!(S.monthChecks || {})[`${y}-${m}`],
+    hasData: posted.length > 0,
+    isCurrent: y === NOW.y && m === NOW.m,
+    isFuture: y > NOW.y || (y === NOW.y && m > NOW.m),
+  };
+}
+
+/* Page « Année » : les douze mois d'un coup d'œil, chacun ouvrable.
+   Répond à « qu'est-ce qui est entré et sorti, mois par mois ? » sans
+   obliger à feuilleter l'écran Mois un mois à la fois. */
 function renderYearReview() {
-  const y = NOW.y;
+  const y = yearCursor;
   const now = yearStats(y);
   const prev = yearStats(y - 1);
+  const rows = Array.from({ length: 12 }, (_, i) => yearMonthRow(y, i + 1));
+  const entered = fromCents(rows.reduce((a, r) => a + toCents(r.entered), 0));
+  const spent = fromCents(rows.reduce((a, r) => a + toCents(r.spent), 0));
+  const withData = rows.filter(r => r.hasData);
+
+  // Barres du solde mensuel : hauteur proportionnelle à la plus grande
+  // valeur ABSOLUE de l'année, ligne de zéro visible, vert au-dessus et
+  // corail en dessous. Aucune barre ne peut sortir de son cadre.
+  const peak = Math.max(1, ...rows.map(r => Math.abs(r.net)));
+  const chart = withData.length === 0 ? "" : `
+    <div class="card">
+      <p class="card-label">Solde de chaque mois</p>
+      <div class="year-bars" role="img"
+           aria-label="Solde mensuel ${y} : ${withData.map(r => `${MONTH_NAMES[r.m - 1]} ${chf(r.net, true)}`).join(", ")}">
+        ${rows.map(r => {
+          // Hauteur proportionnelle au plus grand écart de l'année : une
+          // barre ne peut jamais dépasser son cadre, même à sept chiffres.
+          const h = Math.round(Math.abs(r.net) / peak * 44);
+          return `<div class="year-bar${r.isCurrent ? " now" : ""}" title="${MONTH_NAMES[r.m - 1]} ${chf(r.net, true)}">
+            <div class="up">${r.net > 0 ? `<i class="pos" style="height:${h}px"></i>` : ""}</div>
+            <div class="zero"></div>
+            <div class="down">${r.net < 0 ? `<i class="neg" style="height:${h}px"></i>` : ""}</div>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="year-bars-legend"><span class="caption">janvier</span><span class="caption">décembre</span></div>
+      <span class="caption">Entré moins sorti. Un virement entre vos comptes ne compte pas : l'argent reste à vous.</span>
+    </div>`;
+
+  const monthList = `
+    <p class="section-title">Les douze mois de ${y}</p>
+    ${rows.map(r => {
+      // L'état est toujours ÉCRIT et dit quoi faire : un mois passé qui
+      // n'est pas bouclé se distingue du mois en cours, et un mois sans
+      // rien à valider ne prétend pas être « en cours ».
+      const state = r.closed ? '<span class="pill pos">Bouclé</span>'
+        : r.isFuture ? '<span class="pill">À venir</span>'
+        : r.isCurrent ? '<span class="pill warn">En cours</span>'
+        : r.hasData ? '<span class="pill warn">À boucler</span>'
+        : '<span class="pill">Vide</span>';
+      const detail = r.hasData
+        ? `${chf(r.entered)} entré · ${chf(r.spent)} sorti`
+        : r.isFuture ? "Rien d'enregistré pour l'instant"
+        : r.closed ? "Rien à valider ce mois"
+        : "Aucun mouvement ce mois";
+      const name = MONTH_NAMES[r.m - 1].charAt(0).toUpperCase() + MONTH_NAMES[r.m - 1].slice(1);
+      return `<div class="card row tx year-month" data-gotomonth="${r.y}-${r.m}" data-gototab="home"
+           role="button" tabindex="0" style="cursor:pointer"
+           aria-label="Ouvrir ${MONTH_NAMES[r.m - 1]} ${r.y} — ${detail}">
+        <div class="meta" style="min-width:0">
+          <div class="t">${name}${r.isCurrent ? " · ce mois" : ""} ${state}</div>
+          <div class="s">${detail}</div>
+        </div>
+        ${r.hasData ? `<span class="amount ${r.net < 0 ? "neg" : "pos"}">${chf(r.net, true)}</span>` : ""}
+        <span style="color:var(--nu-text-tertiary)" aria-hidden="true">›</span>
+      </div>`;
+    }).join("")}`;
+
   return backBar(`Année ${y}`) + `
+    <div class="month-nav">
+      <button id="prevY" aria-label="Année précédente">‹</button>
+      <span class="label">${y}${y !== NOW.y ? ' <button id="backToYear" style="background:none;border:none;color:var(--nu-cyan);font-size:11px;cursor:pointer;font-family:inherit">cette année</button>' : ""}</span>
+      <button id="nextY" aria-label="Année suivante">›</button>
+    </div>
     <div class="card hero">
       <p class="card-label">Mis de côté en ${y}</p>
-      <p class="hero-amount pos">${chf(now.saved)}</p>
-      <span class="caption">${now.income > 0 ? `Taux d'épargne : ${pct(now.rate)}` : "Aucun revenu enregistré cette année"}${prev.saved > 0 ? ` · ${y - 1} : ${chf(prev.saved)}` : ""}</span>
+      <p class="hero-amount${now.saved < 0 ? " neg" : " pos"}${Math.abs(now.saved) >= 1000000 ? " long" : ""}">${chf(now.saved)}</p>
+      <span class="caption">${chf(entered)} entré · ${chf(spent)} sorti${now.income > 0 ? ` · taux d'épargne ${pct(now.rate)}` : ""}</span>
+      ${prev.saved !== 0 ? `<span class="caption" style="display:block;margin-top:4px">${y - 1} : ${chf(prev.saved)} mis de côté</span>` : ""}
     </div>
+    ${chart}
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Revenus</span><span class="amount pos">${chf(now.income)}</span>
         ${prev.income > 0 ? `<span class="caption">${y - 1} : ${chf(prev.income)}</span>` : ""}</div>
@@ -3202,6 +3295,7 @@ function renderYearReview() {
       <div class="stat"><span class="card-label">Mois bouclés</span><span class="amount info">${now.closedMonths}/12</span>
         <span class="caption">${now.closedMonths >= 6 ? "Belle régularité ✓" : "Le rituel paie — continuez"}</span></div>
     </div>
+    ${monthList}
     <div class="card">
       <p class="card-label">Versé par classe en ${y}</p>
       <div class="breakdown">
@@ -3928,7 +4022,10 @@ const MORE_GROUPS = [
   ["À construire", [
     ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
     ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
-    ["year", "📅", "Année en revue", "Bilan, taux d'épargne, mois bouclés"],
+    ["year", "📅", "Année", () => {
+      const done = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
+      return `Les douze mois de ${NOW.y} · ${done} bouclé${done > 1 ? "s" : ""}`;
+    }],
   ]],
   ["Mes données", [
     ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
@@ -4307,12 +4404,16 @@ function render() {
     bindOnboarding();
     return;
   }
-  // NU2 — surfaces PILOTES Neon Ultra : Mois et Budget uniquement, hors
-  // onboarding et verrouillage. Tout autre écran retire réellement la
-  // classe et conserve donc son rendu Obsidian (le shell appartient à NU4).
+  // Surfaces PILOTES Neon Ultra, hors onboarding et verrouillage : Mois,
+  // Budget, et les pages NÉES dans cette identité (Année, Abonnements) —
+  // un écran neuf ne naît pas dans l'ancienne peau. Tout autre écran
+  // retire réellement la classe et conserve son rendu Obsidian (le shell
+  // appartient à NU4).
+  const pilotedMoreViews = new Set(["year", "subs"]);
   screen.classList.toggle(
     "nu-pilot-screen",
-    !locked && (activeTab === "home" || activeTab === "budget")
+    !locked && (activeTab === "home" || activeTab === "budget"
+      || (activeTab === "more" && pilotedMoreViews.has(moreView)))
   );
   document.querySelectorAll(".curlabel").forEach(el => { el.textContent = baseCurrency(); });
   // Entrée d'écran Horizon : les cartes se posent en douceur quand on
@@ -4332,6 +4433,13 @@ function render() {
   if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); moreTxPage = 0; render(); pushNav(); };
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; moreTxPage = 0; render(); pushNav(); };
+  // Page « Année » : navigation d'année, bornée aux années plausibles.
+  const prevY = document.getElementById("prevY");
+  const nextY = document.getElementById("nextY");
+  const backToYear = document.getElementById("backToYear");
+  if (prevY) prevY.onclick = () => { yearCursor = Math.max(2000, yearCursor - 1); render(); pushNav(); };
+  if (nextY) nextY.onclick = () => { yearCursor = Math.min(2100, yearCursor + 1); render(); pushNav(); };
+  if (backToYear) backToYear.onclick = () => { yearCursor = NOW.y; render(); pushNav(); };
   animateHeroAmount();
 }
 
@@ -4498,8 +4606,13 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
   if (e.target.closest("[data-quickinv]")) { openTxSheet(null, "investment"); return; }
   if (e.target.closest("[data-addtx]")) { openTxSheet(null); return; }
+  // Un élément qui porte AUSSI un mois (page Année) est traité plus bas :
+  // sinon on changerait d'onglet sans jamais déplacer le curseur.
   const gotoTab = e.target.closest("[data-gototab]");
-  if (gotoTab) { activeTab = gotoTab.dataset.gototab; moreView = null; accountView = null; render(); scrollTop(); pushNav(); return; }
+  if (gotoTab && !gotoTab.hasAttribute("data-gotomonth")) {
+    activeTab = gotoTab.dataset.gototab; moreView = null; accountView = null;
+    render(); scrollTop(); pushNav(); return;
+  }
   if (e.target.closest("[data-editname]")) {
     document.getElementById("nName").value = S.profile.name || "";
     openSheet("nameForm");
@@ -4520,7 +4633,14 @@ document.getElementById("screen").addEventListener("click", (e) => {
   const gotoMonth = e.target.closest("[data-gotomonth]");
   if (gotoMonth) {
     const [gy, gm] = gotoMonth.dataset.gotomonth.split("-").map(Number);
-    if (gy && gm) { cursor = { y: gy, m: gm }; render(); scrollTop(); pushNav(); }
+    if (gy && gm) {
+      cursor = { y: gy, m: gm };
+      // La page Année ouvre le mois DANS l'écran Mois : le même élément
+      // porte alors sa destination, sinon on reste sur place (retour L8).
+      const tab = gotoMonth.dataset.gototab;
+      if (tab && RENDERERS[tab]) { activeTab = tab; moreView = null; accountView = null; }
+      render(); scrollTop(); pushNav();
+    }
     return;
   }
   const projBtn = e.target.closest("[data-projprofile]");

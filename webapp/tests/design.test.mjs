@@ -183,17 +183,42 @@ check(nuGallery.includes('href="neon-ultra.css"') && !nuGallery.includes("obsidi
 // isolées : seules les fonctions pilotes peuvent employer `var(--nu-*)`.
 // Un sélecteur CSS bien scopé ne compense pas une couleur NU injectée en
 // ligne dans Comptes, Plus, Mouvements ou une fonction graphique partagée.
+// Le contrôle attribue chaque occurrence à sa FONCTION englobante plutôt
+// qu'à une tranche de source : renommer ou déplacer une fonction ne peut
+// plus élargir la portée en silence, et le message nomme les fuyards.
+// Liste blanche = exactement les renderers des surfaces pilotes.
+const PILOT_RENDERERS = new Set([
+  "renderHome",        // Mois
+  "renderSimpleHome",  // Mois (accueil essentiel, ADR-026)
+  "renderBudget",      // Budget
+  "renderYearReview",  // Année (née dans l'identité Neon Ultra)
+  "yearMonthRow",      // ligne de la page Année
+]);
 {
-  const homeStart = indexSrc.indexOf("function renderHome()");
-  const budgetStart = indexSrc.indexOf("function renderBudget()");
-  const pilotEnd = indexSrc.indexOf("function chartX(");
-  const outsidePilot = indexSrc.slice(0, homeStart)
-    + indexSrc.slice(pilotEnd);
-  const leakingInlineRoles = outsidePilot.match(/var\(--nu-[a-z-]+\)/g) || [];
-  check(homeStart >= 0 && budgetStart > homeStart && pilotEnd > budgetStart,
-    "les bornes des deux renderers pilotes doivent rester détectables");
-  check(leakingInlineRoles.length === 0,
-    `aucun rôle NU en ligne hors renderHome/renderBudget (fuite : ${[...new Set(leakingInlineRoles)].join(", ")})`);
+  const lines = indexSrc.split("\n");
+  const starts = lines
+    .map((l, i) => ({ i, m: /^function ([A-Za-z_$][\w$]*)/.exec(l) }))
+    .filter(x => x.m)
+    .map(x => ({ line: x.i, name: x.m[1] }));
+  const ownerOf = (lineIndex) => {
+    let owner = "<balisage HTML>";
+    for (const s of starts) {
+      if (s.line <= lineIndex) owner = s.name; else break;
+    }
+    return owner;
+  };
+  const leaks = new Map();
+  lines.forEach((line, i) => {
+    if (!line.includes("var(--nu-")) return;
+    const owner = ownerOf(i);
+    if (PILOT_RENDERERS.has(owner)) return;
+    leaks.set(owner, (leaks.get(owner) || 0) + 1);
+  });
+  check(starts.some(s => s.name === "renderBudget"),
+    "les fonctions de premier niveau doivent rester détectables");
+  const detail = [...leaks].map(([fn, n]) => `${fn} ×${n}`).join(" | ") || "aucune";
+  check(leaks.size === 0,
+    `aucun rôle NU en ligne hors des renderers pilotes (fuite : ${detail})`);
 }
 // Portée STRICTE : hors :root et bascules d'accessibilité déterministes,
 // chaque règle est enracinée dans une classe NU.

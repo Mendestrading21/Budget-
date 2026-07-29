@@ -585,6 +585,67 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 #screen.nu-pilot-screen .btn:active { transform: scale(0.98); filter: brightness(1.05); }
 #screen.nu-pilot-screen .btn:disabled { opacity: 0.4; }
 
+/* --- Page Année : douze barres de solde, zéro visible ---
+   Chaque mois occupe une colonne égale ; la hauteur est calculée par
+   l'application au prorata du plus grand écart de l'année, donc aucune
+   barre ne peut sortir de son cadre. Vert au-dessus de zéro, corail en
+   dessous : la couleur DOUBLE l'information, elle ne la porte pas seule
+   (le détail chiffré de chaque mois est listé juste en dessous). */
+#screen.nu-pilot-screen .year-bars {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  margin: 10px 0 4px;
+}
+#screen.nu-pilot-screen .year-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#screen.nu-pilot-screen .year-bar .up,
+#screen.nu-pilot-screen .year-bar .down {
+  height: 44px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+#screen.nu-pilot-screen .year-bar .up { align-items: flex-end; }
+#screen.nu-pilot-screen .year-bar .down { align-items: flex-start; }
+#screen.nu-pilot-screen .year-bar i {
+  display: block;
+  width: 100%;
+  max-width: 16px;
+  border-radius: 3px;
+}
+#screen.nu-pilot-screen .year-bar i.pos { background: var(--nu-positive); }
+#screen.nu-pilot-screen .year-bar i.neg { background: var(--nu-negative); }
+#screen.nu-pilot-screen .year-bar .zero {
+  height: 1px;
+  width: 100%;
+  background: var(--nu-border);
+}
+/* Le mois en cours est repéré par un fond, jamais par la seule couleur. */
+#screen.nu-pilot-screen .year-bar.now .zero { background: var(--nu-cyan); height: 2px; }
+#screen.nu-pilot-screen .year-bars-legend {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 6px;
+}
+/* Une ligne de mois est faite pour être LUE, pas compressée : contrairement
+   aux listes de mouvements, son texte revient à la ligne au lieu d'être
+   coupé par une ellipse — y compris à 320 px et à 200 % de texte. */
+#screen.nu-pilot-screen .year-month { align-items: flex-start; }
+#screen.nu-pilot-screen .year-month .t,
+#screen.nu-pilot-screen .year-month .s {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  line-height: 1.35;
+}
+#screen.nu-pilot-screen .year-month .amount { white-space: nowrap; }
+
 /* --- Jauges : barres simples, sans gradient décoratif --- */
 #screen.nu-pilot-screen .track { background: var(--nu-border); }
 #screen.nu-pilot-screen .fill { background: var(--nu-violet); }
