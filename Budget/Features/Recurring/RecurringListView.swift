@@ -1,13 +1,13 @@
 import SwiftUI
 import SwiftData
 
-/// Recurring charges and subscriptions: monthly/annualized totals,
-/// upcoming occurrences, renewal and cancellation deadlines.
+/// One clear place for everything that comes back automatically:
+/// rent, insurance, subscriptions, salaries and regular savings.
 struct RecurringListView: View {
     @Environment(AppContainer.self) private var appContainer
-    @Environment(\.modelContext) private var modelContext
 
-    @Query(sort: \RecurringTransaction.title) private var recurrings: [RecurringTransaction]
+    @Query(sort: \RecurringTransaction.title)
+    private var recurrings: [RecurringTransaction]
 
     @State private var editedRecurring: RecurringTransaction?
     @State private var isPresentingNew = false
@@ -16,47 +16,53 @@ struct RecurringListView: View {
         RecurringScheduleService(calendar: appContainer.calendar)
     }
 
-    private var active: [RecurringTransaction] { recurrings.filter(\.isActive) }
-    private var inactive: [RecurringTransaction] { recurrings.filter { !$0.isActive } }
-
-    private var monthlyChargesTotal: Decimal {
-        active
-            .filter { $0.type != .income }
-            .reduce(.zero) { $0 + scheduleService.monthlyEquivalent(of: $1) }
+    private var activeBills: [RecurringTransaction] {
+        recurrings.filter { $0.isActive && $0.type != .income }
     }
 
-    private var annualChargesTotal: Decimal {
-        active
-            .filter { $0.type != .income }
-            .reduce(.zero) { $0 + scheduleService.annualizedCost(of: $1) }
+    private var activeIncome: [RecurringTransaction] {
+        recurrings.filter { $0.isActive && $0.type == .income }
     }
 
-    private var groups: [(title: String, items: [RecurringTransaction])] {
-        [
-            ("Revenus", active.filter { $0.type == .income }),
-            ("Abonnements", active.filter { $0.isSubscription && $0.type != .income }),
-            ("Charges et contributions", active.filter { !$0.isSubscription && $0.type != .income }),
-            ("Désactivés", inactive),
-        ].filter { !$0.1.isEmpty }
+    private var inactive: [RecurringTransaction] {
+        recurrings.filter { !$0.isActive }
+    }
+
+    private var monthlyBillsTotal: Decimal {
+        activeBills.reduce(.zero) {
+            $0 + scheduleService.monthlyEquivalent(of: $1)
+        }
     }
 
     var body: some View {
         ZStack {
             BudgetScreenBackground()
-            if recurrings.isEmpty {
-                emptyState
-            } else {
-                list
+
+            ScrollView {
+                VStack(spacing: BudgetSpacing.medium) {
+                    summaryCard
+
+                    if recurrings.isEmpty {
+                        emptyState
+                    } else {
+                        billSection
+                        incomeSection
+                        inactiveSection
+                    }
+                }
+                .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
-        .navigationTitle("Récurrents")
+        .navigationTitle("Factures mensuelles")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     isPresentingNew = true
                 } label: {
-                    Label("Ajouter", systemImage: "plus")
+                    Image(systemName: "plus")
                 }
+                .accessibilityLabel("Ajouter une facture mensuelle")
             }
         }
         .sheet(isPresented: $isPresentingNew) {
@@ -67,154 +73,160 @@ struct RecurringListView: View {
         }
     }
 
-    private var list: some View {
-        ScrollView {
-            VStack(spacing: BudgetSpacing.medium) {
-                GlassCard(style: .hero) {
-                    VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
-                        Text("Charges récurrentes")
-                            .font(BudgetFont.cardLabel)
-                            .foregroundStyle(.secondary)
-                        HStack(alignment: .firstTextBaseline, spacing: BudgetSpacing.micro) {
-                            AmountText(amount: monthlyChargesTotal, role: .hero)
-                            Text("par mois")
-                                .font(BudgetFont.cardLabel)
-                                .foregroundStyle(.secondary)
-                        }
-                        Text("Soit \(FinanceFormatting.chf(annualChargesTotal)) par an, revenus non compris")
+    private var summaryCard: some View {
+        GlassCard(style: .hero) {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("À prévoir chaque mois")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+
+                AmountText(amount: monthlyBillsTotal, role: .hero)
+
+                Text("Vos factures reviennent automatiquement. Sur l’accueil, marquez-les comme payées en un geste.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    isPresentingNew = true
+                } label: {
+                    Label("Ajouter une facture", systemImage: "plus")
+                }
+                .buttonStyle(PrimaryActionButtonStyle())
+            }
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    @ViewBuilder
+    private var billSection: some View {
+        if !activeBills.isEmpty {
+            sectionTitle("Mes factures", count: activeBills.count)
+            ForEach(activeBills) { recurring in
+                simpleRow(recurring)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var incomeSection: some View {
+        if !activeIncome.isEmpty {
+            sectionTitle("Mes revenus réguliers", count: activeIncome.count)
+            ForEach(activeIncome) { recurring in
+                simpleRow(recurring)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var inactiveSection: some View {
+        if !inactive.isEmpty {
+            DisclosureGroup("Désactivés (\(inactive.count))") {
+                VStack(spacing: BudgetSpacing.small) {
+                    ForEach(inactive) { recurring in
+                        simpleRow(recurring)
+                    }
+                }
+                .padding(.top, BudgetSpacing.small)
+            }
+            .font(BudgetFont.body.weight(.semibold))
+            .tint(BudgetColor.brandBright)
+        }
+    }
+
+    private func sectionTitle(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(BudgetFont.sectionTitle)
+            Spacer()
+            Text("\(count)")
+                .font(BudgetFont.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func simpleRow(_ recurring: RecurringTransaction) -> some View {
+        Button {
+            editedRecurring = recurring
+        } label: {
+            GlassCard(style: .row) {
+                HStack(spacing: BudgetSpacing.medium) {
+                    Image(systemName: recurring.type == .income ? "arrow.down.circle" : "calendar")
+                        .foregroundStyle(
+                            recurring.type == .income
+                                ? BudgetColor.positive
+                                : BudgetColor.warning
+                        )
+                        .frame(width: 28)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(recurring.title)
+                            .font(BudgetFont.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+
+                        Text(rowSubtitle(recurring))
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(2)
                     }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Charges récurrentes : \(FinanceFormatting.chf(monthlyChargesTotal)) par mois, \(FinanceFormatting.chf(annualChargesTotal)) par an")
-                }
 
-                ForEach(groups, id: \.title) { group in
-                    VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                        Text(group.title)
-                            .font(BudgetFont.sectionTitle)
-                            .foregroundStyle(.secondary)
-                        ForEach(group.items) { recurring in
-                            RecurringRow(
-                                recurring: recurring,
-                                monthlyEquivalent: scheduleService.monthlyEquivalent(of: recurring),
-                                nextDate: scheduleService.nextOccurrence(of: recurring, onOrAfter: appContainer.dateProvider.now),
-                                now: appContainer.dateProvider.now
-                            )
-                            .onTapGesture { editedRecurring = recurring }
-                        }
-                    }
-                }
-            }
-            .padding(BudgetSpacing.screenMargin)
-        }
-        .obsidianFABClearance()
-    }
+                    Spacer(minLength: BudgetSpacing.small)
 
-    private var emptyState: some View {
-        ScrollView {
-            GlassCard {
-                EmptyState(
-                    symbol: "arrow.triangle.2.circlepath",
-                    title: "Aucune charge récurrente",
-                    message: "Salaire, loyer, primes, abonnements : enregistrez ce qui revient chaque mois pour que vos prévisions se remplissent toutes seules.",
-                    actionTitle: "Ajouter un récurrent",
-                    action: { isPresentingNew = true }
-                )
-            }
-            .padding(BudgetSpacing.screenMargin)
-        }
-        .obsidianFABClearance()
-    }
-}
-
-struct RecurringRow: View {
-    let recurring: RecurringTransaction
-    let monthlyEquivalent: Decimal
-    let nextDate: Date?
-    let now: Date
-
-    /// Cancellation deadline within 30 days deserves attention.
-    private var deadlineIsClose: Bool {
-        guard let deadline = recurring.cancellationDeadline, recurring.isActive else { return false }
-        return deadline >= now && deadline.timeIntervalSince(now) < 30 * 86_400
-    }
-
-    var body: some View {
-        GlassCard(style: .row) {
-            HStack(spacing: BudgetSpacing.medium) {
-                Image(systemName: recurring.isSubscription ? "arrow.triangle.2.circlepath" : recurring.type.systemImage)
-                    .foregroundStyle(BudgetColor.indigo)
-                    .frame(width: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: BudgetSpacing.micro) {
-                        Text(recurring.title)
-                            .font(BudgetFont.body.weight(.medium))
-                            .fixedSize(horizontal: false, vertical: true)
-                        if recurring.isProfessional {
-                            Text("Pro")
-                                .font(BudgetFont.caption.weight(.semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 1)
-                                .background(BudgetColor.electricBlue.opacity(0.2), in: Capsule())
-                                .foregroundStyle(BudgetColor.electricBlue)
-                        }
-                    }
-                    Text(subtitle)
-                        .font(BudgetFont.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    if deadlineIsClose, let deadline = recurring.cancellationDeadline {
-                        Label("Résiliable jusqu'au \(FinanceFormatting.swissDate(deadline))", systemImage: "exclamationmark.triangle.fill")
-                            .font(BudgetFont.caption.weight(.semibold))
-                            .foregroundStyle(BudgetColor.warning)
-                    }
-                }
-                Spacer(minLength: BudgetSpacing.small)
-                VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(recurring.amount))
                         .font(BudgetFont.amount)
-                        .fixedSize()
-                        .foregroundStyle(recurring.type == .income ? BudgetColor.positive : .primary)
-                    Text(recurring.frequencyLabel)
-                        .font(BudgetFont.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(
+                            recurring.type == .income
+                                ? BudgetColor.positive
+                                : .primary
+                        )
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
         }
+        .buttonStyle(.plain)
         .opacity(recurring.isActive ? 1 : 0.55)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityText)
+        .accessibilityLabel(rowAccessibility(recurring))
+        .accessibilityHint("Touchez deux fois pour modifier")
         .accessibilityIdentifier("recurring.row.\(recurring.title)")
     }
 
-    private var subtitle: String {
-        var parts: [String] = []
-        if recurring.frequencyLabel != "Mensuel" {
-            parts.append("≈ \(FinanceFormatting.chf(monthlyEquivalent)) / mois")
+    private func rowSubtitle(_ recurring: RecurringTransaction) -> String {
+        var parts: [String] = [recurring.frequencyLabel]
+
+        if let next = scheduleService.nextOccurrence(
+            of: recurring,
+            onOrAfter: appContainer.dateProvider.now
+        ), recurring.isActive {
+            parts.append("prochaine le \(FinanceFormatting.swissDate(next))")
         }
-        if let nextDate, recurring.isActive {
-            parts.append("Prochaine : \(FinanceFormatting.swissDate(nextDate))")
-        }
+
         if !recurring.isActive {
-            parts.append("Désactivé")
+            parts.append("désactivée")
         }
-        return parts.isEmpty ? recurring.type.displayName : parts.joined(separator: " · ")
+
+        return parts.joined(separator: " · ")
     }
 
-    private var accessibilityText: String {
-        var text = "\(recurring.title), \(FinanceFormatting.chf(recurring.amount)), \(recurring.frequencyLabel)"
-        if let nextDate, recurring.isActive {
-            text += ", prochaine échéance le \(FinanceFormatting.swissDate(nextDate))"
+    private func rowAccessibility(_ recurring: RecurringTransaction) -> String {
+        "\(recurring.title), \(FinanceFormatting.chf(recurring.amount)), \(rowSubtitle(recurring))"
+    }
+
+    private var emptyState: some View {
+        GlassCard {
+            EmptyState(
+                symbol: "calendar.badge.plus",
+                title: "Ajoutez vos factures mensuelles",
+                message: "Loyer, caisse maladie, téléphone, abonnements : ajoutez-les une seule fois. Elles reviendront ensuite automatiquement chaque mois.",
+                actionTitle: "Ajouter ma première facture",
+                action: { isPresentingNew = true }
+            )
         }
-        if deadlineIsClose, let deadline = recurring.cancellationDeadline {
-            text += ", résiliable jusqu'au \(FinanceFormatting.swissDate(deadline))"
-        }
-        return text
     }
 }
 
-#Preview("Récurrents") {
+#Preview("Factures mensuelles") {
     let preview = DemoDataFactory.previewAppContainer()
     return NavigationStack {
         RecurringListView()
