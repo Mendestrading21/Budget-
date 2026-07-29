@@ -17,7 +17,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## Correctif critique de fiabilité (29.07.2026) — CI VERIFIED / DEPLOYING
+## Correctif critique de fiabilité (29.07.2026) — VERIFIED
 
 La poursuite visuelle reste gelée avant NU3 pendant la validation d'un lot
 correctif transversal découvert par audit. Ce lot ne change pas la direction
@@ -49,9 +49,13 @@ console, et **5 fixtures de parité** vertes. Validation distante :
 et Release, PrivacyInfo et iPhone uniquement). Le code de fiabilité est
 **CI VERIFIED**. Le workflow Pages est durci pour exiger une CI push verte
 sur le SHA exact et publier automatiquement les changements `webapp/**`.
-La livraison reste **VERIFYING** jusqu'à synchronisation du garde-fou sur
-la branche par défaut et contrôle des fichiers réellement servis par Pages.
-**NU3 reste READY et non commencé.**
+Le même garde-fou est synchronisé sur les trois branches autorisées par
+l'environnement `github-pages`. La livraison `0afda7f3` a repassé la CI
+complète (run `30449175567`, success), puis Pages #44
+(`30449175379`, success) l'a publiée. Les sept fichiers publics ont été
+retéléchargés et leurs SHA-256 correspondent octet pour octet aux sources
+validées, notamment le nouvel `index.html`. Le lot de fiabilité est
+**VERIFIED**. **NU3 reste READY et non commencé.**
 
 ## NU2 — Pilote PWA : Mois, Budget, Ajouter, Nouveau mouvement (27.07.2026) — DONE
 
