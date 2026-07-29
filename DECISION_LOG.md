@@ -1,5 +1,51 @@
 # Budget decision log
 
+## ADR-026 — Navigation simple et accueil synthétique sur PWA et iPhone
+
+Date: 2026-07-29
+Status: accepted
+
+### Context
+
+Le propriétaire confirme que l'accueil doit cesser d'être un tableau de bord
+technique : trop de boutons à gauche, à droite et au centre, trop de sections,
+et les factures qui reviennent chaque mois ne sont pas assez évidentes. La
+version iPhone a déjà adopté les libellés simples `Mois · Historique · Budget ·
+Comptes · Gérer`, tandis que la PWA conserve encore quatre onglets, un bouton
+central et les mouvements cachés dans `Plus`. Cette divergence contredit le
+retour produit explicite et complique le lien de test public.
+
+### Decision
+
+1. Les deux plateformes convergent vers cinq destinations stables :
+   `Mois · Historique · Budget · Comptes · Gérer`.
+2. Le bouton global central ou flottant est supprimé. L'accueil conserve une
+   seule action principale « Ajouter un mouvement » ; les autres créations
+   vivent dans l'écran qui les concerne.
+3. Le premier niveau de l'accueil montre uniquement le mois, le montant
+   `Disponible`, les quatre montants `Entré · Dépensé · À payer · Mis de
+   côté`, puis les factures mensuelles. Les analyses, courbes, objectifs,
+   patrimoine, réglages et imports restent dans leurs destinations dédiées.
+4. Les factures mensuelles réutilisent le moteur récurrent existant : une
+   définition produit une occurrence par mois, conserve son compte et sa date,
+   et ne peut pas créer de doublon. Les factures ponctuelles restent
+   distinctes.
+5. Cette décision change uniquement l'architecture de navigation et la
+   présentation. Les formules, modèles, clés de stockage, sauvegardes,
+   imports, devises et règles de persistance restent inchangés.
+
+### Consequences
+
+La PWA de test et l'app iPhone présentent la même logique. L'accueil répond en
+quelques secondes aux questions essentielles, tandis que les fonctions
+avancées restent disponibles sans concurrencer les montants du mois.
+
+### Verification
+
+Tests de destinations, absence du bouton global, ordre du premier viewport,
+facture récurrente visible sur deux mois distincts, paiement sans doublon,
+320 px, texte agrandi, cibles 44 px, zéro erreur console et suites de parité.
+
 ## ADR-025 — Correctif de fiabilité : dates, fiscalité, historique et restaurations
 
 Date: 2026-07-29
