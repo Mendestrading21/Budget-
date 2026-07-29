@@ -112,6 +112,69 @@ final class TransactionValidationTests: XCTestCase {
         )
     }
 
+    func testPostingPolicyUsesZurichCalendarDayAcrossDST() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        let policy = TransactionPostingPolicy(calendar: calendar)
+        let now = calendar.date(
+            from: DateComponents(year: 2026, month: 3, day: 29, hour: 0, minute: 30)
+        )!
+        let sameDayLate = calendar.date(
+            from: DateComponents(year: 2026, month: 3, day: 29, hour: 23, minute: 30)
+        )!
+        let nextDay = calendar.date(
+            from: DateComponents(year: 2026, month: 3, day: 30, hour: 0)
+        )!
+
+        XCTAssertEqual(policy.automaticStatus(for: sameDayLate, now: now), .posted)
+        XCTAssertEqual(policy.automaticStatus(for: nextDay, now: now), .planned)
+    }
+
+    @MainActor
+    func testAppContainerPersistsDuePromotionInDedicatedContext() throws {
+        let fixedNow = Date(timeIntervalSince1970: 1_785_278_400)
+        let appContainer = try AppContainer(
+            dateProvider: FixedDateProvider(now: fixedNow),
+            inMemory: true
+        )
+        let writeContext = ModelContext(appContainer.modelContainer)
+        let account = Account(name: "Courant", type: .current)
+        let due = BudgetTransaction(
+            date: appContainer.calendar.date(byAdding: .day, value: -1, to: fixedNow)!,
+            amount: 75,
+            type: .expense,
+            status: .planned,
+            title: "Échéance à promouvoir",
+            account: account
+        )
+        let future = BudgetTransaction(
+            date: appContainer.calendar.date(byAdding: .day, value: 1, to: fixedNow)!,
+            amount: 90,
+            type: .expense,
+            status: .planned,
+            title: "Échéance future",
+            account: account
+        )
+        writeContext.insert(account)
+        writeContext.insert(due)
+        writeContext.insert(future)
+        try writeContext.save()
+
+        appContainer.postDuePlannedTransactions()
+
+        XCTAssertNil(appContainer.duePostingErrorMessage)
+        let readContext = ModelContext(appContainer.modelContainer)
+        let persisted = try readContext.fetch(FetchDescriptor<BudgetTransaction>())
+        XCTAssertEqual(
+            persisted.first { $0.title == "Échéance à promouvoir" }?.status,
+            .posted
+        )
+        XCTAssertEqual(
+            persisted.first { $0.title == "Échéance future" }?.status,
+            .planned
+        )
+    }
+
     func testPlannedFutureDateIsAllowed() {
         var draft = validDraft()
         draft.status = .planned

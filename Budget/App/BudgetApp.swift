@@ -35,9 +35,25 @@ struct BudgetApp: App {
                     PrivacyShieldView()
                 }
             }
+            .alert(
+                "Échéances non mises à jour",
+                isPresented: Binding(
+                    get: { appContainer.duePostingErrorMessage != nil },
+                    set: { if !$0 { appContainer.dismissDuePostingError() } }
+                )
+            ) {
+                Button("Réessayer") {
+                    appContainer.postDuePlannedTransactions()
+                }
+                Button("Plus tard", role: .cancel) {
+                    appContainer.dismissDuePostingError()
+                }
+            } message: {
+                Text(appContainer.duePostingErrorMessage ?? "")
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    _ = appContainer.postDuePlannedTransactions()
+                    appContainer.postDuePlannedTransactions()
                 } else if newPhase == .background {
                     appContainer.lockManager.lockIfEnabled()
                 }
@@ -63,7 +79,7 @@ struct BudgetApp: App {
                                 container.isDemoMode = true
                             }
                         }
-                        _ = container.postDuePlannedTransactions()
+                        container.postDuePlannedTransactions()
                         appContainer = container
                     } catch {
                         startupError = error

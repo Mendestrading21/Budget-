@@ -14,6 +14,10 @@ final class AppContainer {
     let documentFileStore: DocumentFileStoring
     let lockManager: AppLockManager
 
+    /// Amount-free maintenance error surfaced by the app shell. Promotion
+    /// is retried on the next activation and can also be retried manually.
+    private(set) var duePostingErrorMessage: String?
+
     /// Demo mode runs the whole app on an isolated in-memory store filled
     /// with fictional data. It never touches the production store.
     var isDemoMode: Bool {
@@ -30,6 +34,7 @@ final class AppContainer {
     init(dateProvider: DateProviding = SystemDateProvider(), inMemory: Bool = false) throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = FinanceFormatting.locale
+        calendar.timeZone = .autoupdatingCurrent
         self.calendar = calendar
         self.dateProvider = dateProvider
         self.balanceService = AccountBalanceService()
@@ -44,23 +49,29 @@ final class AppContainer {
     }
 
     /// Applies the canonical day-based posting rule when the app starts or
-    /// returns to the foreground. A failed save is rolled back and retried
-    /// on the next activation; existing balances are never partially changed.
+    /// returns to the foreground. A DEDICATED context prevents this
+    /// maintenance save/rollback from committing or cancelling an unrelated
+    /// form edit in the UI's main context.
     @MainActor
-    @discardableResult
-    func postDuePlannedTransactions() -> Bool {
-        let context = modelContainer.mainContext
+    func postDuePlannedTransactions() {
+        let context = ModelContext(modelContainer)
         do {
             let transactions = try context.fetch(FetchDescriptor<BudgetTransaction>())
             let promoted = TransactionPostingPolicy(calendar: calendar)
                 .promoteDueTransactions(transactions, now: dateProvider.now)
-            guard promoted > 0 else { return true }
-            try context.saveOrRollback()
-            return true
+            if promoted > 0 {
+                try context.saveOrRollback()
+            }
+            duePostingErrorMessage = nil
         } catch {
             context.rollback()
-            return false
+            duePostingErrorMessage = "Certaines échéances arrivées à leur date n'ont pas pu être comptabilisées. Vos données restent intactes ; réessayez."
         }
+    }
+
+    @MainActor
+    func dismissDuePostingError() {
+        duePostingErrorMessage = nil
     }
 
     private func rebuildContainer() {
