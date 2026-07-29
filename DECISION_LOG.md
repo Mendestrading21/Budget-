@@ -1,5 +1,317 @@
 # Budget decision log
 
+## ADR-024 — Direction visuelle « Budget Neon Ultra » (remplace les clauses visuelles Obsidian)
+
+Date: 2026-07-27
+Status: accepted
+
+### Context
+
+Autorisation explicite du propriétaire (27.07.2026) : « Je remplace
+officiellement la direction visuelle "accent indigo unique" par la
+direction "Budget Neon Ultra" : noir profond, magenta, violet et
+cyan. » Les règles alors en vigueur (ADR-020 « identité sombre unique
+et skill canonique », ADR-022 « fondations Obsidian, indigo profond
+AA », CLAUDE.md « une seule teinte de marque Indigo Aurora #7367FF »,
+constitution Obsidian) interdisaient magenta/cyan et les néons.
+
+### Decision
+
+1. La direction canonique devient « Budget Neon Ultra » : canvas
+   `#05060A`, navigation `#0B0D13`, surfaces `#11141C`/`#181C26`,
+   fallback opaque `#151923`, bordure `#293040`, néons magenta
+   `#D946EF` / violet `#7C3AED` / cyan `#38BDF8`, CTA en dégradé
+   `#C000A4 → #6E00E8`, textes `#F5F7FA`/`#A3ACBA`/`#7C8696`
+   (texte discret : `#747E8E` initial corrigé le 27.07.2026 à la
+   clôture NU0 — mesures AA insuffisantes sur surfaces 4,49/4,15/4,28 ;
+   `#7C8696` mesure 5,50/5,28/5,00/4,63/4,78 sur canvas/navigation/
+   surface/élevée/fallback ; le violet seul ne porte jamais un petit
+   libellé actif, 3,41:1 sur navigation),
+   sémantique `#35D39A`/`#FF6577`/`#F6C453`. Règles complètes :
+   `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_CONSTITUTION.md`
+   (75 % noir, ≤ 10 % néon, un seul point focal par viewport, gradient
+   réservé au CTA/sélection/marque, aucun glow sur les montants,
+   sémantique exclusive pour vert/corail/ambre, pas d'esthétique
+   casino, AA, 44 pt, Reduce Motion/Transparency).
+2. Cette ADR remplace UNIQUEMENT les clauses visuelles incompatibles
+   d'ADR-020/022, de CLAUDE.md et de la constitution Obsidian
+   (accent indigo unique, interdiction des néons). Tout le reste
+   d'ADR-020/022 (skill canonique par programme, un seul thème sombre,
+   alias de tokens, contraintes AA mesurées) reste applicable dans son
+   esprit au nouveau programme.
+3. Aucune règle financière, technique, de confidentialité, de
+   sauvegarde, d'accessibilité ou de publication n'est modifiée.
+   ADR-001→019, ADR-021, ADR-023 : inchangées.
+4. Le programme s'exécute sur la branche `refonte/budget-neon-ultra-v1`
+   (créée depuis `26d186e`, dernier HEAD Obsidian à CI verte run #229).
+   La branche `refonte/budget-obsidian-glass-v1` et tous les rapports
+   L0–L9 sont conservés comme historique et ne sont pas réécrits.
+5. La divergence de navigation constatée (PWA : 4 onglets + ＋ central,
+   Mouvements dans Plus ; iOS : 5 onglets + ＋ flottant) N'EST PAS
+   traitée par cette ADR — décision produit séparée à venir.
+
+### Consequences
+
+- Skill opérationnel : `/budget-neon-ultra` (NU0–NU9) ; `/budget-v1`
+  et les skills antérieurs deviennent historiques.
+- Les écrans ne changent qu'à partir de NU1/NU2, tokens d'abord,
+  contrastes prouvés avant bascule ; NU0 est purement documentaire.
+
+## ADR-023 — V1 native : prise en charge iPhone uniquement
+
+Date: 2026-07-25
+Status: accepted
+
+### Context
+
+Décision définitive du propriétaire (25.07.2026, refus de la première
+passe L9) : la V1 native prend en charge uniquement l'iPhone ; aucune
+prise en charge iPad native n'est demandée. Le projet portait pourtant
+`TARGETED_DEVICE_FAMILY = "1,2"` (6 occurrences : Budget, BudgetTests,
+BudgetUITests × Debug/Release) et deux réglages
+`INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` — le binaire se
+déclarait compatible iPad alors que la fiche App Store, les captures et
+la QA ne couvrent que l'iPhone.
+
+### Decision
+
+1. `TARGETED_DEVICE_FAMILY = 1` sur les six configurations ; les deux
+   réglages d'orientations iPad sont supprimés ; l'iPhone reste en
+   portrait. Bundle identifier, version, build, cible iOS 17,
+   signature, entitlements et icônes : inchangés.
+2. `UIDeviceFamily` n'est PAS ajouté à la main dans l'Info.plist et
+   `UIRequiredDeviceCapabilities` n'est PAS utilisé pour bloquer
+   l'iPad : la valeur `[1]` doit découler du seul réglage de cible.
+3. La CI exige la liste ENTIÈRE `UIDeviceFamily == [1]` (pas la simple
+   présence de 1) dans : le `Budget.app` Release de la CI, le
+   `Budget.app` de `Budget.xcarchive` du workflow Demo, et le
+   `Budget.app` extrait de l'IPA non signée ; preuve secondaire via
+   `xcodebuild -showBuildSettings` (Debug et Release).
+4. La documentation parle de « prise en charge native iPhone
+   uniquement » — sans prétendre empêcher un éventuel mode de
+   compatibilité géré par Apple sur iPad.
+
+### Consequences
+
+Le binaire, la fiche App Store et la QA décrivent le même produit. Une
+future prise en charge iPad serait une décision produit nouvelle
+(layouts, captures, QA dédiées), pas un simple réglage.
+
+### Verification
+
+Étapes CI « iPhone uniquement » (job macOS) et étapes archive/IPA du
+workflow Demo ; `xcodebuild -showBuildSettings` imprimé dans les logs.
+
+## ADR-022 — L2 : fondations Obsidian livrées par alias, S.theme neutralisé, indigo profond AA
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+L2 doit livrer le système visuel réutilisable (tokens + primitives + galerie)
+sans refondre les écrans Mois, Budget et Ajout d'un mouvement (L3/L4). La PWA
+portait deux palettes (claire par défaut + sombre) commandées par `S.theme` ;
+le natif résolvait ses couleurs selon l'apparence système et gardait des
+teintes décoratives héritées (teal, cyan, violet, bleu électrique).
+
+### Decision
+
+1. **Identité unique par alias.** Les tokens canoniques Obsidian (constitution
+   §2) deviennent la seule source : `:root` PWA et `BudgetColor` natif. Les
+   anciens noms (`--indigo`, `--electric`, `--violet`, `--teal`, `--graphite`…
+   / `indigo`, `electricBlue`, `violet`, `cyan`, `teal`, `informative`…) sont
+   conservés comme ALIAS pointant vers `brand`, `brandBright` ou les rôles
+   Obsidian — les écrans existants héritent de l'identité sans être réécrits.
+   Ces alias sont temporaires, documentés, à retirer avec les lots L3+.
+2. **`S.theme` neutralisé, jamais détruit.** Le champ reste lu/écrit dans
+   l'état et les sauvegardes (compatibilité des restaurations) mais ne
+   commande plus l'apparence ; `applyTheme()` applique toujours le sombre.
+   La ligne « Apparence » des Réglages et son handler sont retirés. Sur iOS,
+   `.preferredColorScheme(.dark)` est posé UNE fois à la racine (BudgetApp) ;
+   `BudgetTint`/`BudgetTheme` gardent leurs signatures mais ignorent le
+   paramètre `scheme`.
+3. **Indigo profond dérivé `#6457F0` (`brandDeep`).** Le blanc sur `brand`
+   `#7367FF` mesure 4.11:1 (< AA). Les boutons primaires utilisent donc un
+   ton dérivé de la même teinte (permis par la constitution) : 5.04:1 mesuré.
+   Vert/corail/ambre restent strictement sémantiques.
+4. **Transparence réduite déterministe.** `prefers-reduced-transparency` ET
+   l'attribut de test `html[data-reduced-transparency="true"]` (web), le
+   réglage système ET l'environnement `obsidianForcedReducedTransparency`
+   (SwiftUI, previews/tests) remplacent le verre par `glassFallback` opaque,
+   suppriment halo et blurs.
+5. **Galerie hors navigation.** `webapp/design-system/obsidian-gallery.html`
+   (+ `obsidian.css`, source canonique des tokens, parité testée avec
+   `index.html`) et `ObsidianComponentGallery` (previews + argument de
+   lancement `-obsidianGallery`, sans effet Release). `index.html` reste
+   auto-suffisant hors ligne : aucun nouvel asset de production chargé, le
+   service worker est inchangé.
+
+### Consequences
+
+Les écrans existants s'affichent en Obsidian par héritage de tokens ; leurs
+compositions, widgets, graphiques et logiques sont inchangés. Le Test 29 e2e
+vérifie désormais l'identité unique (sombre appliqué, `S.theme` préservé,
+sélecteur absent). Aucune formule financière, donnée, migration ou
+persistance n'est touchée.
+
+### Verification
+
+`webapp/tests/design.test.mjs` (tokens canoniques + parité, contrastes AA
+mesurés, galerie 320/390 sans débordement, cibles ≥ 44 px, focus clavier,
+reduced motion, fallback opaque, zéro erreur console) ; `DesignSystemTests`
+natifs (rôles, alias sans seconde palette, contrastes, géométrie, montants
+extrêmes, construction de la galerie) ; 48 e2e + 5 parité + suite iOS
+complète en CI ; captures `docs/obsidian-glass/foundations/l2/`.
+
+
+## ADR-021 — L1 : montants historiques figés à la saisie, restauration refusant les montants corrompus
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+Audit L1 des cinq P0 Obsidian Glass. Deux étaient réellement présents dans le
+code courant :
+
+1. Natif : `BackupService.decimal(_:)` convertissait toute chaîne illisible en
+   `.zero` (`Decimal(string:) ?? .zero`). Une sauvegarde corrompue pouvait donc
+   restaurer silencieusement des montants à zéro — perte de données invisible.
+2. PWA : `txCHF()` convertissait les mouvements en devise étrangère avec le taux
+   ACTUEL (`S.fxRates`). Modifier un taux recalculait rétroactivement tout
+   l'historique (coût de la vie, budgets, mois bouclés), en violation de
+   l'invariant « les montants historiques ne changent jamais parce qu'un taux
+   actuel a changé ».
+
+### Decision
+
+1. Natif : `decimal(_:)` devient `throws` et lève `BackupError.corruptAmount`
+   avec le montant fautif — y compris sur les quatre champs OPTIONNELS
+   (`reconciledBalance`, `override_`, `deductible`, `projected`, via
+   `try Optional.map(decimal)`). La restauration entière (suppression,
+   reconstruction, sauvegarde) forme UNE transaction : toute erreur à
+   n'importe quelle étape appelle `context.rollback()` et relance l'erreur ;
+   les fichiers de documents ne sont jamais touchés (ADR-014). Aucune
+   coercition vers zéro, jamais.
+2. PWA : l'estampillage financier passe par UNE seule fonction, `stampTx()`,
+   utilisée par tous les chemins de création (`addTx()`) ET de modification.
+   Elle purge d'abord `fx`/`fxBase`/`destAmount` (jamais d'estampille
+   périmée), fige `fx` (taux du jour, repli 1:1 EXPLICITE si aucun taux
+   valide — le mouvement ne dépend jamais d'un futur taux) et `fxBase`
+   pour toute devise source ≠ devise de base, et fige `destAmount` quand la
+   destination est dans une autre devise.
+3. Migration additive au chargement : `stampAllTransactions(state)` détecte
+   les mouvements historiques sans estampille (y compris ceux d'une
+   sauvegarde JSON restaurée, qui recharge la page), les estampille UNE
+   seule fois avec les taux présents au moment de la migration, calcule les
+   `destAmount` manquants, purge les `destAmount` orphelins, puis l'état
+   migré est immédiatement persisté. Identifiants, champs et sauvegardes
+   préservés — rien de destructif.
+4. Ces champs (`fx`, `fxBase`, `destAmount`) sont additifs dans l'état v1 ;
+   ils ne cassent ni les sauvegardes existantes ni les fixtures de parité.
+
+### Verification
+
+Natif (`BudgetTests/BackupServiceTests`) : montant obligatoire corrompu,
+montant OPTIONNEL corrompu (`reconciledBalance`), montant corrompu dans une
+entité reconstruite tardivement (`NetWorthSnapshot`) — chaque cas vérifie le
+comptage complet de TOUTES les entités avant/après, l'intégrité du store
+persistant via un `ModelContext` neuf, et zéro montant coercé.
+PWA (e2e Tests 38-43) : nouveau mouvement EUR + changement de taux ; ancien
+mouvement non estampillé + rechargement/migration + changement de taux
+(persistance immédiate vérifiée) ; édition ré-estampillée au taux du jour ;
+passage d'un compte EUR à un compte CHF (estampille retirée) ; destination
+retirée sans `destAmount` périmé ; sauvegarde restaurée entièrement
+normalisée au chargement. Suites : 48 parcours e2e + 5 fixtures de parité.
+
+
+## ADR-020 — Obsidian Glass : identité sombre unique et skill canonique
+
+Date: 2026-07-23
+Status: accepted
+
+### Context
+
+Le propriétaire valide la direction « Budget — Obsidian Glass » : une
+application sombre, premium, simple, vivante et professionnelle, avec des
+widgets transparents et une seule palette de marque. Les programmes précédents
+ont laissé plusieurs skills et deux directions visuelles concurrentes
+(Horizon clair/sombre et identité verre sombre).
+
+### Decision
+
+1. `/budget-v1` devient l'unique autorité opérationnelle pour Claude Code.
+   Les autres skills Budget restent des archives et ne doivent plus être
+   invoqués ou combinés.
+2. Obsidian Glass utilise une seule identité sombre : fond `#090C12`, surfaces
+   graphite translucides et accent Indigo Aurora `#7367FF`. Vert, corail et
+   ambre restent strictement sémantiques.
+3. Cette décision remplace uniquement la partie visuelle et multi-thème
+   d'ADR-019. Les décisions financières d'ADR-019, notamment la parité dette,
+   restent valides.
+4. La refonte progresse par lots sur une branche dédiée. Le pilote porte sur
+   Mois, Budget et Ajout d'un mouvement avant tout déploiement général.
+5. PWA et iOS partagent les rôles, tokens, vocabulaire et invariants, sans
+   obligation de copie pixel par pixel.
+6. Un P0 de données, restauration, confidentialité ou publication confirmé
+   bloque le lot visuel suivant jusqu'à correction et test.
+7. Chaque lot produit tests, captures, mise à jour du statut et commit ciblé,
+   puis s'arrête pour revue.
+
+### Consequences
+
+Le sélecteur de thème et l'ancien rendu ne sont pas supprimés pendant L0. Leur
+migration contrôlée appartient aux lots de fondation et de pilote. Aucune
+logique financière, donnée, route, migration ou persistance n'est modifiée par
+cette décision de gouvernance.
+
+### Verification
+
+Branche `refonte/budget-obsidian-glass-v1`, `CLAUDE.md`, skill
+`/budget-v1`, constitution, plan de livraison, matrice d'écrans et statut
+créés. Aucun code applicatif modifié dans L0.
+
+
+## ADR-019 — Horizon : thème clair par défaut (web), sombre premium conservé ; parité dette D04
+
+Date: 2026-07-21
+Status: accepted
+
+### Context
+
+Le programme « Budget Leader Refonte » impose une direction « Swiss calm
+fintech » : interface claire par défaut, sombre premium fonctionnel. La
+branche codex/budget-leader-refonte annoncée n'existe pas sur GitHub —
+la spécification du propriétaire fait foi. Par ailleurs l'audit de
+parité (fixtures A05) avait documenté que le web comptait les
+mensualités de dette dans le coût de la vie, contrairement à ADR-016.
+
+### Decision
+
+1. PWA : tokens de thème (`--bg/--surface/--surface-2/--surface-3/--field/
+   --line/--line-strong/--sheen/--hero-surface/--badge-ink`) ; clair par
+   défaut dans `:root`, l'identité verre sombre historique intacte sous
+   `html[data-theme="dark"]` ; préférence `S.theme` persistée, bascule
+   dans Réglages, `meta theme-color` synchronisé. Le natif reprendra les
+   mêmes rôles de tokens (DesignTokens) lors d'un lot dédié vérifié par CI.
+2. Web : les mouvements `recurringId` préfixé `r-debt-` sont exclus du
+   coût de la vie, du « pas encore classé » et des dépenses de l'accueil
+   (capital ≠ dépense ; intérêts saisis à part) — aligné sur ADR-016.
+
+### Consequences
+
+Les montants du mois web et natif sont réconciliés par les fixtures de
+parité (living 0 / cashFlow 0 / dette décrémentée sur le scénario
+dette-vivante). Les utilisateurs existants du web basculent en clair au
+prochain chargement (S.theme absent → light) ; le sombre se réactive en
+deux gestes dans Réglages.
+
+### Verification
+
+38 parcours e2e Chromium + 4 fixtures de parité verts, zéro erreur
+console ; captures clair/sombre 390 px et 320 px sans débordement.
+
 ## ADR-013 — Sécurité/portabilité : verrouillage authentifié dans les deux sens, sauvegarde en montants String
 
 Date: 2026-07-19

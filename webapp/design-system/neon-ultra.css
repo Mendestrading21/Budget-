@@ -1,0 +1,649 @@
+/* ============================================================
+   Budget — Neon Ultra · tokens et primitives (ADR-024, NU1)
+   ------------------------------------------------------------
+   FONDATION PARTAGÉE (depuis NU2) : cette feuille est chargée
+   UNE seule fois par `neon-ultra-gallery.html` (galerie NU1) et
+   par `webapp/index.html` (surfaces PILOTES NU2 : Mois, Budget,
+   menu Ajouter, formulaire Nouveau mouvement).
+   ISOLATION : hors du bloc `:root` et des bascules déterministes
+   d'accessibilité, AUCUNE règle ne s'applique en dehors d'un
+   conteneur portant une classe NU (`.nu-body`, `.nu-pilot-screen`,
+   `.nu-pilot-sheet`). Les écrans Obsidian restants (Comptes,
+   Mouvements, Plus, feuilles, onboarding, barre d'onglets) ne
+   reçoivent donc aucune règle Neon Ultra.
+   Préfixe systématique `--nu-` /
+   `.nu-` : aucune collision possible avec les variables Obsidian.
+   Les valeurs brutes vivent UNIQUEMENT dans le bloc :root ;
+   les primitives référencent les rôles.
+   Une seule identité sombre. Vert, corail et ambre STRICTEMENT
+   sémantiques. Cartes mates sans blur ; aucun glow sur un
+   montant ; aucun clignotement ni animation permanente.
+   ============================================================ */
+
+:root {
+  /* --- Fonds et surfaces (opaques — cartes mates) --- */
+  --nu-canvas: #05060A;            /* fond d'écran global */
+  --nu-navigation: #0B0D13;        /* barre d'onglets, barres système */
+  --nu-surface: #11141C;           /* carte standard (listes) — mate */
+  --nu-surface-elevated: #181C26;  /* carte élevée (héros, feuille) */
+  --nu-surface-fallback: #151923;  /* remplaçant opaque (Reduce Transparency) */
+  --nu-border: #293040;            /* séparations, contours */
+
+  /* --- Néons (≤ 10 % d'un écran, un seul point focal majeur) --- */
+  --nu-magenta: #D946EF;           /* accent principal de marque */
+  --nu-violet: #7C3AED;            /* accent actif — JAMAIS seul sur un petit libellé (3,41:1) */
+  --nu-cyan: #38BDF8;              /* info, sélection, focus */
+  --nu-cta-start: #C000A4;         /* départ du dégradé CTA */
+  --nu-cta-end: #6E00E8;           /* arrivée du dégradé CTA */
+
+  /* --- Textes (AA mesuré sur les cinq surfaces) --- */
+  --nu-text-primary: #F5F7FA;      /* montants et titres */
+  --nu-text-secondary: #A3ACBA;    /* explications */
+  --nu-text-tertiary: #7C8696;     /* métadonnées (corrigé AA 27.07.2026) */
+  --nu-text-on-cta: #FFFFFF;       /* texte du CTA : blanc pur (5,56 / 7,43 sur le dégradé) */
+
+  /* --- Sémantique financière (jamais décorative) --- */
+  --nu-positive: #35D39A;
+  --nu-negative: #FF6577;
+  --nu-warning: #F6C453;
+
+  /* --- Teintes translucides dérivées (badges/chips uniquement) --- */
+  --nu-tint-positive: rgba(53, 211, 154, 0.14);
+  --nu-tint-negative: rgba(255, 101, 119, 0.14);
+  --nu-tint-warning: rgba(246, 196, 83, 0.16);
+  --nu-tint-neutral: rgba(255, 255, 255, 0.07);
+  --nu-tint-violet: rgba(124, 58, 237, 0.16);
+  /* Bord lumineux TRÈS mesuré de la carte élevée (violet dérivé) et
+     profondeur par ombre NOIRE — jamais un halo coloré. */
+  --nu-hero-edge: rgba(124, 58, 237, 0.34);
+  --nu-elevation: 0 10px 28px rgba(0, 0, 0, 0.45);
+
+  /* --- Dégradé CTA — réservé au CTA principal / sélection / marque --- */
+  --nu-gradient-cta: linear-gradient(135deg, var(--nu-cta-start) 0%, var(--nu-cta-end) 100%);
+
+  /* --- Géométrie (parité NeonUltraRadius) --- */
+  --nu-radius-hero: 26px;
+  --nu-radius-card: 18px;
+  --nu-radius-control: 14px;
+  --nu-screen-margin: 18px;
+  --nu-pad-hero: 24px;
+  --nu-pad-card: 18px;
+
+  /* --- Mouvement (parité NeonUltraMotion) : court, jamais permanent --- */
+  --nu-motion-press: 140ms;
+  --nu-motion-state: 240ms;
+}
+
+/* ------------------------------------------------------------
+   Transparence réduite : TOUTE surface bascule sur le remplaçant
+   opaque #151923 ; aucun blur, halo ou matériau résiduel.
+   Déclencheurs : réglage utilisateur + mécanisme déterministe
+   de test `html[data-nu-reduced-transparency="true"]`.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nu-surface: var(--nu-surface-fallback);
+    --nu-surface-elevated: var(--nu-surface-fallback);
+  }
+  .nu-card, .nu-card--elevated { box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+html[data-nu-reduced-transparency="true"] {
+  --nu-surface: var(--nu-surface-fallback);
+  --nu-surface-elevated: var(--nu-surface-fallback);
+}
+/* NU2 : l'application possède déjà sa bascule déterministe de
+   transparence réduite (mécanisme Obsidian, inchangé). Les surfaces
+   pilotes Neon Ultra la suivent — sans toucher un seul token Obsidian. */
+html[data-reduced-transparency="true"] {
+  --nu-surface: var(--nu-surface-fallback);
+  --nu-surface-elevated: var(--nu-surface-fallback);
+}
+html[data-nu-reduced-transparency="true"] .nu-card,
+html[data-nu-reduced-transparency="true"] .nu-card--elevated {
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* ------------------------------------------------------------
+   Base — PORTÉE PAR `.nu-body` UNIQUEMENT (galerie NU1).
+   Aucune réinitialisation globale : le `body` de l'application
+   conserve intégralement la sienne. (`html` n'a pas de marge par
+   défaut : scoper au body est strictement équivalent.)
+   ------------------------------------------------------------ */
+.nu-body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: var(--nu-text-primary);
+  background: var(--nu-canvas);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Texte agrandi — mécanisme déterministe, jusqu'à 200 %. */
+html[data-nu-large-text="true"] { font-size: 200%; }
+
+/* Focus clavier : anneau CYAN ≥ 2 px décalé (contraste non textuel
+   ≥ 3:1 sur toutes les surfaces sombres) — jamais la couleur seule. */
+.nu-body :focus-visible {
+  outline: 2px solid var(--nu-cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Mouvement réduit : aucune transition non essentielle. */
+@media (prefers-reduced-motion: reduce) {
+  .nu-body *, .nu-body *::before, .nu-body *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------
+   Cartes — mate (listes, AUCUN blur ni ombre) et élevée
+   (profondeur subtile par ombre noire, jamais un glow).
+   ------------------------------------------------------------ */
+.nu-card {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-card);
+  padding: var(--nu-pad-card);
+  box-sizing: border-box;
+}
+.nu-card--elevated {
+  background: var(--nu-surface-elevated);
+  border-radius: var(--nu-radius-hero);
+  padding: var(--nu-pad-hero);
+  box-shadow: var(--nu-elevation);
+}
+.nu-card--selected { border-color: var(--nu-violet); border-width: 1.5px; }
+.nu-card--row {
+  border-radius: var(--nu-radius-control);
+  padding: 12px 14px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.nu-row-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* ------------------------------------------------------------
+   Montants — chiffres tabulaires, une ligne, jamais tronqués,
+   AUCUN glow ni text-shadow. Taille FLUIDE à la largeur
+   (min(rem, vw)) : même à 200 % de texte, un montant extrême
+   reste ENTIER sans débordement — équivalent CSS du
+   `minimumScaleFactor` SwiftUI. Le corps de texte, lui, suit
+   pleinement le zoom.
+   ------------------------------------------------------------ */
+.nu-amount-hero {
+  font-size: min(2.5rem, 9.6vw);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  white-space: nowrap;
+  text-shadow: none;
+}
+.nu-amount-hero--long { font-size: min(1.9rem, 6.6vw); }
+.nu-amount {
+  font-size: min(1em, 5.4vw);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: none;
+}
+.nu-amount--positive { color: var(--nu-positive); }
+.nu-amount--negative { color: var(--nu-negative); }
+.nu-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nu-text-secondary);
+  margin: 0 0 6px;
+}
+.nu-caption { font-size: 0.72rem; color: var(--nu-text-tertiary); }
+
+/* ------------------------------------------------------------
+   Boutons — CTA gradient (SEUL usage du dégradé), secondaire,
+   destructif sémantique. Cible ≥ 44 px, pression 0,98.
+   ------------------------------------------------------------ */
+.nu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--nu-radius-control);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  color: var(--nu-text-on-cta);
+  background: var(--nu-gradient-cta);
+  transition: transform var(--nu-motion-press) ease, filter var(--nu-motion-press) ease;
+}
+.nu-button:active { transform: scale(0.98); filter: brightness(1.05); }
+.nu-button:disabled { opacity: 0.4; cursor: default; }
+.nu-button:disabled:active { transform: none; filter: none; }
+.nu-button--secondary {
+  background: var(--nu-surface-fallback);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+}
+.nu-button--destructive {
+  background: var(--nu-tint-negative);
+  border: 1px solid var(--nu-negative);
+  color: var(--nu-negative);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nu-button { transition: none; }
+  .nu-button:active { transform: none; filter: none; }
+}
+
+/* ------------------------------------------------------------
+   Chip — normal, sélectionné, désactivé. RÈGLE AA : la sélection
+   garde le texte en --nu-text-primary et se signale par
+   l'INDICATEUR violet (point + bordure), jamais un libellé
+   violet seul.
+   ------------------------------------------------------------ */
+.nu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid var(--nu-border);
+  background: var(--nu-surface);
+  color: var(--nu-text-primary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nu-chip[aria-pressed="true"] {
+  background: var(--nu-tint-violet);
+  border: 1.5px solid var(--nu-violet);
+}
+.nu-chip[aria-pressed="true"]::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--nu-violet);
+  flex: none;
+}
+.nu-chip:disabled { opacity: 0.4; cursor: default; }
+
+/* ------------------------------------------------------------
+   Badge — TOUJOURS texte + symbole (point de forme), jamais la
+   couleur seule. Sémantique exclusive, jamais la marque.
+   ------------------------------------------------------------ */
+.nu-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--nu-tint-neutral);
+  color: var(--nu-text-secondary);
+}
+.nu-badge::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+.nu-badge--positive { background: var(--nu-tint-positive); color: var(--nu-positive); }
+.nu-badge--negative { background: var(--nu-tint-negative); color: var(--nu-negative); }
+.nu-badge--warning { background: var(--nu-tint-warning); color: var(--nu-warning); }
+
+/* ------------------------------------------------------------
+   Champ — normal, focus (cyan), erreur (sémantique).
+   ------------------------------------------------------------ */
+.nu-field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--nu-text-secondary);
+  margin: 10px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.nu-field {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: var(--nu-navigation);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 11px 12px;
+  border-radius: 11px;
+}
+.nu-field:focus { outline: 2px solid var(--nu-cyan); outline-offset: 2px; }
+/* Variante multiligne : la valeur complète reste VISIBLE à 320 px même
+   en texte agrandi 200 % — la hauteur suit le contenu (auto-dimension
+   par la galerie), jamais de troncature interne. */
+.nu-field--multiline {
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+}
+.nu-field[aria-invalid="true"] { border-color: var(--nu-negative); }
+.nu-field[aria-invalid="true"]:focus { outline-color: var(--nu-negative); }
+.nu-field-error { color: var(--nu-negative); font-size: 0.78rem; margin-top: 6px; }
+
+/* ============================================================
+   NU2 — SURFACES PILOTES DE L'APPLICATION
+   ------------------------------------------------------------
+   Portée STRICTE : `#screen.nu-pilot-screen` (Mois et Budget
+   uniquement, hors onboarding et verrouillage) et
+   `.sheet.nu-pilot-sheet` (`#txForm` et `#quickMenu` seulement).
+   Aucune règle ci-dessous ne peut atteindre un autre écran : tous
+   les sélecteurs sont enracinés dans une classe NU.
+   Les tokens Obsidian ne sont ni lus ni réécrits ; la spécificité
+   (#screen / .sheet + classe NU) l'emporte sur les règles héritées
+   sans jamais les modifier.
+   ============================================================ */
+
+/* --- Écran pilote : canevas noir profond, texte confortable --- */
+#screen.nu-pilot-screen {
+  background: var(--nu-canvas);
+  color: var(--nu-text-primary);
+}
+#screen.nu-pilot-screen .screen-title { color: var(--nu-text-primary); }
+#screen.nu-pilot-screen .section-title { color: var(--nu-text-secondary); font-size: 16px; }
+#screen.nu-pilot-screen .card-label { color: var(--nu-text-secondary); font-size: 12.5px; }
+/* Légendes lisibles : la baseline descendait à 11.5 px. */
+#screen.nu-pilot-screen .caption { color: var(--nu-text-tertiary); font-size: 13px; line-height: 1.45; }
+#screen.nu-pilot-screen .vals { color: var(--nu-text-secondary); font-size: 12.5px; }
+/* Libellé et valeurs ne se touchent jamais, même à 320 px. */
+#screen.nu-pilot-screen .bar-head { font-size: 13.5px; gap: 12px; flex-wrap: wrap; }
+#screen.nu-pilot-screen .bar-foot { color: var(--nu-text-tertiary); font-size: 12px; }
+#screen.nu-pilot-screen .meta .t { color: var(--nu-text-primary); }
+#screen.nu-pilot-screen .meta .s { color: var(--nu-text-tertiary); font-size: 12.5px; }
+/* Une zone de texte CLIQUABLE (facture, ligne navigable) reste une cible
+   d'au moins 44 px, y compris à 320 px où le texte se resserre. */
+#screen.nu-pilot-screen .meta[role="button"] {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+#screen.nu-pilot-screen summary { color: var(--nu-text-secondary); }
+
+/* --- Cartes : MATES dans les listes, élevée pour le seul héros --- */
+#screen.nu-pilot-screen .card {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+#screen.nu-pilot-screen .card::before { content: none; } /* aucun reflet brillant */
+#screen.nu-pilot-screen .stat {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-card);
+}
+#screen.nu-pilot-screen .card.hero {
+  background: var(--nu-surface-elevated);
+  border: 1px solid var(--nu-hero-edge);
+  border-radius: var(--nu-radius-hero);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--nu-elevation);
+}
+
+/* --- Montants : nets, tabulaires, JAMAIS de glow --- */
+#screen.nu-pilot-screen .hero-amount,
+#screen.nu-pilot-screen .amount {
+  text-shadow: none;
+  color: var(--nu-text-primary);
+}
+/* Le plancher 320 px doit rester robuste avec les polices système les plus
+   larges, pas uniquement avec la police du runner CI. Les chiffres restent
+   tabulaires et entiers ; seule leur taille d'affichage s'adapte. */
+@media (max-width: 340px) {
+  #screen.nu-pilot-screen .hero-amount { font-size: 8.6vw; }
+  #screen.nu-pilot-screen .hero-amount.long { font-size: 5.2vw; }
+  #screen.nu-pilot-screen .stat .amount { font-size: min(15px, 4.7vw); }
+}
+#screen.nu-pilot-screen .pos,
+#screen.nu-pilot-screen .amount.pos { color: var(--nu-positive); }
+#screen.nu-pilot-screen .neg,
+#screen.nu-pilot-screen .amount.neg,
+#screen.nu-pilot-screen .hero-amount.neg { color: var(--nu-negative); }
+#screen.nu-pilot-screen .warn,
+#screen.nu-pilot-screen .amount.warn { color: var(--nu-warning); }
+/* « Mis de côté » : texte NET + indicateur de marque discret (jamais un glow). */
+#screen.nu-pilot-screen .amount.info { color: var(--nu-text-primary); }
+#screen.nu-pilot-screen .amount.info::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--nu-violet);
+  margin-right: 6px;
+  vertical-align: 2px;
+}
+
+/* --- Priorité : texte + symbole + FORME (barre latérale), jamais la couleur seule --- */
+#screen.nu-pilot-screen .priority-card {
+  border-color: var(--nu-violet);
+  border-left-width: 3px;
+  background: var(--nu-surface-elevated);
+}
+
+/* --- Boutons : un SEUL CTA gradient par surface (classe `nu-cta`) --- */
+#screen.nu-pilot-screen .btn {
+  background: var(--nu-surface-fallback);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  border-radius: var(--nu-radius-control);
+  box-shadow: none;
+}
+#screen.nu-pilot-screen .btn.secondary {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+}
+#screen.nu-pilot-screen .btn.destructive {
+  background: var(--nu-tint-negative);
+  border: 1px solid var(--nu-negative);
+  color: var(--nu-negative);
+}
+#screen.nu-pilot-screen .btn.nu-cta {
+  background: var(--nu-gradient-cta);
+  border: none;
+  color: var(--nu-text-on-cta);
+}
+#screen.nu-pilot-screen .btn:active { transform: scale(0.98); filter: brightness(1.05); }
+#screen.nu-pilot-screen .btn:disabled { opacity: 0.4; }
+
+/* --- Jauges : barres simples, sans gradient décoratif --- */
+#screen.nu-pilot-screen .track { background: var(--nu-border); }
+#screen.nu-pilot-screen .fill { background: var(--nu-violet); }
+#screen.nu-pilot-screen .fill.warn-fill { background: var(--nu-warning); }
+#screen.nu-pilot-screen .fill.over-fill { background: var(--nu-negative); }
+
+/* --- Badges et pastilles : sémantique stricte, texte toujours présent --- */
+#screen.nu-pilot-screen .badge {
+  background: var(--nu-tint-negative);
+  color: var(--nu-negative);
+}
+#screen.nu-pilot-screen .badge.planned {
+  background: var(--nu-tint-neutral);
+  color: var(--nu-text-secondary);
+}
+#screen.nu-pilot-screen .pill { background: var(--nu-tint-neutral); color: var(--nu-text-secondary); }
+#screen.nu-pilot-screen .pill.pos { background: var(--nu-tint-positive); color: var(--nu-positive); }
+#screen.nu-pilot-screen .pill.warn { background: var(--nu-tint-warning); color: var(--nu-warning); }
+#screen.nu-pilot-screen .pill.neg { background: var(--nu-tint-negative); color: var(--nu-negative); }
+
+/* --- Pastilles d'icône : mates, teinte sémantique seulement --- */
+#screen.nu-pilot-screen .ico {
+  background: var(--nu-tint-neutral);
+  color: var(--nu-text-primary);
+}
+#screen.nu-pilot-screen .ico.t-income { background: var(--nu-tint-positive); }
+#screen.nu-pilot-screen .ico.t-expense { background: var(--nu-tint-negative); }
+#screen.nu-pilot-screen .ico.t-save,
+#screen.nu-pilot-screen .ico.t-goal,
+#screen.nu-pilot-screen .ico.t-neutral { background: var(--nu-tint-violet); }
+
+/* --- Champ de recherche/entrée éventuel d'une surface pilote --- */
+#screen.nu-pilot-screen input,
+#screen.nu-pilot-screen select {
+  background: var(--nu-navigation);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+}
+
+/* --- Focus clavier : anneau CYAN ≥ 2 px avec décalage visible --- */
+#screen.nu-pilot-screen :focus-visible,
+.sheet.nu-pilot-sheet :focus-visible {
+  outline: 2px solid var(--nu-cyan);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Feuilles pilotes : `#txForm` et `#quickMenu` uniquement.
+   ============================================================ */
+.sheet.nu-pilot-sheet {
+  background: var(--nu-surface-elevated);
+  border-top: 1px solid var(--nu-border);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.sheet.nu-pilot-sheet h3 { color: var(--nu-text-primary); }
+.sheet.nu-pilot-sheet label { color: var(--nu-text-secondary); }
+.sheet.nu-pilot-sheet .caption { color: var(--nu-text-tertiary); font-size: 13px; line-height: 1.45; }
+
+/* Champs OPAQUES, libellés persistants, saisie confortable. */
+.sheet.nu-pilot-sheet input,
+.sheet.nu-pilot-sheet select,
+.sheet.nu-pilot-sheet textarea {
+  background: var(--nu-navigation);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  border-radius: 11px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+.sheet.nu-pilot-sheet #fAmount {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Intitulé multiligne : la valeur complète reste visible à 320 px et
+   à 200 % de texte (auto-dimension native ; repli sur deux lignes). */
+.sheet.nu-pilot-sheet #fTitle {
+  field-sizing: content;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.35;
+  padding: 11px 12px;
+}
+.sheet.nu-pilot-sheet input[aria-invalid="true"],
+.sheet.nu-pilot-sheet textarea[aria-invalid="true"] { border-color: var(--nu-negative); }
+.sheet.nu-pilot-sheet input[aria-invalid="true"]:focus { outline-color: var(--nu-negative); }
+.sheet.nu-pilot-sheet .error { color: var(--nu-negative); font-size: 13px; }
+
+/* Chips de type : mates ; sélection = texte principal + point et bord violets. */
+.sheet.nu-pilot-sheet .type-grid button {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  border-radius: var(--nu-radius-control);
+  min-height: 44px;
+}
+.sheet.nu-pilot-sheet .type-grid button[aria-pressed="true"] {
+  background: var(--nu-tint-violet);
+  border: 1.5px solid var(--nu-violet);
+  color: var(--nu-text-primary);
+}
+.sheet.nu-pilot-sheet .type-grid button[aria-pressed="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: var(--nu-violet);
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+/* Boutons de feuille : « Enregistrer » est le SEUL CTA gradient. */
+.sheet.nu-pilot-sheet .btn {
+  background: var(--nu-surface-fallback);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+  border-radius: var(--nu-radius-control);
+}
+.sheet.nu-pilot-sheet .btn.secondary {
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  color: var(--nu-text-primary);
+}
+.sheet.nu-pilot-sheet .btn.destructive {
+  background: var(--nu-tint-negative);
+  border: 1px solid var(--nu-negative);
+  color: var(--nu-negative);
+}
+.sheet.nu-pilot-sheet .btn.nu-cta {
+  background: var(--nu-gradient-cta);
+  border: none;
+  color: var(--nu-text-on-cta);
+}
+.sheet.nu-pilot-sheet .f-more summary {
+  color: var(--nu-text-secondary);
+  font-size: 13px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+/* Pied collant : jamais caché par le clavier, même surface élevée. */
+.sheet.nu-pilot-sheet .actions.sticky {
+  background: var(--nu-surface-elevated);
+  border-top: 1px solid var(--nu-border);
+}
+
+/* --- Transparence réduite : surfaces pilotes opaques, zéro blur, zéro ombre --- */
+@media (prefers-reduced-transparency: reduce) {
+  #screen.nu-pilot-screen .card.hero,
+  .sheet.nu-pilot-sheet,
+  .sheet.nu-pilot-sheet .actions.sticky {
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+html[data-reduced-transparency="true"] #screen.nu-pilot-screen .card.hero,
+html[data-reduced-transparency="true"] .sheet.nu-pilot-sheet,
+html[data-reduced-transparency="true"] .sheet.nu-pilot-sheet .actions.sticky {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* --- Mouvement réduit : aucune transition non essentielle --- */
+@media (prefers-reduced-motion: reduce) {
+  #screen.nu-pilot-screen .btn,
+  #screen.nu-pilot-screen .fill,
+  .sheet.nu-pilot-sheet .btn {
+    transition: none;
+  }
+  #screen.nu-pilot-screen .btn:active { transform: none; filter: none; }
+}

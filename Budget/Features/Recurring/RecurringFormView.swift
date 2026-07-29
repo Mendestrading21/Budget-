@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Create or edit a recurring charge, income, contribution or subscription.
+/// Création ou modification d'une facture, d'un revenu ou d'un versement qui
+/// revient. Les quatre champs indispensables sont visibles immédiatement ; les
+/// réglages rares sont rangés dans « Options avancées ».
 struct RecurringFormView: View {
     enum Mode {
         case create
@@ -22,12 +24,12 @@ struct RecurringFormView: View {
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .weekly: "Hebdomadaire"
-            case .monthly: "Mensuel"
-            case .quarterly: "Trimestriel"
-            case .semiannual: "Semestriel"
-            case .annual: "Annuel"
-            case .custom: "Personnalisé"
+            case .weekly: "Chaque semaine"
+            case .monthly: "Chaque mois"
+            case .quarterly: "Tous les 3 mois"
+            case .semiannual: "Tous les 6 mois"
+            case .annual: "Chaque année"
+            case .custom: "Autre rythme"
             }
         }
     }
@@ -51,12 +53,11 @@ struct RecurringFormView: View {
     @State private var renewalDate = Date()
     @State private var hasCancellationDeadline = false
     @State private var cancellationDeadline = Date()
+    @State private var showsAdvancedOptions = false
     @State private var errorMessage: String?
 
     private let validationService = TransactionValidationService()
 
-    /// The recurring types a household plans ahead — transfers and
-    /// adjustments have no place here.
     private static let selectableTypes: [TransactionType] = [
         .expense, .income, .saving, .investment, .taxPayment, .debtPayment,
     ]
@@ -100,11 +101,12 @@ struct RecurringFormView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Définition") {
-                    TextField("Intitulé (ex. Loyer)", text: $title)
-                    TextField("Montant (CHF)", text: $amountText)
+                Section("L'essentiel") {
+                    TextField("Nom — par exemple Loyer", text: $title)
+                    TextField("Montant en CHF", text: $amountText)
                         .keyboardType(.decimalPad)
-                    Picker("Type", selection: $type) {
+
+                    Picker("C'est quoi ?", selection: $type) {
                         ForEach(Self.selectableTypes) { type in
                             Label(type.displayName, systemImage: type.systemImage).tag(type)
                         }
@@ -113,70 +115,75 @@ struct RecurringFormView: View {
                         category = nil
                         if !newType.supportsDestinationAccount { destinationAccount = nil }
                     }
-                }
 
-                Section("Rythme") {
-                    Picker("Fréquence", selection: $frequency) {
+                    Picker("Revient", selection: $frequency) {
                         ForEach(FrequencyChoice.allCases) { choice in
                             Text(choice.label).tag(choice)
                         }
                     }
-                    if frequency == .custom {
-                        Stepper("Tous les \(customCount)", value: $customCount, in: 1...36)
-                        Picker("Unité", selection: $customUnit) {
-                            Text("semaines").tag(RecurrenceUnit.week)
-                            Text("mois").tag(RecurrenceUnit.month)
-                            Text("ans").tag(RecurrenceUnit.year)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                    DatePicker("Première échéance", selection: $firstOccurrence, displayedComponents: .date)
-                    Toggle("Date de fin", isOn: $hasEndDate)
-                    if hasEndDate {
-                        DatePicker("Se termine le", selection: $endDate, displayedComponents: .date)
-                    }
+
+                    DatePicker("Prochaine date", selection: $firstOccurrence, displayedComponents: .date)
                 }
 
-                Section("Comptes et catégorie") {
-                    Picker("Compte", selection: $account) {
-                        Text("Choisir…").tag(Account?.none)
+                Section("Où va l'argent ?") {
+                    Picker("Compte utilisé", selection: $account) {
+                        Text("Choisir un compte").tag(Account?.none)
                         ForEach(selectableAccounts) { account in
                             Text(account.name).tag(Account?.some(account))
                         }
                     }
+
                     if type.supportsDestinationAccount {
-                        Picker("Vers le compte (facultatif)", selection: $destinationAccount) {
+                        Picker("Compte de destination", selection: $destinationAccount) {
                             Text("Aucun").tag(Account?.none)
                             ForEach(selectableDestinations) { account in
                                 Text(account.name).tag(Account?.some(account))
                             }
                         }
                     }
+
                     Picker("Catégorie", selection: $category) {
-                        Text("Choisir…").tag(BudgetCategory?.none)
+                        Text("Choisir une catégorie").tag(BudgetCategory?.none)
                         ForEach(relevantCategories) { category in
                             Text(category.name).tag(BudgetCategory?.some(category))
                         }
                     }
                 }
 
-                Section("Abonnement") {
-                    Toggle("C'est un abonnement", isOn: $isSubscription)
-                    if isSubscription {
-                        Toggle("Date de renouvellement", isOn: $hasRenewalDate)
-                        if hasRenewalDate {
-                            DatePicker("Renouvellement", selection: $renewalDate, displayedComponents: .date)
+                Section {
+                    DisclosureGroup("Options avancées", isExpanded: $showsAdvancedOptions) {
+                        if frequency == .custom {
+                            Stepper("Tous les \(customCount)", value: $customCount, in: 1...36)
+                            Picker("Période", selection: $customUnit) {
+                                Text("semaines").tag(RecurrenceUnit.week)
+                                Text("mois").tag(RecurrenceUnit.month)
+                                Text("ans").tag(RecurrenceUnit.year)
+                            }
+                            .pickerStyle(.segmented)
                         }
-                        Toggle("Délai de résiliation", isOn: $hasCancellationDeadline)
-                        if hasCancellationDeadline {
-                            DatePicker("Résiliable jusqu'au", selection: $cancellationDeadline, displayedComponents: .date)
-                        }
-                    }
-                }
 
-                Section("Options") {
-                    Toggle("Professionnel", isOn: $isProfessional)
-                    Toggle("Actif", isOn: $isActive)
+                        Toggle("Prévoir une date de fin", isOn: $hasEndDate)
+                        if hasEndDate {
+                            DatePicker("Se termine le", selection: $endDate, displayedComponents: .date)
+                        }
+
+                        Toggle("C'est un abonnement", isOn: $isSubscription)
+                        if isSubscription {
+                            Toggle("Date de renouvellement", isOn: $hasRenewalDate)
+                            if hasRenewalDate {
+                                DatePicker("Renouvellement", selection: $renewalDate, displayedComponents: .date)
+                            }
+                            Toggle("Date limite de résiliation", isOn: $hasCancellationDeadline)
+                            if hasCancellationDeadline {
+                                DatePicker("Résiliable jusqu'au", selection: $cancellationDeadline, displayedComponents: .date)
+                            }
+                        }
+
+                        Toggle("Dépense professionnelle", isOn: $isProfessional)
+                        Toggle("Facture active", isOn: $isActive)
+                    }
+                } footer: {
+                    Text("La plupart des factures n'ont besoin d'aucun réglage supplémentaire.")
                 }
 
                 if let errorMessage {
@@ -186,7 +193,7 @@ struct RecurringFormView: View {
                     }
                 }
             }
-            .navigationTitle(editedRecurring == nil ? "Nouveau récurrent" : "Modifier")
+            .navigationTitle(editedRecurring == nil ? "Ajouter une facture" : "Modifier la facture")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -231,7 +238,8 @@ struct RecurringFormView: View {
             cancellationDeadline = recurring.cancellationDeadline ?? Date()
         } else {
             firstOccurrence = appContainer.dateProvider.now
-            account = allAccounts.first { $0.isActive && $0.type == .current } ?? allAccounts.first(where: \.isActive)
+            account = allAccounts.first { $0.isActive && $0.type == .current }
+                ?? allAccounts.first(where: \.isActive)
         }
     }
 
@@ -239,16 +247,16 @@ struct RecurringFormView: View {
         errorMessage = nil
         let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
         guard !trimmedTitle.isEmpty else {
-            errorMessage = "Donnez un intitulé à ce récurrent."
+            errorMessage = "Donnez un nom à cette facture."
             return
         }
         guard let parsed = FinanceFormatting.parseAmount(amountText.trimmingCharacters(in: .whitespaces)),
               parsed > 0 else {
-            errorMessage = "Le montant doit être un nombre supérieur à zéro. Exemple : 2'150.00"
+            errorMessage = "Indiquez un montant supérieur à zéro. Exemple : 2'150.00"
             return
         }
         guard account != nil else {
-            errorMessage = "Choisissez le compte concerné."
+            errorMessage = "Choisissez le compte utilisé."
             return
         }
         if validationService.categoryRequired(for: type) && category == nil {
@@ -256,7 +264,7 @@ struct RecurringFormView: View {
             return
         }
         if hasEndDate && endDate <= firstOccurrence {
-            errorMessage = "La date de fin doit être après la première échéance."
+            errorMessage = "La date de fin doit être après la prochaine date."
             return
         }
 
@@ -312,7 +320,7 @@ struct RecurringFormView: View {
     }
 }
 
-#Preview("Nouveau récurrent") {
+#Preview("Ajouter une facture") {
     let preview = DemoDataFactory.previewAppContainer()
     return RecurringFormView(mode: .create)
         .environment(preview)

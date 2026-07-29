@@ -1,0 +1,422 @@
+[
+  {
+    "screen": "Mois",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mois",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mouvements",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mouvements",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Budget",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Budget",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Comptes",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Comptes",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Détail de compte",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Détail de compte",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Détail compte négatif",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Détail compte négatif",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Plus (hub)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Plus (hub)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Factures",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Factures",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Paiements réguliers",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Paiements réguliers",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Impôts",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Impôts",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assurances & prévoyance",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assurances & prévoyance",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Patrimoine",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Patrimoine",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Objectifs",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Objectifs",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Année en revue",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Année en revue",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Import CSV & documents",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Import CSV & documents",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assistant",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assistant",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Réglages",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Réglages",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Feuille Ajouter (montant 7 chiffres)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Feuille Ajouter (montant 7 chiffres)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mois (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mois (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mouvements (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Mouvements (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Budget (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Budget (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Comptes (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Comptes (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Factures (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Factures (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Paiements réguliers (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Paiements réguliers (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Impôts (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Impôts (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assurances & prévoyance (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assurances & prévoyance (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Patrimoine (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Patrimoine (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Objectifs (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Objectifs (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Année en revue (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Année en revue (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Import CSV & documents (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Import CSV & documents (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assistant (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Assistant (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Réglages (320)",
+    "check": "débordement horizontal",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Réglages (320)",
+    "check": "zone d'exclusion ＋ (ouverture + défilement)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Persistance",
+    "check": "données conservées après rechargement",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "Global file://",
+    "check": "zéro erreur console",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "PWA http",
+    "check": "service worker actif",
+    "ok": true,
+    "detail": "activated"
+  },
+  {
+    "screen": "PWA http",
+    "check": "installabilité (manifest + icônes)",
+    "ok": true,
+    "detail": "display=standalone, icônes servies=2/2"
+  },
+  {
+    "screen": "PWA http",
+    "check": "rechargement HORS LIGNE (cache SW)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "screen": "PWA http",
+    "check": "zéro erreur console (hors erreurs réseau attendues hors ligne)",
+    "ok": true,
+    "detail": ""
+  }
+]

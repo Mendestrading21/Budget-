@@ -9,9 +9,8 @@ name: Pages
 on:
   push:
     branches:
-      - claude/execute-tbkhsd
+      - refonte/budget-neon-ultra-v1
     paths:
-      - "webapp/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -36,11 +35,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Assembler le site (index + icônes + manifest)
+      - name: Assembler le site (index + icônes + manifest + Neon Ultra)
         run: |
-          mkdir site
+          mkdir -p site/design-system
           cp webapp/index.html site/
           cp webapp/manifest.webmanifest webapp/sw.js webapp/*.png site/
+          cp webapp/design-system/neon-ultra.css site/design-system/
+          test -s site/design-system/neon-ultra.css
 
       - name: Configurer Pages (activation automatique)
         uses: actions/configure-pages@v5

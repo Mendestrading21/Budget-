@@ -63,6 +63,7 @@ struct DocumentsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
@@ -83,6 +84,7 @@ struct DocumentsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private func handleImport(_ result: Result<[URL], Error>) {
@@ -118,6 +120,16 @@ struct DocumentRow: View {
         return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
     }
 
+    private var metadataLine: String {
+        var parts: [String] = [document.kind.displayName]
+        if let year = document.year { parts.append(String(year)) }
+        if let provider = document.provider, !provider.isEmpty { parts.append(provider) }
+        if let member = document.member { parts.append(member.firstName) }
+        parts.append("ajouté le \(FinanceFormatting.swissDate(document.addedAt))")
+        if let sizeLabel { parts.append(sizeLabel) }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
         GlassCard(style: .row) {
             HStack(spacing: BudgetSpacing.medium) {
@@ -127,16 +139,14 @@ struct DocumentRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(document.title)
                         .font(BudgetFont.body.weight(.medium))
-                        .lineLimit(1)
-                    HStack(spacing: BudgetSpacing.micro) {
-                        Text(document.kind.displayName)
-                        if let year = document.year { Text("· \(String(year))") }
-                        if let provider = document.provider, !provider.isEmpty { Text("· \(provider)") }
-                        if let sizeLabel { Text("· \(sizeLabel)") }
-                    }
-                    .font(BudgetFont.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // L7 : TOUTES les métadonnées essentielles lisibles —
+                    // type, année, fournisseur, membre, date d'ajout —
+                    // en multiligne, jamais remplacées par une ellipse.
+                    Text(metadataLine)
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: BudgetSpacing.small)
                 if let fileURL {
@@ -145,6 +155,12 @@ struct DocumentRow: View {
                             .foregroundStyle(BudgetColor.electricBlue)
                     }
                     .accessibilityLabel("Partager \(document.title)")
+                } else if !document.fileReference.isEmpty {
+                    // L7 : fichier attendu mais introuvable — état ÉCRIT,
+                    // jamais un bouton de partage qui disparaît en silence.
+                    StatusPill(text: "Fichier absent", kind: .warning)
+                        .accessibilityLabel("Le fichier de \(document.title) est absent — seules les informations restent.")
+                        .accessibilityIdentifier("document.fileMissing")
                 }
             }
         }

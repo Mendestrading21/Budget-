@@ -63,6 +63,7 @@ struct AccountDetailView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle(account.name)
         .alert(
@@ -132,18 +133,21 @@ struct AccountDetailView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     if !account.isActive {
-                        Text("Archivé")
-                            .font(BudgetFont.caption.weight(.semibold))
-                            .padding(.horizontal, BudgetSpacing.small)
-                            .padding(.vertical, 2)
-                            .background(BudgetColor.coolGray.opacity(0.3), in: Capsule())
+                        StatusPill(text: "Archivé", kind: .neutral)
                     }
                 }
-                Text(FinanceFormatting.chf(currentBalance))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(currentBalance < 0 ? BudgetColor.negative : .primary)
+                AmountText(
+                    amount: currentBalance,
+                    role: .hero,
+                    emphasis: currentBalance < 0 ? .negative : .neutral
+                )
                 if let reconciledAt = account.reconciledAt, let reconciled = account.reconciledBalance {
                     Text("Réconcilié à \(FinanceFormatting.chf(reconciled)) le \(FinanceFormatting.swissDate(reconciledAt))")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                } else if let lastMovement = movements.first {
+                    // Fraîcheur du solde en langage simple.
+                    Text("Dernier mouvement le \(FinanceFormatting.swissDate(lastMovement.date)) — solde initial \(FinanceFormatting.chf(account.openingBalance)) + mouvements comptabilisés")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                 } else {
@@ -153,7 +157,7 @@ struct AccountDetailView: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Solde actuel : \(FinanceFormatting.chf(currentBalance))")
+            .accessibilityLabel("Solde actuel : \(FinanceFormatting.chf(currentBalance))\(account.isActive ? "" : ", compte archivé")")
         }
     }
 
@@ -330,10 +334,12 @@ struct MovementRow: View {
                     .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: BudgetSpacing.small)
-                Text(FinanceFormatting.chfSigned(effect))
-                    .font(BudgetFont.amount)
-                    .foregroundStyle(effect >= 0 ? BudgetColor.positive : BudgetColor.negative)
-                    .opacity(movement.status == .planned ? 0.6 : 1)
+                AmountText(
+                    amount: effect,
+                    signed: true,
+                    emphasis: effect >= 0 ? .positive : .negative
+                )
+                .opacity(movement.status == .planned ? 0.6 : 1)
             }
         }
         .accessibilityElement(children: .combine)

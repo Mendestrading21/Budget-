@@ -75,6 +75,7 @@ struct ImportWizardView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Import CSV")
         .navigationBarTitleDisplayMode(.inline)
@@ -84,6 +85,22 @@ struct ImportWizardView: View {
             allowsMultipleSelection: false
         ) { result in
             handleFile(result)
+        }
+        .onAppear {
+            // Preuve UI (workflow Demo) : charge un CSV d'exemple par le
+            // MÊME chemin que le sélecteur de fichiers, pour parcourir
+            // réellement mapping → compte → aperçu → confirmation →
+            // rapport. Inactif en dehors du tour automatisé.
+            if ProcessInfo.processInfo.arguments.contains("-uiTestImportCSV"), model.parsed == nil {
+                let sample = "date;montant;intitulé\n05.06.2026;-45.50;Courses démo import\n06.06.2026;-12.00;Café démo import\npas-une-date;abc;Ligne invalide démo"
+                if let parsed = importService.parse(text: sample) {
+                    model.fileName = "demo-import.csv"
+                    model.parsed = parsed
+                    model.mapping = importService.suggestMapping(headers: parsed.headers)
+                    model.step = .mapColumns
+                    revalidate()
+                }
+            }
         }
     }
 

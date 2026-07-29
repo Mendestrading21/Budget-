@@ -50,8 +50,7 @@ struct PensionView: View {
                         Text("Capital de prévoyance")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(service.totalPensionCapital(assets: assets)))
-                            .font(BudgetFont.heroAmount)
+                        AmountText(amount: service.totalPensionCapital(assets: assets), role: .hero)
                         Text("Contributions annuelles : \(FinanceFormatting.chf(service.totalAnnualContributions(assets: assets)))")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
@@ -101,29 +100,27 @@ struct PensionView: View {
                         .foregroundStyle(BudgetColor.informative)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("pension.info.footer")
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucune position de prévoyance", systemImage: "shield.checkered")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Reportez votre certificat LPP, vos comptes 3a/3b et votre estimation AVS pour voir l'ensemble de votre prévoyance.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter une position") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "shield.checkered",
+                    title: "Aucune position de prévoyance",
+                    message: "Reportez votre certificat LPP, vos comptes 3a/3b et votre estimation AVS pour voir l'ensemble de votre prévoyance — sans faux zéro : rien n'est inventé.",
+                    actionTitle: "Ajouter une position",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -139,7 +136,7 @@ struct PensionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(asset.pillar.shortName) · \(asset.institutionName)")
                         .font(BudgetFont.body.weight(.medium))
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let owner = asset.owner {
                         Text(owner.firstName)
                             .font(BudgetFont.caption)
@@ -155,6 +152,7 @@ struct PensionRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(asset.currentValue))
                         .font(BudgetFont.amount)
+                        .fixedSize()
                     if asset.annualContribution > 0 {
                         Text("+\(FinanceFormatting.chf(asset.annualContribution)) / an")
                             .font(BudgetFont.caption)
@@ -166,6 +164,7 @@ struct PensionRow: View {
         .opacity(asset.isActive ? 1 : 0.55)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(asset.pillar.displayName), \(asset.institutionName), \(FinanceFormatting.chf(asset.currentValue))")
+        .accessibilityIdentifier("pension.row.\(asset.institutionName)")
     }
 }
 

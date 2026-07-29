@@ -54,6 +54,7 @@ struct YearReviewView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Année \(String(year))")
     }

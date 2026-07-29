@@ -15,10 +15,18 @@ enum FinanceFormatting {
         formatter.numberStyle = .currency
         formatter.currencyCode = "CHF"
         formatter.currencySymbol = "CHF"
-        formatter.groupingSeparator = "'"
-        formatter.decimalSeparator = "."
         formatter.positiveFormat = "\(positivePrefix)¤ #,##0.00"
         formatter.negativeFormat = "-¤ #,##0.00"
+        // L8 correctif : épinglage APRÈS l'affectation des motifs (elle
+        // peut re-dériver les symboles depuis la locale) et pour les DEUX
+        // jeux de symboles (style monétaire ET décimal). Le rendu
+        // `CHF 18'190.00` ne dépend ainsi ni de la région de l'appareil
+        // ni de la version d'ICU — défaut RÉEL révélé par le run Demo,
+        // où les montants sortaient en « 128 450,30 ».
+        formatter.groupingSeparator = "'"
+        formatter.decimalSeparator = "."
+        formatter.currencyGroupingSeparator = "'"
+        formatter.currencyDecimalSeparator = "."
         return formatter
     }
 

@@ -57,6 +57,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath DemoResults.xcresult \
             -only-testing:BudgetUITests \
+            -only-testing:BudgetTests/ObsidianMotionTests \
             test-without-building
 
       - name: Rapports de crash + journal de l'app
@@ -87,9 +88,30 @@ jobs:
           if [ -d DemoResults.xcresult ]; then
             xcrun xcresulttool export attachments \
               --path DemoResults.xcresult \
-              --output-path demo-output/captures || true
+              --output-path demo-output/captures | tee /tmp/attmap.txt || true
             ls -R demo-output/captures || true
           fi
+
+      - name: Preuves ios-l8 en base64 (inspection directe depuis les logs)
+        if: always()
+        run: |
+          # Le stockage d'artefacts est inaccessible depuis certains
+          # environnements de revue : les trois pièces L8 sont donc AUSSI
+          # imprimées en base64 dans les logs, pour inspection directe.
+          for NAME in ios-l8-patrimoine-selection-320-a11y ios-l8-patrimoine-avant-selection ios-l8-patrimoine-selection; do
+            # xcresulttool suffixe les noms (« NAME_0_UUID.png ») — et un
+            # nom peut être le préfixe d'un autre : on ancre sur « NAME_ ».
+            F=$(grep -F "suggested name: \"${NAME}_" /tmp/attmap.txt | head -1 | sed -E 's/^File: ([^,]+),.*/\1/')
+            P=""
+            if [ -n "$F" ]; then P=$(find demo-output/captures -name "$F" 2>/dev/null | head -1); fi
+            if [ -n "$P" ]; then
+              echo "===B64 $NAME START==="
+              base64 -i "$P"
+              echo "===B64 $NAME END==="
+            else
+              echo "INTROUVABLE : $NAME"
+            fi
+          done
 
       - name: Archive .ipa non signée (pour plus tard)
         run: |
@@ -106,6 +128,23 @@ jobs:
           cp -R build/Budget.xcarchive/Products/Applications/Budget.app Payload/
           zip -qry demo-output/Budget-non-signee.ipa Payload
           echo "ipa: $(du -h demo-output/Budget-non-signee.ipa | cut -f1)"
+
+      # ADR-023 : la liste ENTIÈRE UIDeviceFamily doit valoir [1] dans
+      # l'app de l'ARCHIVE et dans l'app EXTRAITE de l'IPA — pas
+      # seulement contenir 1.
+      - name: iPhone uniquement — UIDeviceFamily == [1] (archive + IPA)
+        run: |
+          check_family() {
+            FAM=$(plutil -extract UIDeviceFamily json -o - "$1" | tr -d '[:space:]')
+            if [ "$FAM" != "[1]" ]; then
+              echo "::error::UIDeviceFamily = $FAM dans $1 (attendu EXACTEMENT [1])"; exit 1
+            fi
+            echo "UIDeviceFamily == [1] dans $1 ✓"
+          }
+          check_family "build/Budget.xcarchive/Products/Applications/Budget.app/Info.plist"
+          rm -rf ipa-extract && mkdir ipa-extract
+          unzip -q demo-output/Budget-non-signee.ipa -d ipa-extract
+          check_family "ipa-extract/Payload/Budget.app/Info.plist"
 
       - name: Publier l'artefact budget-demo
         if: always()

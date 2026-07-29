@@ -9,6 +9,7 @@ conseil financier).
 
 | Champ | Valeur |
 |---|---|
+| Bundle ID (canonique) | `ch.budgetapp.Budget` |
 | Nom (30 car. max) | **Budget — Finances du foyer** |
 | Alternatives | « Budget Suisse », « Budget : le foyer serein » |
 | Sous-titre (30 car. max) | **Le tableau de bord suisse** |
@@ -17,6 +18,7 @@ conseil financier).
 | Catégorie secondaire | Productivité |
 | Classification d'âge | 4+ |
 | Langue | Français (Suisse) uniquement en V1 |
+| Appareils | **iPhone uniquement** (ADR-023, `TARGETED_DEVICE_FAMILY = 1`, portrait) — sans prétendre empêcher un éventuel mode de compatibilité géré par Apple sur iPad |
 | Prix | Voir « Décision de prix » ci-dessous |
 
 ## Texte promotionnel (170 car. max)
@@ -101,7 +103,13 @@ si demandé. Mode sombre, l'identité canonique.
 6. **Foyer / Onboarding** — écran de bienvenue ou vue ménage.
    Accroche : « Vos données restent sur votre iPhone. »
 
-## URLs (placeholders — à créer avant la soumission)
+## URLs (RELEASE_BLOCKER — placeholders à créer avant la soumission)
+
+> **Statut : BLOQUEUR HUMAIN OUVERT.** Les trois URLs ci-dessous sont des
+> placeholders volontaires (`VOTRE-DOMAINE`). Elles ne doivent PAS être
+> inventées par un outil : le propriétaire crée les pages réelles, puis
+> remplace les URLs ici et dans App Store Connect. La soumission est
+> impossible sans la page de confidentialité.
 
 - Support : `https://VOTRE-DOMAINE/budget/support` (une page avec une
   adresse e-mail suffit ; l'adresse e.mendestrading@gmail.com peut servir
@@ -136,9 +144,21 @@ possible en V2 avec la sync famille, prévue par la vision produit).
 CHF 6.00 → réévaluation avec la V2 (palier familial / abonnement si la
 sync arrive).
 
+## État réel au 25.07.2026 (rien de tout cela n'est encore fait)
+
+- L'app native n'a encore **JAMAIS été installée** sur un iPhone réel.
+- **Aucun compte Apple Developer / App Store Connect** n'existe.
+- L'App ID `ch.budgetapp.Budget` n'est **pas encore enregistré** chez
+  Apple (identifiant canonique réservé côté projet uniquement).
+- **TestFlight n'a jamais été exécuté** ; aucun Xcode local utilisé.
+- QA physique (haptique, Face ID réel, VoiceOver réel) : PENDING HUMAN.
+
 ## Reste à faire avec le compte Apple Developer (~99 $/an)
 
-1. Créer l'App ID `com.mendes.budget` (ou ajuster le bundle ID du projet).
+1. Créer l'App ID `ch.budgetapp.Budget` — l'identité CANONIQUE de l'app,
+   celle du projet Xcode (les cibles de test gardent leurs identifiants
+   dédiés `ch.budgetapp.BudgetTests` et `ch.budgetapp.BudgetUITests`,
+   comme il se doit ; elles ne sont jamais soumises à l'App Store).
 2. App Store Connect : créer la fiche, coller les textes ci-dessus.
 3. Captures d'écran en mode démo (checklist ci-dessus).
 4. Héberger les deux pages support/confidentialité.

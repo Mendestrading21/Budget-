@@ -1,0 +1,322 @@
+/* ============================================================
+   Budget — Obsidian Glass · tokens canoniques (ADR-020, L2)
+   ------------------------------------------------------------
+   Ce fichier est la SOURCE CANONIQUE des tokens du design system
+   web. `webapp/index.html` embarque les mêmes valeurs dans son
+   :root (l'app reste auto-suffisante hors ligne) ; le test
+   `webapp/tests/design.test.mjs` vérifie que les deux déclarations
+   restent strictement identiques.
+   Une seule identité sombre. Pas de thème clair, pas de palette
+   alternative. Vert, corail et ambre sont STRICTEMENT sémantiques.
+   ============================================================ */
+
+:root {
+  /* --- Tokens Obsidian canoniques (constitution §2) --- */
+  --canvas: #090C12;                       /* fond principal */
+  --canvas-raised: #0D1119;                /* zone élevée / navigation */
+  --glass: rgba(20, 25, 37, 0.72);         /* carte standard */
+  --glass-strong: rgba(27, 34, 48, 0.88);  /* héros, feuille, popover */
+  --glass-fallback: #151B26;               /* transparence réduite */
+  --stroke: rgba(255, 255, 255, 0.10);     /* bord standard */
+  --stroke-active: rgba(115, 103, 255, 0.48); /* sélection / focus */
+  --brand: #7367FF;                        /* Indigo Aurora — action, série principale */
+  --brand-bright: #9188FF;                 /* surbrillance de la même teinte */
+  --text-primary: #F6F7FB;                 /* montants et titres */
+  --text-secondary: #A7B0C0;               /* explications */
+  --text-tertiary: #758094;                /* métadonnées */
+  --positive: #36D399;                     /* sémantique : progrès */
+  --negative: #FF6B7A;                     /* sémantique : perte, erreur */
+  --warning: #FFB454;                      /* sémantique : échéance */
+
+  /* --- Tons dérivés de l'indigo (constitution : « les tons dérivés
+     de l'indigo sont permis ») — jamais de nouvelles marques --- */
+  --brand-deep: #6457F0;                   /* fond des boutons primaires : blanc AA ≥ 4.5 */
+  --brand-halo: rgba(115, 103, 255, 0.10); /* halo radial 6-10 % derrière le point focal */
+  --brand-glow: rgba(115, 103, 255, 0.35); /* ombre portée des CTA */
+  --brand-tint: rgba(115, 103, 255, 0.16); /* pastilles informatives */
+
+  /* --- Teintes sémantiques translucides (pastilles, badges) --- */
+  --tint-positive: rgba(54, 211, 153, 0.16);
+  --tint-negative: rgba(255, 107, 122, 0.14);
+  --tint-warning: rgba(255, 180, 84, 0.18);
+  --tint-neutral: rgba(255, 255, 255, 0.08);
+
+  /* --- Géométrie (constitution §3) --- */
+  --radius-hero: 28px;
+  --radius-card: 22px;
+  --radius-control: 14px;
+  --screen-margin: 18px;
+  --pad-hero: 24px;
+  --pad-card: 18px;
+}
+
+/* ------------------------------------------------------------
+   Transparence réduite : le verre devient graphite OPAQUE, le
+   halo disparaît, les blurs sont retirés. Deux déclencheurs :
+   1. le réglage utilisateur (prefers-reduced-transparency) ;
+   2. le mécanisme DÉTERMINISTE de test et de démonstration
+      `html[data-reduced-transparency="true"]`.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass: var(--glass-fallback);
+    --glass-strong: var(--glass-fallback);
+  }
+}
+html[data-reduced-transparency="true"] {
+  --glass: var(--glass-fallback);
+  --glass-strong: var(--glass-fallback);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .os-card, .os-card--strong, .os-sheet, .os-tabbar { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body { background: var(--canvas); }
+}
+html[data-reduced-transparency="true"] .os-card,
+html[data-reduced-transparency="true"] .os-card--strong,
+html[data-reduced-transparency="true"] .os-sheet,
+html[data-reduced-transparency="true"] .os-tabbar { backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-reduced-transparency="true"] body { background: var(--canvas); }
+
+/* ------------------------------------------------------------
+   Base
+   ------------------------------------------------------------ */
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background:
+    radial-gradient(1000px 520px at 50% -140px, var(--brand-halo), transparent 65%),
+    var(--canvas);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Texte agrandi — mécanisme déterministe (équivalent web du Dynamic
+   Type) : tout est dimensionné en rem sous cet attribut. */
+html[data-large-text="true"] { font-size: 130%; }
+
+/* Focus clavier : toujours visible, jamais fondé sur la couleur seule
+   (anneau + décalage = indice de forme). */
+:focus-visible {
+  outline: 2px solid var(--brand-bright);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Mouvement réduit : aucune animation non essentielle. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------
+   Cartes verre — standard, forte (héros/feuille), légère (listes).
+   Un seul blur mesuré sur les surfaces fortes ; jamais de blur
+   dans les cellules de liste (performance).
+   ------------------------------------------------------------ */
+.os-card {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-card);
+  padding: var(--pad-card);
+  background-clip: padding-box;
+}
+.os-card::before {
+  /* Reflet supérieur très discret. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 42%);
+  pointer-events: none;
+}
+.os-card--strong {
+  background: var(--glass-strong);
+  border-radius: var(--radius-hero);
+  padding: var(--pad-hero);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 18px 40px var(--brand-halo);
+}
+.os-card--row {
+  border-radius: var(--radius-control);
+  padding: 12px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.os-card--row::before { content: none; }
+/* Libellé extensible d'une ligne de liste : il rétrécit et passe à la
+   ligne avant de faire déborder le montant (texte agrandi, 320 px). */
+.os-row-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.os-card--selected { border-color: var(--stroke-active); }
+
+/* ------------------------------------------------------------
+   Montants — chiffres tabulaires, jamais tronqués.
+   ------------------------------------------------------------ */
+.os-amount-hero {
+  /* 36-44 max, se resserre sur petit écran — jamais tronqué. */
+  font-size: clamp(1.6rem, 9.6vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  white-space: nowrap;
+}
+/* Montants à sept chiffres et plus : taille réduite, entier et lisible. */
+.os-amount-hero--long {
+  font-size: clamp(1.1rem, 6.8vw, 1.9rem);
+}
+.os-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.os-amount--positive { color: var(--positive); }
+.os-amount--negative { color: var(--negative); }
+.os-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 6px;
+}
+.os-caption { font-size: 0.72rem; color: var(--text-tertiary); }
+
+/* ------------------------------------------------------------
+   Badge de statut — toujours texte + point de forme, jamais la
+   couleur seule.
+   ------------------------------------------------------------ */
+.os-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--tint-neutral);
+  color: var(--text-secondary);
+}
+.os-pill::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: none;
+}
+.os-pill--positive { background: var(--tint-positive); color: var(--positive); }
+.os-pill--negative { background: var(--tint-negative); color: var(--negative); }
+.os-pill--warning { background: var(--tint-warning); color: var(--warning); }
+
+/* ------------------------------------------------------------
+   Boutons — primaire, secondaire, destructif. Cible ≥ 44 px.
+   ------------------------------------------------------------ */
+.os-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-control);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 45%),
+    var(--brand-deep);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.os-btn:active { transform: scale(0.97); filter: brightness(1.06); }
+.os-btn:disabled { opacity: 0.4; cursor: default; }
+.os-btn:disabled:active { transform: none; filter: none; }
+.os-btn--secondary {
+  background: var(--glass-fallback);
+  border: 1px solid var(--stroke);
+  color: var(--brand-bright);
+}
+.os-btn--destructive {
+  background: var(--tint-negative);
+  border: 1px solid var(--negative);
+  color: var(--negative);
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-btn { transition: none; }
+  .os-btn:active { transform: none; filter: none; }
+}
+
+/* ------------------------------------------------------------
+   Champ de formulaire — normal, focus, erreur.
+   ------------------------------------------------------------ */
+.os-field-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 10px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.os-field {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: var(--canvas-raised);
+  border: 1px solid var(--stroke);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 11px 12px;
+  border-radius: 11px;
+}
+.os-field:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+.os-field[aria-invalid="true"] { border-color: var(--negative); }
+.os-field[aria-invalid="true"]:focus { outline-color: var(--negative); }
+.os-field-error { color: var(--negative); font-size: 0.78rem; margin-top: 6px; }
+
+/* ------------------------------------------------------------
+   Feuille / popover — surface forte, un seul blur.
+   ------------------------------------------------------------ */
+.os-sheet {
+  background: var(--glass-strong);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius-hero) var(--radius-hero) 0 0;
+  padding: var(--pad-hero);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ------------------------------------------------------------
+   États vide et erreur.
+   ------------------------------------------------------------ */
+.os-empty {
+  text-align: center;
+  padding: 28px 18px;
+  color: var(--text-secondary);
+}
+.os-empty .os-empty-glyph { font-size: 1.8rem; display: block; margin-bottom: 8px; }
+.os-empty .os-empty-title { font-weight: 700; color: var(--text-primary); margin: 0 0 4px; font-size: 0.95rem; }
+.os-empty p { margin: 0; font-size: 0.85rem; }
+
+.os-error {
+  border: 1px solid var(--negative);
+  background: var(--tint-negative);
+  border-radius: var(--radius-card);
+  padding: var(--pad-card);
+  color: var(--text-primary);
+}
+.os-error .os-error-title { font-weight: 700; margin: 0 0 4px; font-size: 0.95rem; }
+.os-error p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }

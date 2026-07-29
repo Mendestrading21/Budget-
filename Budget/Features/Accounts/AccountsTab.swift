@@ -72,17 +72,16 @@ struct AccountsTab: View {
             VStack(spacing: BudgetSpacing.medium) {
                 GlassCard(style: .hero) {
                     VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
-                        Text("Liquidités disponibles")
+                        Text("Argent disponible")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(totalIncludedInCash))
-                            .font(BudgetFont.heroAmount)
-                        Text("Somme des comptes marqués « compte dans le cash disponible »")
+                        AmountText(amount: totalIncludedInCash, role: .hero)
+                        Text("Somme des comptes marqués « compte dans le cash disponible » (tout en CHF)")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Liquidités disponibles : \(FinanceFormatting.chf(totalIncludedInCash))")
+                    .accessibilityLabel("Argent disponible : \(FinanceFormatting.chf(totalIncludedInCash))")
                 }
 
                 ForEach(groups, id: \.title) { group in
@@ -122,6 +121,7 @@ struct AccountsTab: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     /// Cumuls façon Finary sur les comptes de placement uniquement.
@@ -134,18 +134,13 @@ struct AccountsTab: View {
     private var emptyState: some View {
         VStack(spacing: BudgetSpacing.medium) {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucun compte", systemImage: "creditcard")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Ajoutez vos comptes bancaires, espèces, épargne ou prévoyance pour suivre vos soldes.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter un compte") {
-                        isPresentingNewAccount = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "creditcard",
+                    title: "Aucun compte",
+                    message: "Ajoutez vos comptes bancaires, espèces, épargne ou prévoyance pour suivre vos soldes.",
+                    actionTitle: "Ajouter un compte",
+                    action: { isPresentingNewAccount = true }
+                )
             }
         }
         .padding(BudgetSpacing.screenMargin)
@@ -162,35 +157,40 @@ struct AccountRow: View {
             HStack(spacing: BudgetSpacing.medium) {
                 Image(systemName: account.type.systemImage)
                     .font(.title3)
-                    .foregroundStyle(BudgetColor.indigo)
+                    .foregroundStyle(BudgetColor.brand)
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(account.name)
-                        .font(BudgetFont.body.weight(.medium))
+                    HStack(spacing: BudgetSpacing.micro) {
+                        Text(account.name)
+                            .font(BudgetFont.body.weight(.medium))
+                            .lineLimit(1)
+                        // L5 : les statuts sont ÉCRITS — jamais la seule
+                        // couleur ni la seule opacité.
+                        if !account.isActive {
+                            StatusPill(text: "Archivé", kind: .neutral)
+                        } else if account.type.isLiability {
+                            StatusPill(text: "Dette", kind: .neutral)
+                        }
+                    }
                     Text(account.institutionName.isEmpty ? account.type.displayName : account.institutionName)
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                     if let contribution, contribution.total > 0 {
                         Text("Versé cette année : \(FinanceFormatting.chf(contribution.currentYear)) · total : \(FinanceFormatting.chf(contribution.total))")
                             .font(BudgetFont.caption)
-                            .foregroundStyle(BudgetColor.informative)
+                            .foregroundStyle(BudgetColor.brandBright)
                     }
                 }
                 Spacer(minLength: BudgetSpacing.small)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(FinanceFormatting.chf(balance))
-                        .font(BudgetFont.amount)
-                        .foregroundStyle(balance < 0 ? BudgetColor.negative : .primary)
-                    if account.type.isLiability {
-                        Text("Dette")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(BudgetColor.warning)
-                    }
-                }
+                Text(FinanceFormatting.chf(balance))
+                    .font(BudgetFont.amount)
+                    .foregroundStyle(balance < 0 ? BudgetColor.negative : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(account.name), \(account.type.displayName), solde \(FinanceFormatting.chf(balance))")
+        .accessibilityLabel("\(account.name), \(account.type.displayName)\(account.isActive ? "" : ", archivé"), solde \(FinanceFormatting.chf(balance))")
     }
 }
 

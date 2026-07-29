@@ -55,12 +55,18 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(model.openingBalance, Decimal("18190.00"))
     }
 
+    private var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
     func testFinishCreatesProfileCategoriesAndAccount() throws {
         let model = makeValidModel()
-        model.step = .firstAccount
+        model.step = .income
         let now = Date(timeIntervalSince1970: 1_781_524_800)
 
-        try model.finish(context: context, now: now)
+        try model.finish(context: context, calendar: utcCalendar, now: now)
 
         let households = try context.fetch(FetchDescriptor<Household>())
         XCTAssertEqual(households.count, 1)
@@ -89,7 +95,7 @@ final class OnboardingViewModelTests: XCTestCase {
 
         model.step = .firstAccount
         model.accountName = ""
-        try model.finish(context: context, now: Date())
+        try model.finish(context: context, calendar: utcCalendar, now: Date())
         XCTAssertEqual(try context.fetch(FetchDescriptor<Household>()).count, 0)
     }
 }

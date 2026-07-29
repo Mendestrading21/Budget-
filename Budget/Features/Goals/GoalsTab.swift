@@ -79,8 +79,7 @@ struct GoalsListView: View {
                         Text("Épargné vers vos objectifs")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(totalSaved))
-                            .font(BudgetFont.heroAmount)
+                        AmountText(amount: totalSaved, role: .hero)
                         if totalTarget > 0 {
                             Text("Sur \(FinanceFormatting.chf(totalTarget)) visés · \(achievedGoals.count) objectif(s) atteint(s)")
                                 .font(BudgetFont.caption)
@@ -103,6 +102,7 @@ struct GoalsListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private func section(_ title: String, goals: [FinancialGoal]) -> some View {
@@ -120,21 +120,17 @@ struct GoalsListView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucun objectif", systemImage: "target")
-                        .font(BudgetFont.sectionTitle)
-                    Text("Fonds d'urgence, vacances, pilier 3a… Fixez un cap et suivez la contribution mensuelle nécessaire pour l'atteindre.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Créer un objectif") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "target",
+                    title: "Aucun objectif",
+                    message: "Fonds d'urgence, vacances, pilier 3a… Fixez un cap et suivez la contribution mensuelle nécessaire pour l'atteindre.",
+                    actionTitle: "Créer un objectif",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -162,7 +158,7 @@ struct GoalCard: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(goal.name)
                             .font(BudgetFont.body.weight(.semibold))
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                         if let account = goal.linkedAccount {
                             Text("Lié au compte \(account.name)")
                                 .font(BudgetFont.caption)
@@ -172,6 +168,7 @@ struct GoalCard: View {
                     Spacer()
                     Label(report.scheduleStatus.displayName, systemImage: statusIcon)
                         .font(BudgetFont.caption.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(statusColor.opacity(0.18), in: Capsule())
@@ -185,6 +182,7 @@ struct GoalCard: View {
                     Text("\(FinanceFormatting.chf(report.currentAmount)) / \(FinanceFormatting.chf(report.targetAmount))")
                         .font(BudgetFont.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Text(FinanceFormatting.percent(report.progressFraction))
                         .font(BudgetFont.caption.weight(.semibold).monospacedDigit())
@@ -201,6 +199,7 @@ struct GoalCard: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+        .accessibilityIdentifier("goals.card.\(goal.name)")
     }
 
     private var statusIcon: String {

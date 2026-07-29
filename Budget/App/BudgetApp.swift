@@ -9,47 +9,63 @@ struct BudgetApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let appContainer {
-                ZStack {
-                    RootView()
-                        .environment(appContainer)
-                        .modelContainer(appContainer.modelContainer)
-                        // Rebuild the view hierarchy when switching between
-                        // the real store and the isolated demo store.
-                        .id(appContainer.isDemoMode)
-                    if appContainer.lockManager.isLocked {
-                        LockScreenView(lockManager: appContainer.lockManager)
-                    } else if scenePhase != .active && appContainer.lockManager.isLockEnabled {
-                        // The app-switcher snapshot is taken while the scene
-                        // is inactive: cover the financial content so it
-                        // never appears there.
-                        PrivacyShieldView()
-                    }
+            appContent
+                // Obsidian Glass (ADR-020, L2) : identité sombre unique,
+                // établie ICI au niveau racine — aucun écran ne la gère.
+                .preferredColorScheme(.dark)
+        }
+    }
+
+    @ViewBuilder
+    private var appContent: some View {
+        if let appContainer {
+            ZStack {
+                RootView()
+                    .environment(appContainer)
+                    .modelContainer(appContainer.modelContainer)
+                    // Rebuild the view hierarchy when switching between
+                    // the real store and the isolated demo store.
+                    .id(appContainer.isDemoMode)
+                if appContainer.lockManager.isLocked {
+                    LockScreenView(lockManager: appContainer.lockManager)
+                } else if scenePhase != .active && appContainer.lockManager.isLockEnabled {
+                    // The app-switcher snapshot is taken while the scene
+                    // is inactive: cover the financial content so it
+                    // never appears there.
+                    PrivacyShieldView()
                 }
-                .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .background {
-                        appContainer.lockManager.lockIfEnabled()
-                    }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .background {
+                    appContainer.lockManager.lockIfEnabled()
                 }
-            } else if let startupError {
-                StartupErrorView(error: startupError)
-            } else {
-                Color.clear
-                    .task {
-                        do {
-                            let container = try AppContainer()
+            }
+        } else if let startupError {
+            StartupErrorView(error: startupError)
+        } else {
+            Color.clear
+                .task {
+                    do {
+                        let container: AppContainer
+                        if ProcessInfo.processInfo.arguments.contains("-onboardingTour") {
+                            // Tour d'onboarding (workflow Demo) : store
+                            // in-memory VIDE — le vrai premier lancement,
+                            // sans jamais toucher aux données réelles.
+                            container = try AppContainer(inMemory: true)
+                        } else {
+                            container = try AppContainer()
                             // Tour automatisé (workflow Demo) : démarre
                             // directement en mode démo — store in-memory,
                             // jamais les vraies données.
                             if ProcessInfo.processInfo.arguments.contains("-demoTour") {
                                 container.isDemoMode = true
                             }
-                            appContainer = container
-                        } catch {
-                            startupError = error
                         }
+                        appContainer = container
+                    } catch {
+                        startupError = error
                     }
-            }
+                }
         }
     }
 }

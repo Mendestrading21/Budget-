@@ -52,8 +52,12 @@ struct InsuranceListView: View {
                         Text("Primes du ménage")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
-                        Text("\(FinanceFormatting.chf(service.totalAnnualPremium(contracts: contracts))) / an")
-                            .font(BudgetFont.heroAmount)
+                        HStack(alignment: .firstTextBaseline, spacing: BudgetSpacing.micro) {
+                            AmountText(amount: service.totalAnnualPremium(contracts: contracts), role: .hero)
+                            Text("par an")
+                                .font(BudgetFont.cardLabel)
+                                .foregroundStyle(.secondary)
+                        }
                         Text("Soit \(FinanceFormatting.chf(service.totalMonthlyPremium(contracts: contracts))) par mois · \(active.count) contrat(s) actif(s)")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
@@ -88,26 +92,23 @@ struct InsuranceListView: View {
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label("Aucun contrat", systemImage: "shield")
-                        .font(BudgetFont.sectionTitle)
-                    Text("LAMal, RC, ménage, véhicule… Regroupez vos contrats pour voir la prime annuelle totale et ne plus rater un délai de résiliation.")
-                        .font(BudgetFont.body)
-                        .foregroundStyle(.secondary)
-                    Button("Ajouter un contrat") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
-                }
+                EmptyState(
+                    symbol: "shield",
+                    title: "Aucun contrat",
+                    message: "LAMal, RC, ménage, véhicule… Regroupez vos contrats pour voir la prime annuelle totale et ne plus rater un délai de résiliation.",
+                    actionTitle: "Ajouter un contrat",
+                    action: { isPresentingNew = true }
+                )
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 }
 
@@ -130,11 +131,11 @@ struct InsuranceRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(contract.policyName)
                         .font(BudgetFont.body.weight(.medium))
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text("\(contract.insurerName) · \(contract.kind.displayName)\(contract.member.map { " · \($0.firstName)" } ?? "")")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let deductible = contract.deductible {
                         Text("Franchise \(FinanceFormatting.chf(deductible))")
                             .font(BudgetFont.caption)
@@ -150,6 +151,7 @@ struct InsuranceRow: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(FinanceFormatting.chf(contract.premiumAmount))
                         .font(BudgetFont.amount)
+                        .fixedSize()
                     Text(contract.frequencyLabel)
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
@@ -163,6 +165,7 @@ struct InsuranceRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(contract.policyName), \(contract.insurerName), \(FinanceFormatting.chf(contract.premiumAmount)) \(contract.frequencyLabel)\(deadlineIsClose ? ", résiliable prochainement" : "")")
+        .accessibilityIdentifier("insurance.row.\(contract.policyName)")
     }
 }
 

@@ -12,21 +12,21 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .home: "Accueil"
-        case .transactions: "Mouvements"
+        case .home: "Mois"
+        case .transactions: "Historique"
         case .budget: "Budget"
         case .accounts: "Comptes"
-        case .more: "Plus"
+        case .more: "Gérer"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .home: "house"
-        case .transactions: "list.bullet.rectangle"
+        case .home: "calendar"
+        case .transactions: "list.bullet"
         case .budget: "chart.pie"
         case .accounts: "creditcard"
-        case .more: "ellipsis.circle"
+        case .more: "square.grid.2x2"
         }
     }
 }

@@ -395,8 +395,21 @@ enum DemoDataFactory {
             provider: "Assurance Exemple",
             addedAt: now, updatedAt: now
         )
+        // L7 : un document dont le fichier attendu est ABSENT — l'état
+        // « Fichier absent » doit exister en démo pour être prouvé.
+        let missingFileDocument = FinancialDocument(
+            title: "Décompte fiscal 2025",
+            kind: .taxStatement,
+            year: calendar.component(.year, from: now) - 1,
+            provider: "Administration cantonale",
+            fileReference: "demo-fichier-manquant.pdf",
+            fileSizeBytes: 182_400,
+            addedAt: now, updatedAt: now,
+            member: owner
+        )
         context.insert(lppDocument)
         context.insert(policyDocument)
+        context.insert(missingFileDocument)
 
         do {
             try context.save()

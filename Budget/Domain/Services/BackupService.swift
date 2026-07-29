@@ -129,6 +129,7 @@ enum BackupError: LocalizedError, Equatable {
     case unreadable
     case newerSchema(found: Int, supported: Int)
     case unsupportedCurrency(codes: [String])
+    case corruptAmount(String)
 
     var errorDescription: String? {
         switch self {
@@ -138,6 +139,8 @@ enum BackupError: LocalizedError, Equatable {
             "Cette sauvegarde vient d'une version plus récente de Budget (schéma \(found), pris en charge : \(supported)). Mettez d'abord l'app à jour."
         case .unsupportedCurrency(let codes):
             "Cette sauvegarde contient des comptes en \(codes.joined(separator: ", ")). Budget V1 gère uniquement le CHF — vos données actuelles n'ont pas été modifiées."
+        case .corruptAmount(let raw):
+            "Cette sauvegarde contient un montant illisible (« \(raw) ») — la restauration a été annulée, vos données actuelles n'ont pas été modifiées."
         }
     }
 }
@@ -151,8 +154,13 @@ struct BackupService {
     static let currentSchemaVersion = 8
 
     private func decimalString(_ value: Decimal) -> String { "\(value)" }
-    private func decimal(_ string: String) -> Decimal {
-        Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")) ?? .zero
+    private func decimal(_ string: String) throws -> Decimal {
+        // P0 : un montant illisible ne devient JAMAIS zéro en silence —
+        // on refuse la sauvegarde, la restauration transactionnelle annule tout.
+        guard let value = Decimal(string: string, locale: Locale(identifier: "en_US_POSIX")) else {
+            throw BackupError.corruptAmount(string)
+        }
+        return value
     }
 
     // MARK: CSV export (transactions)
@@ -319,6 +327,40 @@ struct BackupService {
 
     /// Replaces every entity with the backup's content. Stored document
     /// FILES are deliberately never touched: they do not travel in the
+    /// L7 : résumé HONNÊTE d'une sauvegarde AVANT restauration — la
+    /// confirmation affiche la date, la version et le contenu réels.
+    /// Lève les mêmes refus que `restore` (illisible, version future)
+    /// SANS toucher aux données.
+    struct Summary: Equatable {
+        let exportedAt: Date
+        let schemaVersion: Int
+        let accounts: Int
+        let transactions: Int
+        let goals: Int
+        let recurrings: Int
+        let documents: Int
+    }
+
+    func summary(of data: Data) throws -> Summary {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let file = try? decoder.decode(BackupFile.self, from: data) else {
+            throw BackupError.unreadable
+        }
+        guard file.schemaVersion <= Self.currentSchemaVersion else {
+            throw BackupError.newerSchema(found: file.schemaVersion, supported: Self.currentSchemaVersion)
+        }
+        return Summary(
+            exportedAt: file.exportedAt,
+            schemaVersion: file.schemaVersion,
+            accounts: file.accounts.count,
+            transactions: file.transactions.count,
+            goals: file.goals.count,
+            recurrings: file.recurrings.count,
+            documents: file.documents.count
+        )
+    }
+
     /// JSON, so a still-present file stays reachable via its restored
     /// `fileReference`.
     func restore(data: Data, context: ModelContext, documentFileStore: DocumentFileStoring?) throws {
@@ -342,16 +384,22 @@ struct BackupService {
 
         // Entities only — document files never travel in the JSON backup,
         // so deleting them here would irreversibly orphan every restored
-        // fileReference. Nothing is committed before the rebuild succeeds:
-        // any failure below rolls back and leaves the store as it was.
+        // fileReference. Wipe, rebuild and save form ONE transaction: a
+        // failure at ANY step rolls back and leaves the store as it was.
         do {
             try wipeEntities(context: context)
+            try rebuild(from: file, context: context)
+            try context.save()
         } catch {
             context.rollback()
             throw error
         }
+    }
 
-        // Recreate in dependency order, resolving relationships by UUID.
+    /// Recreates every entity in dependency order, resolving relationships
+    /// by UUID. Must only run inside restore()'s wipe/rebuild/save
+    /// transaction — it never saves and never rolls back itself.
+    private func rebuild(from file: BackupFile, context: ModelContext) throws {
         var members: [UUID: HouseholdMember] = [:]
         for dto in file.members {
             let member = HouseholdMember(
@@ -367,7 +415,7 @@ struct BackupService {
             let household = Household(
                 id: dto.id, name: dto.name, baseCurrencyCode: dto.currency,
                 canton: dto.canton, municipality: dto.municipality,
-                taxProvisionRate: decimal(dto.taxRate), createdAt: dto.createdAt,
+                taxProvisionRate: try decimal(dto.taxRate), createdAt: dto.createdAt,
                 updatedAt: dto.updatedAt ?? dto.createdAt
             )
             household.members = file.members
@@ -396,14 +444,14 @@ struct BackupService {
             let account = Account(
                 id: dto.id, name: dto.name, institutionName: dto.institution,
                 type: AccountType(rawValue: dto.type) ?? .other, currencyCode: dto.currency,
-                openingBalance: decimal(dto.openingBalance),
+                openingBalance: try decimal(dto.openingBalance),
                 isShared: dto.isShared, isActive: dto.isActive,
                 includeInAvailableCash: dto.includeInAvailableCash,
                 includeInNetWorth: dto.includeInNetWorth,
                 createdAt: dto.createdAt, updatedAt: dto.updatedAt ?? dto.createdAt,
                 owner: dto.ownerID.flatMap { members[$0] }
             )
-            account.reconciledBalance = dto.reconciledBalance.map(decimal)
+            account.reconciledBalance = try dto.reconciledBalance.map(decimal)
             account.reconciledAt = dto.reconciledAt
             accounts[dto.id] = account
             context.insert(account)
@@ -411,7 +459,7 @@ struct BackupService {
 
         for dto in file.transactions {
             context.insert(BudgetTransaction(
-                id: dto.id, date: dto.date, amount: decimal(dto.amount),
+                id: dto.id, date: dto.date, amount: try decimal(dto.amount),
                 type: TransactionType(rawValue: dto.type) ?? .expense,
                 status: TransactionStatus(rawValue: dto.status) ?? .posted,
                 title: dto.title, note: dto.note, merchant: dto.merchant,
@@ -434,7 +482,7 @@ struct BackupService {
         }
         for dto in file.budgetLines {
             let line = BudgetLine(
-                id: dto.id, plannedAmount: decimal(dto.planned),
+                id: dto.id, plannedAmount: try decimal(dto.planned),
                 category: dto.categoryID.flatMap { categories[$0] }
             )
             line.budget = dto.budgetID.flatMap { budgets[$0] }
@@ -443,7 +491,7 @@ struct BackupService {
 
         for dto in file.recurrings {
             context.insert(RecurringTransaction(
-                id: dto.id, title: dto.title, amount: decimal(dto.amount),
+                id: dto.id, title: dto.title, amount: try decimal(dto.amount),
                 type: TransactionType(rawValue: dto.type) ?? .expense,
                 intervalUnit: RecurrenceUnit(rawValue: dto.unit) ?? .month,
                 intervalCount: dto.count, firstOccurrence: dto.firstOccurrence,
@@ -462,7 +510,7 @@ struct BackupService {
         for dto in file.taxProfiles {
             let profile = TaxProfile(
                 id: dto.id, canton: dto.canton, municipality: dto.municipality,
-                provisionRate: decimal(dto.rate), notes: dto.notes
+                provisionRate: try decimal(dto.rate), notes: dto.notes
             )
             profiles[dto.id] = profile
             context.insert(profile)
@@ -470,8 +518,8 @@ struct BackupService {
         for dto in file.taxProvisions {
             let provision = TaxProvision(
                 id: dto.id, year: dto.year,
-                estimatedAnnualTaxOverride: dto.override_.map(decimal),
-                reservedAmount: decimal(dto.reserved), arrearsAmount: decimal(dto.arrears),
+                estimatedAnnualTaxOverride: try dto.override_.map(decimal),
+                reservedAmount: try decimal(dto.reserved), arrearsAmount: try decimal(dto.arrears),
                 dueDates: dto.dueDates, notes: dto.notes
             )
             provision.profile = dto.profileID.flatMap { profiles[$0] }
@@ -481,9 +529,9 @@ struct BackupService {
         for dto in file.goals {
             context.insert(FinancialGoal(
                 id: dto.id, name: dto.name, kind: GoalKind(rawValue: dto.kind) ?? .custom,
-                emoji: dto.emoji, targetAmount: decimal(dto.target), targetDate: dto.targetDate,
-                manualCurrentAmount: decimal(dto.manualCurrent),
-                plannedMonthlyContribution: decimal(dto.plannedMonthly),
+                emoji: dto.emoji, targetAmount: try decimal(dto.target), targetDate: dto.targetDate,
+                manualCurrentAmount: try decimal(dto.manualCurrent),
+                plannedMonthlyContribution: try decimal(dto.plannedMonthly),
                 priority: GoalPriority(rawValue: dto.priority) ?? .normal,
                 status: GoalStatus(rawValue: dto.status) ?? .active,
                 note: dto.note,
@@ -495,9 +543,9 @@ struct BackupService {
             context.insert(InsuranceContract(
                 id: dto.id, insurerName: dto.insurer, policyName: dto.policyName,
                 policyNumber: dto.policyNumber, kind: InsuranceKind(rawValue: dto.kind) ?? .other,
-                premiumAmount: decimal(dto.premium),
+                premiumAmount: try decimal(dto.premium),
                 premiumUnit: RecurrenceUnit(rawValue: dto.unit) ?? .month,
-                premiumIntervalCount: dto.count, deductible: dto.deductible.map(decimal),
+                premiumIntervalCount: dto.count, deductible: try dto.deductible.map(decimal),
                 startDate: dto.startDate, renewalDate: dto.renewalDate,
                 cancellationDeadline: dto.cancellationDeadline, noticePeriodDays: dto.noticePeriodDays,
                 coverageSummary: dto.coverageSummary, documentReference: dto.documentReference,
@@ -509,9 +557,9 @@ struct BackupService {
         for dto in file.pensionAssets {
             context.insert(PensionAsset(
                 id: dto.id, pillar: PensionPillar(rawValue: dto.pillar) ?? .pillar3a,
-                institutionName: dto.institution, currentValue: decimal(dto.currentValue),
-                annualContribution: decimal(dto.annualContribution),
-                projectedValueAtRetirement: dto.projected.map(decimal),
+                institutionName: dto.institution, currentValue: try decimal(dto.currentValue),
+                annualContribution: try decimal(dto.annualContribution),
+                projectedValueAtRetirement: try dto.projected.map(decimal),
                 retirementAge: dto.retirementAge, sourceDocumentDate: dto.sourceDate,
                 sourceReference: dto.sourceReference, isActive: dto.isActive, note: dto.note,
                 owner: dto.ownerID.flatMap { members[$0] }
@@ -521,22 +569,22 @@ struct BackupService {
         for dto in file.assets {
             context.insert(Asset(
                 id: dto.id, name: dto.name, kind: AssetKind(rawValue: dto.kind) ?? .other,
-                currentValue: decimal(dto.value), includeInNetWorth: dto.include,
+                currentValue: try decimal(dto.value), includeInNetWorth: dto.include,
                 valuationDate: dto.valuationDate, note: dto.note
             ))
         }
         for dto in file.liabilities {
             context.insert(Liability(
                 id: dto.id, name: dto.name, kind: LiabilityKind(rawValue: dto.kind) ?? .other,
-                outstandingAmount: decimal(dto.outstanding), includeInNetWorth: dto.include,
+                outstandingAmount: try decimal(dto.outstanding), includeInNetWorth: dto.include,
                 note: dto.note
             ))
         }
         for dto in file.netWorthSnapshots {
             context.insert(NetWorthSnapshot(
-                id: dto.id, date: dto.date, accountsTotal: decimal(dto.accounts),
-                assetsTotal: decimal(dto.assets), pensionTotal: decimal(dto.pension),
-                liabilitiesTotal: decimal(dto.liabilities), netWorth: decimal(dto.netWorth)
+                id: dto.id, date: dto.date, accountsTotal: try decimal(dto.accounts),
+                assetsTotal: try decimal(dto.assets), pensionTotal: try decimal(dto.pension),
+                liabilitiesTotal: try decimal(dto.liabilities), netWorth: try decimal(dto.netWorth)
             ))
         }
         for dto in file.documents {
@@ -558,13 +606,6 @@ struct BackupService {
                 duplicateCount: dto.duplicateCount, invalidCount: dto.invalidCount,
                 createdCategories: dto.createdCategories
             ))
-        }
-
-        do {
-            try context.save()
-        } catch {
-            context.rollback()
-            throw error
         }
     }
 

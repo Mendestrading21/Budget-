@@ -1,5 +1,400 @@
 # Budget project status
 
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L9 (2026-07-25)
+
+L9 « Audit final et préparation réelle » exécuté (`/budget-v1 execute
+L9`) après validation humaine définitive de L8 (`240e4f4`). AUCUN code
+applicatif modifié (aucun P0/P1 découvert) — passe d'audit et de
+preuves uniquement, dossier `docs/obsidian-glass/final-audit/l9/` :
+matrice écran/bouton PWA+iOS complète (preuves automatiques/visuelles/
+humaines distinguées, PASS partout), invariants financiers chacun
+rattaché à un test NOMMÉ (Decimal, fr-CH, planifié≠réel, virements
+neutres ADR-016, patrimoine, mono-CHF ADR-017, historique figé, zéro
+coercition, imports idempotents, fiscalité unifiée ADR-018), audit
+store disque (création+relance par CHAQUE lancement Demo — le chemin
+qui avait attrapé ADR-015 —, refus de restauration atomiques ADR-014),
+audit navigateur 70/70 PASS (tous les écrans à 390 ET 320, exclusion du
+＋, persistance, service worker + rechargement HORS LIGNE réel,
+installabilité), 21 captures inspectées (montants 7 chiffres), audit
+confidentialité/App Store (aucune donnée collectée vérifiée dans le
+code, 9 décisions HUMAN REQUIRED), protocole iPhone réel + haptique
+PENDING HUMAN. Suites locales : 71 e2e + 5 parité + design verts, zéro
+erreur console. Défauts : P0 0 · P1 0 · P2 1 (PWA sans `<meta charset>`
+— démontré, non bloquant sur les canaux réels, correctif d'une ligne
+proposé) · P3 4. **L9 = VERIFYING** — validation finale = inspection
+humaine + vibration haptique confirmée par le propriétaire.
+
+**Refus L9 n°1 (2026-07-25)** — validation humaine REFUSÉE sur
+`2ce7320` ; décisions définitives du propriétaire : V1 native iPhone
+UNIQUEMENT (ADR-023), app jamais installée sur iPhone réel, aucun
+compte Apple Developer, aucun TestFlight — aucune QA physique ne peut
+être déclarée réussie. Défauts à corriger : cible iPad résiduelle
+(`TARGETED_DEVICE_FAMILY "1,2"` + orientations iPad), test de
+persistance disque inexistant (à créer : `DiskStoreLifecycleTests`),
+P2 charset à corriger réellement (meta + test HTTP sans charset,
+suite ≥ 72), écarts documentaires (21 captures pas 23, verrouillage
+dans `AppLockManagerTests`, `BackupServiceTests` = 10 tests, PERF
+recopiées d'un run antérieur). **L9 = IN_PROGRESS** (passe corrective).
+
+**Prévisualisation propriétaire (2026-07-25, soir)** — sur
+autorisation explicite, PWA du HEAD `c25ab648` déployée sur GitHub
+Pages (run #36, 30176338887 ; déploiement portant le SHA exact ;
+sha256 des 6 fichiers identiques au HEAD ; vérification navigateur
+16/16 en profil neuf, zéro requête externe). Le propriétaire l'a
+installée sur son iPhone et l'utilise. Aucun fichier du dépôt modifié
+par le déploiement ; règle d'environnement github-pages ajoutée par le
+propriétaire (branche exacte). Premier retour : texte perçu petit sur
+grand iPhone → P3-5. L9 reste VERIFYING.
+
+**Passe corrective L9 terminée (2026-07-25)** — `317bba0` (refus +
+ADR-023) + `9e0a754` (`fix(l9): close final release readiness gaps`) +
+`b7e3870` (réconciliation) : iPhone uniquement PROUVÉ (UIDeviceFamily
+== [1] vérifié par la CI dans le produit Release, l'app de l'archive
+Demo ET l'app extraite de l'IPA ; showBuildSettings Debug/Release = 1),
+`DiskStoreLifecycleTests` vert en CI (store disque réel, relecture par
+UUID via un second conteneur), charset corrigé + test 72 (HTTP sans
+charset), documentation réconciliée. CI #218 + CI FINALE #219 vertes
+(**72 e2e + 5 parités + 259 tests iOS 0 échec**, PERF finale
+23/33/24/18/27 ms), Demo #34 vert (artefact 278,2 Mo). **L9 =
+VERIFYING** — DONE impossible avant installation TestFlight sur iPhone
+réel et confirmations humaines (haptique, Face ID, VoiceOver).
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L8 (2026-07-24)
+
+L8 « Widgets, graphiques et micro-interactions » exécuté
+(`/budget-v1 execute L8`) après validation humaine définitive de L7.
+PWA : courbes Patrimoine 12 mois et « Solde — 12 derniers mois » du
+détail de compte SÉLECTIONNABLES — 12 boutons transparents pleine
+hauteur par courbe (aria-label « Voir {mois} {année} : {montant} »,
+aria-pressed, focus-visible), règle + point Indigo vif sur le mois
+choisi, étiquette textuelle aria-live dont la valeur vient TOUJOURS de
+la série existante (rien de recalculé), focus clavier restauré après
+re-rendu ; aucune animation ajoutée. iOS : `chartXSelection` sur
+l'Évolution du Patrimoine (RuleMark + PointMark, étiquette statique
+testée `swissDate + chf + « de fortune nette »`), haptique
+`.sensoryFeedback(.success)` UNIQUEMENT après un enregistrement de
+mouvement réussi. Performance : 10 000 mouvements semés → rendu < 4 s,
+DOM borné par le mois (< 1 500 lignes), navigation < 4 s. Suites :
+**69 e2e** + 5 parité + design verts ; natifs `ObsidianMotionTests`
+(étiquette fr-CH positive/négative, Patrimoine 320 pt transparence
+réduite ; total 254 attendu) ; 5 captures inspectées + README
+(`docs/obsidian-glass/widgets-motion/l8/` — cibles ≈ 30 × 96 px en
+continuum de balayage documentées, personnalisation des widgets natifs
+volontairement non ajoutée). Formules, migrations, clés localStorage,
+format de sauvegarde, zone d'exclusion du ＋ : INCHANGÉS.
+**L8 = VERIFYING**, L9 = BLOCKED.
+
+**Validation L8 (2026-07-25)** — validation humaine DÉFINITIVE reçue
+sur la référence `240e4f4` après trois passes correctives documentées.
+**L8 = DONE, L9 = READY** (à lancer uniquement sur commande explicite ;
+contrôle humain consigné pour L9 : vibration physique du haptique sur
+iPhone réel).
+
+**Micro-correction n°3 L8 (2026-07-25)** — 3e refus (unique défaut :
+preuve 320-a11y illisible — axe superposé, étiquette coupée, largeur
+artificielle) → `fix(l8): make the 320 accessibility chart fully
+readable` + stabilisations : axe X adaptatif de PRODUCTION (deux
+repères explicites premier/avant-dernier, libellés fixedSize
+introncables, rendu normal automatique inchangé), preuve dans un
+viewport réel 320 pt avec marges de production, assertions de géométrie
+réelle (delta de hauteur mesurée, plancher, analyse pixel), pièces
+ios-l8 en base64 dans les logs Demo et inspectées directement — pièce
+finale 960 × 1212 px 100 % lisible. CI #209-#213 vertes (258 tests iOS
+0 échec), Demo 30159052445 vert et inspecté. L8 reste VERIFYING.
+
+**Micro-correction finale L8 (2026-07-25)** — 2e refus humain (fausse
+pagination cumulative, marqueurs coupés aux extrêmes, preuve 320-a11y
+sans courbe, geste Demo par regex, temps de rapport erronés) →
+`fix(l8): bound transaction pages and expose edge selections` : vraie
+pagination des Mouvements (page REMPLACÉE, ≤ 200 lignes DOM garanties
+après chaque action, première/précédente/suivante/dernière, plage
+« X–Y sur N », première/dernière lignes contrôlées par référence
+indépendante), projection X 6…294 (cercles complets et règles
+intérieures aux deux extrêmes, testés Origine/Fin sur les deux courbes
+à 390/320), carte Évolution extraite en composant de production
+`NetWorthTrendCard` et rendue EN ENTIER pour la preuve
+320/a11y3/transparence réduite (étiquette littérale vérifiée avant
+capture, rendu sélectionné ≠ invite), geste Demo asserté contre
+l'instantané réel de la fixture démo (CHF 138'400.00 + valeur
+accessible identique), 7 captures régénérées et inspectées. Suites :
+71 e2e + 5 parité + design verts ; iOS 258 attendus. L8 reste
+VERIFYING.
+
+**Correctif L8 (2026-07-24)** — validation humaine refusée (échelle
+cassée sur séries constantes négatives, cibles < 44 pt, sélection
+fuyant entre comptes, perf partielle, sélection native jamais
+parcourue, ＋ natif recouvrant en défilement, README survendu) →
+`fix(l8): make chart interaction accessible and prove native
+selection` : `chartYScale` commune sûre (capture solde constant −100 à
+l'appui), scrubber `role="slider"` pleine courbe (glissement Pointer
+Events réel, clavier ←/→/Home/End, ≥ 44 pt mesuré, aria-valuetext,
+région live persistante), sélection par compte `{id, i}`, Mouvements
+paginés (200 lignes fixes, « Afficher X de plus (Y encore repliés) »),
+perf 10k répartis ET concentrés jusqu'à la peinture (temps loggés),
+sélection native parcourue au tour Demo (glissement réel, étiquette
+`networth.chart.selectionLabel` vérifiée, valeur accessible = sélection,
+lecture conservée après le geste, captures ios-l8-*), rendu 320/a11y3/
+transparence réduite attaché à l'artefact, haptique testable
+(vibration physique = contrôle humain L9), zone d'exclusion du ＋
+restaurée sur TOUS les écrans défilants + `.clipped()` + assertions à
+chaque position intermédiaire. Suites : **71 e2e** + 5 parité + design ;
+natifs 258 attendus (`ObsidianMotionTests` 7 tests, exécutés aussi par
+le Demo) ; 6 captures + README honnête. L8 reste VERIFYING.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L7 (2026-07-24)
+
+L7 « Onboarding et confiance » exécuté (`/budget-v1 execute L7`) après
+validation humaine de L6. PWA : promesse de confidentialité concrète à
+l'étape 1, Retour partout (saisies conservées), part d'impôts MODIFIABLE
+présentée comme estimation (« jamais un taux officiel »), erreur près du
+champ, résumé RÉEL avant restauration (date, contenu, portée, absents).
+iOS : hub Plus par intentions (5 groupes, sous-titres, zone FAB), étape
+facultative « Revenus et logement » (RecurringTransaction, save
+atomique, Passer), résumé de restauration via BackupService.summary
+(refus illisible/version future AVANT confirmation), « D'abord créer une
+sauvegarde » dans le dialogue de suppression, pill « Fichier absent »
+sur les documents sans fichier, formulations non sourcées retirées.
+Suites : 64 e2e + 5 parité + design verts ; ObsidianTrustTests (7 tests)
++ OnboardingViewModelTests adaptés (total 249 attendu) ; 19 captures PWA
++ README (`docs/obsidian-glass/onboarding-trust/l7/`) ; tour Demo 18
+étapes (+16-documents, +17-suppression-annulee, dialogue destructif
+ouvert puis ANNULÉ). Formules, migrations, persistance, format de
+sauvegarde : INCHANGÉS. **L7 = VERIFYING**, L8 = BLOCKED.
+
+**Correctif L7 (2026-07-24)** — 1er refus visuel : ＋ PWA recouvrant du
+contenu (padding ≠ exclusion), toasts parasites, import sans
+mapping/compte visibles, documents non modifiables, textes destructifs
+discordants, bannière démo iOS sur la navigation, métadonnées tronquées,
+titres sombres, zone noire Réglages, onboarding natif non capturé →
+`fix(l7): complete trust flows and protect floating actions` : viewport
+PWA `.fab-clear` s'arrêtant au-dessus du ＋ (rectangles réels testés,
+＋ z-indexé toujours visible), assistant d'import complet en mémoire
+(mapping modifiable, compte obligatoire, aperçu, confirmation distincte,
+rollback), édition des métadonnées de documents, concordance exacte des
+actions destructives, bannière démo dans sa propre bande (VStack), fond
+appliqué APRÈS la zone du ＋, métadonnées Documents multilignes
+(+membre+date), contraste des titres du hub (token), tour natif
+onboarding+confiance (19 captures ios-l7-*, résumé de restauration réel
+via BackupService.summary, import natif parcouru, suppression annulée).
+Suites : 67 e2e + 5 parité + design ; +1 test natif (250 attendus) ;
+captures PWA régénérées sans toast. L7 reste VERIFYING.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L6 (2026-07-23)
+
+L6 « Modules financiers » exécuté (`/budget-v1 execute L6`) après
+validation humaine de L5. Les 7 modules (Factures, Objectifs, Impôts,
+Patrimoine, Actifs+dettes, Prévoyance, Assurances) refondus PWA + iOS.
+PWA : héros Factures « Encore à payer » + paiement LIÉ sans double
+comptage, pills d'état écrites partout (objectifs, réserve d'impôts,
+échéance d'assurance ≤ 45 j, récurrents), carte « Estimation
+incomplète » sans revenu (rien d'inventé), fortune nette négative
+honnête + fraîcheur/conversion explicites, « Déjà constitué » sourcé.
+iOS : héros en AmountText (unités « par an »/« par mois » séparées),
+EmptyState L2 partout, caption de fraîcheur Patrimoine. Suites : 60 e2e
++ 5 parité + design verts ; ObsidianFinancialModulesTests (8 tests
+natifs, total 239 attendu) ; 16 captures PWA + README
+(`docs/obsidian-glass/financial-modules/l6/`) ; tour Demo 15 étapes
+(+ 14-assurances, 15-prevoyance). Formules, migrations, persistance :
+INCHANGÉES. **L6 = VERIFYING**, L7 = BLOCKED.
+
+**Correctif L6 (2026-07-24)** — validation visuelle refusée (＋ flottant
+masquant du contenu, libellés tronqués) → passe `fix(l6)` : zone
+`fabClearance` (96 pt) réservée sous les 10 contenus défilants des 6
+modules, libellés essentiels multilignes (plus d'ellipse), montants
+`fixedSize` (jamais comprimés), stats fiscales en colonnes adaptatives
+(1 colonne à 320 pt), projection Patrimoine arrondie au centime à
+l'affichage (`FinanceMath.roundedToCents`, aucun calcul modifié),
+VoiceOver inchangé. Tests : contrat géométrique du ＋, non-troncature
+par hauteur de rendu, extrêmes 320 pt ; tour Demo asserte l'absence
+d'intersection ＋/contenu et le dernier élément visible après
+défilement sur les 6 modules. L6 reste VERIFYING.
+
+**Correctif L6, 2e passe (2026-07-24)** — second refus visuel : le ＋
+recouvrait encore graphique Évolution, montant Loyer, texte Prévoyance
+et une échéance Impôts dans l'ÉTAT INITIAL (contentMargins ne protège
+que la fin de défilement, et le tour capturait avant de contrôler) →
+`fix(l6)` : zone d'exclusion PERMANENTE (`padding(.bottom,
+fabExclusionHeight = 80)` sur les 10 ScrollView — le viewport s'arrête
+au-dessus du ＋, contentMargins conservé en simple marge de fin) ;
+identifiants d'accessibilité (graphique Patrimoine, lignes financières,
+texte info Prévoyance) ; tour Demo : assertion AVANT la première
+capture puis après défilement complet (textes + boutons + images +
+éléments identifiés, jamais isHittable), preuves nommées (Loyer,
+Évolution, footer Prévoyance, dernière échéance/carte/contrat), 12
+captures `-initial`/`-fin`. Acquis de la 1re passe conservés. L6 reste
+VERIFYING.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L5 (2026-07-23)
+
+L5 « Mouvements et Comptes » exécuté (`/budget-v1 execute L5`) après
+validation humaine de L4. PWA : groupes par jour, chips de filtres
+aria-pressed, « neutre »/« mis de côté » écrits, états vides guidés,
+réconciliation directe depuis le détail de compte (« Mettre le solde à
+jour… »), fraîcheur datée. iOS : LazyVStack, StatusPill Prévu/Dette/
+Archivé, AmountText, EmptyState, boutons visibles Dupliquer/Supprimer
+dans la feuille d'édition (pas de swipe hors List),
+TransactionDuplication.copy factorisé, fraîcheur au dernier mouvement.
+Suites : 56 e2e + 5 parité + design verts ;
+ObsidianMovementsAccountsTests (9 tests natifs, total 231 attendu) ;
+12 captures PWA + README (`docs/obsidian-glass/movements-accounts/l5/`) ;
+tour Demo 13 étapes. Formules, migrations, persistance : INCHANGÉES.
+**L5 = VERIFYING**, L6 = BLOCKED.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L4 (2026-07-23)
+
+L4 « Pilote iOS » exécuté (`/budget-v1 execute L4`) après validation
+humaine de L3 (CI #173, run 30028514793). Trois écrans natifs refondus
+avec les fondations L2, uniquement eux : **HomeTab** (héros « Argent
+disponible » `AmountText` + jours restants secondaires + action
+universelle `PrimaryActionButtonStyle`, 4 métriques Entré/Dépensé/À
+payer/Mis de côté — « À payer » = `HomePilotDisplay.toPay`, somme
+d'affichage testée de composantes existantes de `MonthlySnapshotService`
+—, UNE priorité mise en avant avec pill, le reste dans « À faire »),
+**BudgetTab** (`StatusPill` Dans le plan/À surveiller/Dépassé, « X % du
+budget utilisé » écrit, barre plan/réel, lignes « réel/planifié » avec
+pills — `BudgetVarianceService` intact), **TransactionFormView** (ordre
+pilote, montant focalisé `decimalPad`, statut natif conservé, résumé
+virement/épargne, intitulé facultatif défaut = catégorie injecté côté
+vue, `TransactionValidationService` byte-identique, Enregistrer en barre
+de navigation). `ObsidianPilotTests` (8 tests : agrégat À payer,
+résultats financiers inchangés, persistance contexte neuf, erreur
+récupérable, virement neutre, extrême, 320 pt/a11y/transparence
+réduite) + 8 previews déterministes + 12e étape du tour Demo
+(« Nouveau mouvement »). PWA, formules, modèles, migrations,
+sauvegardes : INCHANGÉS. **L4 = VERIFYING** (CI + workflow Demo +
+validation humaine), lot suivant BLOCKED.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L3 (2026-07-23)
+
+L3 « Pilote PWA » exécuté (`/budget-v1 execute L3`) après validation
+humaine de L2 (CI #172 verte, run 30021212918). Trois parcours refondus,
+uniquement eux : **Mois** (premier viewport au contrat — héros « Argent
+disponible » dominant avec action universelle, 4 métriques Entré/Dépensé/
+À payer/Mis de côté depuis les agrégats existants de `snapshot()`,
+priorité multi-ligne jamais tronquée, zone de sécurité FAB à 320 px),
+**Budget** (« X % du budget utilisé » en toutes lettres + pill Dans le
+plan/À surveiller/Dépassé + badges textuels par catégorie + « Pas encore
+classé » expliqué — `budgetReport()` intact), **Ajouter un mouvement**
+(chips de type tactiles sur le `#fType` historique, montant d'abord avec
+devise du compte, statut Prévu/Comptabilisé expliqué (logique inchangée),
+intitulé facultatif replié, erreur près du champ avec `aria-invalid` et
+saisie conservée, résumé de virement neutre, Enregistrer sticky sous
+clavier, fermeture après sauvegarde seule). Suite e2e portée à **53
+parcours verts** (48 conservés + 5 pilote L3), 5 parité ✓, design
+system ✓, zéro erreur console ; 11 captures + README dans
+`docs/obsidian-glass/pilot/l3/` (comparées à la baseline L1). Aucune
+formule financière, migration, clé localStorage, route ni ligne Swift
+modifiée ; service worker inchangé. **L3 = VERIFYING** (validation
+humaine des parcours et captures), **L4 = BLOCKED**.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L2 (2026-07-23)
+
+L2 « Fondations Obsidian » exécuté (`/budget-v1 execute L2`, ADR-022) :
+identité sombre UNIQUE livrée par tokens canoniques + alias (PWA `:root` et
+`DesignTokens.swift`) — les ex-teintes teal/cyan/violet/bleu électrique ne
+sont plus que des alias de `brand`/`brandBright` ; `S.theme` préservé dans
+les sauvegardes mais sans effet, sélecteur d'apparence retiré ; sombre posé
+à la racine iOS. Primitives : cartes verre (28/22/14, fallback opaque
+déterministe web `data-reduced-transparency` / SwiftUI
+`obsidianForcedReducedTransparency`), montants jamais tronqués
+(`AmountText`, clamp web), `StatusPill`/`.pill` (jamais couleur seule),
+boutons 44 pt blanc-AA sur `brandDeep` #6457F0 (5.04:1), feuilles, états
+vide/erreur, focus-visible global. Galeries déterministes hors navigation
+(web + previews natives + argument `-obsidianGallery`). Tests : nouveau
+`design.test.mjs` en CI (tokens+parité, 11 contrastes AA mesurés, 320/390,
+44 px, clavier, reduced motion/transparency, zéro erreur console),
+`DesignSystemTests` natifs, Test 29 e2e réécrit (identité unique). Local :
+48 e2e + 5 parité + design verts ; captures
+`docs/obsidian-glass/foundations/l2/` + README. Écrans, formules
+financières, données et service worker inchangés. **L2 = VERIFYING**
+(validation humaine composants/captures + preuve native visuelle au
+pilote L4), **L3 = BLOCKED**.
+
+## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L1 (2026-07-23)
+
+L1 « Vérité, baseline et P0 » exécuté (`/budget-v1 execute L1`), puis passe
+corrective `fix(l1)` après contrôle humain : la première passe ne compilait
+pas côté iOS (4 `try` manquants sur `Optional.map(decimal)`, run CI 167
+rouge). Corrections : restauration native en UNE transaction
+(wipe+rebuild+save, rollback sur toute erreur, fichiers de documents jamais
+touchés) avec tests renforcés (champ obligatoire/optionnel/entité tardive
+corrompus, comptages complets, store persistant vérifié via contexte neuf) ;
+PWA : `stampTx()` unique (création ET édition, purge avant recalcul, repli
+1:1 explicite) + migration additive `stampAllTransactions` au chargement,
+persistée immédiatement (ADR-021, e2e 38-43) ; CI déclenchée sur `refonte/**`
+avec vérification déterministe de `PrivacyInfo.xcprivacy` dans le produit
+Release (plutil + derivedDataPath connu, échec sinon) ;
+`APP_STORE_LISTING.md` corrigé (`ch.budgetapp.Budget` canonique,
+URLs = RELEASE_BLOCKER humain) ; captures baseline versionnées dans
+`docs/obsidian-glass/baseline/l1/`. Micro-clôture `test(l1)` (fe374f6) :
+la couverture transactionnelle de restauration compte les **18 modèles
+persistants** (HouseholdMember et ImportBatch ajoutés au comptage,
+sentinelles survivant au rollback vérifiées par identifiant).
+**L1 = DONE, L2 = READY.** Preuves CI : run 167 échec constaté →
+run 168 vert (48 e2e + 5 parité, build Debug, 206 tests iOS 0 échec,
+build Release, « PrivacyInfo.xcprivacy présent et valide dans
+Budget.app ✓ ») → run 170 vert (idem, 206 tests, BackupServiceTests
+passed) — liens dans `OBSIDIAN_GLASS_STATUS.md`. Risques humains
+ouverts : branche GitHub par défaut obsolète, URLs support/
+confidentialité `VOTRE-DOMAINE`, configuration GitHub Pages. Prochaine
+étape : `/budget-v1 execute L2` (fondations, sans refonte d'écrans).
+
+## Branche `codex/budget-leader-refonte` (2026-07-22)
+
+Créée et publiée depuis l'état vérifié de `claude/budget-project-connection-link-mhaokm`
+(la branche Codex locale du même nom n'a jamais atteint GitHub — ADR-019).
+CI activée sur `codex/**`. Lots livrés ici, un commit chacun, suites vertes :
+
+- Import CSV : vraie confirmation avant toute écriture (résumé
+  prêtes/doublons/invalides ; annuler n'écrit rien) — texte honnête (A04-N4).
+- Apparence « Système » : Clair → Sombre → Système (suit l'appareil en
+  direct via prefers-color-scheme), persistée ; clair reste le défaut.
+- Anneau plan/réel sur le héros Budget (indigo / ambre ≥85 % / rouge >100 %,
+  pourcentage au centre, aria-label), vérifié par captures clair/sombre.
+
+État : refonte Horizon PWA R1→R7 livrée (skill budget-horizon installé,
+8 références + 13 images) : design system vivant (pastilles teintées,
+teal, tactile, entrée d'écran), écran « Mois » au blueprint (courbe
+6 mois, budget restant, objectif prioritaire), hub Plus par intentions,
+widgets personnalisables persistés, fraîcheur des soldes, composition
+du patrimoine, bienvenue réécrite + objectif optionnel, Assistant local
+déterministe. 42 parcours e2e + 5 fixtures de parité verts, zéro erreur
+console. **CI 18/18 verte sur la branche (runs 143→160)** — chaque commit
+de la refonte a passé e2e web + parité + build/tests iOS + Release.
+**Natif : R8 ✓ (tokens teal + BudgetTint, run 162 vert) et R9 étape 1 ✓
+(pastilles teintées dans la liste des mouvements, run 163 vert)** —
+build + ~190 tests + Release à chaque commit. Pages : bascule vers cette
+branche committée (9b12f24) mais le déploiement échoue — l'environnement
+github-pages doit autoriser la branche (Settings → Environments →
+github-pages → Deployment branches). Reste : lot K durcissement (audit
+final), R9 finitions éventuelles, retrait contrôlé (rien identifié).
+CI GitHub Actions : **7/7 runs verts sur la branche (143→149)** — web e2e +
+parité + build/tests iOS macOS + Release à chaque commit ; tous les
+constats d'audit (P0/P1/NITs) sont soldés. Reste : G02 (effort dédié),
+QA humaine iPhone, TestFlight/prix.
+
+## Programme Horizon — Budget Leader Refonte (2026-07-21)
+
+Exécuté sur `claude/budget-project-connection-link-mhaokm` (la branche
+`codex/budget-leader-refonte` n'existe pas — ADR-019). Lots L0→L8 web
+livrés, un commit par lot, 38 parcours e2e + 4 fixtures de parité verts :
+
+- **L1** thème clair par défaut « Swiss calm fintech » + sombre premium
+  (tokens, bascule persistée dans Réglages, contrastes vérifiés sur
+  captures 390/320 px, zéro débordement horizontal).
+- **L2** recommandation du mois sur l'accueil (une seule priorité :
+  rattrapage > facture en retard > réserve d'impôts > dépassement >
+  objectif). **L3** comparaison au coût de la vie du mois précédent
+  (Budget + accueil). **L4** parité dette D04 alignée sur ADR-016.
+  **L5** « Charges de l'année » sur Factures + provision de lissage.
+  **L6** scénario ＋50/mois et calcul expliqué sur chaque objectif.
+- Précédé le même jour par : jalons J1/J2 du programme master-evolution
+  (audits soldés — 3 P0 dont 2 pertes de données, langage « 10 ans »,
+  accueil essentiel, menu Plus regroupé) et moteur G01 en centimes
+  entiers. Voir BUDGET_MASTER_STATUS.md et AUDIT_COMPLET_BUDGET_2026-07-21.md.
+- Reste (natif) : reprendre les tokens Horizon dans DesignTokens.swift
+  (lot dédié, vérifié par la CI macOS) ; G02 migration stockage centimes.
+
 Last updated: 2026-07-19
 Current branch: claude/execute-tbkhsd
 Current phase: Phases 0 à 12 terminées — prochaine : Phase 13 (Polish produit)

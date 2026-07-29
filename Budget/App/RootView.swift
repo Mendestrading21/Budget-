@@ -8,112 +8,59 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if households.isEmpty {
+            if ProcessInfo.processInfo.arguments.contains("-obsidianGallery") {
+                ObsidianComponentGallery()
+            } else if households.isEmpty {
                 OnboardingFlowView()
             } else {
                 MainTabView()
                     .environment(router)
             }
         }
-        .preferredColorScheme(nil) // respect the system appearance
     }
 }
 
+/// Navigation principale : cinq destinations stables, sans bouton flottant
+/// concurrent. Chaque écran porte uniquement son action utile (ajouter un
+/// mouvement, une facture, un compte, etc.).
 struct MainTabView: View {
     @Environment(AppRouter.self) private var router
     @Environment(AppContainer.self) private var appContainer
 
-    /// Universal ＋ menu: the chosen type opens a prefilled movement form
-    /// from anywhere in the app (web-parity, production-completion P2).
-    @State private var quickCreateType: TransactionType?
-
     var body: some View {
         @Bindable var router = router
-        TabView(selection: $router.selectedTab) {
-            HomeTab()
-                .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
-                .tag(AppTab.home)
-
-            TransactionsTab()
-                .tabItem { Label(AppTab.transactions.title, systemImage: AppTab.transactions.systemImage) }
-                .tag(AppTab.transactions)
-
-            BudgetTab()
-                .tabItem { Label(AppTab.budget.title, systemImage: AppTab.budget.systemImage) }
-                .tag(AppTab.budget)
-
-            AccountsTab()
-                .tabItem { Label(AppTab.accounts.title, systemImage: AppTab.accounts.systemImage) }
-                .tag(AppTab.accounts)
-
-            MoreTab()
-                .tabItem { Label(AppTab.more.title, systemImage: AppTab.more.systemImage) }
-                .tag(AppTab.more)
-        }
-        .tint(BudgetColor.indigo)
-        .safeAreaInset(edge: .top, spacing: 0) {
+        VStack(spacing: 0) {
             if appContainer.isDemoMode {
                 DemoModeBanner()
             }
-        }
-        .overlay(alignment: .bottomTrailing) {
-            quickCreateButton
-        }
-        .sheet(item: $quickCreateType) { type in
-            TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: type)
-        }
-    }
+            TabView(selection: $router.selectedTab) {
+                HomeTab()
+                    .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
+                    .tag(AppTab.home)
 
-    /// Floating creation menu, always reachable above the tab bar.
-    private var quickCreateButton: some View {
-        Menu {
-            Button {
-                quickCreateType = .expense
-            } label: {
-                Label("Dépense", systemImage: "arrow.up.circle")
+                TransactionsTab()
+                    .tabItem { Label(AppTab.transactions.title, systemImage: AppTab.transactions.systemImage) }
+                    .tag(AppTab.transactions)
+
+                BudgetTab()
+                    .tabItem { Label(AppTab.budget.title, systemImage: AppTab.budget.systemImage) }
+                    .tag(AppTab.budget)
+
+                AccountsTab()
+                    .tabItem { Label(AppTab.accounts.title, systemImage: AppTab.accounts.systemImage) }
+                    .tag(AppTab.accounts)
+
+                MoreTab()
+                    .tabItem { Label(AppTab.more.title, systemImage: AppTab.more.systemImage) }
+                    .tag(AppTab.more)
             }
-            Button {
-                quickCreateType = .income
-            } label: {
-                Label("Revenu", systemImage: "arrow.down.circle")
-            }
-            Button {
-                quickCreateType = .saving
-            } label: {
-                Label("Épargne", systemImage: "building.columns")
-            }
-            Button {
-                quickCreateType = .investment
-            } label: {
-                Label("Investissement", systemImage: "chart.line.uptrend.xyaxis")
-            }
-            Button {
-                quickCreateType = .transfer
-            } label: {
-                Label("Virement interne", systemImage: "arrow.left.arrow.right")
-            }
-        } label: {
-            Image(systemName: "plus")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 52, height: 52)
-                .background(
-                    LinearGradient(
-                        colors: [BudgetColor.indigo, BudgetColor.violet],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ),
-                    in: Circle()
-                )
-                .shadow(color: BudgetColor.indigo.opacity(0.45), radius: 10, y: 4)
+            .tint(BudgetColor.indigo)
         }
-        .accessibilityLabel("Ajouter — dépense, revenu, épargne, investissement ou virement")
-        .padding(.trailing, BudgetSpacing.screenMargin)
-        .padding(.bottom, 62)
     }
 }
 
-/// "Mouvements" promoted to the tab bar (web-parity): the reusable list
-/// wrapped in its own navigation stack.
+/// "Mouvements" promoted to the tab bar: the reusable list wrapped in its
+/// own navigation stack.
 struct TransactionsTab: View {
     var body: some View {
         NavigationStack {

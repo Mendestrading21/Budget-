@@ -191,17 +191,21 @@ enum BudgetSchemaV8: VersionedSchema {
 enum PersistenceFactory {
     /// On-disk store for real user data. Demo and preview data never use it.
     static func makeProductionContainer() throws -> ModelContainer {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: false)
-        return try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV8.self),
-            configurations: [configuration]
-        )
+        try makeContainer(configuration: ModelConfiguration(isStoredInMemoryOnly: false))
     }
 
     /// Isolated in-memory store for demo mode, previews, and tests.
     static func makeInMemoryContainer() throws -> ModelContainer {
-        let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try ModelContainer(
+        try makeContainer(configuration: ModelConfiguration(isStoredInMemoryOnly: true))
+    }
+
+    /// Point d'injection minimal (passe corrective L9) : le MÊME schéma
+    /// et le MÊME chemin de construction que la production, avec une
+    /// configuration contrôlée — réutilisé par les deux fabriques
+    /// ci-dessus et par `DiskStoreLifecycleTests` (URL disque
+    /// temporaire). Aucun modèle ni plan de migration modifié.
+    static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(
             for: Schema(versionedSchema: BudgetSchemaV8.self),
             configurations: [configuration]
         )

@@ -34,6 +34,24 @@ struct TransactionFormView: View {
     @State private var adjustmentIncreasesBalance = true
     @State private var errors: [TransactionValidationError] = []
     @State private var saveErrorMessage: String?
+    /// L8 : incrémenté à chaque enregistrement RÉUSSI — déclenche un
+    /// retour haptique de succès, géré par le système (réglages
+    /// utilisateur respectés). Jamais décoratif.
+    @State private var saveSuccessCount = 0
+
+    /// L8 correctif : la décision d'avancer le déclencheur haptique est
+    /// EXTRAITE et testée — vrai uniquement si la validation est passée
+    /// ET que l'enregistrement a réellement réussi. Jamais sur refus de
+    /// validation, jamais sur erreur de sauvegarde, jamais pour une
+    /// navigation, une suppression ou une simple sélection.
+    static func hapticTriggerAdvances(validationErrors: [TransactionValidationError], saveSucceeded: Bool) -> Bool {
+        validationErrors.isEmpty && saveSucceeded
+    }
+    /// Parcours fréquent (pilote L4) : le clavier décimal s'ouvre sur le
+    /// montant dès la création.
+    @FocusState private var amountFocused: Bool
+    /// L5 : suppression toujours CONFIRMÉE — jamais en un geste.
+    @State private var isConfirmingDelete = false
 
     private let validationService = TransactionValidationService()
 
@@ -73,6 +91,10 @@ struct TransactionFormView: View {
 
     var body: some View {
         NavigationStack {
+            // Ordre du pilote Obsidian (L4, parité PWA L3) : type → montant
+            // → date + statut → comptes → catégorie → détails facultatifs.
+            // Le bouton Enregistrer vit dans la barre de navigation : le
+            // clavier ne peut jamais le cacher.
             Form {
                 Section("Type") {
                     Picker("Type", selection: $type) {
@@ -84,19 +106,23 @@ struct TransactionFormView: View {
                         category = nil
                         if !type.supportsDestinationAccount { destinationAccount = nil }
                     }
+                }
+
+                Section("Montant") {
+                    TextField("Montant (CHF)", text: $amountText)
+                        .keyboardType(.decimalPad)
+                        .focused($amountFocused)
+                        .font(BudgetFont.amount)
+                }
+
+                Section("Date et statut") {
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
                     Picker("Statut", selection: $status) {
                         ForEach(TransactionStatus.allCases) { status in
                             Text(status.displayName).tag(status)
                         }
                     }
                     .pickerStyle(.segmented)
-                }
-
-                Section("Détails") {
-                    TextField("Intitulé", text: $title)
-                    TextField("Montant (CHF)", text: $amountText)
-                        .keyboardType(.decimalPad)
-                    DatePicker("Date", selection: $date, displayedComponents: .date)
                     if type == .adjustment {
                         Picker("Sens de l'ajustement", selection: $adjustmentIncreasesBalance) {
                             Text("Augmente le solde").tag(true)
@@ -120,6 +146,7 @@ struct TransactionFormView: View {
                             }
                         }
                     }
+                    flowSummary
                 }
 
                 if validationService.categoryRequired(for: type) {
@@ -133,7 +160,8 @@ struct TransactionFormView: View {
                     }
                 }
 
-                Section("Facultatif") {
+                Section("Détails (facultatif)") {
+                    TextField("Intitulé — sinon la catégorie", text: $title)
                     TextField("Commerçant", text: $merchant)
                     TextField("Note", text: $note, axis: .vertical)
                 }
@@ -147,8 +175,29 @@ struct TransactionFormView: View {
                         }
                     }
                 }
+
+                // L5 : équivalents VISIBLES des actions de liste (parité
+                // web) — duplication et suppression, en édition seulement.
+                if let transaction = editedTransaction {
+                    Section {
+                        Button {
+                            duplicate(transaction)
+                        } label: {
+                            Label("Dupliquer (copie modifiable)", systemImage: "plus.square.on.square")
+                        }
+                        Button(role: .destructive) {
+                            isConfirmingDelete = true
+                        } label: {
+                            Label("Supprimer ce mouvement", systemImage: "trash")
+                                .foregroundStyle(BudgetColor.negative)
+                        }
+                    }
+                }
             }
+            .scrollContentBackground(.hidden)
+            .background { BudgetScreenBackground() }
             .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
+            .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -158,7 +207,66 @@ struct TransactionFormView: View {
                     Button("Enregistrer") { save() }
                 }
             }
+            .confirmationDialog(
+                "Supprimer ce mouvement ?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Supprimer", role: .destructive) {
+                    if let transaction = editedTransaction { delete(transaction) }
+                }
+            } message: {
+                if let transaction = editedTransaction {
+                    Text("« \(transaction.title) » — \(FinanceFormatting.chf(transaction.amount)) sera définitivement supprimé.")
+                }
+            }
             .onAppear(perform: populate)
+        }
+    }
+
+    /// Duplication depuis la feuille : copie fidèle horodatée, enregistrée
+    /// puis feuille refermée — la copie apparaît dans la liste.
+    private func duplicate(_ transaction: BudgetTransaction) {
+        let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
+        modelContext.insert(copy)
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            saveErrorMessage = "La duplication a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }
+    }
+
+    private func delete(_ transaction: BudgetTransaction) {
+        modelContext.delete(transaction)
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            saveErrorMessage = "La suppression a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }
+    }
+
+    /// Résumé explicite d'un envoi ou d'un virement, en langage simple —
+    /// même vocabulaire que le pilote PWA. Purement descriptif.
+    @ViewBuilder
+    private var flowSummary: some View {
+        if let source = account, let destination = destinationAccount {
+            if type == .transfer {
+                Label(
+                    "\(source.name) → \(destination.name) — neutre : ni revenu, ni dépense, votre fortune ne bouge pas.",
+                    systemImage: "arrow.left.arrow.right"
+                )
+                .font(BudgetFont.caption)
+                .foregroundStyle(.secondary)
+            } else if type == .saving || type == .investment {
+                Label(
+                    "\(source.name) → \(destination.name) — compté comme « mis de côté », pas comme une dépense.",
+                    systemImage: "building.columns"
+                )
+                .font(BudgetFont.caption)
+                .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -174,6 +282,8 @@ struct TransactionFormView: View {
             date = appContainer.dateProvider.now
             if let prefilledType { type = prefilledType }
             account = prefilledAccount ?? allAccounts.first { $0.isActive && $0.type == .current } ?? allAccounts.first(where: \.isActive)
+            // Parcours fréquent : clavier décimal directement sur le montant.
+            amountFocused = true
         case .edit(let transaction):
             type = transaction.type
             status = transaction.status
@@ -193,12 +303,20 @@ struct TransactionFormView: View {
         saveErrorMessage = nil
         let amount = FinanceFormatting.parseAmount(amountText.trimmingCharacters(in: .whitespaces))
 
+        // Intitulé FACULTATIF (pilote L4, parité PWA) : défaut injecté côté
+        // vue — catégorie, sinon libellé du type. Le service de validation
+        // reste byte-identique ; jamais de mouvement sans nom.
+        let typedTitle = title.trimmingCharacters(in: .whitespaces)
+        let effectiveTitle = typedTitle.isEmpty
+            ? (category?.name ?? type.displayName)
+            : typedTitle
+
         let draft = TransactionDraft(
             date: date,
             amount: amount,
             type: type,
             status: status,
-            title: title,
+            title: effectiveTitle,
             account: account,
             destinationAccount: type.supportsDestinationAccount ? destinationAccount : nil,
             category: validationService.categoryRequired(for: type) ? category : nil,
@@ -213,7 +331,7 @@ struct TransactionFormView: View {
 
         let now = appContainer.dateProvider.now
         let roundedAmount = FinanceMath.roundedToCents(amount)
-        let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
+        let trimmedTitle = effectiveTitle
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
         let trimmedMerchant = merchant.trimmingCharacters(in: .whitespaces)
 
@@ -250,6 +368,9 @@ struct TransactionFormView: View {
                 modelContext.insert(transaction)
             }
             try modelContext.save()
+            if Self.hapticTriggerAdvances(validationErrors: errors, saveSucceeded: true) {
+                saveSuccessCount += 1
+            }
             dismiss()
         } catch {
             saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
@@ -260,6 +381,23 @@ struct TransactionFormView: View {
 #Preview("Nouveau mouvement") {
     let preview = DemoDataFactory.previewAppContainer()
     return TransactionFormView(mode: .create(prefilledAccount: nil))
+        .environment(preview)
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Nouveau mouvement — texte agrandi") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return TransactionFormView(mode: .create(prefilledAccount: nil))
+        .environment(preview)
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+        .environment(\.dynamicTypeSize, .accessibility3)
+}
+
+#Preview("Nouveau mouvement — virement") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return TransactionFormView(mode: .create(prefilledAccount: nil), prefilledType: .transfer)
         .environment(preview)
         .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)

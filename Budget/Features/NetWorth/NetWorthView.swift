@@ -24,6 +24,14 @@ struct NetWorthView: View {
     /// Profil d'hypothèses du « chemin » — un réglage d'affichage, pas
     /// une donnée financière : UserDefaults suffit.
     @AppStorage("projectionProfile") private var projectionProfileRaw = WealthProjectionService.Profile.balanced.rawValue
+    /// L8 correctif : dernière lecture CONSERVÉE après le geste — le mois
+    /// choisi reste affiché quand le doigt se lève (même contrat que la
+    /// PWA), et l'état est injectable pour les preuves de rendu.
+    @State private var heldTrendSelection: Date?
+
+    init(initialTrendSelection: Date? = nil) {
+        _heldTrendSelection = State(initialValue: initialTrendSelection)
+    }
 
     private var projectionProfile: WealthProjectionService.Profile {
         WealthProjectionService.Profile(rawValue: projectionProfileRaw) ?? .balanced
@@ -88,8 +96,9 @@ struct NetWorthView: View {
                             .font(BudgetFont.body)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(FinanceFormatting.chf(projected(years: years)))
+                        Text(FinanceFormatting.chf(FinanceMath.roundedToCents(projected(years: years))))
                             .font(BudgetFont.body.weight(.bold).monospacedDigit())
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Text("Au rythme de vos versements de l'année, hypothèses annualisées par classe — une simulation, jamais une promesse.")
@@ -122,6 +131,7 @@ struct NetWorthView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Patrimoine")
         .toolbar {
@@ -166,9 +176,11 @@ struct NetWorthView: View {
                 Text("Fortune nette")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(breakdown.netWorth))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(breakdown.netWorth < 0 ? BudgetColor.negative : .primary)
+                AmountText(
+                    amount: breakdown.netWorth,
+                    role: .hero,
+                    emphasis: breakdown.netWorth < 0 ? .negative : .neutral
+                )
                 VStack(spacing: BudgetSpacing.micro) {
                     breakdownRow("Comptes inclus", breakdown.accountsTotal)
                     breakdownRow("Actifs", breakdown.assetsTotal)
@@ -176,6 +188,10 @@ struct NetWorthView: View {
                     breakdownRow("Dettes", -breakdown.liabilitiesTotal)
                 }
                 .padding(.top, BudgetSpacing.micro)
+                // Fraîcheur : la fortune est dérivée des données du jour.
+                Text("Soldes du jour, dérivés de vos comptes, actifs, prévoyance et dettes enregistrés.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Fortune nette : \(FinanceFormatting.chf(breakdown.netWorth))")
@@ -197,59 +213,37 @@ struct NetWorthView: View {
 
     // MARK: - Trend
 
+    /// Point de la série le plus proche de la sélection — la valeur
+    /// affichée vient TOUJOURS des instantanés existants. Statique et
+    /// testé (ObsidianMotionTests).
+    static func nearestTrendPoint(to date: Date?, in points: [NetWorthSnapshot]) -> NetWorthSnapshot? {
+        guard let date else { return nil }
+        return points.min(by: {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        })
+    }
+
+    /// Valeur accessible de la courbe : la SÉLECTION quand elle existe
+    /// (mois + montant annoncés), sinon le résumé global — testée.
+    static func trendAccessibilityValue(selected: NetWorthSnapshot?, points: [NetWorthSnapshot]) -> String {
+        if let selected {
+            return trendSelectionLabel(date: selected.date, netWorth: selected.netWorth)
+        }
+        guard let first = points.first, let last = points.last else { return "" }
+        return "De \(FinanceFormatting.chf(first.netWorth)) le \(FinanceFormatting.swissDate(first.date)) à \(FinanceFormatting.chf(last.netWorth)) le \(FinanceFormatting.swissDate(last.date))"
+    }
+
+    /// Étiquette textuelle de la sélection (testée) : date suisse + CHF.
+    static func trendSelectionLabel(date: Date, netWorth: Decimal) -> String {
+        "\(FinanceFormatting.swissDate(date)) : \(FinanceFormatting.chf(netWorth)) de fortune nette"
+    }
+
     @ViewBuilder
     private var trendCard: some View {
         let points = service.trend(snapshots: snapshots)
         if points.count >= 2 {
-            GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Text("Évolution")
-                        .font(BudgetFont.cardLabel)
-                        .foregroundStyle(.secondary)
-                    Chart(points) { point in
-                        LineMark(
-                            x: .value("Date", point.date),
-                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(LinearGradient.budgetChartLine)
-                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-
-                        AreaMark(
-                            x: .value("Date", point.date),
-                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [BudgetColor.indigo.opacity(0.22), .clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading) { _ in
-                            AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
-                            AxisValueLabel().font(.caption2)
-                        }
-                    }
-                    .chartXAxis {
-                        AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                            AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
-                        }
-                    }
-                    .frame(height: 160)
-                    .accessibilityLabel("Évolution de la fortune nette")
-                    .accessibilityValue(trendAccessibilitySummary(points: points))
-                }
-            }
+            NetWorthTrendCard(points: points, heldTrendSelection: $heldTrendSelection)
         }
-    }
-
-    private func trendAccessibilitySummary(points: [NetWorthSnapshot]) -> String {
-        guard let first = points.first, let last = points.last else { return "" }
-        return "De \(FinanceFormatting.chf(first.netWorth)) le \(FinanceFormatting.swissDate(first.date)) à \(FinanceFormatting.chf(last.netWorth)) le \(FinanceFormatting.swissDate(last.date))"
     }
 
     // MARK: - Assets
@@ -295,6 +289,7 @@ struct NetWorthView: View {
                     .onTapGesture { editedAsset = asset }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(asset.name), \(FinanceFormatting.chf(asset.currentValue))\(asset.includeInNetWorth ? "" : ", exclu du patrimoine")")
+                    .accessibilityIdentifier("networth.asset.row")
                 }
             }
         }
@@ -343,6 +338,149 @@ struct NetWorthView: View {
                     .onTapGesture { editedLiability = liability }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Dette \(liability.name), \(FinanceFormatting.chf(liability.outstandingAmount))\(liability.includeInNetWorth ? "" : ", exclue du patrimoine")")
+                }
+            }
+        }
+    }
+}
+
+/// Carte « Évolution » du Patrimoine — composant de PRODUCTION, rendu
+/// tel quel par NetWorthView ET par les preuves de rendu
+/// (ObsidianMotionTests) : jamais de copie de graphique réservée aux
+/// tests. La sélection est portée par un Binding pour être injectable.
+struct NetWorthTrendCard: View {
+    let points: [NetWorthSnapshot]
+    @Binding var heldTrendSelection: Date?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// L8 : repères de l'axe X adaptés à la taille du texte — en tailles
+    /// accessibilité, deux repères LISIBLES valent mieux que six
+    /// libellés superposés. Statique et testé (ObsidianMotionTests).
+    static func xAxisMarkCount(for size: DynamicTypeSize) -> Int {
+        size.isAccessibilitySize ? 2 : 4
+    }
+
+    /// Dates EXPLICITES des deux repères en tailles accessibilité :
+    /// premier point et AVANT-DERNIER point — éloignés (aucune
+    /// superposition possible, l'automatique plaçait « mars » sur
+    /// « mai ») et tous deux RENDUS (un repère posé sur le bord fuyant
+    /// voit son libellé rogné par le cadre du graphique). Statique et
+    /// testé.
+    static func accessibilityAxisDates(for points: [NetWorthSnapshot]) -> [Date] {
+        guard points.count > 2 else { return points.map(\.date) }
+        return [points[0].date, points[points.count - 2].date]
+    }
+
+    var body: some View {
+        let selected = NetWorthView.nearestTrendPoint(to: heldTrendSelection, in: points)
+        GlassCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                Text("Évolution")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                Chart {
+                    ForEach(points) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(LinearGradient.budgetChartLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                        AreaMark(
+                            x: .value("Date", point.date),
+                            y: .value("CHF", NSDecimalNumber(decimal: point.netWorth).doubleValue)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [BudgetColor.indigo.opacity(0.22), .clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
+                    // L8 : sélection — règle + point, valeurs issues
+                    // des instantanés EXISTANTS, aucune animation.
+                    if let selected {
+                        RuleMark(x: .value("Sélection", selected.date))
+                            .foregroundStyle(BudgetColor.textTertiary.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1))
+                        PointMark(
+                            x: .value("Sélection", selected.date),
+                            y: .value("CHF", NSDecimalNumber(decimal: selected.netWorth).doubleValue)
+                        )
+                        .foregroundStyle(BudgetColor.brandBright)
+                        .symbolSize(70)
+                    }
+                }
+                // L8 correctif : geste de lecture EXPLICITE — un
+                // toucher ou un glissement sur la courbe choisit la
+                // date via l'échelle du graphique (proxy.value(atX:)),
+                // et la dernière lecture reste affichée au lever du
+                // doigt. Déterministe pour un doigt réel comme pour le
+                // tour automatisé (chartXSelection ne recevait pas les
+                // gestes synthétisés — constaté aux runs Demo).
+                .chartOverlay { proxy in
+                    GeometryReader { geo in
+                        Rectangle()
+                            .fill(Color.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        guard let plotFrame = proxy.plotFrame else { return }
+                                        let x = value.location.x - geo[plotFrame].origin.x
+                                        if let date: Date = proxy.value(atX: x) {
+                                            heldTrendSelection = date
+                                        }
+                                    }
+                            )
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
+                        AxisValueLabel().font(.caption2)
+                    }
+                }
+                .chartXAxis {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        AxisMarks(values: Self.accessibilityAxisDates(for: points)) { value in
+                            // Libellé personnalisé avec fixedSize : Swift
+                            // Charts ne peut PAS le tronquer en « … »
+                            // (constaté au run 30158304861).
+                            AxisValueLabel {
+                                if let date = value.as(Date.self) {
+                                    Text(date, format: .dateTime.month(.abbreviated))
+                                        .font(.caption2)
+                                        .fixedSize()
+                                }
+                            }
+                        }
+                    } else {
+                        AxisMarks(values: .automatic(desiredCount: Self.xAxisMarkCount(for: dynamicTypeSize))) { _ in
+                            AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.caption2)
+                        }
+                    }
+                }
+                .frame(height: 160)
+                .accessibilityLabel("Évolution de la fortune nette")
+                .accessibilityValue(NetWorthView.trendAccessibilityValue(selected: selected, points: points))
+                .accessibilityIdentifier("networth.chart.evolution")
+                if let selected {
+                    Text(NetWorthView.trendSelectionLabel(date: selected.date, netWorth: selected.netWorth))
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.updatesFrequently)
+                        .accessibilityIdentifier("networth.chart.selectionLabel")
+                } else {
+                    Text("Glissez sur la courbe pour lire un mois précis.")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(BudgetColor.textTertiary)
+                        .accessibilityIdentifier("networth.chart.selectionHint")
                 }
             }
         }

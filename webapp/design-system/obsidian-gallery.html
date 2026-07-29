@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Budget — Galerie Obsidian Glass (interne)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090C12">
+<link rel="stylesheet" href="obsidian.css">
+<style>
+  /* Mise en page de la galerie uniquement — les primitives vivent
+     dans obsidian.css. Page interne : jamais liée depuis l'app. */
+  main { max-width: 560px; margin: 0 auto; padding: var(--screen-margin); }
+  h1 { font-size: 1.35rem; margin: 8px 0 2px; }
+  .intro { color: var(--text-secondary); font-size: 0.85rem; margin: 0 0 18px; }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+       color: var(--text-secondary); margin: 26px 0 10px; }
+  .grid { display: grid; gap: 10px; }
+  .grid.two { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .toolbar .os-btn { width: auto; }
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch { flex: 1 1 96px; border: 1px solid var(--stroke); border-radius: 12px;
+            padding: 8px; font-size: 0.68rem; color: var(--text-secondary); }
+  .swatch b { display: block; color: var(--text-primary); font-size: 0.72rem; }
+  .swatch .chip { height: 26px; border-radius: 8px; border: 1px solid var(--stroke);
+                  margin-bottom: 6px; }
+  .sheet-demo { border-radius: var(--radius-hero) var(--radius-hero) 0 0; overflow: hidden; }
+  footer { color: var(--text-tertiary); font-size: 0.72rem; margin: 30px 0 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Galerie Obsidian Glass</h1>
+  <p class="intro">Page interne de vérification des fondations (L2). Elle n'est
+  pas reliée à la navigation de l'app. Contenu fixe et déterministe.</p>
+
+  <div class="toolbar">
+    <button class="os-btn os-btn--secondary" id="toggleTransparency"
+      aria-pressed="false">Transparence réduite : off</button>
+    <button class="os-btn os-btn--secondary" id="toggleLargeText"
+      aria-pressed="false">Texte agrandi : off</button>
+  </div>
+
+  <h2>Tokens</h2>
+  <div class="swatch-row" id="swatches"></div>
+
+  <h2>Carte forte (héros / feuille)</h2>
+  <section class="os-card--strong os-card">
+    <p class="os-label">Disponible ce mois</p>
+    <p class="os-amount-hero">CHF 2'450.00</p>
+    <p class="os-caption">Après factures et mises de côté prévues</p>
+  </section>
+
+  <h2>Carte standard</h2>
+  <section class="os-card">
+    <p class="os-label">Budget de juillet</p>
+    <p class="os-amount">CHF 1'200.00 <span class="os-caption">sur CHF 1'500.00</span></p>
+  </section>
+
+  <h2>Cartes de liste (légères)</h2>
+  <div class="grid">
+    <div class="os-card os-card--row" role="button" tabindex="0">
+      <span aria-hidden="true">🛒</span>
+      <span class="os-row-label">Courses de la semaine</span>
+      <span class="os-amount os-amount--negative">-CHF 84.50</span>
+    </div>
+    <div class="os-card os-card--row os-card--selected" role="button" tabindex="0">
+      <span aria-hidden="true">💼</span>
+      <span class="os-row-label">Salaire (sélectionné)</span>
+      <span class="os-amount os-amount--positive">+CHF 5'500.00</span>
+    </div>
+  </div>
+
+  <h2>Montants</h2>
+  <section class="os-card">
+    <div class="grid">
+      <p class="os-amount-hero">CHF 1'234.55</p>
+      <p class="os-amount-hero os-amount-hero--long os-amount--negative">-CHF 9'999'999.99</p>
+      <p class="os-amount-hero">CHF 0.00</p>
+      <p class="os-amount">CHF -9'999'999.99</p>
+      <p class="os-caption">montant standard très long, jamais tronqué</p>
+    </div>
+  </section>
+
+  <h2>Statuts</h2>
+  <section class="os-card">
+    <div class="swatch-row">
+      <span class="os-pill os-pill--positive">Dans le plan</span>
+      <span class="os-pill os-pill--warning">À surveiller</span>
+      <span class="os-pill os-pill--negative">Dépassé</span>
+      <span class="os-pill">Prévu</span>
+    </div>
+  </section>
+
+  <h2>Boutons</h2>
+  <div class="grid">
+    <button class="os-btn">Ajouter un mouvement</button>
+    <button class="os-btn" style="filter:brightness(1.06)">Ajouter (état pressé — filtre)</button>
+    <button class="os-btn" id="focusDemo">Ajouter (recevra le focus)</button>
+    <button class="os-btn" disabled>Ajouter (désactivé)</button>
+    <button class="os-btn os-btn--secondary">Action secondaire</button>
+    <button class="os-btn os-btn--destructive">Supprimer le mouvement</button>
+  </div>
+
+  <h2>Champs</h2>
+  <section class="os-card">
+    <label class="os-field-label" for="fNormal">Intitulé</label>
+    <input class="os-field" id="fNormal" value="Courses de la semaine">
+    <label class="os-field-label" for="fFocus">Montant (focus au clavier)</label>
+    <input class="os-field" id="fFocus" value="45.50" inputmode="decimal">
+    <label class="os-field-label" for="fError">Montant (erreur)</label>
+    <input class="os-field" id="fError" value="abc" aria-invalid="true"
+      aria-describedby="fErrorMsg">
+    <p class="os-field-error" id="fErrorMsg">Montant illisible — utilisez des chiffres,
+    par exemple 45.50.</p>
+  </section>
+
+  <h2>Feuille</h2>
+  <div class="sheet-demo">
+    <section class="os-sheet">
+      <p class="os-label">Nouveau mouvement</p>
+      <label class="os-field-label" for="fSheet">Montant (CHF)</label>
+      <input class="os-field" id="fSheet" value="120.00" inputmode="decimal">
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="os-btn os-btn--secondary" style="flex:1">Annuler</button>
+        <button class="os-btn" style="flex:1">Enregistrer</button>
+      </div>
+    </section>
+  </div>
+
+  <h2>État vide</h2>
+  <section class="os-card os-empty">
+    <span class="os-empty-glyph" aria-hidden="true">🌱</span>
+    <p class="os-empty-title">Aucun mouvement ce mois</p>
+    <p>Ajoutez votre premier mouvement pour voir votre mois prendre vie.</p>
+    <button class="os-btn" style="margin-top:14px;width:auto">Ajouter un mouvement</button>
+  </section>
+
+  <h2>État d'erreur</h2>
+  <section class="os-error" role="alert">
+    <p class="os-error-title">Impossible d'enregistrer</p>
+    <p>Le stockage local est indisponible. Réessayez ; vos données déjà
+    enregistrées ne sont pas touchées.</p>
+    <button class="os-btn os-btn--secondary" style="margin-top:12px;width:auto">Réessayer</button>
+  </section>
+
+  <footer>Budget — fondations Obsidian Glass. Transparence normale et réduite,
+  texte agrandi et focus clavier se testent avec les boutons en haut de page.</footer>
+</main>
+<script>
+  "use strict";
+  // Nuanciers générés depuis les valeurs CALCULÉES — la galerie montre
+  // exactement ce que le CSS résout, sans dupliquer les valeurs.
+  const TOKENS = ["canvas", "canvas-raised", "glass", "glass-strong",
+    "glass-fallback", "stroke", "stroke-active", "brand", "brand-bright",
+    "text-primary", "text-secondary", "text-tertiary",
+    "positive", "negative", "warning"];
+  const styles = getComputedStyle(document.documentElement);
+  const host = document.getElementById("swatches");
+  for (const name of TOKENS) {
+    const value = styles.getPropertyValue("--" + name).trim();
+    const cell = document.createElement("div");
+    cell.className = "swatch";
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.style.background = value;
+    const label = document.createElement("b");
+    label.textContent = name;
+    const code = document.createElement("span");
+    code.textContent = value;
+    cell.append(chip, label, code);
+    host.append(cell);
+  }
+
+  // Bascules déterministes (mêmes attributs que ceux testés en CI).
+  const tToggle = document.getElementById("toggleTransparency");
+  tToggle.addEventListener("click", () => {
+    const on = document.documentElement.dataset.reducedTransparency !== "true";
+    if (on) document.documentElement.dataset.reducedTransparency = "true";
+    else delete document.documentElement.dataset.reducedTransparency;
+    tToggle.setAttribute("aria-pressed", String(on));
+    tToggle.textContent = "Transparence réduite : " + (on ? "on" : "off");
+  });
+  const lToggle = document.getElementById("toggleLargeText");
+  lToggle.addEventListener("click", () => {
+    const on = document.documentElement.dataset.largeText !== "true";
+    if (on) document.documentElement.dataset.largeText = "true";
+    else delete document.documentElement.dataset.largeText;
+    lToggle.setAttribute("aria-pressed", String(on));
+    lToggle.textContent = "Texte agrandi : " + (on ? "on" : "off");
+  });
+</script>
+</body>
+</html>

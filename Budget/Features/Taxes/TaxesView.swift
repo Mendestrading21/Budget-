@@ -69,6 +69,7 @@ struct TaxesView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
         .navigationTitle("Impôts")
         .toolbar {
@@ -132,9 +133,11 @@ struct TaxesView: View {
                 Text("Encore dû (arriérés compris)")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(report.totalDue))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(report.totalDue > 0 ? BudgetColor.warning : BudgetColor.positive)
+                AmountText(
+                    amount: report.totalDue,
+                    role: .hero,
+                    emphasis: report.totalDue > 0 ? .warning : .positive
+                )
                 if report.reserveGap > 0 {
                     Label("Réserve manquante : \(FinanceFormatting.chf(report.reserveGap))", systemImage: "exclamationmark.triangle")
                         .font(BudgetFont.caption.weight(.semibold))
@@ -151,7 +154,9 @@ struct TaxesView: View {
     }
 
     private func stateGrid(_ report: TaxYearReport) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: BudgetSpacing.medium), GridItem(.flexible())], spacing: BudgetSpacing.medium) {
+        // Colonnes adaptatives : deux colonnes à 390 pt, UNE seule à
+        // 320 pt — libellés et montants gardent toute leur largeur.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: BudgetSpacing.medium)], spacing: BudgetSpacing.medium) {
             stateCard("Estimation annuelle", report.estimatedTax, icon: "function",
                       detail: report.isOverridden ? "Corrigée manuellement" : "Revenus × \(FinanceFormatting.percent(report.rate))")
             stateCard("Déjà payé", report.paid, icon: "checkmark.circle", tint: BudgetColor.positive,
@@ -170,12 +175,11 @@ struct TaxesView: View {
                 Label(title, systemImage: icon)
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(FinanceFormatting.chf(amount))
                     .font(BudgetFont.amount)
                     .foregroundStyle(tint)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let detail {
                     Text(detail)
                         .font(BudgetFont.caption)
@@ -244,6 +248,7 @@ struct TaxesView: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("taxes.duedate.\(dueDate.label)")
     }
 
     private func assumptionsCard(_ report: TaxYearReport) -> some View {
@@ -296,7 +301,7 @@ struct TaxesView: View {
     private func amountSheet(for kind: SheetKind) -> some View {
         let (title, footer, initial): (String, String, Decimal?) = switch kind {
         case .rate:
-            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un point de départ prudent courant en Suisse.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
+            ("Taux de provision", "Fraction de vos revenus à mettre de côté. 30 % est un simple point de départ d'organisation — ni un taux officiel, ni une recommandation.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
         case .reserved:
             ("Réserve constituée", "Argent déjà mis de côté pour les impôts \(String(currentYear)).", provision?.reservedAmount)
         case .arrears:

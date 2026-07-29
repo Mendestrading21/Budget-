@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Budget — Galerie Neon Ultra (interne, NU1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="neon-ultra.css">
+<style>
+  /* Mise en page de la galerie uniquement — les primitives vivent dans
+     neon-ultra.css. Page interne : jamais liée depuis l'app publique. */
+  main { max-width: 560px; margin: 0 auto; padding: var(--nu-screen-margin); }
+  h1 { font-size: 1.35rem; margin: 8px 0 2px; }
+  .intro { color: var(--nu-text-secondary); font-size: 0.85rem; margin: 0 0 18px; }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em;
+       color: var(--nu-text-secondary); margin: 26px 0 10px; }
+  .grid { display: grid; gap: 10px; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .toolbar .nu-button { width: auto; }
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch { flex: 1 1 96px; border: 1px solid var(--nu-border); border-radius: 12px;
+            padding: 8px; font-size: 0.68rem; color: var(--nu-text-secondary); }
+  .swatch b { display: block; color: var(--nu-text-primary); font-size: 0.72rem; }
+  .swatch .chip { height: 26px; border-radius: 8px; border: 1px solid var(--nu-border);
+                  margin-bottom: 6px; }
+  footer { color: var(--nu-text-tertiary); font-size: 0.72rem; margin: 30px 0 12px; }
+</style>
+</head>
+<body class="nu-body">
+<main>
+  <h1>Galerie Neon Ultra</h1>
+  <p class="intro">Page interne de vérification des fondations (NU1). Elle n'est
+  pas reliée à l'application : la PWA publique reste sur Obsidian jusqu'au
+  rebranchement contrôlé (NU2). Contenu fixe et déterministe.</p>
+
+  <div class="toolbar">
+    <button class="nu-button nu-button--secondary" id="nuToggleTransparency"
+      aria-pressed="false">Transparence réduite : off</button>
+    <button class="nu-button nu-button--secondary" id="nuToggleLargeText"
+      aria-pressed="false">Texte agrandi : off</button>
+  </div>
+
+  <h2>Nuancier — nom, rôle, valeur</h2>
+  <div class="swatch-row" id="nuSwatches"></div>
+
+  <h2>Typographie</h2>
+  <section class="nu-card">
+    <p class="nu-label">Libellé</p>
+    <p style="font-size:1.1rem;font-weight:700;margin:0 0 4px">Titre de carte</p>
+    <p style="margin:0 0 4px;color:var(--nu-text-secondary)">Corps de texte : votre argent expliqué simplement.</p>
+    <p class="nu-caption">Métadonnée discrète</p>
+  </section>
+
+  <h2>Carte élevée — point focal unique</h2>
+  <section class="nu-card--elevated nu-card">
+    <p class="nu-label">Argent disponible</p>
+    <p class="nu-amount-hero">CHF 2'450.00</p>
+    <p class="nu-caption">Après factures et mises de côté prévues</p>
+    <button class="nu-button" style="margin-top:12px">Ajouter un mouvement</button>
+  </section>
+
+  <h2>Carte mate + texte long</h2>
+  <section class="nu-card">
+    <p style="margin:0 0 4px">Assurance ménage et responsabilité civile du foyer —
+    prime annuelle payée en une fois</p>
+    <p class="nu-caption">Intitulé volontairement très long : il passe à la ligne,
+    jamais coupé.</p>
+  </section>
+
+  <h2>Cartes de liste — normal et sélectionné</h2>
+  <div class="grid">
+    <div class="nu-card nu-card--row" role="button" tabindex="0">
+      <span class="nu-row-label">Courses de la semaine</span>
+      <span class="nu-amount nu-amount--negative">-CHF 84.50</span>
+    </div>
+    <div class="nu-card nu-card--row nu-card--selected" role="button" tabindex="0"
+      aria-current="true">
+      <span class="nu-row-label">Salaire (sélectionné)</span>
+      <span class="nu-amount nu-amount--positive">+CHF 5'500.00</span>
+    </div>
+  </div>
+
+  <h2>Montants — sans glow, jamais tronqués</h2>
+  <section class="nu-card">
+    <div class="grid">
+      <p class="nu-amount-hero">CHF 2'450.00</p>
+      <p class="nu-amount-hero nu-amount-hero--long nu-amount--negative">-CHF 9'999'999.99</p>
+      <p class="nu-amount">CHF -9'999'999.99</p>
+      <p class="nu-caption">montant extrême : entier et lisible à 320 px</p>
+    </div>
+  </section>
+
+  <h2>Boutons — un seul CTA primaire actif</h2>
+  <div class="grid">
+    <button class="nu-button">Ajouter un mouvement</button>
+    <button class="nu-button" disabled>Ajouter (désactivé)</button>
+    <button class="nu-button nu-button--secondary" id="nuFocusDemo">Action
+    secondaire (recevra le focus)</button>
+    <button class="nu-button nu-button--destructive">Supprimer le mouvement</button>
+  </div>
+
+  <h2>Chips — normal, sélectionné, désactivé</h2>
+  <div class="swatch-row">
+    <button class="nu-chip" aria-pressed="false">Dépenses</button>
+    <button class="nu-chip" aria-pressed="true">Revenus (sélectionné)</button>
+    <button class="nu-chip" disabled>Bientôt (désactivé)</button>
+  </div>
+
+  <h2>Badges — texte + symbole, jamais la couleur seule</h2>
+  <section class="nu-card">
+    <div class="swatch-row">
+      <span class="nu-badge nu-badge--positive">Dans le plan</span>
+      <span class="nu-badge nu-badge--warning">À surveiller</span>
+      <span class="nu-badge nu-badge--negative">Dépassé</span>
+      <span class="nu-badge">Prévu</span>
+    </div>
+  </section>
+
+  <h2>Champs — normal, focus, erreur</h2>
+  <section class="nu-card">
+    <label class="nu-field-label" for="nuFieldNormal">Intitulé</label>
+    <textarea class="nu-field nu-field--multiline" id="nuFieldNormal"
+      rows="1">Courses de la semaine</textarea>
+    <label class="nu-field-label" for="nuFieldError">Montant (erreur)</label>
+    <input class="nu-field" id="nuFieldError" value="abc" aria-invalid="true"
+      aria-describedby="nuFieldErrorMsg">
+    <p class="nu-field-error" id="nuFieldErrorMsg">Montant illisible — utilisez des
+    chiffres, par exemple 45.50.</p>
+  </section>
+
+  <footer>Budget — fondations Neon Ultra (NU1). Transparence réduite et texte
+  agrandi se testent avec les boutons en haut de page ; le focus clavier avec Tab.</footer>
+</main>
+<script>
+  "use strict";
+  // Nuancier généré depuis les valeurs CALCULÉES — la galerie montre
+  // exactement ce que le CSS résout, sans dupliquer les valeurs.
+  const NU_TOKENS = [
+    ["canvas", "fond global"], ["navigation", "barres"],
+    ["surface", "carte mate"], ["surface-elevated", "carte élevée"],
+    ["surface-fallback", "opaque RT"], ["border", "bordure"],
+    ["magenta", "marque"], ["violet", "accent actif"], ["cyan", "info / focus"],
+    ["cta-start", "CTA départ"], ["cta-end", "CTA arrivée"],
+    ["text-primary", "titres"], ["text-secondary", "explications"],
+    ["text-tertiary", "métadonnées"], ["text-on-cta", "texte du CTA"],
+    ["positive", "sémantique"], ["negative", "sémantique"], ["warning", "sémantique"],
+  ];
+  const styles = getComputedStyle(document.documentElement);
+  const host = document.getElementById("nuSwatches");
+  for (const [name, role] of NU_TOKENS) {
+    const value = styles.getPropertyValue("--nu-" + name).trim();
+    const cell = document.createElement("div");
+    cell.className = "swatch";
+    const chip = document.createElement("div");
+    chip.className = "chip";
+    chip.style.background = value;
+    const label = document.createElement("b");
+    label.textContent = name;
+    const code = document.createElement("span");
+    code.textContent = role + " · " + value;
+    cell.append(chip, label, code);
+    host.append(cell);
+  }
+
+  // Champ multiligne : la hauteur suit TOUJOURS le contenu — la valeur
+  // complète reste visible à 320 px, y compris en texte agrandi 200 %.
+  const autoField = document.getElementById("nuFieldNormal");
+  const sizeField = () => {
+    autoField.style.height = "auto";
+    // box-sizing: border-box — la hauteur inclut les bordures
+    // (offsetHeight − clientHeight), sinon 2 px restent tronqués.
+    const borders = autoField.offsetHeight - autoField.clientHeight;
+    autoField.style.height = (autoField.scrollHeight + borders) + "px";
+  };
+  sizeField();
+  autoField.addEventListener("input", sizeField);
+
+  // Bascules déterministes (mêmes attributs que ceux testés en CI).
+  const tToggle = document.getElementById("nuToggleTransparency");
+  tToggle.addEventListener("click", () => {
+    const on = document.documentElement.dataset.nuReducedTransparency !== "true";
+    if (on) document.documentElement.dataset.nuReducedTransparency = "true";
+    else delete document.documentElement.dataset.nuReducedTransparency;
+    tToggle.setAttribute("aria-pressed", String(on));
+    tToggle.textContent = "Transparence réduite : " + (on ? "on" : "off");
+    sizeField();
+  });
+  const lToggle = document.getElementById("nuToggleLargeText");
+  lToggle.addEventListener("click", () => {
+    const on = document.documentElement.dataset.nuLargeText !== "true";
+    if (on) document.documentElement.dataset.nuLargeText = "true";
+    else delete document.documentElement.dataset.nuLargeText;
+    lToggle.setAttribute("aria-pressed", String(on));
+    lToggle.textContent = "Texte agrandi : " + (on ? "on" : "off");
+    sizeField();
+  });
+</script>
+</body>
+</html>

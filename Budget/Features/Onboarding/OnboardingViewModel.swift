@@ -8,6 +8,9 @@ enum OnboardingStep: Int, CaseIterable {
     case location
     case taxRate
     case firstAccount
+    /// Facultatif : salaire et loyer via les RecurringTransaction
+    /// existantes — aucune nouvelle structure, même save atomique.
+    case income
 
     var progressIndex: Int { rawValue }
 
@@ -37,12 +40,33 @@ final class OnboardingViewModel {
     var accountType: AccountType = .current
     var openingBalanceText: String = ""
 
+    // Revenus et logement — FACULTATIFS (vides = rien n'est créé).
+    var salaryText: String = ""
+    var salaryDay: Int = 25
+    var rentText: String = ""
+    var rentDay: Int = 1
+
     var validationMessage: String?
 
     var openingBalance: Decimal? {
         let trimmed = openingBalanceText.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { return .zero }
         return FinanceFormatting.parseAmount(trimmed)
+    }
+
+    /// Champ de montant FACULTATIF : vide = rien, invalide = erreur
+    /// visible (jamais transformé en zéro), valide = montant.
+    enum OptionalAmount: Equatable {
+        case empty
+        case invalid
+        case value(Decimal)
+    }
+
+    static func parseOptionalAmount(_ text: String) -> OptionalAmount {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.isEmpty { return .empty }
+        guard let amount = FinanceFormatting.parseAmount(trimmed), amount > 0 else { return .invalid }
+        return .value(amount)
     }
 
     /// Validates the current step; returns false and sets a French,
@@ -76,7 +100,25 @@ final class OnboardingViewModel {
                 return false
             }
             return true
+        case .income:
+            if Self.parseOptionalAmount(salaryText) == .invalid {
+                validationMessage = "Le salaire n'est pas un montant valide. Exemple : 5'500.00 — ou laissez vide."
+                return false
+            }
+            if Self.parseOptionalAmount(rentText) == .invalid {
+                validationMessage = "Le loyer n'est pas un montant valide. Exemple : 1'800.00 — ou laissez vide."
+                return false
+            }
+            return true
         }
+    }
+
+    /// « Passer » l'étape facultative : oublie les saisies partielles puis
+    /// termine — aucune donnée facultative n'est créée.
+    func skipIncome() {
+        salaryText = ""
+        rentText = ""
+        validationMessage = nil
     }
 
     func advance() {
@@ -93,9 +135,10 @@ final class OnboardingViewModel {
         }
     }
 
-    /// Creates the household, members, default categories and the first
-    /// account. Called from the last step after validation.
-    func finish(context: ModelContext, now: Date) throws {
+    /// Creates the household, members, default categories, the first
+    /// account and the optional salary/rent recurrings — in ONE atomic
+    /// save. Called from the last step after validation.
+    func finish(context: ModelContext, calendar: Calendar, now: Date) throws {
         guard validateCurrentStep(), let openingBalance else { return }
 
         let household = Household(
@@ -132,6 +175,28 @@ final class OnboardingViewModel {
             owner: members.first
         )
         context.insert(account)
+
+        // Facultatif : salaire et loyer via RecurringTransaction — dans le
+        // MÊME save. Un échec annule tout : aucune donnée partielle.
+        func firstOccurrence(day: Int) -> Date {
+            var components = calendar.dateComponents([.year, .month], from: now)
+            components.day = min(max(1, day), 28)
+            return calendar.date(from: components) ?? now
+        }
+        if case .value(let salary) = Self.parseOptionalAmount(salaryText) {
+            context.insert(RecurringTransaction(
+                title: "Salaire", amount: FinanceMath.roundedToCents(salary), type: .income,
+                firstOccurrence: firstOccurrence(day: salaryDay),
+                createdAt: now, updatedAt: now, account: account
+            ))
+        }
+        if case .value(let rent) = Self.parseOptionalAmount(rentText) {
+            context.insert(RecurringTransaction(
+                title: "Loyer", amount: FinanceMath.roundedToCents(rent), type: .expense,
+                firstOccurrence: firstOccurrence(day: rentDay),
+                createdAt: now, updatedAt: now, account: account
+            ))
+        }
 
         try context.save()
     }

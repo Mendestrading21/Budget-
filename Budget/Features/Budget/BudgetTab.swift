@@ -67,6 +67,7 @@ struct BudgetTab: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
+                .obsidianFABClearance()
             }
             .navigationTitle("Budget")
             .toolbar {
@@ -128,34 +129,43 @@ struct BudgetTab: View {
 
     // MARK: - Summary
 
+    /// Part du budget de dépenses consommée — pur affichage à partir des
+    /// totaux DÉJÀ calculés par `BudgetVarianceService`.
+    private func consumedFraction(_ report: BudgetReport) -> Decimal {
+        FinanceMath.safeRatio(report.spendingActual, report.spendingPlanned)
+    }
+
+    private func planStatePill(_ fraction: Decimal) -> StatusPill {
+        if fraction > 1 { return StatusPill(text: "Dépassé", kind: .negative) }
+        if fraction > Decimal("0.85") { return StatusPill(text: "À surveiller", kind: .warning) }
+        return StatusPill(text: "Dans le plan", kind: .positive)
+    }
+
     private func summaryCard(_ report: BudgetReport) -> some View {
-        GlassCard(style: .hero) {
+        let fraction = consumedFraction(report)
+        let percentUsed = Int(NSDecimalNumber(decimal: fraction * 100).doubleValue.rounded())
+        return GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Reste à dépenser (lignes budgétées)")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                Text(FinanceFormatting.chf(report.spendingVariance))
-                    .font(BudgetFont.heroAmount)
-                    .foregroundStyle(report.spendingVariance < 0 ? BudgetColor.negative : .primary)
-                HStack(spacing: BudgetSpacing.large) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Planifié")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(report.spendingPlanned))
-                            .font(BudgetFont.amount)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Réel")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
-                        Text(FinanceFormatting.chf(report.spendingActual))
-                            .font(BudgetFont.amount)
-                    }
-                }
+                AmountText(
+                    amount: report.spendingVariance,
+                    role: .hero,
+                    emphasis: report.spendingVariance < 0 ? .negative : .neutral
+                )
+                // L'état du plan est toujours ÉCRIT, jamais la couleur seule.
+                planStatePill(fraction)
+                // Barre plan/réel avec son résumé textuel explicite.
+                ProgressView(value: min(1, NSDecimalNumber(decimal: fraction).doubleValue))
+                    .tint(fraction > 1 ? BudgetColor.negative
+                          : (fraction > Decimal("0.85") ? BudgetColor.warning : BudgetColor.brand))
+                Text("\(percentUsed) % du budget utilisé — planifié \(FinanceFormatting.chf(report.spendingPlanned)) · réel \(FinanceFormatting.chf(report.spendingActual)). L'épargne et les impôts sont suivis à part.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Budget du mois : planifié \(FinanceFormatting.chf(report.spendingPlanned)), réel \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
+            .accessibilityLabel("Budget consommé : \(percentUsed) pour cent du planifié. Planifié \(FinanceFormatting.chf(report.spendingPlanned)), réel \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
         }
     }
 
@@ -241,7 +251,7 @@ struct BudgetTab: View {
                             copyPreviousMonth()
                         }
                         .buttonStyle(.bordered)
-                        .tint(BudgetColor.electricBlue)
+                        .tint(BudgetColor.brandBright)
                     }
                 }
             }
@@ -275,6 +285,12 @@ struct BudgetLineRow: View {
         return report.consumedFraction > Decimal("0.85") ? BudgetColor.warning : BudgetColor.indigo
     }
 
+    /// « À surveiller » dès 85 % — le même seuil et les mêmes mots que le
+    /// pilote PWA ; le statut est toujours ÉCRIT (StatusPill L2).
+    private var watchZone: Bool {
+        !report.isOverrun && report.consumedFraction > Decimal("0.85")
+    }
+
     var body: some View {
         GlassCard(style: .row) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
@@ -282,19 +298,17 @@ struct BudgetLineRow: View {
                     Text(report.categoryName)
                         .font(BudgetFont.body.weight(.medium))
                     if report.isOverrun {
-                        Label("Dépassé", systemImage: "exclamationmark.triangle.fill")
-                            .font(BudgetFont.caption.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(BudgetColor.negative.opacity(0.22), in: Capsule())
-                            .foregroundStyle(BudgetColor.negative)
+                        StatusPill(text: "Dépassé", kind: .negative)
+                    } else if watchZone {
+                        StatusPill(text: "À surveiller", kind: .warning)
                     }
                     Spacer()
-                    Text("\(FinanceFormatting.chf(report.actual)) / \(FinanceFormatting.chf(report.planned))")
+                    Text("réel \(FinanceFormatting.chf(report.actual)) / planifié \(FinanceFormatting.chf(report.planned))")
                         .font(BudgetFont.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
                 }
-                ProgressView(value: NSDecimalNumber(decimal: report.consumedFraction).doubleValue)
+                ProgressView(value: min(1, NSDecimalNumber(decimal: report.consumedFraction).doubleValue))
                     .tint(progressColor)
                 HStack {
                     Spacer()
@@ -307,7 +321,7 @@ struct BudgetLineRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(report.categoryName) : réel \(FinanceFormatting.chf(report.actual)) sur \(FinanceFormatting.chf(report.planned)) planifiés\(report.isOverrun ? ", dépassé de \(FinanceFormatting.chf(-report.variance))" : ", reste \(FinanceFormatting.chf(report.variance))")")
+        .accessibilityLabel("\(report.categoryName) : réel \(FinanceFormatting.chf(report.actual)) sur \(FinanceFormatting.chf(report.planned)) planifiés\(report.isOverrun ? ", dépassé de \(FinanceFormatting.chf(-report.variance))" : (watchZone ? ", à surveiller, reste \(FinanceFormatting.chf(report.variance))" : ", reste \(FinanceFormatting.chf(report.variance))"))")
     }
 }
 
@@ -318,4 +332,24 @@ struct BudgetLineRow: View {
         .environment(AppRouter())
         .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
+}
+
+#Preview("Budget — texte agrandi") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return BudgetTab()
+        .environment(preview)
+        .environment(AppRouter())
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+        .environment(\.dynamicTypeSize, .accessibility3)
+}
+
+#Preview("Budget — transparence réduite") {
+    let preview = DemoDataFactory.previewAppContainer()
+    return BudgetTab()
+        .environment(preview)
+        .environment(AppRouter())
+        .modelContainer(preview.modelContainer)
+        .preferredColorScheme(.dark)
+        .environment(\.obsidianForcedReducedTransparency, true)
 }

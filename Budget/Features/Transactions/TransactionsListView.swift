@@ -1,6 +1,30 @@
 import SwiftUI
 import SwiftData
 
+/// Duplication d'un mouvement (L5) : copie fidèle de TOUS les champs
+/// métier, avec de nouveaux horodatages — factorisée pour être testée et
+/// partagée entre la liste (swipe/menu) et la feuille d'édition.
+enum TransactionDuplication {
+    static func copy(of transaction: BudgetTransaction, now: Date) -> BudgetTransaction {
+        BudgetTransaction(
+            date: transaction.date,
+            amount: transaction.amount,
+            type: transaction.type,
+            status: transaction.status,
+            title: transaction.title,
+            note: transaction.note,
+            merchant: transaction.merchant,
+            adjustmentIncreasesBalance: transaction.adjustmentIncreasesBalance,
+            createdAt: now,
+            updatedAt: now,
+            account: transaction.account,
+            destinationAccount: transaction.destinationAccount,
+            category: transaction.category,
+            member: transaction.member
+        )
+    }
+}
+
 /// Full movement list: month navigation, search, filters, uncategorized
 /// queue, edit/duplicate/delete with confirmation.
 struct TransactionsListView: View {
@@ -207,7 +231,9 @@ struct TransactionsListView: View {
             emptyState
         } else {
             ScrollView {
-                VStack(spacing: BudgetSpacing.medium) {
+                // L5 : LazyVStack — les longues listes ne construisent que
+                // les lignes visibles (contrat de performance).
+                LazyVStack(spacing: BudgetSpacing.medium) {
                     if uncategorizedCount > 0 && !showsUncategorizedOnly {
                         uncategorizedBanner
                     }
@@ -219,6 +245,10 @@ struct TransactionsListView: View {
                             ForEach(group.items) { transaction in
                                 TransactionRow(transaction: transaction)
                                     .onTapGesture { editedTransaction = transaction }
+                                    // Pas de swipe hors List (geste mort) :
+                                    // les actions VISIBLES vivent dans la
+                                    // feuille d'édition, le menu long reste
+                                    // un raccourci.
                                     .contextMenu {
                                         Button("Modifier", systemImage: "pencil") {
                                             editedTransaction = transaction
@@ -236,6 +266,7 @@ struct TransactionsListView: View {
                 }
                 .padding(BudgetSpacing.screenMargin)
             }
+            .obsidianFABClearance()
         }
     }
 
@@ -261,50 +292,31 @@ struct TransactionsListView: View {
     private var emptyState: some View {
         ScrollView {
             GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Label(
-                        hasActiveFilters || !searchText.isEmpty ? "Aucun résultat" : "Aucun mouvement ce mois",
-                        systemImage: "tray"
+                if hasActiveFilters || !searchText.isEmpty {
+                    EmptyState(
+                        symbol: "magnifyingglass",
+                        title: "Aucun résultat",
+                        message: "Aucun mouvement ne correspond aux filtres actuels. Modifiez la recherche ou réinitialisez les filtres."
                     )
-                    .font(BudgetFont.sectionTitle)
-                    Text(
-                        hasActiveFilters || !searchText.isEmpty
-                            ? "Aucun mouvement ne correspond aux filtres actuels."
-                            : "Ajoutez vos revenus, dépenses, épargne et virements pour suivre votre mois."
+                } else {
+                    EmptyState(
+                        symbol: "tray",
+                        title: "Aucun mouvement ce mois",
+                        message: "Ajoutez vos revenus, dépenses, épargne et virements pour suivre votre mois.",
+                        actionTitle: "Ajouter un mouvement",
+                        action: { isPresentingNew = true }
                     )
-                    .font(BudgetFont.body)
-                    .foregroundStyle(.secondary)
-                    Button("Ajouter un mouvement") {
-                        isPresentingNew = true
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
                 }
             }
             .padding(BudgetSpacing.screenMargin)
         }
+        .obsidianFABClearance()
     }
 
     // MARK: - Actions
 
     private func duplicate(_ transaction: BudgetTransaction) {
-        let now = appContainer.dateProvider.now
-        let copy = BudgetTransaction(
-            date: transaction.date,
-            amount: transaction.amount,
-            type: transaction.type,
-            status: transaction.status,
-            title: transaction.title,
-            note: transaction.note,
-            merchant: transaction.merchant,
-            adjustmentIncreasesBalance: transaction.adjustmentIncreasesBalance,
-            createdAt: now,
-            updatedAt: now,
-            account: transaction.account,
-            destinationAccount: transaction.destinationAccount,
-            category: transaction.category,
-            member: transaction.member
-        )
+        let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
         modelContext.insert(copy)
         modelContext.saveOrRollback { saveErrorMessage = $0 }
         editedTransaction = copy
@@ -320,6 +332,28 @@ struct TransactionsListView: View {
 /// colored by direction, planned badge.
 struct TransactionRow: View {
     let transaction: BudgetTransaction
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Pastille teintée par nature (Horizon v2) — l'orientation avant la
+    /// lecture, miroir des pastilles PWA.
+    private var iconTint: Color {
+        switch transaction.type {
+        case .income, .refund: BudgetTint.income(colorScheme)
+        case .expense, .taxPayment: BudgetTint.expense(colorScheme)
+        case .saving, .investment: BudgetTint.saving(colorScheme)
+        case .transfer, .adjustment, .debtPayment: BudgetTint.neutral(colorScheme)
+        }
+    }
+
+    private var iconColor: Color {
+        switch transaction.type {
+        case .income, .refund: BudgetColor.positive
+        case .expense, .taxPayment: BudgetColor.negative
+        // Épargne/investissement : teinte de MARQUE (l'ex-teal a disparu).
+        case .saving, .investment: BudgetColor.brandBright
+        case .transfer, .adjustment, .debtPayment: BudgetTheme.secondaryText(colorScheme)
+        }
+    }
 
     private var isInflow: Bool {
         switch transaction.type {
@@ -348,23 +382,19 @@ struct TransactionRow: View {
         GlassCard(style: .row) {
             HStack(spacing: BudgetSpacing.medium) {
                 Image(systemName: transaction.type.systemImage)
-                    .foregroundStyle(BudgetColor.indigo)
-                    .frame(width: 28)
+                    .foregroundStyle(iconColor)
+                    .frame(width: 40, height: 40)
+                    .background(iconTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: BudgetSpacing.micro) {
                         Text(transaction.title)
                             .font(BudgetFont.body.weight(.medium))
                             .lineLimit(1)
                         if transaction.status == .planned {
-                            Text("Prévu")
-                                .font(BudgetFont.caption.weight(.semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 1)
-                                .background(BudgetColor.warning.opacity(0.25), in: Capsule())
-                                .foregroundStyle(BudgetColor.warning)
+                            StatusPill(text: "Prévu", kind: .warning)
                         }
                     }
-                    Text("\(transaction.type.displayName) · \(accountPath)")
+                    Text("\(transaction.type.displayName) · \(accountPath)\(natureNote)")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -373,10 +403,22 @@ struct TransactionRow: View {
                 Text((isInflow ? "+" : transaction.type == .transfer ? "" : "−") + FinanceFormatting.chf(transaction.amount))
                     .font(BudgetFont.amount)
                     .foregroundStyle(amountColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(transaction.title), \(transaction.type.displayName), \(FinanceFormatting.chf(transaction.amount)), \(FinanceFormatting.swissDate(transaction.date))\(transaction.status == .planned ? ", prévu" : "")")
+        .accessibilityLabel("\(transaction.title), \(transaction.type.displayName)\(natureNote), \(FinanceFormatting.chf(transaction.amount)), \(FinanceFormatting.swissDate(transaction.date))\(transaction.status == .planned ? ", prévu" : "")")
+    }
+
+    /// La nature financière est ÉCRITE, jamais portée par la couleur seule :
+    /// virement neutre, épargne/investissement « mis de côté ».
+    private var natureNote: String {
+        switch transaction.type {
+        case .transfer: " · neutre"
+        case .saving, .investment: " · mis de côté"
+        default: ""
+        }
     }
 }
 
