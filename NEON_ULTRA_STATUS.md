@@ -17,6 +17,65 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot fonctionnel « comme le tableur » (29.07.2026) — VERIFYING
+
+Demande explicite du propriétaire : remplacer son tableur de référence, et
+donc combler trois écarts fonctionnels. Décidé par **ADR-028**. Le programme
+visuel reste gelé : **NU3 n'est pas commencé.**
+
+Trois lots, un commit chacun, suites vertes à chaque étape :
+
+1. **Page Année** (`3d2721e`) — les douze mois d'un coup d'œil, chacun
+   ouvrable d'un tap : état écrit (Bouclé / En cours / À boucler / À venir /
+   Vide), entré et sorti du mois, solde signé, douze barres de solde bornées
+   à leur cadre, navigation d'année. Vue PURE : aucune formule nouvelle.
+2. **Abonnements** (`440e348`) — les charges régulières reçoivent un rythme
+   (`every`, `dueM`) et une résiliation (`endedOn`), tous **additifs**. Un
+   annuel est engagé **uniquement sur son mois d'échéance** (décision du
+   propriétaire), jamais lissé. Écran dédié avec deux totaux jamais
+   additionnés entre eux : coût réel annuel, et moyenne mensuelle nommée
+   comme telle.
+3. **Tuiles d'accueil** (`d728c22`) — sept raccourcis portant chacun un
+   chiffre réel, sous les factures. Navigation, pas analyse : aucune jauge,
+   aucune courbe, aucun dégradé, point focal unique préservé.
+
+### Le défaut que les tests ont réellement attrapé
+
+La première passe du lot 2 n'avait adapté que `snapshot()`. Les suites ont
+révélé deux oublis qui auraient été graves en usage réel :
+
+- `monthlyObligations()` : un abonnement annuel apparaissait « en retard »
+  onze mois sur douze dans le widget de l'accueil ;
+- `monthCheckItems()` : il restait éternellement à cocher, ce qui rendait le
+  mois **impossible à boucler**.
+
+Corrigés, avec les revenus récurrents attendus et le bouton « régler ce
+mois » qui ne s'offre plus hors échéance.
+
+### Preuves
+
+- **91 parcours e2e** (88 conservés sans affaiblissement + 3 nouveaux) ·
+  5 fixtures de parité · design system Obsidian, NU1 et NU2 verts · zéro
+  erreur console.
+- **Le calcul verrouillé par test** : un annuel de 1200 dû en mars, avec un
+  mensuel de 100, pèse 1300 en mars, 100 en avril, et **2400 sur la somme
+  des douze mois** — jamais 15'600. Rituel et obligations vérifiés sur les
+  deux mois.
+- **Restauration durcie** : rythme inconnu, mois d'échéance hors 1-12 et
+  date de résiliation illisible font REFUSER la sauvegarde. Absents restent
+  acceptés — les sauvegardes antérieures gardent leur sens exact.
+- **Rendu inspecté** à 390 px, 320 px et 320 px à 200 % de texte sur les
+  trois surfaces : zéro débordement, zéro troncature, zéro cible sous 44 px,
+  zéro erreur console.
+- L'assertion du blueprint d'accueil a été **précisée, pas affaiblie** :
+  elle distingue le widget d'analyse du raccourci de navigation et vérifie en
+  plus qu'aucune tuile ne porte de jauge et que la grille suit les factures.
+
+Les écrans Année et Abonnements naissent dans l'identité Neon Ultra : la
+portée pilote les accueille, et le garde-fou d'isolation passe d'une tranche
+de source à une attribution par fonction englobante avec liste blanche
+explicite.
+
 ## Correctif critique de fiabilité (29.07.2026) — VERIFIED
 
 La poursuite visuelle reste gelée avant NU3 pendant la validation d'un lot
