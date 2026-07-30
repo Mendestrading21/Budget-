@@ -3726,6 +3726,84 @@ await page.waitForTimeout(300);
   await page.waitForTimeout(200);
 }
 
+// ---------- Test 92 : rythme et résiliation — FIDÉLITÉ de la sauvegarde et du passé ----------
+currentTest = "fidélité du rythme et du passé";
+await goHome();
+{
+  // Un annuel réel (234 CHF dû en novembre) et un mensuel résilié en cours
+  // d'année, pour éprouver deux garanties distinctes.
+  const fid92 = await page.evaluate(() => {
+    const keep = RECURRINGS.splice(0, RECURRINGS.length);
+    RECURRINGS.push({ id: "t-fid-y", title: "Annuel fidélité E2E", amount: 234, type: "expense",
+      cat: "Logement", day: 14, accountId: ACCOUNTS[0].id, every: "year", dueM: 11 });
+    RECURRINGS.push({ id: "t-fid-off", title: "Résilié fidélité E2E", amount: 15, type: "expense",
+      cat: "Logement", day: 3, accountId: ACCOUNTS[0].id, endedOn: { y: NOW.y, m: 7 } });
+    saveState();
+
+    // 1. FIDÉLITÉ DE LA SAUVEGARDE : le fichier réellement exporté doit porter
+    // les trois champs, et la restauration doit les rendre à l'identique.
+    // Sans cette garantie, un abonnement annuel redeviendrait mensuel en
+    // silence après une restauration — et serait compté douze fois.
+    const payload = { app: "budget-web", version: 1, exportedAt: "2026-01-01T00:00:00.000Z",
+      state: JSON.parse(JSON.stringify(S)) };
+    const json = JSON.stringify(payload);
+    let restored = null, restoreError = null;
+    try { restored = validatedRestoreState(JSON.parse(json).state); }
+    catch (e) { restoreError = e.message; }
+    const ry = restored && restored.recurrings.find(r => r.id === "t-fid-y");
+    const roff = restored && restored.recurrings.find(r => r.id === "t-fid-off");
+
+    // 2. UN ANNUEL SEUL : mesuré sans le résilié, qui fausserait le total.
+    const onlyAnnual = RECURRINGS.filter(r => r.id === "t-fid-y");
+    const withBoth = RECURRINGS.splice(0, RECURRINGS.length, ...onlyAnnual);
+    const ch = (y, m) => snapshot(y, m).recurringCharges;
+    const annual = {
+      nov: ch(NOW.y, 11), oct: ch(NOW.y, 10), dec: ch(NOW.y, 12),
+      year: Array.from({ length: 12 }, (_, i) => ch(NOW.y, i + 1)).reduce((a, b) => a + b, 0),
+    };
+
+    // 3. LE PASSÉ N'EST PAS EFFACÉ : une charge résiliée en juillet reste due
+    // en juin. Résilier n'est pas supprimer.
+    RECURRINGS.splice(0, RECURRINGS.length, ...withBoth);
+    const onlyEnded = RECURRINGS.filter(r => r.id === "t-fid-off");
+    RECURRINGS.splice(0, RECURRINGS.length, ...onlyEnded);
+    const ended = { june: ch(NOW.y, 6), july: ch(NOW.y, 7), august: ch(NOW.y, 8) };
+
+    RECURRINGS.splice(0, RECURRINGS.length, ...keep);
+    saveState();
+    return {
+      restoreError,
+      hasEvery: json.includes('"every":"year"'),
+      hasDue: json.includes('"dueM":11'),
+      hasEnded: json.includes('"endedOn"'),
+      ryEvery: ry && ry.every, ryDue: ry && ry.dueM,
+      roffEnded: roff && roff.endedOn && roff.endedOn.m,
+      annual, ended,
+    };
+  });
+  check(fid92.restoreError === null,
+    `une sauvegarde portant les nouveaux champs est ACCEPTÉE (obtenu ${fid92.restoreError})`);
+  check(fid92.hasEvery && fid92.hasDue && fid92.hasEnded,
+    `le fichier exporté contient every, dueM et endedOn (obtenu ${JSON.stringify({ e: fid92.hasEvery, d: fid92.hasDue, x: fid92.hasEnded })})`);
+  check(fid92.ryEvery === "year" && fid92.ryDue === 11,
+    `un annuel reste annuel AVEC son mois après restauration (obtenu ${fid92.ryEvery}/${fid92.ryDue})`);
+  check(fid92.roffEnded === 7,
+    `la date de résiliation survit à la restauration (obtenu ${fid92.roffEnded})`);
+  check(fid92.annual.nov === 234,
+    `l'annuel pèse 234 sur son mois d'échéance (obtenu ${fid92.annual.nov})`);
+  check(fid92.annual.oct === 0 && fid92.annual.dec === 0,
+    `il ne pèse rien les mois voisins (octobre ${fid92.annual.oct}, décembre ${fid92.annual.dec})`);
+  check(fid92.annual.year === 234,
+    `il pèse 234 sur l'année entière, jamais 2808 (obtenu ${fid92.annual.year})`);
+  check(fid92.ended.june === 15,
+    `une charge résiliée en juillet reste DUE en juin — résilier n'efface pas le passé (obtenu ${fid92.ended.june})`);
+  check(fid92.ended.july === 0 && fid92.ended.august === 0,
+    `elle ne pèse plus dès le mois de résiliation (juillet ${fid92.ended.july}, août ${fid92.ended.august})`);
+  const clean92 = await page.evaluate(() =>
+    RECURRINGS.some(r => String(r.id).startsWith("t-fid-")));
+  check(!clean92, "les récurrences du parcours de fidélité sont retirées (aucune trace)");
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3735,4 +3813,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 91 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 92 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé), zéro erreur console ✓");
