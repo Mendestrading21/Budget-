@@ -392,8 +392,25 @@ const leasingId = await page.evaluate(() =>
   JSON.parse(localStorage.getItem("budget-app-state-v1")).liabilities.find(l => l.name === "Leasing E2E").id);
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
+// L'app crée le récurrent de dette au JOUR 3. Réglé un 1er ou un 2 du mois,
+// ce jour est encore à venir : l'app planifie alors la mensualité au lieu de
+// la comptabiliser (politique de date ADR-025, comportement CORRECT). Or ce
+// test porte sur l'effet d'une mensualité RÉELLEMENT PAYÉE. On ramène donc
+// l'échéance au 1er — toujours échu — pour que l'assertion vérifie ce
+// qu'elle annonce, quel que soit le jour où la suite tourne.
+await page.evaluate(id => {
+  const rec = RECURRINGS.find(r => r.id === "r-debt-" + id);
+  if (rec) { rec.day = 1; saveState(); render(); }
+}, leasingId);
+await page.waitForTimeout(150);
 await page.click(`[data-postrec="r-debt-${leasingId}"]`);
 await page.waitForTimeout(200);
+// La mensualité doit être COMPTABILISÉE : sans cela, l'assertion suivante
+// mesurerait un tout autre comportement.
+const debtPosted10b = await page.evaluate(id =>
+  transactions.filter(t => t.recurringId === "r-debt-" + id).map(t => t.status), leasingId);
+check(debtPosted10b.length === 1 && debtPosted10b[0] === "posted",
+  `la mensualité de dette est comptabilisée (obtenu ${JSON.stringify(debtPosted10b)})`);
 await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(150);
@@ -1548,9 +1565,13 @@ check(billsHero52.shown === billsHero52.open,
 check(billsHero52.overdue > 0 ? /en retard/.test(billsHero52.pill) : /Rien en retard/.test(billsHero52.pill),
   "l'état de retard est ÉCRIT dans une pill, jamais couleur seule");
 // Payer une facture LIE facture et mouvement : un seul mouvement, jamais deux.
+// Échéance au 1er : TOUJOURS échue, quel que soit le jour où la suite
+// tourne. Une échéance future serait PLANIFIÉE et non comptabilisée
+// (politique de date ADR-025) — l'assertion « dépense comptabilisée »
+// ci-dessous ne mesurerait alors plus rien de stable.
 await page.evaluate(() => {
   S.bills.push({ id: "l6bill", name: "Facture test L6", amount: 123.45, dueY: NOW.y, dueM: NOW.m,
-    dueD: Math.min(NOW.d + 2, 28), cat: "Logement", paidTxId: null, note: "" });
+    dueD: 1, cat: "Logement", paidTxId: null, note: "" });
   saveState(); render();
 });
 // La carte synthétique de l'accueil permet de régler l'échéance sans
@@ -3804,6 +3825,56 @@ await goHome();
   check(!clean92, "les récurrences du parcours de fidélité sont retirées (aucune trace)");
 }
 
+// ---------- Test 93 : audit de lisibilité — contenu jamais coupé, dépliants tactiles ----------
+currentTest = "lisibilité des écrans de contenu";
+// Constats de l'audit complet du 02.08.2026. L'ellipse des LISTES de données
+// (mouvements, comptes, charges, factures) reste le choix de densité assumé
+// en L5 : le détail s'ouvre au tap. En revanche une question de l'Assistant,
+// un nom d'assurance, un intitulé de dette ou une explication des Réglages
+// SONT le contenu — les couper perd l'information.
+await goHome();
+{
+  const readable = async (view, label) => {
+    await page.click(`#tabbar button[aria-label="Gérer"]`);
+    await page.waitForTimeout(180);
+    await page.click(`#screen [data-more="${view}"]`);
+    await page.waitForTimeout(300);
+    return page.evaluate(() => {
+      const s = document.getElementById("screen");
+      const vis = el => { const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
+      return {
+        cut: [...s.querySelectorAll(".read-row .t, .read-row .s")]
+          .filter(e => vis(e) && e.scrollWidth - e.clientWidth > 1)
+          .map(e => e.textContent.trim().slice(0, 40)),
+        rows: s.querySelectorAll(".read-row").length,
+        // Un dépliant est une cible tactile comme une autre.
+        smallSummaries: [...s.querySelectorAll("details summary")]
+          .filter(e => vis(e) && e.getBoundingClientRect().height < 44)
+          .map(e => e.textContent.trim().slice(0, 30)),
+      };
+    });
+  };
+  for (const [view, label] of [["assistant", "Assistant"], ["insurance", "Assurances"],
+                               ["networth", "Patrimoine"], ["settings", "Réglages"]]) {
+    const r = await readable(view, label);
+    check(r.rows > 0, `${label} : des lignes de contenu lisibles existent (obtenu ${r.rows})`);
+    check(r.cut.length === 0,
+      `${label} : aucune ligne de contenu coupée (obtenu ${JSON.stringify(r.cut)})`);
+    check(r.smallSummaries.length === 0,
+      `${label} : tout dépliant fait au moins 44 px (obtenu ${JSON.stringify(r.smallSummaries)})`);
+  }
+  // Les listes de DONNÉES gardent leur ellipse : la décision de densité L5
+  // n'est pas annulée par ce correctif.
+  await page.click(`#tabbar button[aria-label="Historique"]`);
+  await page.waitForTimeout(280);
+  const dense93 = await page.evaluate(() => {
+    const row = document.querySelector("#screen .tx:not(.read-row) .meta .s");
+    return row ? getComputedStyle(row).textOverflow : null;
+  });
+  check(dense93 === "ellipsis",
+    `les listes de mouvements gardent l'ellipse de densité (obtenu ${dense93})`);
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3813,4 +3884,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 92 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 93 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit), zéro erreur console ✓");

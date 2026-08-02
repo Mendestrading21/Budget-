@@ -338,12 +338,21 @@
   .month-nav .label { font-size: 16px; font-weight: 700; text-transform: capitalize; }
 
   /* ---------- Breakdown ---------- */
+  /* Un dépliant est une CIBLE TACTILE : au moins 44 px de haut, comme tout
+     le reste de l'app. Sans cette hauteur, « Confidentialité » et
+     « Méthodologie des calculs » des Réglages ne mesuraient que 16 px. */
   details summary {
     cursor: pointer;
     font-size: 12px;
     color: var(--electric);
     margin-top: 8px;
     list-style: none;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    /* En flex, l'espace du pseudo-élément « ›» est avalé : on le rétablit
+       par un intervalle explicite plutôt que par un caractère. */
+    gap: 4px;
   }
   details summary::-webkit-details-marker { display: none; }
   details summary::after { content: " ›"; }
@@ -429,6 +438,18 @@
   .tx .meta { flex: 1; min-width: 0; }
   .tx .meta .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tx .meta .s { font-size: 11px; color: var(--coolgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Une ligne de CONTENU se lit en entier. L'ellipse des listes de
+     mouvements est un choix de densité assumé (L5) ; elle n'a aucun sens
+     sur une question de l'Assistant, un nom de contrat d'assurance ou un
+     renvoi explicatif, où le texte EST l'information. */
+  .tx.read-row { align-items: flex-start; }
+  .tx.read-row .meta .t,
+  .tx.read-row .meta .s {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.35;
+  }
   .tx .amount { font-size: 13.5px; flex: none; }
 
   .acct-total { font-size: 20px; }
@@ -3545,7 +3566,7 @@ function renderNetWorth() {
     </div>
     <p class="section-title">Actifs hors comptes</p>
     ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun actif hors comptes.</span></div>` : ""}
-    ${ASSETS.map(a => `<div class="card row tx" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
+    ${ASSETS.map(a => `<div class="card row tx read-row" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${a.icon || "🏷"}</div>
       <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Estimation personnelle${a.include === false ? " · exclu du patrimoine" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
@@ -3555,7 +3576,7 @@ function renderNetWorth() {
       const bal = liabilityBalance(l);
       const monthsLeft = (l.monthly > 0 && bal > 0) ? Math.ceil(bal / l.monthly) : null;
       const end = monthsLeft !== null ? shiftMonth(NOW, monthsLeft) : null;
-      return `<div class="card row tx" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
+      return `<div class="card row tx read-row" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${l.icon || "📄"}</div>
       <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Exclue du patrimoine"
         : bal <= 0 ? "Remboursée ✓"
@@ -3586,7 +3607,7 @@ function renderInsurance() {
         const days = Math.round((due - today) / 86400000);
         if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
       }
-      return `<div class="card row tx" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
+      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
       <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`;
     }).join("")}
@@ -3604,7 +3625,7 @@ function renderInsurance() {
       </div>`;
     })()}
     ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Aucune position de prévoyance enregistrée — rien n'est inventé : ajoutez vos certificats pour voir le total.</span></div>` : ""}
-    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
+    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
       <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Selon certificat — jamais un calcul de l'app</div></div>
       <span class="amount acct-total">${chf(p.value)}</span></div>
       ${p.projection ? `<div class="breakdown" style="margin-top:10px">
@@ -3613,7 +3634,7 @@ function renderInsurance() {
     <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une position de prévoyance</button>
     ${(() => {
       const p3a = ACCOUNTS.find(a => a.id === "p3a");
-      return p3a ? `<div class="card row tx" data-accid="p3a" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">🛡</div>
+      return p3a ? `<div class="card row tx read-row" data-accid="p3a" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">🛡</div>
       <div class="meta"><div class="t">${esc(p3a.name)}</div><div class="s">${esc(p3a.inst || kindLabel("pension"))} — aussi visible dans Comptes</div></div>
       <span class="amount acct-total">${money(balance("p3a"), accountCurrency("p3a"))}</span></div>` : "";
     })()}`;
@@ -3666,7 +3687,7 @@ function renderRecurring() {
     ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune facture mensuelle. Ajoutez par exemple le loyer, les primes ou un abonnement.</span></div>`}
     ${incomes.length ? `<p class="section-title">Revenus mensuels</p>${incomes.map(row).join("")}` : ""}
     <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une facture ou un revenu mensuel</button>
-    ${annualCount ? `<div class="card row tx" data-more="subs" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
+    ${annualCount ? `<div class="card row tx read-row" data-more="subs" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
       <div class="ico" aria-hidden="true">🎬</div>
       <div class="meta"><div class="t">${annualCount} charge${annualCount > 1 ? "s" : ""} annuelle${annualCount > 1 ? "s" : ""}</div>
         <div class="s">Elles ne reviennent pas chaque mois — voir Abonnements</div></div>
@@ -4080,31 +4101,31 @@ function renderSettings() {
   const fx = S.fxRates || {};
   return backBar("Réglages") + `
     <p class="section-title">Mon ménage</p>
-    <div class="card row tx" data-editname role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-editname role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">👋</div>
       <div class="meta"><div class="t">Mon prénom</div>
         <div class="s">${S.profile.name ? esc(S.profile.name) : "Pas encore défini"}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
-    <div class="card row tx" data-editsalary role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-editsalary role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">💰</div>
       <div class="meta"><div class="t">Mon salaire</div>
         <div class="s">${salary ? `Chaque mois le ${salary.day}` : "Pas encore défini — tapez pour le configurer"}</div></div>
       <span class="amount pos">${salary ? "+" + chf(salary.amount) : "—"}</span>
     </div>
-    <div class="card row tx" data-editcountry role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-editcountry role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${COUNTRIES[S.country || "CH"].flag}</div>
       <div class="meta"><div class="t">Mon pays</div>
         <div class="s">${COUNTRIES[S.country || "CH"].name}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
-    <div class="card row tx" data-editbase role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-editbase role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🌐</div>
       <div class="meta"><div class="t">Devise de référence</div>
         <div class="s">${baseCurrency()} — ${CURRENCY_NAMES[baseCurrency()]}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
-    <div class="card row tx" data-editfx role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-editfx role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">💱</div>
       <div class="meta"><div class="t">Taux de change manuels</div>
         <div class="s">${CURRENCIES.filter(c => c !== baseCurrency()).map(c =>
@@ -4146,7 +4167,7 @@ function renderSettings() {
     ${[["🔁", "Chaque mois : validez, bouclez.", "Salaire, factures, versements — un ✓ chacun, et le mois est bouclé."],
        ["📤", "Un envoi n'est pas une dépense.", "L'argent envoyé vers l'épargne ou la bourse reste à vous — il s'additionne."],
        ["📈", "Votre chemin se dessine.", "Cumuls à vie, patrimoine sur 12 mois, projection à 20 ans."]]
-      .map(([icon, title, sub]) => `<div class="card row tx">
+      .map(([icon, title, sub]) => `<div class="card row tx read-row">
       <div class="ico" aria-hidden="true">${icon}</div>
       <div class="meta"><div class="t">${title}</div><div class="s">${sub}</div></div>
     </div>`).join("")}
@@ -4206,7 +4227,7 @@ function renderAssistant() {
   };
   const card = (key, qa) => assistantQ === key ? `
     <div class="card">
-      <div class="tx" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="tx read-row" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
         <div class="meta"><div class="t">${qa.q}</div></div>
         <span style="color:var(--coolgray)">˅</span>
@@ -4216,7 +4237,7 @@ function renderAssistant() {
       <p class="caption" style="margin:0 0 10px">${qa.hyp}</p>
       <button class="btn secondary" ${qa.action[1]} style="width:auto;padding:9px 14px;font-size:13px">${qa.action[0]} ›</button>
     </div>` : `
-    <div class="card row tx" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
+    <div class="card row tx read-row" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
       <div class="meta"><div class="t">${qa.q}</div></div>
       <span style="color:var(--coolgray)">›</span>
@@ -4272,7 +4293,7 @@ function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
   const row = ([id, icon, title, sub]) => {
     const s = typeof sub === "function" ? sub() : sub;
-    return `<div class="card row tx" data-more="${id}" style="cursor:pointer" role="button" tabindex="0">
+    return `<div class="card row tx read-row" data-more="${id}" style="cursor:pointer" role="button" tabindex="0">
       <div class="ico" aria-hidden="true">${icon}</div>
       <div class="meta"><div class="t">${title}</div><div class="s">${s}</div></div>
       <span style="color:var(--coolgray)">›</span>
