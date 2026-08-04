@@ -762,7 +762,11 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   min-height: 44px;
   box-sizing: border-box;
 }
-.sheet.nu-pilot-sheet #fAmount {
+/* Le MONTANT domine la feuille : c'est la donnée que l'on vient saisir.
+   Marqué par un rôle (`data-primary-amount`) et non par un identifiant,
+   pour que chaque feuille de saisie en hérite sans dupliquer la règle. */
+.sheet.nu-pilot-sheet #fAmount,
+.sheet.nu-pilot-sheet [data-primary-amount] {
   font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;

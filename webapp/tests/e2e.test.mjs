@@ -2676,11 +2676,28 @@ await page.waitForTimeout(250);
   check(vide74.ctaCount === 1,
     `Budget vide : un seul point focal lumineux (obtenu ${vide74.ctaCount})`);
   check(vide74.addline, "Budget vide : l'action « Ajouter une ligne budgétaire » est offerte");
-  // Création réelle d'une ligne : la feuille lineForm reste OBSIDIAN (hors périmètre NU2).
+  // Création réelle d'une ligne. Depuis la refonte des feuilles de saisie
+  // (demande du propriétaire du 02.08.2026), `lineForm` porte le style
+  // « Nouveau mouvement » : surface pilote, pied collant, CTA en dégradé.
+  // L'assertion n'est pas affaiblie — elle suit la décision et vérifie
+  // désormais les trois marqueurs plutôt qu'un seul.
   await page.click("#screen [data-addline]");
   await page.waitForSelector("#lineForm", { state: "visible" });
-  const linePiloted74 = await page.$eval("#lineForm", el => el.classList.contains("nu-pilot-sheet"));
-  check(!linePiloted74, "la feuille « ligne budgétaire » n'est PAS pilotée (hors périmètre NU2)");
+  const lineStyle74 = await page.evaluate(() => {
+    const f = document.getElementById("lineForm");
+    const submit = f.querySelector('button[type="submit"]');
+    const actions = f.querySelector(".actions");
+    return {
+      piloted: f.classList.contains("nu-pilot-sheet"),
+      sticky: actions ? getComputedStyle(actions).position : null,
+      cta: submit ? getComputedStyle(submit).backgroundImage : "",
+    };
+  });
+  check(lineStyle74.piloted, "la feuille « ligne budgétaire » porte le style de saisie unifié");
+  check(lineStyle74.sticky === "sticky",
+    `« ligne budgétaire » : « Enregistrer » reste au-dessus du clavier (obtenu ${lineStyle74.sticky})`);
+  check(lineStyle74.cta.includes("192, 0, 164"),
+    `« ligne budgétaire » : action principale en dégradé de marque (obtenu ${lineStyle74.cta})`);
   await page.$eval("#lCat", el => { el.selectedIndex = 0; });
   await page.fill("#lAmount", "400");
   await page.click('#lineForm button[type="submit"]');
@@ -3875,6 +3892,94 @@ await goHome();
     `les listes de mouvements gardent l'ellipse de densité (obtenu ${dense93})`);
 }
 
+// ---------- Test 94 : style de saisie unifié sur les six feuilles ----------
+currentTest = "style de saisie unifié";
+// Demande du propriétaire du 02.08.2026 : les feuilles où il saisit
+// réellement adoptent le style « Nouveau mouvement » — pied collant pour que
+// « Enregistrer » ne passe jamais sous le clavier, action principale en
+// dégradé, montant dominant, pastilles tactiles plutôt que menus déroulants.
+await goHome();
+{
+  const SHEETS = [
+    ["recForm", "openRecSheet(null)", "Facture mensuelle", true],
+    ["lineForm", "openLineSheet(null)", "Ligne budgétaire", false],
+    ["accForm", "openAccSheet(null)", "Compte", false],
+    ["billForm", "openBillSheet(null)", "Facture ponctuelle", false],
+    ["goalForm", "openGoalSheet(null)", "Objectif", false],
+    ["itemForm", "openItemSheet('asset', null)", "Actif ou dette", true],
+  ];
+  // Un mois sans budget : sinon « ligne budgétaire » refuse de s'ouvrir,
+  // toutes les catégories étant déjà prises (comportement voulu).
+  await page.evaluate(() => { cursor = shiftMonth({ y: NOW.y, m: NOW.m }, 7); render(); });
+  await page.waitForTimeout(200);
+  for (const [id, opener, label, hasChips] of SHEETS) {
+    await page.evaluate(f => eval(f), opener);
+    await page.waitForSelector(`#${id}`, { state: "visible" });
+    await page.waitForTimeout(200);
+    const r = await page.evaluate(id => {
+      const f = document.getElementById(id);
+      const vis = e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
+      const submit = f.querySelector('button[type="submit"]');
+      const actions = f.querySelector(".actions");
+      const amount = f.querySelector("[data-primary-amount]");
+      return {
+        piloted: f.classList.contains("nu-pilot-sheet"),
+        sticky: actions ? getComputedStyle(actions).position : null,
+        cta: submit ? getComputedStyle(submit).backgroundImage : "",
+        ctaColor: submit ? getComputedStyle(submit).color : "",
+        amountSize: amount ? parseFloat(getComputedStyle(amount).fontSize) : null,
+        chips: f.querySelectorAll(".type-grid button").length,
+        chipsSmall: [...f.querySelectorAll(".type-grid button")]
+          .filter(e => vis(e) && Math.round(e.getBoundingClientRect().height) < 44).length,
+        // Le contrat s'exprime en pixels CSS : un contrôle en
+        // `min-height: 44px` mesuré 43.99 le respecte. On arrondit donc,
+        // sinon on testerait l'arrondi du moteur de rendu, pas l'app.
+        small: [...f.querySelectorAll("button,select,input,textarea,summary")]
+          .filter(e => vis(e) && Math.round(e.getBoundingClientRect().height) < 44)
+          .map(e => e.id || e.textContent.trim().slice(0, 18)),
+      };
+    }, id);
+    check(r.piloted, `${label} : porte le style de saisie unifié`);
+    check(r.sticky === "sticky",
+      `${label} : « Enregistrer » reste au-dessus du clavier (obtenu ${r.sticky})`);
+    check(r.cta.includes("192, 0, 164") && r.ctaColor === "rgb(255, 255, 255)",
+      `${label} : action principale en dégradé de marque, texte blanc (obtenu ${r.ctaColor})`);
+    check(r.amountSize !== null && r.amountSize >= 20,
+      `${label} : le montant domine la feuille (obtenu ${r.amountSize} px)`);
+    check(r.small.length === 0,
+      `${label} : aucun contrôle sous 44 px (obtenu ${JSON.stringify(r.small)})`);
+    if (hasChips) {
+      check(r.chips >= 2 && r.chipsSmall === 0,
+        `${label} : des pastilles tactiles remplacent le menu déroulant (obtenu ${r.chips}, ${r.chipsSmall} trop petites)`);
+    }
+    await page.click(`#${id} .actions button.secondary`);
+    await page.waitForTimeout(150);
+  }
+  // Les pastilles pilotent le select historique, qui reste la source de vérité.
+  await page.evaluate(() => openRecSheet(null));
+  await page.waitForSelector("#recForm", { state: "visible" });
+  await page.click('#rTypeGrid button[data-rtype="income"]');
+  await page.click('#rEveryGrid button[data-revery="year"]');
+  await page.waitForTimeout(200);
+  const wired94 = await page.evaluate(() => ({
+    type: document.getElementById("rType").value,
+    every: document.getElementById("rEvery").value,
+    typePressed: document.querySelector('#rTypeGrid button[data-rtype="income"]').getAttribute("aria-pressed"),
+    everyPressed: document.querySelector('#rEveryGrid button[data-revery="year"]').getAttribute("aria-pressed"),
+    // Le rythme annuel révèle son mois d'échéance, comme avant.
+    dueShown: document.getElementById("rDueWrap").style.display !== "none",
+  }));
+  check(wired94.type === "income" && wired94.every === "year",
+    `les pastilles pilotent le select historique (obtenu ${wired94.type}/${wired94.every})`);
+  check(wired94.typePressed === "true" && wired94.everyPressed === "true",
+    "l'état sélectionné est annoncé par aria-pressed, jamais par la couleur seule");
+  check(wired94.dueShown,
+    "choisir « une fois par an » révèle toujours le mois d'échéance");
+  await page.click("#rCancel");
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { cursor = { y: NOW.y, m: NOW.m }; render(); });
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3884,4 +3989,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 93 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 94 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié), zéro erreur console ✓");

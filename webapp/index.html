@@ -837,7 +837,7 @@
       </div>
     </form>
 
-    <form class="sheet" id="accForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="accForm" style="display:none">
       <h3 id="accSheetTitle">Nouveau compte</h3>
       <label for="aName">Nom du compte</label>
       <input id="aName" placeholder="Compte courant UBS" autocomplete="off" />
@@ -859,14 +859,14 @@
         <option value="USD">USD — dollar américain</option>
       </select>
       <label for="aOpening">Solde d'ouverture (dans la devise du compte)</label>
-      <input id="aOpening" inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <input id="aOpening" data-primary-amount inputmode="decimal" placeholder="0.00" autocomplete="off" />
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="aCash" style="width:auto" /> Compter dans le cash disponible
       </label>
       <div class="error" id="aError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="aCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="aReconcile"
               style="display:none;margin-top:10px">Mettre le solde à jour…</button>
@@ -890,29 +890,29 @@
       </div>
     </form>
 
-    <form class="sheet" id="lineForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="lineForm" style="display:none">
       <h3 id="lineSheetTitle">Nouvelle ligne budgétaire</h3>
       <label for="lCat">Catégorie</label>
       <select id="lCat"></select>
       <label for="lAmount">Montant planifié (<span class="curlabel">CHF</span> / mois)</label>
-      <input id="lAmount" inputmode="decimal" placeholder="250.00" autocomplete="off" />
+      <input id="lAmount" data-primary-amount inputmode="decimal" placeholder="250.00" autocomplete="off" />
       <div class="error" id="lError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="lCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="lDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Retirer cette ligne</button>
     </form>
 
-    <form class="sheet" id="goalForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="goalForm" style="display:none">
       <h3 id="goalSheetTitle">Nouvel objectif</h3>
       <label for="gName">Nom</label>
       <input id="gName" placeholder="Fonds d'urgence" autocomplete="off" />
       <label for="gEmoji">Emoji (facultatif)</label>
       <input id="gEmoji" placeholder="🎯" maxlength="4" autocomplete="off" />
       <label for="gTarget">Montant cible (<span class="curlabel">CHF</span>)</label>
-      <input id="gTarget" inputmode="decimal" placeholder="10000.00" autocomplete="off" />
+      <input id="gTarget" data-primary-amount inputmode="decimal" placeholder="10000.00" autocomplete="off" />
       <label for="gLinked">Suivre le solde d'un compte</label>
       <select id="gLinked"></select>
       <label for="gCurrent">Déjà atteint (<span class="curlabel">CHF</span>, si non lié)</label>
@@ -925,32 +925,41 @@
         <input type="checkbox" id="gPriority" style="width:auto" /> Prioritaire
       </label>
       <div class="error" id="gError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="gCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="gAchieve" style="display:none;margin-top:10px"></button>
       <button type="button" class="btn secondary" id="gDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cet objectif</button>
     </form>
 
-    <form class="sheet" id="recForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="recForm" style="display:none">
       <h3 id="recSheetTitle">Nouvelle facture mensuelle</h3>
-      <label for="rTitle">Intitulé</label>
-      <input id="rTitle" placeholder="Loyer" autocomplete="off" />
-      <label for="rAmount">Montant (<span class="curlabel">CHF</span>)</label>
-      <input id="rAmount" inputmode="decimal" placeholder="2150.00" autocomplete="off" />
-      <label for="rType">Type</label>
-      <select id="rType">
+      <!-- 1. Type : deux pastilles tactiles plutôt qu'un menu déroulant.
+           Le select historique reste présent et pilote toujours la logique. -->
+      <label id="rTypeLabel">Type</label>
+      <div class="type-grid" id="rTypeGrid" role="group" aria-labelledby="rTypeLabel">
+        <button type="button" data-rtype="expense" aria-pressed="false">💸 Dépense</button>
+        <button type="button" data-rtype="income" aria-pressed="false">💰 Revenu</button>
+      </div>
+      <select id="rType" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="expense">Dépense</option>
         <option value="income">Revenu</option>
       </select>
-      <label for="rCat">Catégorie</label>
-      <select id="rCat"></select>
-      <label for="rAccount">Compte utilisé</label>
-      <select id="rAccount"></select>
-      <label for="rEvery">Rythme</label>
-      <select id="rEvery">
+      <!-- 2. Le montant domine : c'est ce qu'on vient saisir. -->
+      <label for="rAmount">Montant (<span class="curlabel">CHF</span>)</label>
+      <input id="rAmount" data-primary-amount inputmode="decimal" placeholder="2150.00" autocomplete="off" />
+      <!-- 3. Intitulé. -->
+      <label for="rTitle">Intitulé</label>
+      <input id="rTitle" placeholder="Loyer" autocomplete="off" />
+      <!-- 4. Rythme : deux pastilles, même principe que le type. -->
+      <label id="rEveryLabel">Rythme</label>
+      <div class="type-grid" id="rEveryGrid" role="group" aria-labelledby="rEveryLabel">
+        <button type="button" data-revery="month" aria-pressed="false">🔁 Tous les mois</button>
+        <button type="button" data-revery="year" aria-pressed="false">📅 Une fois par an</button>
+      </div>
+      <select id="rEvery" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="month">Tous les mois</option>
         <option value="year">Une fois par an</option>
       </select>
@@ -959,12 +968,20 @@
         <select id="rDueM"></select>
         <p class="caption" id="rDueNote" style="margin:4px 0 0"></p>
       </div>
-      <label for="rDay">Jour du mois (1-28)</label>
-      <input id="rDay" inputmode="numeric" placeholder="1" autocomplete="off" />
+      <!-- 5. Le reste est replié : le parcours fréquent tient en trois gestes. -->
+      <details class="f-more" id="rMore">
+        <summary>Détails (facultatif)</summary>
+        <label for="rCat">Catégorie</label>
+        <select id="rCat"></select>
+        <label for="rAccount">Compte utilisé</label>
+        <select id="rAccount"></select>
+        <label for="rDay">Jour du mois (1-28)</label>
+        <input id="rDay" inputmode="numeric" placeholder="1" autocomplete="off" />
+      </details>
       <div class="error" id="rError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="rCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Régler ce mois</button>
       <button type="button" class="btn secondary" id="rEnd"
@@ -973,10 +990,15 @@
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette récurrence</button>
     </form>
 
-    <form class="sheet" id="itemForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="itemForm" style="display:none">
       <h3 id="itemSheetTitle">Nouvel actif ou dette</h3>
-      <label for="iKind">Nature</label>
-      <select id="iKind">
+      <label id="iKindLabel">Nature</label>
+      <div class="type-grid" id="iKindGrid" role="group" aria-labelledby="iKindLabel">
+        <button type="button" data-ikind="asset" aria-pressed="false">🏛 Actif</button>
+        <button type="button" data-ikind="liability" aria-pressed="false">📄 Dette</button>
+      </div>
+      <p class="caption" style="margin:4px 0 0">Actif : voiture, immobilier, collection… · Dette : leasing, prêt, impôt dû…</p>
+      <select id="iKind" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="asset">Actif (voiture, immobilier, collection…)</option>
         <option value="liability">Dette (leasing, prêt, impôt dû…)</option>
       </select>
@@ -984,7 +1006,7 @@
       <input id="iName" placeholder="Voiture familiale" autocomplete="off" />
       <label for="iAmount">Valeur / montant dû initial (<span class="curlabel">CHF</span>)</label>
       <p class="caption" style="margin:4px 0 0">Pour une dette : le montant de départ — le solde restant se déduit des mensualités payées.</p>
-      <input id="iAmount" inputmode="decimal" placeholder="12000.00" autocomplete="off" />
+      <input id="iAmount" data-primary-amount inputmode="decimal" placeholder="12000.00" autocomplete="off" />
       <div id="iMonthlyWrap">
         <label for="iMonthly">Mensualité (facultatif — dettes)</label>
         <input id="iMonthly" inputmode="decimal" placeholder="0.00" autocomplete="off" />
@@ -994,9 +1016,9 @@
         <input type="checkbox" id="iInclude" style="width:auto" checked /> Compter dans la fortune nette
       </label>
       <div class="error" id="iError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="iCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="iDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer</button>
@@ -1071,12 +1093,12 @@
       </div>
     </form>
 
-    <form class="sheet" id="billForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="billForm" style="display:none">
       <h3 id="billSheetTitle">Nouvelle facture</h3>
       <label for="bName">Nom</label>
       <input id="bName" placeholder="Électricité T3" autocomplete="off" />
       <label for="bAmount">Montant (<span class="curlabel">CHF</span>)</label>
-      <input id="bAmount" inputmode="decimal" placeholder="184.30" autocomplete="off" />
+      <input id="bAmount" data-primary-amount inputmode="decimal" placeholder="184.30" autocomplete="off" />
       <label for="bDue">Échéance</label>
       <input id="bDue" type="date" min="2000-01-01" max="2100-12-31" />
       <label for="bCat">Catégorie</label>
@@ -1087,9 +1109,9 @@
         Marquez la facture non payée pour modifier son montant, son échéance ou son compte.
       </p>
       <div class="error" id="bError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="bCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn" id="bPay" style="display:none;margin-top:10px">Marquer payée (crée le mouvement)</button>
       <button type="button" class="btn secondary" id="bUnpay" style="display:none;margin-top:10px">Marquer non payée</button>
@@ -5298,6 +5320,38 @@ typeGrid.addEventListener("click", (e) => {
   select.dispatchEvent(new Event("change"));
 });
 
+/* Pastilles tactiles génériques : elles pilotent le `select` historique,
+   qui reste la SOURCE DE VÉRITÉ. Aucun handler, aucune validation et aucun
+   test existant ne change — seul le geste devient direct. Le select garde
+   sa valeur, son événement `change` et son accessibilité. */
+function bindChoiceChips(gridId, selectId, attr) {
+  const grid = document.getElementById(gridId);
+  const select = document.getElementById(selectId);
+  if (!grid || !select) return () => {};
+  // Un select DÉSACTIVÉ (nature d'un actif déjà créé, par exemple) rend les
+  // pastilles inertes et le montre : elles ne peuvent pas contourner un
+  // verrou que le formulaire pose volontairement.
+  const sync = () => {
+    grid.querySelectorAll(`button[data-${attr}]`).forEach(b => {
+      b.setAttribute("aria-pressed", String(b.dataset[attr] === select.value));
+      b.disabled = select.disabled;
+    });
+    grid.style.opacity = select.disabled ? "0.5" : "";
+  };
+  grid.addEventListener("click", (e) => {
+    const btn = e.target.closest(`button[data-${attr}]`);
+    if (!btn || select.disabled) return;
+    select.value = btn.dataset[attr];
+    select.dispatchEvent(new Event("change"));
+    sync();
+  });
+  select.addEventListener("change", sync);
+  return sync;
+}
+const syncRecTypeChips = bindChoiceChips("rTypeGrid", "rType", "rtype");
+const syncRecEveryChips = bindChoiceChips("rEveryGrid", "rEvery", "revery");
+const syncItemKindChips = bindChoiceChips("iKindGrid", "iKind", "ikind");
+
 /* L3 — notes en langage simple : devise du compte source, statut dérivé
    de la date (logique de calcul INCHANGÉE), résumé d'un envoi/virement. */
 function updateSheetNotes() {
@@ -6287,6 +6341,9 @@ function openRecSheet(rec) {
   document.getElementById("rEvery").value = rec ? recurringEvery(rec) : "month";
   dueSel.value = String(rec ? (recurringDueMonth(rec) || NOW.m) : NOW.m);
   refreshRecRhythm();
+  // Les pastilles reflètent le select à chaque ouverture.
+  syncRecTypeChips();
+  syncRecEveryChips();
   // Résiliation : proposée seulement sur une récurrence existante.
   const endBtn = document.getElementById("rEnd");
   endBtn.style.display = rec ? "block" : "none";
@@ -6431,6 +6488,7 @@ function openItemSheet(kind, id) {
   const syncMonthlyVisibility = () => { monthlyWrap.style.display = kindSelect.value === "liability" ? "" : "none"; };
   syncMonthlyVisibility();
   kindSelect.onchange = syncMonthlyVisibility;
+  syncItemKindChips();
   document.getElementById("iMonthly").value = item && item.monthly ? item.monthly.toFixed(2) : "";
   if (item) {
     document.getElementById("iName").value = item.name;
