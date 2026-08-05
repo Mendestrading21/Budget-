@@ -4201,6 +4201,76 @@ await goHome();
     `un mouvement comptabilisé n'est jamais re-daté ni retouché (${JSON.stringify(garde96)})`);
 }
 
+// ---------- Test 97 : aucun état rogné, aucun nom coupé ----------
+currentTest = "états et noms jamais rognés";
+// Audit visuel des 16 écrans (05.08.2026). Deux défauts réels :
+//   · le badge « Prévu » était rogné jusqu'à 95 px à 320 px, donc TOTALEMENT
+//     invisible sur 7 lignes sur 10 : impossible de distinguer un mouvement
+//     prévu d'un mouvement comptabilisé, alors que c'est un invariant du
+//     produit ;
+//   · dans les listes de GESTION (comptes, factures, factures mensuelles),
+//     le nom — qui EST l'information — était tronqué à 320 px.
+for (const largeur of [390, 320]) {
+  await page.setViewportSize({ width: largeur, height: 844 });
+  await goHome();
+  await page.click('#tabbar button[aria-label="Historique"]');
+  await page.waitForTimeout(400);
+  const badges = await page.evaluate(() => {
+    const res = [];
+    for (const t of document.querySelectorAll("#moreTxList .meta .t")) {
+      for (const marque of t.querySelectorAll(".badge, .pill")) {
+        const bt = t.getBoundingClientRect(), bm = marque.getBoundingClientRect();
+        res.push({
+          etat: marque.textContent.trim(),
+          // Combien de pixels du badge sortent du cadre visible du titre.
+          coupe: Math.round(bm.right - bt.right),
+          visible: bm.width > 0 && bm.height > 0,
+        });
+      }
+    }
+    return res;
+  });
+  check(badges.length > 0, `${largeur} px : des états sont bien affichés dans l'historique`);
+  const rognes = badges.filter(b => b.coupe > 1 || !b.visible);
+  check(rognes.length === 0,
+    `${largeur} px : aucun état « Prévu » rogné (obtenu ${JSON.stringify(rognes.slice(0, 3))})`);
+
+  // Les listes de gestion : le nom se lit en entier, à toute largeur.
+  for (const [vue, selecteur, quoi] of [
+    ["recurring", "#screen .card.row.tx .meta .t", "factures mensuelles"],
+    ["bills", "#screen .card.row.tx .meta .t", "factures"],
+  ]) {
+    await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
+    await page.waitForTimeout(350);
+    const coupes = await page.evaluate(sel => [...document.querySelectorAll(sel)]
+      .filter(e => e.scrollWidth > e.clientWidth + 1
+        && getComputedStyle(e).textOverflow === "ellipsis")
+      .map(e => e.textContent.trim().slice(0, 30)), selecteur);
+    check(coupes.length === 0,
+      `${largeur} px · ${quoi} : le nom se lit en entier (coupés : ${JSON.stringify(coupes)})`);
+  }
+  await page.evaluate(() => { activeTab = "accounts"; moreView = null; render(); });
+  await page.waitForTimeout(350);
+  const comptesCoupes = await page.evaluate(() => [...document.querySelectorAll("#screen [data-accid] .meta .t")]
+    .filter(e => e.scrollWidth > e.clientWidth + 1)
+    .map(e => e.textContent.trim().slice(0, 30)));
+  check(comptesCoupes.length === 0,
+    `${largeur} px · comptes : le nom du compte n'est jamais rogné (${JSON.stringify(comptesCoupes)})`);
+
+  // Toute pastille d'icône reste CARRÉE et dimensionnée, sur tous les écrans.
+  for (const vue of ["settings", "networth", "insurance", "subs", "assistant"]) {
+    await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
+    await page.waitForTimeout(300);
+    const mauvaises = await page.evaluate(() => [...document.querySelectorAll("#screen .ico")]
+      .map(e => { const b = e.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height) }; })
+      .filter(i => i.w > 0 && (Math.abs(i.w - i.h) > 2 || i.h < 24)));
+    check(mauvaises.length === 0,
+      `${largeur} px · ${vue} : les pastilles d'icône restent carrées (obtenu ${JSON.stringify(mauvaises)})`);
+  }
+}
+await page.setViewportSize({ width: 390, height: 844 });
+await goHome();
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4210,4 +4280,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 96 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 97 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés), zéro erreur console ✓");

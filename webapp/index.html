@@ -360,9 +360,16 @@
   .breakdown { margin-top: 8px; display: grid; gap: 5px; }
   .breakdown div {
     display: flex; justify-content: space-between;
+    /* Sans respiration, un libellé long venait COLLER son montant à 320 px
+       (« … à payer »+« CHF 519.30 » se touchaient, illisible). */
+    gap: 10px; align-items: baseline;
     font-size: 12px; color: var(--coolgray);
   }
-  .breakdown div span:last-child { font-variant-numeric: tabular-nums; color: var(--offwhite); }
+  .breakdown div span:first-child { min-width: 0; }
+  .breakdown div span:last-child {
+    flex: none;
+    font-variant-numeric: tabular-nums; color: var(--offwhite);
+  }
 
   /* ---------- Stat grid ---------- */
   .stat-grid {
@@ -401,6 +408,22 @@
   }
   .fill.warn-fill { background: var(--warning); }
   .fill.over-fill { background: var(--negative); }
+  /* Un badge d'état n'est JAMAIS la partie coupée : c'est lui qui distingue
+     un mouvement prévu d'un mouvement comptabilisé. Mesuré avant correctif :
+     à 320 px le badge « Prévu » était rogné de 95 px, donc totalement
+     invisible sur 7 lignes sur 10. C'est le TITRE qui cède la place. */
+  .tx .meta .t:has(.badge) { display: flex; align-items: baseline; gap: 0; }
+  .tx .meta .t > .t-label {
+    min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tx .meta .t > .badge { flex: none; }
+  /* Une pastille collée au titre se lit mal : même respiration que `.badge`. */
+  .tx .meta .t > .pill { margin-left: 6px; flex: none; }
+  .tx.read-row .meta .t > .t-label,
+  .priority-card .meta .t > .t-label {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
   .badge {
     display: inline-block;
     font-size: 10px; font-weight: 700;
@@ -2343,7 +2366,7 @@ function txRow(t) {
   return `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
     <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
     <div class="meta">
-      <div class="t">${esc(t.title)}${plannedBadge}</div>
+      <div class="t"><span class="t-label">${esc(t.title)}</span>${plannedBadge}</div>
       <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${natureNote}${destName}</div>
     </div>
     <span class="amount ${cls}">${sign}${money(t.amount, accountCurrency(t.acc))}</span>
@@ -2656,7 +2679,7 @@ function renderHome() {
     ${monthBills.length === 0 ? `<div class="card row"><span class="caption">Aucune facture ce mois.</span></div>` : ""}
     ${monthBills.map(b => `<div class="card row tx">
       <div class="ico" aria-hidden="true">🧾</div>
-      <div class="meta" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
+      <div class="meta" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer"><div class="t"><span class="t-label">${esc(b.name)}</span>${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
         <div class="s">Échéance ${billDueLabel(b)}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
       ${billIsCovered(b) ? `<span class="amount ${billIsPaid(b) ? "pos" : "warn"}">${chf(billAmountInBase(b))}</span>`
         : `<button class="btn" data-paybill="${esc(b.id)}" style="width:auto;padding:8px 12px;font-size:12px">Payer ${chf(billAmountInBase(b))}</button>`}
@@ -2679,7 +2702,7 @@ function renderHome() {
     <p class="section-title">À venir ce mois</p>
     ${s.upcomingRecurrings.map(r => `<div class="card row tx">
       <div class="ico" aria-hidden="true">${r.icon}</div>
-      <div class="meta"><div class="t">${esc(r.title)}<span class="badge planned">Prévu</span></div>
+      <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span><span class="badge planned">Prévu</span></div>
         <div class="s">Le ${String(r.day).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y} · paiement régulier mensuel</div></div>
       <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(recurringAmountInBase(r))}</span>
     </div>`).join("")}` : "")}
@@ -3231,7 +3254,7 @@ function renderAccounts() {
           ? `<div class="caption" style="margin-top:2px">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${
               perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
           : "";
-        return `<div class="card row tx" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
+        return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
           <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + f : ""; })()}</div>${contribLine}</div>
@@ -3773,9 +3796,11 @@ function renderRecurring() {
     const rhythm = recurringEvery(r) === "year"
       ? `Chaque année en ${MONTH_NAMES[recurringDueMonth(r) - 1]}, le ${r.day}`
       : `Tous les mois, le ${r.day}`;
-    return `<div class="card row tx" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
+    // `read-row` : dans une liste de GESTION, le nom EST l'information —
+    // il se lit en entier, contrairement à la liste dense des mouvements.
+    return `<div class="card row tx read-row" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
-      <div class="meta"><div class="t">${esc(r.title)}${pill}</div>
+      <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span>${pill}</div>
         <div class="s">${rhythm} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   };
@@ -4120,9 +4145,9 @@ function renderBills() {
     .sort((a, b) => new Date(a.dueY, a.dueM - 1, a.dueD) - new Date(b.dueY, b.dueM - 1, b.dueD));
   const scheduled = bills.filter(billIsScheduled);
   const paid = bills.filter(billIsPaid);
-  const row = (b, cls) => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
+  const row = (b, cls) => `<div class="card row tx read-row" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
     <div class="ico" aria-hidden="true">🧾</div>
-    <div class="meta"><div class="t">${esc(b.name)}${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
+    <div class="meta"><div class="t"><span class="t-label">${esc(b.name)}</span>${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
       <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
     <span class="amount ${cls}">${chf(billAmountInBase(b))}</span>
   </div>`;
@@ -4252,7 +4277,11 @@ function renderSettings() {
       const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
       const overdue = at == null || days > 30;
       const label = at == null ? "jamais" : (days === 0 ? "aujourd'hui" : `il y a ${days} jour${days > 1 ? "s" : ""}`);
-      return `<div class="card row" style="${overdue ? "border-color:var(--line-strong)" : ""}">
+      // `tx` est indispensable : sans lui la pastille d'icône n'hérite
+      // d'aucune taille et l'emoji s'étalait sur toute la largeur de la carte.
+      // `read-row` : cette phrase est un CONSEIL, pas une métadonnée de
+      // liste — elle se lit en entier, comme les autres lignes de Réglages.
+      return `<div class="card row tx read-row" style="${overdue ? "border-color:var(--line-strong)" : ""}">
         <div class="ico" aria-hidden="true">${overdue ? "⚠️" : "✅"}</div>
         <div class="meta"><div class="t">Dernière sauvegarde : ${label}</div>
           <div class="s">${overdue ? "Vos données ne vivent que dans ce navigateur — téléchargez une sauvegarde." : "Pensez-y après chaque grosse saisie."}</div></div>

@@ -17,6 +17,42 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « audit visuel des 16 écrans » (05.08.2026) — VERIFYING
+
+Demande du propriétaire : « continue le peaufinage, aucune erreur visuelle,
+icônes, tout tout. » L'audit est mécanique et reproductible
+(`audit-visuel.mjs`) : les 5 onglets et les 11 sous-écrans sont parcourus à
+390 px et à 320 px, à la recherche de pastilles d'icône non carrées, de
+débordement horizontal, de cibles sous 44 px et de texte réellement tronqué.
+**NU3 reste non commencé.**
+
+### Cinq défauts trouvés et corrigés
+
+1. **Le badge « Prévu » était rogné jusqu'à 95 px** — totalement invisible sur
+   7 lignes sur 10 à 320 px. « Prévu » et « comptabilisé » sont un invariant
+   du produit, et ce badge était le seul signal sur la ligne : deux mouvements
+   de nature opposée devenaient identiques. Le titre cède la place, le badge
+   reste entier.
+2. **L'icône de la carte de sauvegarde s'étalait sur 324 × 19 px** : la carte
+   avait oublié la classe `tx`, donc la pastille n'héritait d'aucune taille.
+   Seul cas du code.
+3. **Les noms étaient tronqués dans les listes de gestion** à 320 px (comptes,
+   factures, factures mensuelles). La règle `read-row` du projet — déjà
+   appliquée aux Actifs et à la Prévoyance — leur est étendue. La liste dense
+   des mouvements garde son ellipse (choix L5 assumé).
+4. **Un libellé long collait son montant** dans les récapitulatifs à 320 px.
+5. **Une pastille d'état touchait son titre** faute de marge.
+
+### Preuves
+
+- **97 parcours e2e** (96 conservés + le n° 97, qui contrôle à 390 px **et** à
+  320 px) · 5 fixtures de parité · design Obsidian, NU1 et NU2 verts · zéro
+  erreur console.
+- **Contrôle négatif effectué** : les trois premiers défauts réintroduits
+  produisent huit échecs nommés.
+- **16/16 écrans propres** aux deux largeurs, 32 captures conservées dans
+  `docs/neon-ultra/audit-visuel/` avec leur README.
+
 ## Lot « rituel du mois » (05.08.2026) — VERIFYING
 
 Demande du propriétaire : « ce mois salaire reçu, bouton facture payée, op ça
