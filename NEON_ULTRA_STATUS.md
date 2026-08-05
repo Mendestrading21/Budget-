@@ -17,6 +17,75 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « l'app parle comme une personne » (05.08.2026) — VERIFYING
+
+Retour du propriétaire sur cinq captures : « j'aime beaucoup, mais ça fait
+trop technique — c'est accessible à tout le monde, un peu comme Duolingo ».
+Il a raison, et `CLAUDE.md` l'exigeait déjà depuis le début : « français
+simple, compréhensible par un enfant de dix ans ». Rien ne le VÉRIFIAIT,
+alors la règle s'est érodée écran par écran.
+
+### Ce qui était écrit, et ce qui est écrit maintenant
+
+| Avant | Maintenant |
+|---|---|
+| Encore dû (arriérés compris) — estimation | Il vous reste à payer, à peu près |
+| Revenus comptabilisés depuis le 1er janvier × 30 % | Vos revenus depuis le 1er janvier, à 30 % |
+| Réserve constituée · Saisie par vous — bouton Ajuster | Déjà mis de côté · Le montant que vous avez indiqué |
+| Estimé = payé + encore dû, toujours | On compte seulement ce que vous avez noté en 2026 |
+| Fortune nette · soldes du jour, dérivés de vos comptes | Tout ce qui est à vous · vos comptes, vos biens et votre prévoyance, moins ce que vous devez |
+| Le chemin — votre patrimoine projeté | Si vous continuez comme ça |
+| avec des hypothèses de rendement annualisées par classe | et d'un rendement moyen |
+| Progression globale (objectifs actifs) | Déjà mis de côté |
+| Atteint (solde du compte lié) · Échéance · Rythme réel | Déjà là (sur le compte) · Pour quand · Vous mettez |
+| Calcul : montant restant ÷ rythme mensuel | On divise ce qu'il reste par ce que vous mettez chaque mois |
+| réel CHF 2'150.00 / planifié CHF 2'150.00 | CHF 2'150.00 dépensé sur CHF 2'150.00 prévu |
+| Protège l'affichage (pas un chiffrement) | Cache vos montants. Ce n'est pas un coffre-fort |
+| Devise de référence | Votre monnaie |
+| chaque ligne porte une empreinte (date + compte + type + signe…) | chaque ligne est reconnue à sa date, son compte, son intitulé et son montant |
+
+Cinquante-neuf textes réécrits, sur les seize écrans — pas seulement les
+cinq des captures. Aucun chiffre, aucune formule, aucune règle métier n'a
+bougé : seuls les mots changent.
+
+### Ce qui n'a PAS été assoupli
+
+Dire simplement n'est pas promettre. Sont conservés mot pour mot :
+« estimation, pas une promesse », « pas un conseil fiscal », « l'app ne
+calcule rien ici », « rien n'est enregistré avant que vous confirmiez ».
+
+Le héros Impôts avait perdu sa réserve dans ma première passe — le chiffre
+se lisait comme un fait. Rendu explicite : « Il vous reste à payer, **à peu
+près** », et le test l'exige désormais **sur le héros lui-même**, plus
+seulement quelque part dans la page.
+
+L'invariant produit « planifié et réel jamais mélangés » est intact : les
+deux montants restent NOMMÉS séparément, en « prévu » et « dépensé ».
+
+### Preuves
+
+- **101 parcours e2e** (100 conservés + le n° 101) · 5 fixtures de parité ·
+  design Obsidian, NU1 et NU2 verts · zéro erreur console.
+- Le n° 101 lit le texte **réellement rendu** (`innerText`, jamais le HTML)
+  sur les seize écrans et refuse trente-cinq mots de comptable. Il mesure
+  aussi la plus longue phrase — mais **uniquement dans la prose** : mesurer
+  l'écran entier recollait les tableaux libellé/montant en un bloc de
+  83 « mots » qui n'est une phrase pour personne. Première version de ma
+  sonde : fausse, corrigée après vérification.
+- **Contrôle négatif exécuté** : réintroduire « Réserve constituée » ou une
+  phrase de 43 mots produit bien deux échecs nommés.
+- Vingt-deux assertions existantes réécrites pour suivre le nouveau
+  vocabulaire — **aucune supprimée, aucune affaiblie** : chacune vérifie la
+  même chose qu'avant.
+- Audit des 16 écrans propre à 320 **et** 390 px : les phrases sont plus
+  longues, rien ne déborde.
+
+### Reste ouvert
+
+Le natif garde l'ancien vocabulaire : ces textes vivent dans les écrans
+SwiftUI, hors périmètre pilote. À traiter en NU4–NU6, sans quoi PWA et iOS
+ne diront plus la même chose.
+
 ## Lot « couleurs et lignes honnêtes » (05.08.2026) — VERIFYING
 
 Demande du propriétaire : « continue de le peaufiner ». Quatre défauts

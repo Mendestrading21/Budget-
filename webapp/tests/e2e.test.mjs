@@ -359,9 +359,9 @@ await page.waitForTimeout(150);
 const svgOK = await page.$eval("#screen", el => !el.innerHTML.includes("NaN"));
 check(svgOK, "NaN dans la courbe de patrimoine");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Versé cette année"), "bilan annuel des versements absent du Patrimoine");
-check(screenHTML.includes("Évolution sur 12 mois"), "courbe 12 mois par classe absente");
-check(screenHTML.includes("Le chemin") && screenHTML.includes("Dans 10 ans"), "projection du patrimoine absente");
+check(screenHTML.includes("Mis de côté en"), "bilan annuel des versements absent du Patrimoine");
+check(screenHTML.includes("Les douze derniers mois"), "courbe 12 mois par classe absente");
+check(screenHTML.includes("Si vous continuez comme ça") && screenHTML.includes("Dans 10 ans"), "projection du patrimoine absente");
 await page.goBack();
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="year"]');
@@ -485,7 +485,7 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Comment ça marche"), "guide « Comment ça marche » absent");
 check(screenHTML.includes("Un envoi n'est pas une dépense"), "règle d'or absente du guide");
 check(screenHTML.includes("Mon pays") && screenHTML.includes("France"), "réglage pays absent ou faux");
-check(screenHTML.includes("Devise de référence") && screenHTML.includes("EUR"), "devise de référence absente");
+check(screenHTML.includes("Votre monnaie") && screenHTML.includes("EUR"), "le réglage de monnaie est absent");
 
 // ---------- Test 15 : profil de projection persisté ----------
 currentTest = "projection persistée";
@@ -805,7 +805,7 @@ await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Mois dernier : coût de la vie"),
   "le Budget doit comparer au coût de la vie du mois précédent (démo chargée)");
-check(screenHTML.includes("Budget consommé"),
+check(/aria-label="Vous avez utilisé [^"]*de votre budget"/.test(screenHTML),
   "l'anneau plan/réel doit être présent et étiqueté pour VoiceOver");
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
@@ -819,7 +819,7 @@ await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="bills"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Charges de l'année"), "la vue annuelle des charges doit exister sur Factures");
+check(screenHTML.includes("Vos factures de"), "la vue annuelle des charges doit exister sur Factures");
 check(screenHTML.includes("par mois"), "la provision mensuelle de lissage doit être proposée");
 
 // ---------- Test 33 : Horizon L6 — scénario et calcul expliqué sur les objectifs ----------
@@ -828,7 +828,7 @@ await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="goals"]');
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Calcul : montant restant ÷ rythme mensuel"),
+check(screenHTML.includes("On divise ce qu'il reste par ce que vous mettez chaque mois"),
   "le calcul des objectifs doit être expliqué en clair");
 check(screenHTML.includes("estimation, pas une promesse"),
   "l'estimation ne doit jamais être présentée comme une certitude");
@@ -1195,10 +1195,10 @@ currentTest = "budget L3";
 await page.click(`#tabbar button[aria-label="Budget"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(/\d+ % du budget utilisé/.test(screenHTML.replace(/&nbsp;/g, " ")), "le pourcentage doit être expliqué : « X % du budget utilisé »");
-check(screenHTML.includes("Budget consommé"), "l'anneau garde son étiquette accessible");
+check(/utilisé \d+ % de votre budget/.test(screenHTML.replace(/&nbsp;/g, " ")), "le pourcentage doit être expliqué : « vous avez utilisé X % de votre budget »");
+check(/aria-label="Vous avez utilisé [^"]*de votre budget"/.test(screenHTML), "l'anneau garde son étiquette accessible");
 check(/Dans le plan|À surveiller|Dépassé/.test(screenHTML), "l'état du plan est écrit en toutes lettres");
-check(screenHTML.includes("planifié") && screenHTML.includes("réel"), "planifié et réel visibles");
+check(screenHTML.includes("prévu") && screenHTML.includes("dépensé"), "prévu et dépensé restent deux chiffres nommés, jamais mélangés");
 const budgetHeroFit = await page.$eval(".hero .hero-amount", el => el.scrollWidth <= el.clientWidth + 1);
 check(budgetHeroFit, "le montant héros Budget ne passe jamais sous l'anneau");
 // État « Dépassé » réel : grosse dépense dans une catégorie budgétée.
@@ -1636,13 +1636,17 @@ await page.waitForTimeout(150);
 await page.click('#screen [data-more="taxes"]');
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("estimation"), "le héros Impôts est étiqueté comme estimation");
-for (const label53 of ["Estimation annuelle", "Déjà payé", "Réserve constituée", "Reste après réserve"]) {
+// Le HÉROS lui-même doit dire que le chiffre est approché : trouver le mot
+// quelque part dans la page ne prouve rien, la note de bas de page le
+// contient toujours.
+check(/Il vous reste à payer, à peu près/.test(screenHTML),
+  "le héros Impôts annonce lui-même qu'il s'agit d'une approximation");
+for (const label53 of ["Pour toute l'année", "Déjà payé", "Déjà mis de côté", "Encore à mettre de côté"]) {
   check(screenHTML.includes(label53), `la stat « ${label53} » est présente et distincte`);
 }
-check(/Réserve (couverte|manquante)/.test(screenHTML), "l'état de la réserve est écrit en pill");
+check(/(Vous avez tout mis de côté|Il manque .* de côté)/.test(screenHTML), "l'état de la réserve est écrit en pill");
 check(screenHTML.includes("pas un conseil fiscal"), "le disclaimer honnête est affiché");
-check(screenHTML.includes("Estimé = payé + encore dû"), "l'identité de réconciliation est écrite");
+check(screenHTML.includes("On compte seulement ce que vous avez noté"), "la source du calcul est écrite en clair");
 const tax53 = await page.evaluate(() => {
   const s = taxSummary(cursor.y);
   return { holds: s.estimated < s.paid || Math.abs(s.estimated - (s.paid + s.due)) < 0.005 };
@@ -1652,7 +1656,7 @@ check(tax53.holds, "identité chiffrée : estimé = payé + encore dû");
 await page.evaluate(() => { window.__l6txs = transactions.splice(0, transactions.length); render(); });
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Estimation incomplète") && screenHTML.includes("rien n'est inventé"),
+check(screenHTML.includes("Il manque des informations") && screenHTML.includes("On n'invente rien"),
   "sans revenu : l'écran DIT que l'estimation est incomplète au lieu d'inventer un chiffre");
 await page.evaluate(() => { transactions.push(...window.__l6txs); delete window.__l6txs; render(); });
 
@@ -1663,13 +1667,13 @@ await page.waitForTimeout(150);
 await page.click('#screen [data-more="networth"]');
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Fortune nette"), "le héros Patrimoine annonce la fortune nette");
-for (const line54 of ["Comptes inclus", "Actifs", "Prévoyance", "Dettes"]) {
+check(screenHTML.includes("Tout ce qui est à vous"), "le héros Patrimoine annonce la fortune nette");
+for (const line54 of ["Sur vos comptes", "Vos biens", "Prévoyance", "Ce que vous devez"]) {
   check(screenHTML.includes(line54), `la décomposition affiche « ${line54} »`);
 }
-check(screenHTML.includes("conversions explicites"), "la fraîcheur et la conversion sont expliquées");
-const compo54 = await page.$eval('[aria-label^="Répartition du patrimoine brut"]', el => el.getAttribute("aria-label"));
-check(compo54.includes("Comptes") && compo54.includes("%"), "la répartition est une composition ACCESSIBLE (aria-label chiffré)");
+check(screenHTML.includes("converties en"), "la fraîcheur et la conversion sont expliquées");
+const compo54 = await page.$eval('[aria-label^="Ce que vous avez, en parts"]', el => el.getAttribute("aria-label"));
+check(compo54.includes("Sur vos comptes") && compo54.includes("%"), "la répartition est une composition ACCESSIBLE (aria-label chiffré)");
 // Dette qui domine : fortune négative affichée honnêtement, jamais masquée.
 await page.evaluate(() => { LIABILITIES.push({ id: "l6debt", name: "Dette test L6", value: 99999999, include: true }); render(); });
 await page.waitForTimeout(200);
@@ -1684,11 +1688,11 @@ await page.waitForTimeout(150);
 await page.click('#screen [data-more="insurance"]');
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("équivalent mensuel") && screenHTML.includes("par an"),
+check(screenHTML.includes("Vos assurances, par mois") && screenHTML.includes("par an"),
   "les primes affichent les DEUX équivalents, réconciliés");
-check(screenHTML.includes("Déjà constitué") && screenHTML.includes("valeurs saisies, jamais calculées"),
+check(screenHTML.includes("Déjà mis de côté") && screenHTML.includes("L'app ne calcule rien ici"),
   "la prévoyance affiche le constitué en annonçant sa source");
-check(screenHTML.includes("Selon certificat"), "chaque position cite sa source (certificat)");
+check(screenHTML.includes("Le montant de votre certificat"), "chaque ligne de prévoyance cite sa source (le certificat)");
 // Échéance annuelle à moins de 45 jours : état ÉCRIT sur le contrat.
 await page.evaluate(() => {
   const soon = new Date(NOW.y, NOW.m - 1, NOW.d + 10);
@@ -1844,7 +1848,7 @@ await page.waitForTimeout(120);
 await page.click('#screen [data-more="settings"]');
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("pas un chiffrement"), "le verrouillage est décrit honnêtement (protection d'affichage)");
+check(screenHTML.includes("Ce n'est pas un coffre-fort"), "le verrouillage est décrit honnêtement (protection d'affichage)");
 check(screenHTML.includes("localStorage") || screenHTML.includes("navigateur"),
   "le stockage local réel est expliqué dans les réglages");
 check(screenHTML.includes("aucun fichier n'est stocké"),
@@ -2707,7 +2711,7 @@ await page.waitForTimeout(250);
     const screenEl = document.getElementById("screen");
     const hero = screenEl.querySelector(".card.hero");
     const pill = screenEl.querySelector(".pill");
-    const ring = screenEl.querySelector('svg[aria-label^="Budget consommé"]');
+    const ring = screenEl.querySelector('svg[aria-label^="Vous avez utilisé"]');
     const track = screenEl.querySelector(".track") || screenEl.querySelector(".bar");
     return {
       lines: screenEl.querySelectorAll("[data-linecat]").length,
@@ -2722,10 +2726,10 @@ await page.waitForTimeout(250);
     `Budget chargé : la ligne créée est bien affichée (obtenu ${charge74.lines})`);
   check(/Dans le plan|À surveiller|Dépassé/.test(charge74.planState),
     `Budget chargé : l'état du plan est ÉCRIT, jamais la couleur seule (obtenu « ${charge74.planState} »)`);
-  check(/Budget consommé/.test(charge74.ringLabel),
+  check(/Vous avez utilisé .* de votre budget/.test(charge74.ringLabel),
     `Budget chargé : l'anneau reste annoncé aux lecteurs d'écran (obtenu « ${charge74.ringLabel} »)`);
-  check(/planifié/i.test(charge74.text) && /réel/i.test(charge74.text),
-    "Budget chargé : planifié et réel restent nommés séparément");
+  check(/prévu/i.test(charge74.text) && /dépensé/i.test(charge74.text),
+    "Budget chargé : prévu et dépensé restent nommés séparément");
   check(charge74.text.includes("400.00") || /400/.test(charge74.text),
     "Budget chargé : le montant planifié saisi (400) est restitué exactement");
   check(charge74.heroBg === "rgb(24, 28, 38)",
@@ -4183,7 +4187,7 @@ await goHome();
   const fin = await lire();
   check(vu > 0 && fin.factures.length === 0 && fin.tout,
     `tout réglé : la liste se vide et l'accueil le dit (restant ${JSON.stringify(fin.factures)}, message ${fin.tout})`);
-  check(/(\d+) sur \1 régl/.test(fin.reglees),
+  check(/(\d+) sur \1 pay/.test(fin.reglees),
     `le compteur atteint le total (obtenu « ${fin.reglees} »)`);
 
   // Garde-fou : « confirmer » ne touche JAMAIS un mouvement déjà comptabilisé.
@@ -4581,6 +4585,100 @@ await goHome();
   await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
 }
 
+
+// ---------- Test 101 : l'app parle comme une personne ----------
+currentTest = "sans jargon";
+// Retour du propriétaire (05.08.2026) sur cinq captures : « ça fait trop
+// technique, c'est accessible à tout le monde, un peu comme Duolingo ».
+// CLAUDE.md l'exigeait déjà — « français simple, compréhensible par un
+// enfant de dix ans » — mais rien ne le VÉRIFIAIT, alors l'écran Impôts
+// affichait « Revenus comptabilisés depuis le 1er janvier × 30 % » et le
+// Patrimoine « soldes du jour, dérivés de vos comptes ».
+//
+// Ce test lit le texte RÉELLEMENT rendu sur les seize écrans et refuse un
+// vocabulaire de comptable. Il ne juge pas le style : il cherche des mots
+// précis, dont chacun a été trouvé à l'écran au moins une fois.
+await goHome();
+{
+  const INTERDITS = [
+    "comptabilisé", "comptabilisés", "comptabilisée", "comptabilisées",
+    "dérivé", "dérivés", "dérivée", "dérivées",
+    "conversions explicites", "réconciliation", "réconcilié",
+    "hypothèse", "hypothèses", "arriérés", "périodicité",
+    "prorata", "idempotent", "estimé = ", "contribution requise",
+    "réserve constituée", "positions selon certificats",
+    "progression globale", "équivalent mensuel", "fortune nette",
+    "budgétées", "taux d'épargne", "devise de référence", "chiffrement",
+    "lissé", "encaissé", "par classe", "empreinte", "colonnes reconnues",
+    "position de prévoyance", "échéance :",
+  ];
+  const ECRANS = [
+    ["Mois", () => { activeTab = "home"; moreView = null; }],
+    ["Historique", () => { activeTab = "movements"; moreView = null; }],
+    ["Budget", () => { activeTab = "budget"; moreView = null; }],
+    ["Comptes", () => { activeTab = "accounts"; moreView = null; }],
+    ["Gérer", () => { activeTab = "more"; moreView = null; }],
+  ];
+  const VUES = ["year", "subs", "bills", "recurring", "goals", "taxes",
+                "networth", "insurance", "settings", "importcsv", "assistant"];
+
+  const lireTexte = () => page.evaluate(() => {
+    // innerText, pas innerHTML : on juge ce que l'utilisateur LIT, jamais un
+    // nom de classe ni un commentaire.
+    const s = document.getElementById("screen");
+    return (s ? s.innerText : "").replace(/\s+/g, " ");
+  });
+
+  const fautes = [];
+  for (const [nom, aller] of ECRANS) {
+    await page.evaluate(`(${aller.toString()})(); render();`);
+    await page.waitForTimeout(250);
+    const txt = (await lireTexte()).toLowerCase();
+    for (const mot of INTERDITS) if (txt.includes(mot)) fautes.push(`${nom} : « ${mot} »`);
+  }
+  for (const vue of VUES) {
+    await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
+    await page.waitForTimeout(250);
+    const txt = (await lireTexte()).toLowerCase();
+    for (const mot of INTERDITS) if (txt.includes(mot)) fautes.push(`${vue} : « ${mot} »`);
+  }
+  check(fautes.length === 0,
+    `aucun mot de comptable à l'écran (trouvés : ${fautes.join(" · ") || "aucun"})`);
+
+  // Une phrase courte se lit ; une phrase de trente mots se saute. On mesure
+  // uniquement la PROSE — les paragraphes et les légendes. Mesurer l'écran
+  // entier ne dit rien : innerText recolle les tableaux libellé/montant en
+  // un bloc de 83 « mots » qui n'est une phrase pour personne.
+  const trop = [];
+  for (const vue of ["goals", "taxes", "networth", "insurance", "settings", "assistant"]) {
+    await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
+    await page.waitForTimeout(250);
+    const plusLongue = await page.evaluate(() => {
+      let max = 0, pire = "";
+      for (const e of document.querySelectorAll("#screen p, #screen .caption")) {
+        if (e.querySelector("p, .caption")) continue;   // jamais deux fois le même texte
+        for (const f of (e.innerText || "").replace(/\s+/g, " ").split(/[.!?]\s+/)) {
+          const n = f.trim().split(/\s+/).filter(Boolean).length;
+          if (n > max) { max = n; pire = f.trim().slice(0, 80); }
+        }
+      }
+      return { max, pire };
+    });
+    if (plusLongue.max > 30) trop.push(`${vue} : ${plusLongue.max} mots — « ${plusLongue.pire}… »`);
+  }
+  check(trop.length === 0,
+    `aucune phrase de plus de 30 mots (${trop.join(" · ") || "aucune"})`);
+
+  // Et l'app garde son honnêteté : dire simplement ne veut pas dire promettre.
+  await page.evaluate(() => { activeTab = "more"; moreView = "networth"; render(); });
+  await page.waitForTimeout(250);
+  const projection = await lireTexte();
+  check(/estimation, pas une promesse/.test(projection),
+    "la projection reste annoncée comme une estimation, pas une promesse");
+
+  await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4590,4 +4688,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 100 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 101 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon), zéro erreur console ✓");

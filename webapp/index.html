@@ -1166,7 +1166,7 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="penForm" style="display:none">
-      <h3 id="penSheetTitle">Nouvelle position de prévoyance</h3>
+      <h3 id="penSheetTitle">Nouvelle prévoyance</h3>
       <label for="penName">Institution / position</label>
       <input id="penName" placeholder="Caisse LPP (2e pilier)" autocomplete="off" />
       <label for="penValue">Valeur actuelle (<span class="curlabel">CHF</span>)</label>
@@ -1277,7 +1277,7 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="baseForm" style="display:none">
-      <h3>Devise de référence</h3>
+      <h3>Votre monnaie</h3>
       <p class="caption" style="margin:0 0 6px">Tous les totaux s'affichent dans cette devise. Les montants déjà saisis (budgets, salaire, factures) sont relus tels quels dans la nouvelle devise — ils ne sont pas convertis. Les taux manuels repartent des valeurs par défaut.</p>
       <label for="bCurrency">Devise</label>
       <select id="bCurrency">
@@ -1307,7 +1307,7 @@
 
     <form class="sheet nu-pilot-sheet" id="fxForm" style="display:none">
       <h3>Taux de change manuels</h3>
-      <p class="caption" style="margin:0 0 6px">Utilisés pour convertir les comptes en autres devises vers votre devise de référence. Vous les mettez à jour vous-même — l'app ne se connecte jamais à internet.</p>
+      <p class="caption" style="margin:0 0 6px">Ils servent à convertir vos comptes en autre monnaie. C'est vous qui les mettez à jour : l'app ne va jamais sur internet.</p>
       <label for="fxA" id="fxALabel">Taux 1</label>
       <input id="fxA" inputmode="decimal" placeholder="0.93" autocomplete="off" />
       <label for="fxB" id="fxBLabel">Taux 2</label>
@@ -1380,11 +1380,11 @@ function L(key) {
 
 const COUNTRIES = {
   CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0.30,
-        taxHint: "Impôts payés séparément — une réserve est recommandée." },
+        taxHint: "Ici, les impôts ne sont pas retenus sur le salaire : mettez-les de côté vous-même." },
   FR: { flag: "🇫🇷", name: "France", currency: "EUR", taxRate: 0,
-        taxHint: "Impôt prélevé à la source — réserve facultative." },
+        taxHint: "Vos impôts sont déjà retenus sur le salaire : mettre de côté reste facultatif." },
   BE: { flag: "🇧🇪", name: "Belgique", currency: "EUR", taxRate: 0,
-        taxHint: "Précompte retenu à la source — réserve facultative." },
+        taxHint: "Vos impôts sont déjà retenus sur le salaire : mettre de côté reste facultatif." },
 };
 const CURRENCY_NAMES = { CHF: "Franc suisse", EUR: "Euro", USD: "Dollar américain" };
 const CURRENCY_SYMBOL = { CHF: "CHF", EUR: "€", USD: "$" };
@@ -2592,7 +2592,7 @@ function renderHome() {
   const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
   const metrics = `<div class="stat-grid">
       <div class="stat"><span class="card-label">Entré</span><span class="amount pos">${chf(s.income)}</span>
-        <span class="caption">Revenus comptabilisés</span></div>
+        <span class="caption">Ce que vous avez vraiment reçu</span></div>
       <div class="stat"><span class="card-label">Dépensé</span><span class="amount neg">${chf(s.living)}</span>
         ${(() => { const pm = shiftMonth({ y, m }, -1); const pl = snapshot(pm.y, pm.m).living;
           return pl > 0 ? `<span class="caption">Mois dernier : ${chf(pl)}</span>` : `<span class="caption">Coût de la vie</span>`; })()}</div>
@@ -2892,7 +2892,7 @@ function renderSimpleHome() {
         <div>
           <p class="card-label" id="homeIncomeTitle">Revenus attendus</p>
           <p class="home-bills-total pos">${chf(expectedIncome)}</p>
-          <span class="caption">pas encore ${incomeDue.length > 1 ? "encaissés" : "encaissé"} ce mois</span>
+          <span class="caption">pas encore ${incomeDue.length > 1 ? "reçus" : "reçu"} ce mois</span>
         </div>
       </div>
       <div class="home-bills-list">
@@ -2973,7 +2973,7 @@ function renderSimpleHome() {
       <div>
         <p class="card-label" id="monthlyBillsTitle">Factures mensuelles</p>
         <p class="home-bills-total">${chf(remaining)}</p>
-        <span class="caption">reste à régler · ${paidCount} sur ${obligations.length} réglée${paidCount === 1 ? "" : "s"}</span>
+        <span class="caption">à payer · ${paidCount} sur ${obligations.length} payée${paidCount === 1 ? "" : "s"}</span>
       </div>
       <button class="btn secondary home-manage" data-more="recurring">Gérer</button>
     </div>
@@ -3138,7 +3138,7 @@ function budgetYearChart() {
   return `<div class="card">
     <div class="by-chart" role="img"
          aria-label="${spoken ? `Part du budget consommée par mois : ${spoken}.` : "Aucun budget cette année."}">${bars}</div>
-    <span class="caption" style="display:block;margin-top:10px">Part du budget de dépenses consommée, mois par mois. Une barre pleine = 100 % ; le trait corail au-dessus signale un dépassement.</span>
+    <span class="caption" style="display:block;margin-top:10px">Ce que vous avez dépensé chaque mois, comparé à votre budget. Une barre pleine, c'est 100 %. Le trait corail au-dessus veut dire que vous avez dépassé.</span>
   </div>`;
 }
 
@@ -3169,7 +3169,7 @@ function renderBudget() {
       return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="bar-row" style="margin:0;min-width:0;flex:1">
           <div class="bar-head"><span>${esc(l.cat)}${badge}</span>
-            <span class="vals">réel ${chf(l.actual)} / planifié ${chf(l.planned)}</span></div>
+            <span class="vals">${chf(l.actual)} dépensé sur ${chf(l.planned)} prévu</span></div>
           <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
           <div class="bar-foot">${l.over ? "Dépassement de " + chf(-l.variance) : "Reste " + chf(l.variance)}</div>
         </div>
@@ -3217,7 +3217,7 @@ function renderBudget() {
   const ring = totalPlanned > 0 ? `
     <div style="flex:none;text-align:center">
     <svg viewBox="0 0 80 80" width="84" height="84" role="img"
-         aria-label="Budget consommé : ${pct(ringShown)} du planifié"
+         aria-label="Vous avez utilisé ${pct(ringShown)} de votre budget"
          style="transform:rotate(-90deg)">
       <circle cx="40" cy="40" r="34" fill="none" stroke="var(--nu-border)" stroke-width="9"></circle>
       <circle cx="40" cy="40" r="34" fill="none" stroke="${ringColor}" stroke-width="9"
@@ -3233,10 +3233,10 @@ function renderBudget() {
     <div class="card hero">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="min-width:0;flex:1;flex-basis:${Math.abs(remaining) >= 1000000 ? "100%" : "200px"}">
-      <p class="card-label">Reste à dépenser (dépenses budgétées)</p>
+      <p class="card-label">Il vous reste à dépenser</p>
       <p class="hero-amount fit-row${remaining < 0 ? " neg" : ""}${Math.abs(remaining) >= 1000000 ? " long" : ""}">${chf(remaining)}</p>
       <div style="margin:6px 0 4px">${planState}</div>
-      <span class="caption">${ringPct} % du budget utilisé — planifié ${chf(totalPlanned)} · réel ${chf(totalActual)}. L'épargne et les impôts sont suivis à part.</span>
+      <span class="caption">Vous avez utilisé ${ringPct} % de votre budget. Prévu ${chf(totalPlanned)}, dépensé ${chf(totalActual)}. L'épargne et les impôts sont comptés à part.</span>
       ${(() => {
         // Comparaison pédagogique : le coût de la vie du mois précédent.
         const pm = shiftMonth(cursor, -1);
@@ -3333,7 +3333,7 @@ function renderAccountDetail(a) {
     <div class="card hero">
       <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
       <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
-      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${f} — dérivé du solde d'ouverture et des mouvements comptabilisés</span>` : ""; })()}
+      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${f} — calculé depuis votre solde de départ et vos mouvements</span>` : ""; })()}
       ${c ? `<span class="caption" style="display:block">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
@@ -3399,7 +3399,7 @@ function renderAccounts() {
     <div class="card hero">
       <p class="card-label">Argent disponible</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Comptes comptés dans le cash${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
+      <span class="caption">Vos comptes du quotidien${hasForeign ? ` — vos comptes en autre monnaie sont convertis en ${baseCurrency()}, au taux que vous avez indiqué` : ""}</span>
     </div>
     ${repartition}
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
@@ -3418,7 +3418,7 @@ function renderAccounts() {
         return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · hors cash disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + f : ""; })()}</div>${contribLine}</div>
+          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · pas dans l'argent disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + f : ""; })()}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
@@ -3456,20 +3456,20 @@ function renderGoals() {
     return `<div class="card" data-goalid="${esc(g.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="bar-head" style="margin-bottom:8px">
         <span style="font-size:15px;font-weight:700">${esc(g.emoji || "🎯")} ${esc(g.name)}
-          ${g.achieved ? '<span class="pill pos">Atteint</span>'
-            : monthsLeft === 0 ? '<span class="pill neg">Échéance passée</span>'
+          ${g.achieved ? '<span class="pill pos">C\'est fait !</span>'
+            : monthsLeft === 0 ? '<span class="pill neg">La date est passée</span>'
             : onTrack ? '<span class="pill pos">En bonne voie</span>'
             : '<span class="pill warn">À accélérer</span>'}${!g.achieved && g.priority ? ' <span class="pill">Prioritaire</span>' : ""}</span>
         <span class="vals">${pct(fr)}</span>
       </div>
       <div class="track" role="progressbar" aria-valuenow="${Math.round(fr * 100)}" aria-valuemin="0" aria-valuemax="100"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
       <div class="breakdown" style="margin-top:10px">
-        <div><span>${g.linked ? "Atteint (solde du compte lié)" : "Atteint"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
-        <div><span>Échéance</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠ passée" : ""}</span></div>
+        <div><span>${g.linked ? "Déjà là (sur le compte)" : "Déjà là"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
+        <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠ passée" : ""}</span></div>
         ${g.achieved ? "" : `
-        <div><span>Rythme réel</span><span class="${onTrack ? "pos" : "warn"}">${chf(paceMonthly)} / mois ${onTrack ? "✓" : "⚠"}</span></div>
-        ${eta ? `<div><span>Atteint vers</span><span style="font-weight:700">${MONTH_NAMES[eta.m - 1]} ${eta.y}</span></div>` : ""}
-        ${extraNeeded > 0.005 ? `<div><span>Pour l'échéance</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}
+        <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}">${chf(paceMonthly)} / mois ${onTrack ? "✓" : "⚠"}</span></div>
+        ${eta ? `<div><span>Prêt vers</span><span style="font-weight:700">${MONTH_NAMES[eta.m - 1]} ${eta.y}</span></div>` : ""}
+        ${extraNeeded > 0.005 ? `<div><span>Pour y être à temps</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}
         ${(() => {
           // Scénario simple (L6) : que change ＋50/mois ? Jamais une promesse.
           if (monthsToGo === null || remaining <= 0) return "";
@@ -3477,23 +3477,23 @@ function renderGoals() {
           const saved = monthsToGo - fasterMonths;
           if (saved < 1) return "";
           const fasterEta = shiftMonth(NOW, fasterMonths);
-          return `<div><span>Scénario ＋ ${chf(50)} / mois</span><span class="pos">${MONTH_NAMES[fasterEta.m - 1]} ${fasterEta.y} · ${saved} mois plus tôt</span></div>`;
+          return `<div><span>Si vous ajoutez ${chf(50)} / mois</span><span class="pos">${MONTH_NAMES[fasterEta.m - 1]} ${fasterEta.y} · ${saved} mois plus tôt</span></div>`;
         })()}`}
       </div>
-      ${g.achieved ? "" : `<span class="caption" style="display:block;margin-top:6px">Calcul : montant restant ÷ rythme mensuel. Le rythme réel vient de vos versements de l'année — une estimation, pas une promesse.</span>`}
+      ${g.achieved ? "" : `<span class="caption" style="display:block;margin-top:6px">On divise ce qu'il reste par ce que vous mettez chaque mois. C'est une estimation, pas une promesse.</span>`}
     </div>`;
   };
   return `<h2 class="screen-title">Objectifs</h2>
     <div class="card hero">
-      <p class="card-label">Progression globale (objectifs actifs)</p>
+      <p class="card-label">Déjà mis de côté</p>
       <p class="hero-amount${totalCurrent >= 1000000 ? " long" : ""}">${chf(totalCurrent)}</p>
-      <span class="caption">sur ${chf(totalTarget)} d'objectifs actifs</span>
+      <span class="caption">sur ${chf(totalTarget)} au total</span>
     </div>
-    ${active.length === 0 && achieved.length === 0 ? `<div class="card"><span class="caption">Aucun objectif. Fonds d'urgence, vacances, 3e pilier… Le bouton ci-dessous en crée un.</span></div>` : ""}
+    ${active.length === 0 && achieved.length === 0 ? `<div class="card"><span class="caption">Pas encore d'objectif. Un fonds d'urgence, des vacances, le 3e pilier… Commencez avec le bouton ci-dessous.</span></div>` : ""}
     ${active.map(goalCard).join("")}
-    ${achieved.length ? `<p class="section-title">Atteints</p>` + achieved.map(goalCard).join("") : ""}
+    ${achieved.length ? `<p class="section-title">C'est fait</p>` + achieved.map(goalCard).join("") : ""}
     <button class="btn secondary" data-addgoal style="margin-top:8px">＋ Ajouter un objectif</button>
-    <p class="caption" style="padding:6px 4px 0">Contribution requise = (cible − atteint) ÷ mois restants. Un objectif lié à un compte suit son solde réel.</p>`;
+    <p class="caption" style="padding:6px 4px 0">Pour connaître le montant par mois, on divise ce qu'il reste par le nombre de mois qui restent. Un objectif relié à un compte suit le vrai solde de ce compte.</p>`;
 }
 
 function backBar(title) {
@@ -3532,34 +3532,34 @@ function renderTaxes() {
   const { rate, estimated, paid, due, reserved, reserveGap, observedMonths, taxBills } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
-      <p class="card-label">Encore dû (arriérés compris) — estimation</p>
+      <p class="card-label">Il vous reste à payer, à peu près</p>
       <p class="hero-amount warn${due >= 1000000 ? " long" : ""}">${chf(due)}</p>
       <div style="margin:6px 0 4px">${reserveGap > 0
-        ? `<span class="pill warn">Réserve manquante : ${chf(reserveGap)}</span>`
-        : '<span class="pill pos">Réserve couverte</span>'}</div>
+        ? `<span class="pill warn">Il manque ${chf(reserveGap)} de côté</span>`
+        : '<span class="pill pos">Vous avez tout mis de côté</span>'}</div>
       <span class="caption" style="display:block;margin-top:4px">${COUNTRIES[S.country || "CH"].flag} ${COUNTRIES[S.country || "CH"].taxHint}</span>
     </div>
     <div class="stat-grid">
-      <div class="stat"><span class="card-label">Estimation annuelle</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Revenus comptabilisés depuis le 1er janvier × ${pct(rate)} (${observedMonths || 0} mois avec revenu)</span></div>
-      <div class="stat"><span class="card-label">Déjà payé en ${cursor.y}</span><span class="amount pos">${chf(paid)}</span>
-        <span class="caption">Mouvements « Paiement d'impôts » enregistrés</span></div>
-      <div class="stat"><span class="card-label">Réserve constituée</span><span class="amount info">${chf(reserved)}</span>
-        <span class="caption">Saisie par vous — bouton Ajuster</span></div>
-      <div class="stat"><span class="card-label">Reste après réserve</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
+      <div class="stat"><span class="card-label">Pour toute l'année</span><span class="amount">${chf(estimated)}</span>
+        <span class="caption">Vos revenus depuis le 1er janvier, à ${pct(rate)}. ${observedMonths || 0} mois avec un revenu.</span></div>
+      <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span>
+        <span class="caption">Les paiements d'impôts que vous avez notés en ${cursor.y}.</span></div>
+      <div class="stat"><span class="card-label">Déjà mis de côté</span><span class="amount info">${chf(reserved)}</span>
+        <span class="caption">Le montant que vous avez indiqué.</span></div>
+      <div class="stat"><span class="card-label">Encore à mettre de côté</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
     </div>
     ${observedMonths === 0 ? `<div class="card" style="border-color:var(--warning)">
-      <p class="card-label warn">Estimation incomplète</p>
-      <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0">Aucun revenu comptabilisé en ${cursor.y} : l'estimation vaut zéro faute de données — rien n'est inventé. Enregistrez vos revenus pour une estimation utile.</p>
+      <p class="card-label warn">Il manque des informations</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0">Aucun revenu noté en ${cursor.y}, donc le calcul donne zéro. On n'invente rien : notez vos revenus et l'estimation deviendra utile.</p>
     </div>` : ""}
-    <p class="section-title">Échéances (vos factures « Impôts »)</p>
+    <p class="section-title">Vos prochains acomptes</p>
     ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🗓</div>
-      <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">Échéance ${billDueLabel(b)}</div></div>
+      <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">À payer ${billDueLabel(b)}</div></div>
       <span class="amount">${chf(billAmountInBase(b))}</span></div>`).join("")
-      : `<div class="card row"><span class="caption">Aucune échéance saisie. Ajoutez vos acomptes comme FACTURES en catégorie « Impôts » (＋ → Facture) : elles apparaîtront ici et dans le mois.</span></div>`}
-    <button class="btn secondary" data-adjusttax style="margin-top:8px">Ajuster le taux et la réserve</button>
-    <p class="caption" style="padding:6px 4px 0">Estimation d'organisation personnelle, pas un conseil fiscal — seuls vos mouvements enregistrés de ${cursor.y} comptent. Estimé = payé + encore dû, toujours.</p>`;
+      : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez un acompte comme une facture, dans la catégorie « Impôts » : il apparaîtra ici et dans votre mois.</span></div>`}
+    <button class="btn secondary" data-adjusttax style="margin-top:8px">Changer le taux ou ma réserve</button>
+    <p class="caption" style="padding:6px 4px 0">C'est une estimation pour vous organiser, pas un conseil fiscal. On compte seulement ce que vous avez noté en ${cursor.y}.</p>`;
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
@@ -3720,7 +3720,7 @@ function renderYearReview() {
     <div class="card hero">
       <p class="card-label">Mis de côté en ${y}</p>
       <p class="hero-amount${now.saved < 0 ? " neg" : " pos"}${Math.abs(now.saved) >= 1000000 ? " long" : ""}">${chf(now.saved)}</p>
-      <span class="caption">${chf(entered)} entré · ${chf(spent)} sorti${now.income > 0 ? ` · taux d'épargne ${pct(now.rate)}` : ""}</span>
+      <span class="caption">${chf(entered)} entré · ${chf(spent)} sorti${now.income > 0 ? ` · vous gardez ${pct(now.rate)}` : ""}</span>
       ${prev.saved !== 0 ? `<span class="caption" style="display:block;margin-top:4px">${y - 1} : ${chf(prev.saved)} mis de côté</span>` : ""}
     </div>
     ${chart}
@@ -3735,7 +3735,7 @@ function renderYearReview() {
     </div>
     ${monthList}
     <div class="card">
-      <p class="card-label">Versé par classe en ${y}</p>
+      <p class="card-label">Mis de côté en ${y}, par type</p>
       <div class="breakdown">
         ${[["🏛 Épargne", contributionsFor(["savings"])],
            ["📈 Bourse / titres", contributionsFor(["brokerage"])],
@@ -3745,7 +3745,7 @@ function renderYearReview() {
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
       </div>
     </div>
-    <p class="caption" style="padding:0 4px">Mouvements enregistrés de l'année, convertis dans votre devise de référence.</p>`;
+    <p class="caption" style="padding:0 4px">Ce que vous avez noté cette année, converti dans votre monnaie.</p>`;
 }
 
 function renderNetWorth() {
@@ -3782,14 +3782,14 @@ function renderNetWorth() {
   const px = toPx(points).split(" ");
   return backBar("Patrimoine") + `
     <div class="card hero">
-      <p class="card-label">Fortune nette</p>
+      <p class="card-label">Tout ce qui est à vous</p>
       <p class="hero-amount${net < 0 ? " neg" : ""}${Math.abs(net) >= 1000000 ? " long" : ""}">${chf(net)}</p>
-      <span class="caption">Soldes du jour, dérivés de vos comptes, actifs, prévoyance et dettes — conversions explicites en ${baseCurrency()}</span>
+      <span class="caption">Vos comptes, vos biens et votre prévoyance, moins ce que vous devez. Les autres monnaies sont converties en ${baseCurrency()}.</span>
       <div class="breakdown" style="margin-top:10px">
-        <div><span>Comptes inclus</span><span>${chf(accountsTotal, true)}</span></div>
-        <div><span>Actifs</span><span>${chf(assetsTotal, true)}</span></div>
+        <div><span>Sur vos comptes</span><span>${chf(accountsTotal, true)}</span></div>
+        <div><span>Vos biens</span><span>${chf(assetsTotal, true)}</span></div>
         <div><span>Prévoyance</span><span>${chf(pensionTotal, true)}</span></div>
-        <div><span>Dettes</span><span class="neg">${chf(-liabTotal, true)}</span></div>
+        <div><span>Ce que vous devez</span><span class="neg">${chf(-liabTotal, true)}</span></div>
       </div>
       ${(() => {
         // Répartition en composition : la part de chaque classe dans le
@@ -3799,14 +3799,14 @@ function renderNetWorth() {
         // segments de la MÊME couleur, et deux pastilles identiques en
         // légende. La barre ne se lisait pas. Rampe non sémantique.
         const parts = [
-          ["Comptes", Math.max(0, accountsTotal), "var(--series-1)"],
-          ["Actifs", Math.max(0, assetsTotal), "var(--series-2)"],
+          ["Sur vos comptes", Math.max(0, accountsTotal), "var(--series-1)"],
+          ["Vos biens", Math.max(0, assetsTotal), "var(--series-2)"],
           ["Prévoyance", Math.max(0, pensionTotal), "var(--series-3)"],
         ].filter(([, v]) => v > 0);
         const grossC = parts.reduce((a, [, v]) => a + toCents(v), 0);
         if (grossC <= 0 || parts.length < 2) return "";
         return `<div style="display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px" role="img"
-             aria-label="Répartition du patrimoine brut : ${parts.map(([l, v]) => `${l} ${pct(toCents(v) / grossC)}`).join(", ")}">
+             aria-label="Ce que vous avez, en parts : ${parts.map(([l, v]) => `${l} ${pct(toCents(v) / grossC)}`).join(", ")}">
           ${parts.map(([, v, c]) => `<span style="width:${(toCents(v) / grossC * 100).toFixed(1)}%;background:${c}"></span>`).join("")}
         </div>
         <div class="caption" style="margin-top:6px">${parts.map(([l, v, c]) => `<span style="color:${c};font-weight:700">●</span> ${l} ${pct(toCents(v) / grossC)}`).join(" · ")}</div>`;
@@ -3821,15 +3821,15 @@ function renderNetWorth() {
       if (!rows.length) return "";
       const yearSum = rows.reduce((a, [, agg]) => a + agg.year, 0);
       return `<div class="card">
-        <p class="card-label">Versé cette année (${NOW.y}) — ${chf(yearSum)}</p>
+        <p class="card-label">Mis de côté en ${NOW.y} — ${chf(yearSum)}</p>
         <div class="breakdown">
           ${rows.map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)} · total ${chf(agg.total)}</span></div>`).join("")}
         </div>
-        <p class="caption" style="margin:8px 0 0">Chaque versement s'additionne.</p>
+        <p class="caption" style="margin:8px 0 0">Chaque versement compte. Continuez comme ça.</p>
       </div>`;
     })()}
     <div class="card">
-      <p class="card-label">Le chemin — votre patrimoine projeté</p>
+      <p class="card-label">Si vous continuez comme ça</p>
       <div style="display:flex;gap:6px;margin:8px 0 12px">
         ${Object.entries(PROJECTION_PROFILES).map(([id, p]) => `
         <button type="button" class="btn secondary" data-projprofile="${id}"
@@ -3838,10 +3838,10 @@ function renderNetWorth() {
       <div class="breakdown">
         ${[5, 10, 20].map(yrs => `<div><span>Dans ${yrs} ans</span><span style="font-weight:700">${chf(projectWealth(yrs))}</span></div>`).join("")}
       </div>
-      <p class="caption" style="margin:8px 0 0">Au rythme de vos versements de ${NOW.y}, avec des hypothèses de rendement annualisées par classe — une simulation, jamais une promesse.</p>
+      <p class="caption" style="margin:8px 0 0">On part de ce que vous avez mis de côté en ${NOW.y} et d'un rendement moyen. C'est une estimation, pas une promesse.</p>
     </div>
     <div class="card">
-      <p class="card-label">Évolution sur 12 mois — soldes réels de fin de mois, par classe</p>
+      <p class="card-label">Les douze derniers mois</p>
       ${chartScrubHTML("nw", {
         pts: px, sel: nwChartSel, height: 110,
         texts: MONTHS12.map((mm, i) => `${MONTH_NAMES[mm.m - 1]} ${mm.y} : ${chf(points[i])} de fortune nette`),
@@ -3856,25 +3856,25 @@ function renderNetWorth() {
         <polyline points="${px.join(" ")}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>`,
       })}
       <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">
-        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Fortune nette ${chf(net)}</span>
+        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Tout ce qui est à vous ${chf(net)}</span>
         ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><svg width="18" height="3" aria-hidden="true" style="flex:none"><line x1="0" y1="1.5" x2="18" y2="1.5" stroke="${l.color}" stroke-width="3" stroke-dasharray="${l.dash}"/></svg>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
       </div>
     </div>
-    <p class="section-title">Actifs hors comptes</p>
-    ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun actif hors comptes.</span></div>` : ""}
+    <p class="section-title">Vos biens</p>
+    ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun bien ajouté pour l'instant.</span></div>` : ""}
     ${ASSETS.map(a => `<div class="card row tx read-row" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${a.icon || "🏷"}</div>
-      <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Estimation personnelle${a.include === false ? " · exclu du patrimoine" : ""}</div></div>
+      <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation${a.include === false ? " · pas compté ici" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
-    <p class="section-title">Dettes</p>
-    ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Aucune dette enregistrée.</span></div>` : ""}
+    <p class="section-title">Ce que vous devez</p>
+    ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Vous ne devez rien. Parfait.</span></div>` : ""}
     ${LIABILITIES.map(l => {
       const bal = liabilityBalance(l);
       const monthsLeft = (l.monthly > 0 && bal > 0) ? Math.ceil(bal / l.monthly) : null;
       const end = monthsLeft !== null ? shiftMonth(NOW, monthsLeft) : null;
       return `<div class="card row tx read-row" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${l.icon || "📄"}</div>
-      <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Exclue du patrimoine"
+      <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Pas comptée ici"
         : bal <= 0 ? "Remboursée ✓"
         : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"}</div></div>
       <span class="amount ${l.include === false ? "" : bal <= 0 ? "pos" : "neg"}">${bal <= 0 ? chf(0) : "−" + chf(bal)}</span></div>`;
@@ -3888,9 +3888,9 @@ function renderInsurance() {
   const monthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
   return backBar("Assurances & prévoyance") + `
     <div class="card hero">
-      <p class="card-label">Primes — équivalent mensuel</p>
+      <p class="card-label">Vos assurances, par mois</p>
       <p class="hero-amount">${chf(monthlyTotal)}</p>
-      <span class="caption">Soit ${chf(monthlyTotal * 12)} par an — toutes les primes ramenées au mois, quelle que soit leur périodicité réelle</span>
+      <span class="caption">Soit ${chf(monthlyTotal * 12)} par an. On ramène tout au mois, que vous payiez chaque mois, chaque trimestre ou chaque année.</span>
     </div>
     ${INSURANCES.length === 0 ? `<div class="card row"><span class="caption">Aucun contrat d'assurance enregistré.</span></div>` : ""}
     ${INSURANCES.map(i => {
@@ -3915,19 +3915,19 @@ function renderInsurance() {
       const acc = contributionsFor(["pension", "lifeinsurance"]);
       if (positionsTotal <= 0 && acc.total <= 0) return "";
       return `<div class="card">
-        <p class="card-label">Déjà constitué</p>
+        <p class="card-label">Déjà mis de côté</p>
         <p class="amount acct-total" style="margin:2px 0">${chf(positionsTotal + (ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a2, x) => a2 + toCHF(balance(x.id), x.currency), 0)))}</p>
-        <span class="caption">Positions selon certificats + comptes de prévoyance${acc.year > 0 ? ` · versé cette année : ${chf(acc.year)}` : ""} — valeurs saisies, jamais calculées par l'app</span>
+        <span class="caption">Ce que vous avez noté depuis vos certificats, plus vos comptes de prévoyance${acc.year > 0 ? ` · mis de côté cette année : ${chf(acc.year)}` : ""}. L'app ne calcule rien ici.</span>
       </div>`;
     })()}
-    ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Aucune position de prévoyance enregistrée — rien n'est inventé : ajoutez vos certificats pour voir le total.</span></div>` : ""}
+    ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez ce qui est écrit sur vos certificats pour voir votre total.</span></div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
-      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Selon certificat — jamais un calcul de l'app</div></div>
+      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Le montant de votre certificat</div></div>
       <span class="amount acct-total">${chf(p.value)}</span></div>
       ${p.projection ? `<div class="breakdown" style="margin-top:10px">
-        <div><span>Projection à 65 ans (certificat)</span><span>${chf(p.projection)}</span></div>
+        <div><span>Prévu à 65 ans, selon le certificat</span><span>${chf(p.projection)}</span></div>
       </div>` : ""}</div>`).join("")}
-    <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une position de prévoyance</button>
+    <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une prévoyance</button>
     ${(() => {
       const p3a = ACCOUNTS.find(a => a.id === "p3a");
       return p3a ? `<div class="card row tx read-row" data-accid="p3a" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">🛡</div>
@@ -3990,7 +3990,7 @@ function renderRecurring() {
       <div class="meta"><div class="t">${annualCount} charge${annualCount > 1 ? "s" : ""} annuelle${annualCount > 1 ? "s" : ""}</div>
         <div class="s">Elles ne reviennent pas chaque mois — voir Abonnements</div></div>
       <span style="color:var(--coolgray)">›</span></div>` : ""}
-    <p class="caption" style="padding:6px 4px 0">Une échéance reste à payer tant qu'aucun mouvement lié ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
+    <p class="caption" style="padding:6px 4px 0">Une facture reste à payer tant qu'aucune dépense ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
 
 /* ---------- Abonnements ----------
@@ -4064,7 +4064,7 @@ function renderSubs() {
     </div>`;
 
   return backBar("Abonnements") + hero + `
-    ${active.length ? `<p class="section-title">Actifs — du plus coûteux au moins coûteux</p>
+    ${active.length ? `<p class="section-title">Vos abonnements, du plus cher au moins cher</p>
       ${active.sort(byAmount).map(row).join("")}` : ""}
     ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un abonnement</button>` : ""}
     ${ended.length ? `<p class="section-title">Résiliés</p>
@@ -4072,7 +4072,7 @@ function renderSubs() {
       ${ended.sort(byAmount).map(row).join("")}` : ""}
     <div class="card" style="margin-top:12px">
       <p class="card-label">Comment c'est compté</p>
-      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> n'est déduit que le mois où il tombe — jamais lissé sur douze mois. Votre argent disponible reflète donc vos vrais prélèvements.</p>
+      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> est retiré le mois où il tombe, pas un peu chaque mois. Votre argent disponible suit donc vos vrais prélèvements.</p>
       <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> disparaît des prévisions dès le mois indiqué, mais reste visible ici.</p>
     </div>`;
 }
@@ -4228,7 +4228,7 @@ function renderImport() {
   return backBar("Import CSV & documents") + `
     <div class="card">
       <p class="card-label">Importer des mouvements</p>
-      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un collage. Colonnes reconnues : date, montant (négatif = dépense), intitulé, catégorie. L'analyse s'affiche d'abord — rien n'est écrit avant votre confirmation.</p>
+      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un simple copier-coller. On reconnaît les colonnes date, montant, intitulé et catégorie ; un montant négatif est une dépense. Vous voyez d'abord le résultat : rien n'est enregistré avant que vous confirmiez.</p>
       <button type="button" class="btn secondary" data-importpick>Choisir un fichier CSV…</button>
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
@@ -4306,7 +4306,7 @@ function renderImport() {
       <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
-    <p class="caption" style="padding:6px 4px 0">Ré-importer le même fichier sur le même compte ne crée jamais de doublon : chaque ligne porte une empreinte (date + compte + type + signe + montant + intitulé).</p>`;
+    <p class="caption" style="padding:6px 4px 0">Réimporter le même fichier sur le même compte ne crée jamais de doublon : chaque ligne est reconnue à sa date, son compte, son intitulé et son montant.</p>`;
 }
 
 /* ---------- Factures (W5) ---------- */
@@ -4339,14 +4339,14 @@ function renderBills() {
   const yearTotal = round2(yearBillsTotal + insuranceYear);
   const annualCard = yearTotal > 0 ? `
     <div class="card">
-      <p class="card-label">Charges de l'année ${NOW.y}</p>
+      <p class="card-label">Vos factures de ${NOW.y}</p>
       <div class="breakdown" style="margin-top:8px">
         <div><span>Factures ${NOW.y} (payées + à payer)</span><span>${chf(yearBillsTotal)}</span></div>
         ${yearBillsOpen > 0 ? `<div><span>… dont encore à payer</span><span>${chf(yearBillsOpen)}</span></div>` : ""}
         ${insuranceYear > 0 ? `<div><span>Primes d'assurance (équivalent annuel)</span><span>${chf(insuranceYear)}</span></div>` : ""}
         <div><span><strong>Pour lisser ces charges</strong></span><span><strong>≈ ${chf(round2(yearTotal / 12))} par mois</strong></span></div>
       </div>
-      <span class="caption" style="display:block;margin-top:6px">Mettre ce montant de côté chaque mois évite les surprises aux échéances. Les impôts ont leur propre réserve (écran Impôts).</span>
+      <span class="caption" style="display:block;margin-top:6px">Mettez ce montant de côté chaque mois et vous n'aurez pas de mauvaise surprise. Les impôts ont leur propre réserve, dans l'écran Impôts.</span>
     </div>` : "";
   // L6 : héros « Encore à payer » — sommes d'AFFICHAGE de valeurs
   // existantes (les factures ouvertes pèsent déjà sur le disponible,
@@ -4362,7 +4362,7 @@ function renderBills() {
       <div style="margin:6px 0 4px">${overdue.length
         ? `<span class="pill neg">${overdue.length > 1 ? overdue.length + " factures en retard" : "1 facture en retard"}</span>`
         : (bills.length ? '<span class="pill pos">Rien en retard</span>' : "")}</div>
-      <span class="caption">${nextDue ? `Prochaine échéance : ${esc(nextDue.name)} le ${billDueLabel(nextDue)}` : "Aucune échéance à venir"}${paidThisMonth > 0 ? ` · payé ce mois : ${chf(paidThisMonth)}` : ""}</span>
+      <span class="caption">${nextDue ? `À payer bientôt : ${esc(nextDue.name)} le ${billDueLabel(nextDue)}` : "Rien à payer pour l'instant"}${paidThisMonth > 0 ? ` · payé ce mois : ${chf(paidThisMonth)}` : ""}</span>
     </div>`;
   const billsEmpty = bills.length === 0 ? `<div class="card empty-state">
       <span class="glyph" aria-hidden="true">🧾</span>
@@ -4377,14 +4377,14 @@ function renderBills() {
     ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
     ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture ponctuelle</button>` : ""}
-    <p class="caption" style="padding:6px 4px 0">« Marquer payée » crée le mouvement de dépense correspondant — la facture et le mouvement restent liés. Les factures ouvertes du mois pèsent déjà sur le « Vraiment disponible ».</p>`;
+    <p class="caption" style="padding:6px 4px 0">Quand vous marquez une facture payée, la dépense est créée pour vous et les deux restent liées. Les factures pas encore payées sont déjà retirées de votre argent vraiment disponible.</p>`;
 }
 
 /* ---------- Réglages (Phase 12) ---------- */
 const PRIVACY = [
   "Vos données restent dans CE navigateur (localStorage de l'appareil). Cette version web n'a pas de serveur et n'établit aucune connexion réseau.",
   "Aucune connexion bancaire : vous saisissez ou importez vos données vous-même.",
-  "Le verrouillage par code protège l'AFFICHAGE sur cet appareil — ce n'est pas un chiffrement. L'app iOS native, elle, s'appuie sur Face ID et le chiffrement iOS.",
+  "Le code cache vos montants sur cet appareil. Ce n'est pas un coffre-fort. L'app iPhone, elle, utilise Face ID et la protection d'iOS.",
   "Les documents sont des métadonnées uniquement (nom et type) : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
   "« Effacer les opérations » efface vos mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
@@ -4395,7 +4395,7 @@ const METHODOLOGY = [
   "Vraiment disponible = argent disponible inclus + revenus attendus (prévus et réguliers) − charges engagées (prévues et régulières) − réserve d'impôts manquante.",
   "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
   "Les virements internes ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
-  "Argent prévu pour les impôts = revenus × votre taux configuré. Estimé = payé + encore dû, toujours.",
+  "On prend vos revenus et on applique le taux que vous avez choisi. Le total, c'est ce que vous avez déjà payé plus ce qu'il reste.",
   "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas enregistré.",
 ];
 function salaryRecurring() {
@@ -4428,7 +4428,7 @@ function renderSettings() {
     </div>
     <div class="card row tx read-row" data-editbase role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">🌐</div>
-      <div class="meta"><div class="t">Devise de référence</div>
+      <div class="meta"><div class="t">Votre monnaie</div>
         <div class="s">${baseCurrency()} — ${CURRENCY_NAMES[baseCurrency()]}</div></div>
       <span style="color:var(--coolgray)">›</span>
     </div>
@@ -4442,7 +4442,7 @@ function renderSettings() {
     <p class="section-title">Sécurité</p>
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:14px;font-weight:600">Verrouillage par code</div>
-        <div class="caption">Protège l'affichage sur cet appareil (pas un chiffrement). Activer comme désactiver exige le code.</div></div>
+        <div class="caption">Cache vos montants sur ce téléphone. Ce n'est pas un coffre-fort : le code est demandé pour activer comme pour désactiver.</div></div>
       <button class="btn secondary" data-togglelock style="width:auto;padding:8px 14px;font-size:13px">
         ${S.faceIDEnabled ? "Activé ✓" : "Désactivé"}</button>
     </div>
@@ -4554,7 +4554,7 @@ function renderAssistant() {
       <span style="color:var(--coolgray)">›</span>
     </div>`;
   return backBar("Assistant") + `
-    <p class="caption" style="margin:0 0 10px">Des réponses calculées depuis VOS données, sur cet appareil — avec la raison et les hypothèses, jamais une promesse.</p>
+    <p class="caption" style="margin:0 0 10px">Des réponses calculées depuis vos données, sur votre téléphone. On vous explique toujours d'où vient le chiffre.</p>
     ${Object.entries(QA).map(([k, qa]) => card(k, qa)).join("")}`;
 }
 
@@ -4576,11 +4576,11 @@ const MORE_GROUPS = [
     }],
   ]],
   ["À prévoir", [
-    ["taxes", "📮", "Impôts", "Estimé = payé + encore dû"],
+    ["taxes", "📮", "Impôts", "Ce qu'il reste à payer, et ce que vous avez mis de côté"],
     ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ]],
   ["À construire", [
-    ["networth", "🏛", "Patrimoine", "Fortune nette et évolution"],
+    ["networth", "🏛", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
     ["year", "📅", "Année", () => {
       const done = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
@@ -4656,7 +4656,7 @@ function renderMoreTxList() {
         <button type="button" class="btn secondary" data-txpage="next"${moreTxPage >= pageCount - 1 ? " disabled" : ""} aria-label="Page suivante">›</button>
         <button type="button" class="btn secondary" data-txpage="last"${moreTxPage >= pageCount - 1 ? " disabled" : ""} aria-label="Dernière page">»</button>
       </div>` : "";
-    return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · net ${chf(total, true)}${pageCount > 1 ? ` · page ${moreTxPage + 1}/${pageCount}` : ""}</p>`
+    return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · au total ${chf(total, true)}${pageCount > 1 ? ` · page ${moreTxPage + 1}/${pageCount}` : ""}</p>`
       + byDay.map(g => `<p class="day-header">${String(g.d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}</p>`
         + g.items.map(txRow).join("")).join("")
       + pager;
@@ -6974,7 +6974,7 @@ let editingPenId = null;
 function openPenSheet(position) {
   editingPenId = position ? position.id : null;
   document.getElementById("penForm").reset();
-  document.getElementById("penSheetTitle").textContent = position ? "Modifier la position" : "Nouvelle position de prévoyance";
+  document.getElementById("penSheetTitle").textContent = position ? "Modifier la prévoyance" : "Nouvelle prévoyance";
   document.getElementById("penDelete").style.display = position ? "block" : "none";
   if (position) {
     document.getElementById("penName").value = position.name;
@@ -7003,7 +7003,7 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   saveState(); backdrop.classList.remove("open"); render();
 });
 document.getElementById("penDelete").addEventListener("click", () => {
-  if (!editingPenId || !confirm("Supprimer cette position de prévoyance ?")) return;
+  if (!editingPenId || !confirm("Supprimer cette prévoyance ?")) return;
   pushUndo();
   const index = PENSIONS.findIndex(p => p.id === editingPenId);
   if (index >= 0) PENSIONS.splice(index, 1);
@@ -7283,7 +7283,7 @@ document.getElementById("baseForm").addEventListener("submit", (e) => {
   if (!CURRENCIES.includes(chosen)) return;
   if (chosen !== baseCurrency()) {
     if (transactions.length > 0) {
-      toast("La devise de référence est verrouillée dès le premier mouvement — créez un nouveau profil pour en changer");
+      toast("Votre monnaie ne change plus dès le premier mouvement enregistré. Créez un nouveau profil pour en changer.");
       return;
     }
     S.baseCurrency = chosen;
