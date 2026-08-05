@@ -752,9 +752,16 @@
     background: var(--brand-tint);
     color: var(--brand-bright);
   }
+  /* Select masqué qui DOUBLE des pastilles tactiles : il reste la source de
+     vérité de la valeur, mais ne doit peser AUCUN pixel dans la mise en page.
+     Les dimensions sont forcées car `.sheet select` est plus spécifique et
+     lui rendait sa largeur pleine : le select débordait alors de 20 px hors
+     de la feuille, créant un défilement horizontal réel à 320 px. */
   .sr-select {
     position: absolute !important;
-    width: 1px; height: 1px;
+    width: 1px !important; height: 1px !important;
+    min-height: 0 !important;
+    margin: 0 !important; padding: 0 !important; border: 0 !important;
     overflow: hidden;
     clip: rect(0 0 0 0);
     white-space: nowrap;
@@ -874,19 +881,21 @@
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce compte</button>
     </form>
 
-    <form class="sheet" id="reconForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="reconForm" style="display:none">
       <h3>Mettre le solde à jour</h3>
       <p class="caption" style="margin:0 0 6px">Indiquez le solde RÉEL constaté aujourd'hui (relevé bancaire). L'app crée un mouvement d'ajustement daté d'aujourd'hui — l'historique n'est jamais réécrit, et l'ajustement ne compte ni comme revenu ni comme dépense.</p>
       <label for="reconAmount">Solde réel constaté</label>
-      <input id="reconAmount" inputmode="decimal" placeholder="4200.00" autocomplete="off" />
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;cursor:pointer">
+      <input id="reconAmount" data-primary-amount inputmode="decimal" placeholder="4200.00" autocomplete="off" />
+      <!-- Même traitement que les autres cases à cocher : une phrase, pas une
+           étiquette de champ en capitales. -->
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:400;cursor:pointer;text-transform:none;font-size:13px;letter-spacing:0">
         <input type="checkbox" id="reconNegative" style="width:auto;margin:0" />
         <span>Solde négatif (compte à découvert / dette)</span>
       </label>
       <div class="error" id="reconError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="reconCancel">Annuler</button>
-        <button type="submit" class="btn">Mettre le solde à jour</button>
+        <button type="submit" class="btn nu-cta">Mettre le solde à jour</button>
       </div>
     </form>
 
@@ -1024,14 +1033,14 @@
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer</button>
     </form>
 
-    <form class="sheet" id="insForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="insForm" style="display:none">
       <h3 id="insSheetTitle">Nouvelle assurance</h3>
       <label for="insName">Nom du contrat</label>
       <input id="insName" placeholder="Caisse maladie (LAMal)" autocomplete="off" />
       <label for="insInsurer">Assureur (facultatif)</label>
       <input id="insInsurer" placeholder="Assureur Exemple" autocomplete="off" />
       <label for="insPremium">Prime (<span class="curlabel">CHF</span>)</label>
-      <input id="insPremium" inputmode="decimal" placeholder="745.60" autocomplete="off" />
+      <input id="insPremium" data-primary-amount inputmode="decimal" placeholder="745.60" autocomplete="off" />
       <label for="insUnit">Périodicité</label>
       <select id="insUnit">
         <option value="month">Par mois</option>
@@ -1041,45 +1050,45 @@
       <input id="insDue" type="date" aria-describedby="insDueHint" />
       <p class="caption" id="insDueHint" style="margin:4px 0 0">Jour et mois du renouvellement — pour penser à comparer ou résilier à temps.</p>
       <div class="error" id="insError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="insCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="insDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer ce contrat</button>
     </form>
 
-    <form class="sheet" id="penForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="penForm" style="display:none">
       <h3 id="penSheetTitle">Nouvelle position de prévoyance</h3>
       <label for="penName">Institution / position</label>
       <input id="penName" placeholder="Caisse LPP (2e pilier)" autocomplete="off" />
       <label for="penValue">Valeur actuelle (<span class="curlabel">CHF</span>)</label>
-      <input id="penValue" inputmode="decimal" placeholder="85000.00" autocomplete="off" />
+      <input id="penValue" data-primary-amount inputmode="decimal" placeholder="85000.00" autocomplete="off" />
       <label for="penProjection">Projection à la retraite (<span class="curlabel">CHF</span>, selon certificat, facultatif)</label>
       <input id="penProjection" inputmode="decimal" placeholder="420000.00" autocomplete="off" />
       <div class="error" id="penError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="penCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="penDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette position</button>
     </form>
 
-    <form class="sheet" id="taxForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="taxForm" style="display:none">
       <h3>Profil d'impôts</h3>
       <label for="txRate">Argent prévu pour les impôts (% des revenus)</label>
       <input id="txRate" inputmode="decimal" placeholder="30" autocomplete="off" />
       <label for="txReserve">Réserve déjà constituée (<span class="curlabel">CHF</span>)</label>
-      <input id="txReserve" inputmode="decimal" placeholder="2400.00" autocomplete="off" />
+      <input id="txReserve" data-primary-amount inputmode="decimal" placeholder="2400.00" autocomplete="off" />
       <div class="error" id="txError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="txCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="codeForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="codeForm" style="display:none">
       <h3 id="codeSheetTitle">Définir un code</h3>
       <p class="caption" id="codeCaption" style="margin:0 0 6px"></p>
       <label for="code1">Code (4 à 6 chiffres)</label>
@@ -1087,9 +1096,9 @@
       <label for="code2" id="code2Label">Confirmer le code</label>
       <input id="code2" type="password" inputmode="numeric" maxlength="6" autocomplete="off" />
       <div class="error" id="codeError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="codeCancel">Annuler</button>
-        <button type="submit" class="btn">Valider</button>
+        <button type="submit" class="btn nu-cta">Valider</button>
       </div>
     </form>
 
@@ -1134,18 +1143,18 @@
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
     </div>
 
-    <form class="sheet" id="nameForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="nameForm" style="display:none">
       <h3>Mon prénom</h3>
       <p class="caption" style="margin:0 0 6px">Affiché sur l'écran d'accueil — rien d'autre, et il reste sur cet appareil.</p>
       <label for="nName">Prénom</label>
       <input id="nName" autocomplete="given-name" />
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="nCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="countryForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="countryForm" style="display:none">
       <h3>Mon pays</h3>
       <p class="caption" style="margin:0 0 6px">Ajuste le vocabulaire et les valeurs par défaut — vos données ne bougent pas.</p>
       <label for="cCountry">Pays</label>
@@ -1154,13 +1163,13 @@
         <option value="FR">🇫🇷 France</option>
         <option value="BE">🇧🇪 Belgique</option>
       </select>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="cCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="baseForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="baseForm" style="display:none">
       <h3>Devise de référence</h3>
       <p class="caption" style="margin:0 0 6px">Tous les totaux s'affichent dans cette devise. Les montants déjà saisis (budgets, salaire, factures) sont relus tels quels dans la nouvelle devise — ils ne sont pas convertis. Les taux manuels repartent des valeurs par défaut.</p>
       <label for="bCurrency">Devise</label>
@@ -1169,27 +1178,27 @@
         <option value="EUR">EUR — Euro</option>
         <option value="USD">USD — Dollar américain</option>
       </select>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="baseCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="salaryForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="salaryForm" style="display:none">
       <h3>Mon salaire</h3>
       <p class="caption" style="margin:0 0 6px">Le salaire est un revenu régulier : il nourrit les prévisions du mois et le « Vraiment disponible », sans jamais compter double une fois reçu.</p>
       <label for="sAmount">Montant mensuel net (<span class="curlabel">CHF</span>)</label>
-      <input id="sAmount" inputmode="decimal" placeholder="8450.00" autocomplete="off" />
+      <input id="sAmount" data-primary-amount inputmode="decimal" placeholder="8450.00" autocomplete="off" />
       <label for="sDay">Jour de réception (1-28)</label>
       <input id="sDay" inputmode="numeric" placeholder="25" autocomplete="off" />
       <div class="error" id="sError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="sCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="fxForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="fxForm" style="display:none">
       <h3>Taux de change manuels</h3>
       <p class="caption" style="margin:0 0 6px">Utilisés pour convertir les comptes en autres devises vers votre devise de référence. Vous les mettez à jour vous-même — l'app ne se connecte jamais à internet.</p>
       <label for="fxA" id="fxALabel">Taux 1</label>
@@ -1197,24 +1206,24 @@
       <label for="fxB" id="fxBLabel">Taux 2</label>
       <input id="fxB" inputmode="decimal" placeholder="0.80" autocomplete="off" />
       <div class="error" id="fxError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="fxCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
 
-    <form class="sheet" id="widgetForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="widgetForm" style="display:none">
       <h3>Personnaliser mon écran</h3>
       <p class="caption" style="margin:0 0 6px">L'essentiel (disponible, priorité, actions) reste toujours visible. Cochez ce que vous voulez voir en plus — votre choix est mémorisé sur cet appareil.</p>
       <div id="widgetChoices"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="wCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn secondary" id="wRestore" style="margin-top:10px">Restaurer la disposition recommandée</button>
     </form>
 
-    <form class="sheet" id="docForm" style="display:none">
+    <form class="sheet nu-pilot-sheet" id="docForm" style="display:none">
       <h3 id="docSheetTitle">Nouveau document</h3>
       <label for="dName">Nom</label>
       <input id="dName" placeholder="Certificat LPP 2026" autocomplete="off" />
@@ -1227,9 +1236,9 @@
         <option>Autre</option>
       </select>
       <div class="error" id="dError" role="alert"></div>
-      <div class="actions">
+      <div class="actions sticky">
         <button type="button" class="btn secondary" id="dCancel">Annuler</button>
-        <button type="submit" class="btn">Enregistrer</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
     </form>
   </div>
@@ -4895,6 +4904,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
     if (salary) {
       document.getElementById("sAmount").value = salary.amount.toFixed(2);
       document.getElementById("sDay").value = salary.day;
+    } else {
+      // Sans salaire enregistré, le jour restait vide alors qu'il est
+      // obligatoire : la feuille refusait la saisie sans que rien ne le
+      // laisse deviner. 25 est le jour de paie de référence du projet.
+      document.getElementById("sDay").value = "25";
     }
     document.getElementById("sError").textContent = "";
     openSheet("salaryForm");
@@ -6249,7 +6263,11 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
   const monthly = monthlyRaw === "" ? 0 : parseAmountField(monthlyRaw);
   if (Number.isNaN(monthly)) { err.textContent = "Contribution mensuelle invalide."; return; }
   const dueMatch = /^(\d{4})-(\d{2})$/.exec(document.getElementById("gDue").value);
-  if (!covered && !dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  // Un objectif a toujours une échéance : il n'existe ici aucune notion de
+  // « déjà couvert » (c'était un reste de la feuille Facture ponctuelle, et
+  // la variable inexistante faisait échouer silencieusement TOUT
+  // enregistrement d'objectif).
+  if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
   const data = {
     name, emoji: document.getElementById("gEmoji").value.trim() || "🎯",
     target, manualCurrent, monthly,
@@ -6331,6 +6349,10 @@ function openRecSheet(rec) {
     document.getElementById("rDay").value = rec.day;
   } else {
     refreshRecCatOptions();
+    // Le jour vit sous « Détails (facultatif) » : sans valeur par défaut,
+    // une nouvelle facture était refusée à cause d'un champ que le
+    // propriétaire ne voit même pas. Le 1er du mois est le choix courant.
+    document.getElementById("rDay").value = "1";
   }
   // Rythme et mois d'échéance : les options existent toujours, le bloc
   // annuel n'apparaît que si le rythme l'exige.
@@ -6403,6 +6425,9 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 89.00"; return; }
   const day = Number(document.getElementById("rDay").value);
   if (!Number.isInteger(day) || day < 1 || day > 28) {
+    // Le champ fautif est replié : on l'ouvre, sinon le message désigne
+    // quelque chose d'invisible et la feuille paraît bloquée sans raison.
+    document.getElementById("rMore").open = true;
     err.textContent = "Jour entre 1 et 28 (les mois courts sont ainsi toujours couverts)."; return;
   }
   const every = document.getElementById("rEvery").value === "year" ? "year" : "month";

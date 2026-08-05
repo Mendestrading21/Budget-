@@ -751,9 +751,14 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 .sheet.nu-pilot-sheet label { color: var(--nu-text-secondary); }
 .sheet.nu-pilot-sheet .caption { color: var(--nu-text-tertiary); font-size: 13px; line-height: 1.45; }
 
-/* Champs OPAQUES, libellés persistants, saisie confortable. */
+/* Champs OPAQUES, libellés persistants, saisie confortable.
+   `.sr-select` est EXCLU : ce select masqué double les pastilles tactiles et
+   reste la source de vérité, mais il ne doit rien peser dans la mise en page.
+   Sans cette exclusion, la règle lui rendait sa largeur et sa hauteur, et il
+   débordait de 20 px hors de la feuille à 320 px — un défilement horizontal
+   invisible mais bien réel dans toute feuille à pastilles. */
 .sheet.nu-pilot-sheet input,
-.sheet.nu-pilot-sheet select,
+.sheet.nu-pilot-sheet select:not(.sr-select),
 .sheet.nu-pilot-sheet textarea {
   background: var(--nu-navigation);
   border: 1px solid var(--nu-border);

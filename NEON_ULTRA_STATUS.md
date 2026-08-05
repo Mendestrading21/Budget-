@@ -17,6 +17,60 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « feuilles de saisie » (02.08.2026) — VERIFYING
+
+Demande du propriétaire, deux captures iPhone à l'appui : « je suis pas fan,
+j'aimerais un autre style de page quand tu dois rentrer les données ». Choix
+verrouillés par lui : le style **« Nouveau mouvement »**, appliqué aux **six
+feuilles qu'il utilise vraiment**, puis étendu aux **dix-neuf** — un style
+unifié n'a de valeur que s'il n'a aucun trou. Le programme visuel reste gelé :
+**NU3 n'est pas commencé.**
+
+Contrat porté par les 19 feuilles : pied collant (« Enregistrer » jamais sous
+le clavier), action principale en dégradé de marque, montant dominant,
+pastilles tactiles ≥ 44 px pilotant le `select` historique via `aria-pressed`,
+reste replié sous « Détails (facultatif) ».
+
+### Ce que l'inspection des captures a réellement trouvé
+
+Quatre défauts, dont **trois qui empêchaient purement et simplement
+d'enregistrer** :
+
+1. **Aucun objectif ne pouvait être créé ni modifié.** Le gestionnaire lisait
+   une variable inexistante (`covered`, reste d'un copier-coller depuis
+   « Facture ponctuelle »). Le bouton « Enregistrer » ne faisait
+   **strictement rien** : ni message, ni fermeture, ni donnée. Défaut
+   silencieux, donc le pire.
+2. **Aucune facture mensuelle** sans déplier « Détails » : le jour du mois y
+   est obligatoire et n'avait pas de valeur par défaut. Il vaut désormais 1,
+   et un refus **déplie** le bloc — un message ne désigne jamais un champ
+   invisible.
+3. **Le salaire refusait la saisie** tant qu'aucun salaire n'existait : jour
+   vide alors qu'obligatoire. Pré-rempli à 25, jour de paie de référence.
+4. **20 px de débordement horizontal** dans `txForm`, `recForm` et
+   `itemForm`, présents depuis NU2 : le doublon masqué des `select` pilotés
+   par pastilles (`.sr-select`) était redimensionné par `.sheet select`.
+
+Corrigés au passage, sans changer aucune règle financière : cohérence de la
+case « Solde négatif » avec les autres cases à cocher.
+
+### Preuves
+
+- **95 parcours e2e** (94 conservés sans affaiblissement + le n° 95) ·
+  5 fixtures de parité · design system Obsidian, NU1 et NU2 verts · zéro
+  erreur console · `git diff --check` propre.
+- Le parcours n° 95 remplit chaque feuille **comme le propriétaire le ferait**
+  — les champs visibles, rien de plus — et exige que la donnée existe ensuite.
+- **Contrôle négatif effectué** : les deux premiers défauts réintroduits font
+  bien échouer la suite (`objectif`, `facture mensuelle`, `pageerror: covered
+  is not defined`). Le test a une valeur réelle, il ne décore pas.
+- Le parcours n° 94 couvre les **19** feuilles, avec assertion de
+  non-débordement horizontal et prédicat de cible tactile corrigé (un doublon
+  `aria-hidden` hors tabulation n'est pas une cible).
+- **Rendu inspecté** à 390 px, 320 px et 320 px à 200 % de texte :
+  `docs/neon-ultra/features/forms/` (README + captures reproductibles par
+  `capture-forms.mjs`).
+
 ## Lot fonctionnel « comme le tableur » (29.07.2026) — VERIFYING
 
 Demande explicite du propriétaire : remplacer son tableur de référence, et

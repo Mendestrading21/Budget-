@@ -3892,7 +3892,7 @@ await goHome();
     `les listes de mouvements gardent l'ellipse de densité (obtenu ${dense93})`);
 }
 
-// ---------- Test 94 : style de saisie unifié sur les six feuilles ----------
+// ---------- Test 94 : style de saisie unifié sur les 19 feuilles ----------
 currentTest = "style de saisie unifié";
 // Demande du propriétaire du 02.08.2026 : les feuilles où il saisit
 // réellement adoptent le style « Nouveau mouvement » — pied collant pour que
@@ -3900,13 +3900,29 @@ currentTest = "style de saisie unifié";
 // dégradé, montant dominant, pastilles tactiles plutôt que menus déroulants.
 await goHome();
 {
+  // Les DIX-NEUF feuilles de saisie, sans exception : le style unifié n'a
+  // de valeur que s'il n'a aucun trou. `quickMenu` est un menu, pas un
+  // formulaire — il est vérifié séparément plus bas.
   const SHEETS = [
+    ["txForm", "openTxSheet(null)", "Nouveau mouvement", true],
     ["recForm", "openRecSheet(null)", "Facture mensuelle", true],
     ["lineForm", "openLineSheet(null)", "Ligne budgétaire", false],
     ["accForm", "openAccSheet(null)", "Compte", false],
     ["billForm", "openBillSheet(null)", "Facture ponctuelle", false],
     ["goalForm", "openGoalSheet(null)", "Objectif", false],
     ["itemForm", "openItemSheet('asset', null)", "Actif ou dette", true],
+    ["insForm", "openInsSheet(null)", "Assurance", false],
+    ["penForm", "openPenSheet(null)", "Prévoyance", false],
+    ["taxForm", "openTaxSheet()", "Impôts", false],
+    ["codeForm", "openCodeSheet('set')", "Code", false],
+    ["reconForm", "openSheet('reconForm')", "Solde d'un compte", false],
+    ["docForm", "openSheet('docForm')", "Document", false],
+    ["nameForm", "openSheet('nameForm')", "Prénom", false],
+    ["countryForm", "openSheet('countryForm')", "Pays", false],
+    ["baseForm", "openSheet('baseForm')", "Devise de référence", false],
+    ["salaryForm", "openSheet('salaryForm')", "Salaire", false],
+    ["fxForm", "openSheet('fxForm')", "Taux de change", false],
+    ["widgetForm", "openSheet('widgetForm')", "Widgets", false],
   ];
   // Un mois sans budget : sinon « ligne budgétaire » refuse de s'ouvrir,
   // toutes les catégories étant déjà prises (comportement voulu).
@@ -3918,7 +3934,14 @@ await goHome();
     await page.waitForTimeout(200);
     const r = await page.evaluate(id => {
       const f = document.getElementById(id);
-      const vis = e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; };
+      // Une cible TACTILE est atteignable : un doublon masqué du select,
+      // `aria-hidden` et hors tabulation, n'en est pas une — il ne doit
+      // d'ailleurs peser aucun pixel.
+      const vis = e => {
+        if (e.getAttribute("aria-hidden") === "true" || e.tabIndex < 0) return false;
+        const b = e.getBoundingClientRect();
+        return b.width > 0 && b.height > 0;
+      };
       const submit = f.querySelector('button[type="submit"]');
       const actions = f.querySelector(".actions");
       const amount = f.querySelector("[data-primary-amount]");
@@ -3934,6 +3957,7 @@ await goHome();
         // Le contrat s'exprime en pixels CSS : un contrôle en
         // `min-height: 44px` mesuré 43.99 le respecte. On arrondit donc,
         // sinon on testerait l'arrondi du moteur de rendu, pas l'app.
+        ovX: f.scrollWidth - f.clientWidth,
         small: [...f.querySelectorAll("button,select,input,textarea,summary")]
           .filter(e => vis(e) && Math.round(e.getBoundingClientRect().height) < 44)
           .map(e => e.id || e.textContent.trim().slice(0, 18)),
@@ -3944,16 +3968,21 @@ await goHome();
       `${label} : « Enregistrer » reste au-dessus du clavier (obtenu ${r.sticky})`);
     check(r.cta.includes("192, 0, 164") && r.ctaColor === "rgb(255, 255, 255)",
       `${label} : action principale en dégradé de marque, texte blanc (obtenu ${r.ctaColor})`);
-    check(r.amountSize !== null && r.amountSize >= 20,
-      `${label} : le montant domine la feuille (obtenu ${r.amountSize} px)`);
+    if (r.amountSize !== null) {
+      check(r.amountSize >= 20,
+        `${label} : le montant domine la feuille (obtenu ${r.amountSize} px)`);
+    }
+    // Aucune feuille ne défile horizontalement : un doublon masqué mal
+    // dimensionné suffisait à créer 20 px de débordement invisible.
+    check(r.ovX <= 1, `${label} : aucun débordement horizontal (obtenu ${r.ovX} px)`);
     check(r.small.length === 0,
       `${label} : aucun contrôle sous 44 px (obtenu ${JSON.stringify(r.small)})`);
     if (hasChips) {
       check(r.chips >= 2 && r.chipsSmall === 0,
         `${label} : des pastilles tactiles remplacent le menu déroulant (obtenu ${r.chips}, ${r.chipsSmall} trop petites)`);
     }
-    await page.click(`#${id} .actions button.secondary`);
-    await page.waitForTimeout(150);
+    await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+    await page.waitForTimeout(120);
   }
   // Les pastilles pilotent le select historique, qui reste la source de vérité.
   await page.evaluate(() => openRecSheet(null));
@@ -3980,6 +4009,108 @@ await goHome();
   await page.evaluate(() => { cursor = { y: NOW.y, m: NOW.m }; render(); });
 }
 
+// ---------- Test 95 : toute feuille remplie normalement ENREGISTRE ----------
+currentTest = "chaque feuille enregistre vraiment";
+// Un formulaire peut être impeccable visuellement et refuser tout
+// enregistrement. Trois défauts réels l'ont prouvé :
+//   · l'objectif appelait une variable inexistante (« covered ») — le
+//     bouton ne faisait STRICTEMENT rien, sans message ;
+//   · la facture mensuelle exigeait un jour caché sous « Détails » ;
+//   · le salaire exigeait un jour laissé vide.
+// Ce parcours remplit chaque feuille comme le ferait le propriétaire — les
+// champs visibles, rien de plus — et exige que la donnée existe ensuite.
+await goHome();
+{
+  const CASES = [
+    ["goalForm", "openGoalSheet(null)",
+      { "#gName": "Voyage Japon", "#gTarget": "8000", "#gDue": "2027-06" },
+      "GOALS.some(g => g.name === 'Voyage Japon')", "objectif"],
+    ["recForm", "openRecSheet(null)",
+      { "#rAmount": "1200", "#rTitle": "Loyer parcours 95" },
+      "RECURRINGS.some(r => r.title === 'Loyer parcours 95' && r.day >= 1 && r.day <= 28)",
+      "facture mensuelle"],
+    ["billForm", "openBillSheet(null)",
+      { "#bName": "Électricité parcours 95", "#bAmount": "80", "#bDue": "2027-03-15" },
+      "(S.bills || []).some(b => b.name === 'Électricité parcours 95')", "facture ponctuelle"],
+    ["accForm", "openAccSheet(null)",
+      { "#aName": "Compte parcours 95", "#aOpening": "100" },
+      "ACCOUNTS.some(a => a.name === 'Compte parcours 95')", "compte"],
+    ["itemForm", "openItemSheet('asset', null)",
+      { "#iName": "Voiture parcours 95", "#iAmount": "9000" },
+      "ASSETS.some(a => a.name === 'Voiture parcours 95')", "actif"],
+    ["insForm", "openInsSheet(null)",
+      { "#insName": "RC parcours 95", "#insPremium": "300" },
+      "INSURANCES.some(i => i.name === 'RC parcours 95')", "assurance"],
+    ["penForm", "openPenSheet(null)",
+      { "#penName": "LPP parcours 95", "#penValue": "12000" },
+      "PENSIONS.some(p => p.name === 'LPP parcours 95')", "prévoyance"],
+  ];
+  for (const [id, opener, fills, assertion, label] of CASES) {
+    await page.evaluate(f => eval(f), opener);
+    await page.waitForSelector(`#${id}`, { state: "visible" });
+    await page.waitForTimeout(150);
+    for (const [sel, value] of Object.entries(fills)) await page.fill(sel, value);
+    await page.click(`#${id} button[type="submit"]`);
+    await page.waitForTimeout(350);
+    const after = await page.evaluate(([id, assertion]) => ({
+      saved: eval(assertion),
+      open: document.getElementById("sheetBackdrop").classList.contains("open"),
+      err: (document.querySelector(`#${id} .error`) || {}).textContent || "",
+    }), [id, assertion]);
+    check(after.saved && !after.open,
+      `${label} : les champs visibles suffisent à enregistrer (message « ${after.err} », feuille ${after.open ? "restée ouverte" : "fermée"})`);
+    await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+    await page.waitForTimeout(120);
+  }
+  // Le salaire : jour pré-rempli même quand aucun salaire n'existe encore.
+  await page.evaluate(() => {
+    const i = RECURRINGS.findIndex(r => r.id === "r-salaire");
+    if (i >= 0) RECURRINGS.splice(i, 1);
+    saveState(); render();
+  });
+  await page.click('#tabbar button[aria-label="Gérer"]');
+  await page.waitForTimeout(250);
+  await page.click('#screen [data-more="settings"]');
+  await page.waitForTimeout(300);
+  await page.click("[data-editsalary]");
+  await page.waitForSelector("#salaryForm", { state: "visible" });
+  await page.fill("#sAmount", "5400");
+  await page.click('#salaryForm button[type="submit"]');
+  await page.waitForTimeout(350);
+  const salary95 = await page.evaluate(() => {
+    const s = RECURRINGS.find(r => r.id === "r-salaire");
+    return { saved: !!s, day: s && s.day, err: document.getElementById("sError").textContent };
+  });
+  check(salary95.saved && salary95.day >= 1 && salary95.day <= 28,
+    `salaire : le jour est pré-rempli, le montant seul suffit (obtenu ${salary95.day}, message « ${salary95.err} »)`);
+  // Et si le propriétaire vide volontairement le jour, le message désigne un
+  // champ VISIBLE : la facture mensuelle déplie « Détails » toute seule.
+  await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+  await goHome();
+  await page.evaluate(() => openRecSheet(null));
+  await page.waitForSelector("#recForm", { state: "visible" });
+  await page.fill("#rAmount", "50");
+  await page.fill("#rTitle", "Jour vidé");
+  // On vide le jour comme le ferait le propriétaire : en dépliant
+  // « Détails », puis on replie — le champ fautif redevient invisible.
+  await page.click("#rMore summary");
+  await page.waitForTimeout(150);
+  await page.fill("#rDay", "");
+  await page.click("#rMore summary");
+  await page.waitForTimeout(150);
+  await page.click('#recForm button[type="submit"]');
+  await page.waitForTimeout(250);
+  const reveal95 = await page.evaluate(() => ({
+    open: document.getElementById("rMore").open,
+    visible: document.getElementById("rDay").getBoundingClientRect().height > 0,
+    err: document.getElementById("rError").textContent,
+  }));
+  check(reveal95.open && reveal95.visible && reveal95.err.includes("Jour"),
+    "un refus ne désigne jamais un champ replié : « Détails » s'ouvre sur le champ fautif");
+  await page.click("#rCancel");
+  await page.waitForTimeout(150);
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -3989,4 +4120,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 94 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 95 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille), zéro erreur console ✓");
