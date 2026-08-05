@@ -9,7 +9,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
 | NU1 | Tokens et primitives | **DONE** (validation du propriétaire le 27.07.2026 sur `5796e3c`) |
 | NU2 | Pilote PWA — Mois, Budget, Ajouter | **DONE** (validation du propriétaire le 27.07.2026 sur `ff029388`, publication Pages autorisée) |
-| NU3 | Pilote SwiftUI équivalent | **IN_PROGRESS** (rebranchement livré le 05.08.2026, en attente de CI macOS) |
+| NU3 | Pilote SwiftUI équivalent | **VERIFYING** (CI macOS verte, 296 tests iOS, captures simulateur inspectées — validation du propriétaire attendue) |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
 | NU5 | Factures, Objectifs et Récurrents | À VENIR |
 | NU6 | Patrimoine et graphiques | À VENIR |
@@ -17,7 +17,7 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## NU3 — Pilote SwiftUI : Mois, Budget, Nouveau mouvement (05.08.2026) — IN_PROGRESS
+## NU3 — Pilote SwiftUI : Mois, Budget, Nouveau mouvement (05.08.2026) — VERIFYING
 
 Lot démarré sur accord explicite du propriétaire (« Fait développe »,
 05.08.2026). Périmètre du plan de livraison, sans extension : `HomeTab`,
@@ -96,12 +96,27 @@ Les quatorze écrans non pilotes gardent la bande de 80 pt.
   le fond piloté est prouvé opaque, égal au canvas et **différent** du fond
   Obsidian ; les rôles Obsidian sont vérifiés intacts ; deux écrans non
   pilotes continuent de se construire.
-- **LIMITE RÉELLE : aucun compilateur Swift dans cet environnement.** Le code
-  n'a pas été compilé localement — la CI macOS est la première vérification.
-  Tant qu'elle n'est pas verte, ce lot n'est pas vérifié.
-- **Aucune capture simulateur encore.** Le rendu n'a donc PAS été inspecté :
-  le workflow Demo reste à lancer. NU3 ne peut pas passer VERIFYING sans lui.
+- **CI macOS VERTE** sur `4cf5888` puis sur chaque correctif jusqu'à
+  `9c3fb86` : builds Debug et Release, `** TEST SUCCEEDED **`,
+  **296 tests iOS, 0 échec** (289 avant + les 7 de `NeonUltraPilotTests`),
+  PrivacyInfo présent et valide, `UIDeviceFamily == [1]`.
+- **Captures simulateur RÉELLES inspectées une par une** :
+  `docs/neon-ultra/nu3/` (README + 4 images, dont l'état AVANT correction).
+- Aucun compilateur Swift dans cet environnement : le code n'a jamais été
+  compilé localement, la CI macOS reste la seule vérification de build. La
+  relecture ligne à ligne a suffi cette fois, ce n'est pas une garantie.
 - Aucune formule financière, aucun identifiant, aucune migration touchés.
+
+### Dette laissée ouverte, explicitement
+
+- Le **shell reste Obsidian** (bannière de démo, ＋, onglet sélectionné,
+  `RootView.tint`). Visible sur les trois captures, franchement discordant —
+  mais c'est le périmètre **NU4**.
+- Les **quatorze écrans non pilotes** gardent la bande morte de 80 pt.
+- `DemoTourUITests` (tour hérité) reste cassé sur des assertions périmées
+  d'avant ADR-026, sans rapport avec NU3. Il ne bloque plus la preuve du lot
+  depuis que `NeonUltraPilotTourUITests` capture les trois surfaces seul,
+  mais il devra être remis d'aplomb.
 
 ## Lot « identité installée » (05.08.2026) — VERIFYING
 
