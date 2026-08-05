@@ -843,7 +843,7 @@ void clippedIn;
     return {
       states: ["Dans le plan", "À surveiller", "Dépassé"].filter(t => s.innerText.includes(t)),
       ringLabel: ring ? ring.getAttribute("aria-label") || "" : "",
-      values: s.innerText.includes("réel") && s.innerText.includes("planifié"),
+      values: s.innerText.includes("dépensé") && s.innerText.includes("prévu"),
       lineBg: line ? getComputedStyle(line.closest(".card")).backgroundColor : "",
       fill: line ? getComputedStyle(line.querySelector(".fill")).backgroundImage : "",
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
@@ -855,7 +855,7 @@ void clippedIn;
     `Budget chargé : l'état du plan est ÉCRIT (obtenu ${loaded.states.join(",") || "aucun"})`);
   check(loaded.ringLabel.includes("%") || loaded.ringLabel.toLowerCase().includes("budget"),
     `l'anneau plan/réel porte une étiquette accessible (obtenu « ${loaded.ringLabel} »)`);
-  check(loaded.values, "les valeurs réel / planifié sont écrites en toutes lettres");
+  check(loaded.values, "le dépensé et le prévu restent DEUX chiffres nommés, jamais mélangés");
   check(loaded.lineBg === "rgb(17, 20, 28)", `lignes de catégories MATES (obtenu ${loaded.lineBg})`);
   check(loaded.fill === "none", `barres simples, sans gradient décoratif (obtenu ${loaded.fill})`);
   check(loaded.gradientCtas <= 1, `Budget chargé : au plus un CTA gradient (obtenu ${loaded.gradientCtas})`);

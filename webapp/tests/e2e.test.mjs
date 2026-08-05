@@ -1774,7 +1774,7 @@ await p56.waitForSelector("#obTaxPct");
 const tax56 = await p56.$eval("#obTaxPct", el => el.value);
 check(tax56 === "30", `l'estimation fiscale par défaut est affichée (obtenu ${tax56})`);
 ob56 = await p56.$eval("body", el => el.innerHTML);
-check(ob56.includes("jamais un taux officiel"),
+check(ob56.includes("pas un taux officiel"),
   "le taux est présenté comme une estimation d'organisation, jamais un taux officiel");
 await p56.fill("#obTaxPct", "25");
 await p56.fill("#obSalary", "5000");
@@ -4110,7 +4110,7 @@ await goHome();
     visible: document.getElementById("rDay").getBoundingClientRect().height > 0,
     err: document.getElementById("rError").textContent,
   }));
-  check(reveal95.open && reveal95.visible && reveal95.err.includes("Jour"),
+  check(reveal95.open && reveal95.visible && /jour entre 1 et 28/i.test(reveal95.err),
     "un refus ne désigne jamais un champ replié : « Détails » s'ouvre sur le champ fautif");
   await page.click("#rCancel");
   await page.waitForTimeout(150);

@@ -4750,15 +4750,15 @@ function renderOnboarding() {
     <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">💼</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obSalaryPhase === 2 ? `Le salaire de ${esc(obPartner)} ?` : `Votre salaire, ${esc(obName)} ?`}</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Un rappel chaque mois, un geste pour le valider.</p>
+      <p class="caption" style="max-width:290px;margin:0 auto">Chaque mois on vous le rappelle. Un geste, et c'est validé.</p>
     </div>
     <form id="obForm2" class="ob-form">
-      <label for="obSalary">Salaire mensuel net (${obBase})</label>
+      <label for="obSalary">Ce que vous recevez chaque mois (${obBase})</label>
       <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" value="${(() => { const v = obSalaryPhase === 2 ? obSalary2 : obSalary; return v ? String(v) : ""; })()}" />
       ${obSalaryPhase === 2 ? "" : `
       <label for="obTaxPct">Part mise de côté pour les impôts (%)</label>
       <input id="obTaxPct" inputmode="numeric" maxlength="3" value="${Math.round((obTaxRate ?? COUNTRIES[obCountry].taxRate) * 100)}" />
-      <p class="caption" style="margin:4px 0 0">Une estimation pour votre organisation — jamais un taux officiel ni un conseil fiscal. Modifiable à tout moment dans Impôts.</p>`}
+      <p class="caption" style="margin:4px 0 0">C'est une estimation pour vous organiser, pas un taux officiel. Vous pourrez le changer quand vous voulez, dans Impôts.</p>`}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
       <button class="btn secondary" type="button" data-obskip style="margin-top:10px">Passer</button>
       <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>
@@ -4783,7 +4783,7 @@ function renderOnboarding() {
     <div style="text-align:center;margin-bottom:14px">
       <div style="font-size:44px" aria-hidden="true">💳</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Vos comptes</h2>
-      <p class="caption" style="max-width:290px;margin:0 auto">Le compte courant est le point de départ — ajoutez le reste d'un tap.</p>
+      <p class="caption" style="max-width:290px;margin:0 auto">On commence par votre compte de tous les jours. Vous ajouterez le reste quand vous voudrez.</p>
     </div>
     <form id="obForm3" class="ob-form">
       <input id="obOpening" inputmode="decimal" placeholder="Solde actuel (${obBase})"
@@ -6383,7 +6383,7 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const opening = openingLocked && existingForOpening
     ? existingForOpening.opening
     : (openingRaw === "" ? 0 : parseAmountField(openingRaw));
-  if (Number.isNaN(opening)) { err.textContent = "Solde d'ouverture invalide. Exemple : 1200.00"; return; }
+  if (Number.isNaN(opening)) { err.textContent = "Ce solde n'est pas un montant valable. Exemple : 1200.00"; return; }
   const kind = document.getElementById("aKind").value;
   const cash = document.getElementById("aCash").checked;
   const inst = document.getElementById("aInst").value.trim();
@@ -6470,7 +6470,7 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("lError");
   const amount = parseAmountField(document.getElementById("lAmount").value);
-  if (!(amount > 0)) { err.textContent = "Montant planifié invalide. Exemple : 250.00"; return; }
+  if (!(amount > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 250.00"; return; }
   const { y, m } = cursor;
   const key = `${y}-${m}`;
   if (!S.budgets[key]) S.budgets[key] = [];
@@ -6560,13 +6560,13 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
   const name = document.getElementById("gName").value.trim();
   if (!name) { err.textContent = "Donnez un nom à cet objectif."; return; }
   const target = parseAmountField(document.getElementById("gTarget").value);
-  if (!(target > 0)) { err.textContent = "Montant cible invalide. Exemple : 10000.00"; return; }
+  if (!(target > 0)) { err.textContent = "Ce montant à atteindre n'est pas valable. Exemple : 10000.00"; return; }
   const currentRaw = document.getElementById("gCurrent").value.trim();
   const manualCurrent = currentRaw === "" ? 0 : parseAmountField(currentRaw);
-  if (Number.isNaN(manualCurrent)) { err.textContent = "Montant « déjà atteint » invalide."; return; }
+  if (Number.isNaN(manualCurrent)) { err.textContent = "Le montant « déjà là » n'est pas valable."; return; }
   const monthlyRaw = document.getElementById("gMonthly").value.trim();
   const monthly = monthlyRaw === "" ? 0 : parseAmountField(monthlyRaw);
-  if (Number.isNaN(monthly)) { err.textContent = "Contribution mensuelle invalide."; return; }
+  if (Number.isNaN(monthly)) { err.textContent = "Le montant par mois n'est pas valable."; return; }
   const dueMatch = /^(\d{4})-(\d{2})$/.exec(document.getElementById("gDue").value);
   // Un objectif a toujours une échéance : il n'existe ici aucune notion de
   // « déjà couvert » (c'était un reste de la feuille Facture ponctuelle, et
@@ -6727,13 +6727,13 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   const title = document.getElementById("rTitle").value.trim();
   if (!title) { err.textContent = "Donnez un intitulé."; return; }
   const amount = parseAmountField(document.getElementById("rAmount").value);
-  if (!(amount > 0)) { err.textContent = "Montant invalide. Exemple : 89.00"; return; }
+  if (!(amount > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 89.00"; return; }
   const day = Number(document.getElementById("rDay").value);
   if (!Number.isInteger(day) || day < 1 || day > 28) {
     // Le champ fautif est replié : on l'ouvre, sinon le message désigne
     // quelque chose d'invisible et la feuille paraît bloquée sans raison.
     document.getElementById("rMore").open = true;
-    err.textContent = "Jour entre 1 et 28 (les mois courts sont ainsi toujours couverts)."; return;
+    err.textContent = "Choisissez un jour entre 1 et 28, comme ça février est couvert aussi."; return;
   }
   const every = document.getElementById("rEvery").value === "year" ? "year" : "month";
   const dueM = every === "year" ? Number(document.getElementById("rDueM").value) : null;
@@ -6838,7 +6838,7 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
   const name = document.getElementById("iName").value.trim();
   if (!name) { err.textContent = "Donnez un nom."; return; }
   const value = parseAmountField(document.getElementById("iAmount").value);
-  if (!(value > 0)) { err.textContent = "Montant invalide. Exemple : 12000.00"; return; }
+  if (!(value > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 12000.00"; return; }
   const include = document.getElementById("iInclude").checked;
   const kind = document.getElementById("iKind").value;
   const list = kind === "liability" ? LIABILITIES : ASSETS;
@@ -6947,7 +6947,7 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
   const name = document.getElementById("insName").value.trim();
   if (!name) { err.textContent = "Donnez un nom au contrat."; return; }
   const premium = parseAmountField(document.getElementById("insPremium").value);
-  if (!(premium > 0)) { err.textContent = "Prime invalide. Exemple : 745.60"; return; }
+  if (!(premium > 0)) { err.textContent = "Cette prime n'est pas un montant valable. Exemple : 745.60"; return; }
   const dueRaw = document.getElementById("insDue").value;
   const due = /^\d{4}-\d{2}-\d{2}$/.test(dueRaw)
     ? { dueM: Number(dueRaw.slice(5, 7)), dueD: Number(dueRaw.slice(8, 10)) }
@@ -6990,12 +6990,12 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("penError");
   const name = document.getElementById("penName").value.trim();
-  if (!name) { err.textContent = "Donnez un nom à la position."; return; }
+  if (!name) { err.textContent = "Donnez un nom à cette prévoyance."; return; }
   const value = parseAmountField(document.getElementById("penValue").value);
-  if (!(value > 0)) { err.textContent = "Valeur invalide. Exemple : 85000.00"; return; }
+  if (!(value > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 85000.00"; return; }
   const projectionRaw = document.getElementById("penProjection").value.trim();
   const projection = projectionRaw === "" ? null : parseAmountField(projectionRaw);
-  if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Projection invalide."; return; }
+  if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Le montant prévu à 65 ans n'est pas valable."; return; }
   const data = { name, value, projection };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
   if (existing) { Object.assign(existing, data); toast("Position modifiée"); }
@@ -7027,7 +7027,7 @@ document.getElementById("taxForm").addEventListener("submit", (e) => {
   if (!(rate >= 0 && rate <= 60)) { err.textContent = "Taux entre 0 et 60 %. Exemple : 30"; return; }
   const reserveRaw = document.getElementById("txReserve").value.trim();
   const reserve = reserveRaw === "" ? 0 : parseAmountField(reserveRaw);
-  if (Number.isNaN(reserve)) { err.textContent = "Réserve invalide. Exemple : 2400.00"; return; }
+  if (Number.isNaN(reserve)) { err.textContent = "Ce montant mis de côté n'est pas valable. Exemple : 2400.00"; return; }
   S.taxRate = Math.round(rate) / 100;
   S.taxReserve = reserve;
   saveState(); backdrop.classList.remove("open");
@@ -7064,13 +7064,13 @@ document.getElementById("codeForm").addEventListener("submit", (e) => {
   if (!/^\d{4,6}$/.test(code)) { err.textContent = "Code de 4 à 6 chiffres."; return; }
   if (codeMode === "set") {
     if (code !== document.getElementById("code2").value.trim()) {
-      err.textContent = "Les deux saisies ne correspondent pas."; return;
+      err.textContent = "Les deux codes ne sont pas les mêmes."; return;
     }
     S.lockCode = codeHash(code);
     S.faceIDEnabled = true;
     toast("Verrouillage activé");
   } else {
-    if (codeHash(code) !== S.lockCode) { err.textContent = "Code incorrect — le verrouillage reste actif."; return; }
+    if (codeHash(code) !== S.lockCode) { err.textContent = "Ce code n'est pas le bon. L'app reste verrouillée."; return; }
     S.lockCode = null;
     S.faceIDEnabled = false;
     locked = false;
