@@ -128,7 +128,7 @@ jobs:
           # imprimées en base64 dans les logs. Depuis NU3, ce sont les trois
           # surfaces pilotes (Mois, Budget, Nouveau mouvement) — sans quoi le
           # rebranchement natif ne serait jamais vérifié à l'œil.
-          for NAME in 01-accueil 03-budget 12-nouveau-mouvement ios-l8-patrimoine-selection-320-a11y; do
+          for NAME in nu3-mois nu3-budget nu3-nouveau-mouvement; do
             # xcresulttool suffixe les noms (« NAME_0_UUID.png ») — et un
             # nom peut être le préfixe d'un autre : on ancre sur « NAME_ ».
             F=$(grep -F "suggested name: \"${NAME}_" /tmp/attmap.txt | head -1 | sed -E 's/^File: ([^,]+),.*/\1/')
