@@ -17,6 +17,48 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « identité installée » (05.08.2026) — VERIFYING
+
+Les deux points laissés en attente de décision sont levés sur accord du
+propriétaire (« go », 05.08.2026).
+
+### 1. Le manifeste mentait sur la couleur
+
+`manifest.webmanifest` annonçait `#07090e` en `theme_color` et
+`background_color`, alors que l'app peint `#090C12` (token `--canvas`, posé
+par `applyTheme()`). Au lancement de l'app installée, l'écran d'attente
+n'avait donc pas la couleur de l'app. Les deux valeurs sont alignées sur
+`#090C12` — la couleur RÉELLE, pas une troisième inventée.
+
+### 2. L'icône passe en Neon Ultra
+
+L'icône restait l'ancienne courbe indigo Obsidian. Elle adopte la palette
+ADR-024 : fond `#11141C → #05060A`, trait en dégradé
+`violet #7C3AED → magenta #D946EF → cyan #38BDF8`, point cyan à pastille
+claire. **La FORME est conservée** : seule l'identité chromatique change.
+Le choix du symbole lui-même (une courbe qui monte, héritée de l'ancienne
+marque) reste une décision du propriétaire, non tranchée ici.
+
+Le dessin est décrit en SVG dans
+`.claude/skills/budget-neon-ultra/assets/tools/generer-icones.mjs` : c'est
+LUI la source, les PNG n'en sont qu'un rendu. Les quatre cibles sont
+générées ensemble — `icon-192`, `icon-512`, `apple-touch-icon` (180) et
+l'`AppIcon1024` natif — sans quoi PWA et iOS divergeraient à la première
+retouche. Pas de coin arrondi dessiné : iOS et Android appliquent déjà leur
+masque.
+
+### Preuves
+
+- **98 parcours e2e** (97 conservés + le n° 98) · 5 fixtures de parité ·
+  design Obsidian, NU1 et NU2 verts · zéro erreur console.
+- Le n° 98 exige que manifeste et balise annoncent la **même** couleur, que
+  chaque icône soit carrée, **opaque** (une icône trouée est compositée sur
+  du blanc par iOS) et réellement dessinée, et que la taille déclarée au
+  manifeste soit la vraie.
+- **Contrôle négatif effectué** : une couleur divergente et une taille
+  déclarée fausse produisent bien deux échecs nommés.
+- Les quatre PNG ont été **ouverts et regardés**, pas seulement mesurés.
+
 ## Lot « audit visuel des 16 écrans » (05.08.2026) — VERIFYING
 
 Demande du propriétaire : « continue le peaufinage, aucune erreur visuelle,

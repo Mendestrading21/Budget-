@@ -4,6 +4,7 @@
 import { chromium } from "playwright-core";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import fs from "node:fs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_URL = "file://" + path.resolve(HERE, "..", "index.html");
@@ -4271,6 +4272,45 @@ for (const largeur of [390, 320]) {
 await page.setViewportSize({ width: 390, height: 844 });
 await goHome();
 
+// ---------- Test 98 : identité installée cohérente ----------
+currentTest = "identité installée cohérente";
+// Le manifeste annonçait #07090e alors que l'app peint #090C12 : au
+// lancement, la couleur de fond de l'écran d'attente ne correspondait pas à
+// celle de l'app. Et les icônes doivent rester opaques, carrées et à leur
+// taille déclarée, sinon iOS composite sur du blanc.
+{
+  const racine = path.resolve(HERE, "..");
+  const manifeste = JSON.parse(fs.readFileSync(path.join(racine, "manifest.webmanifest"), "utf8"));
+  const meta = await page.evaluate(() => document.querySelector('meta[name="theme-color"]').content);
+  check(manifeste.theme_color.toLowerCase() === meta.toLowerCase(),
+    `le manifeste et la balise annoncent la MÊME couleur (manifeste ${manifeste.theme_color}, balise ${meta})`);
+  check(manifeste.background_color.toLowerCase() === meta.toLowerCase(),
+    `la couleur de fond au lancement est celle de l'app (obtenu ${manifeste.background_color})`);
+  // En-tête PNG : IHDR commence à l'octet 16 — largeur, hauteur, profondeur,
+  // puis TYPE DE COULEUR (2 = RVB, 6 = RVB + alpha). Une icône trouée est
+  // compositée sur du blanc par iOS : elle doit rester opaque.
+  const lirePng = fichier => {
+    const octets = fs.readFileSync(path.join(racine, fichier));
+    return {
+      w: octets.readUInt32BE(16), h: octets.readUInt32BE(20),
+      type: octets.readUInt8(25), taille: octets.length,
+    };
+  };
+  for (const fichier of ["icon-192.png", "icon-512.png", "apple-touch-icon.png"]) {
+    const png = lirePng(fichier);
+    check(png.w === png.h && png.w > 0, `${fichier} : carrée (obtenu ${png.w}×${png.h})`);
+    check(png.type === 2 || png.type === 0,
+      `${fichier} : opaque, sans canal alpha (type couleur ${png.type})`);
+    check(png.taille > 2000, `${fichier} : réellement dessinée (${png.taille} octets)`);
+  }
+  // Ce que le manifeste DÉCLARE doit être ce que le fichier EST.
+  for (const icone of manifeste.icons) {
+    const png = lirePng(icone.src);
+    check(`${png.w}x${png.h}` === icone.sizes,
+      `${icone.src} : la taille déclarée au manifeste est la vraie (déclaré ${icone.sizes}, réel ${png.w}x${png.h})`);
+  }
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4280,4 +4320,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 97 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 98 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée), zéro erreur console ✓");
