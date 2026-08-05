@@ -53,6 +53,18 @@
     --brand-glow: rgba(115, 103, 255, 0.35); /* ombre des CTA */
     --brand-tint: rgba(115, 103, 255, 0.16); /* pastilles informatives */
 
+    /* Séries de graphique — NON sémantiques.
+       Une classe de patrimoine n'est ni un progrès, ni une perte, ni une
+       échéance : elle ne doit donc jamais emprunter le vert, le corail ou
+       l'ambre, qui portent un sens financier. Quatre pas de l'indigo et du
+       gris froid, tous ≥ 3:1 sur le fond, complétés par un TRAIT distinct
+       pour ne pas dépendre de la couleur seule. */
+    --series-1: #C9C4FF;
+    --series-2: #9188FF;
+    --series-3: #6457F0;
+    --series-4: #A7B0C0;
+    --series-5: #6E7A90;
+
     /* Teintes sémantiques translucides */
     --tint-positive: rgba(54, 211, 153, 0.16);
     --tint-negative: rgba(255, 107, 122, 0.14);
@@ -369,9 +381,13 @@
     background: var(--tint-neutral);
   }
   .split-bar .seg { display: block; height: 100%; }
-  .seg.s-a, .dot.s-a { background: var(--brand); }
-  .seg.s-b, .dot.s-b { background: var(--brand-bright); }
-  .seg.s-c, .dot.s-c { background: var(--line-strong); }
+  /* Même rampe que la composition du Patrimoine : les deux barres de
+     répartition de l'app parlent la même langue. Le troisième segment
+     tirait sur --line-strong, une couleur de BORDURE : la plus grosse
+     classe (48 % ici) se lisait comme du vide sur la piste. */
+  .seg.s-a, .dot.s-a { background: var(--series-1); }
+  .seg.s-b, .dot.s-b { background: var(--series-2); }
+  .seg.s-c, .dot.s-c { background: var(--series-3); }
   .split-legend { display: grid; gap: 6px; }
   .split-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .split-item .dot {
@@ -423,7 +439,13 @@
     display: flex; justify-content: space-between; align-items: baseline;
     font-size: 12.5px; margin-bottom: 5px;
   }
-  .bar-head .vals { color: var(--coolgray); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  /* Un pourcentage ne se coupe pas : « 68,5 % » retombait en « 68,5 » puis
+     « % » sur deux lignes dès que le titre de l'objectif portait un badge. */
+  .bar-head > :first-child { min-width: 0; }
+  .bar-head .vals {
+    color: var(--coolgray); font-variant-numeric: tabular-nums; font-size: 11.5px;
+    flex: none; white-space: nowrap; margin-left: 10px;
+  }
   .track {
     height: 7px; border-radius: 5px;
     background: var(--line);
@@ -518,6 +540,24 @@
     line-height: 1.35;
   }
   .tx .amount { font-size: 13.5px; flex: none; }
+
+  /* Sous 381 px (iPhone SE et mini), une ligne « à lire » n'a plus la place
+     de partager sa ligne avec un montant : mesuré, « Caisse maladie (LAMal) »
+     tombait à 78 px de large — quatre lignes hachées — pendant que
+     « CHF 745.60/mois » en prenait 108. Le montant descend sous le texte,
+     aligné sur lui. Les lignes de mouvements (denses, non read-row) gardent
+     leur mise en page : elles ellipsent, elles ne se hachent pas. */
+  @media (max-width: 380px) {
+    .tx.read-row { flex-wrap: wrap; }
+    .tx.read-row > .amount {
+      flex: 1 0 100%;
+      /* La base de 100 % vaut la boîte ENTIÈRE : un décalage doit être une
+         marge INTÉRIEURE, sinon il s'ajoute à la largeur et déborde. */
+      box-sizing: border-box;
+      padding-left: 56px;
+      margin-top: 2px;
+    }
+  }
 
   .acct-total { font-size: 20px; }
 
@@ -2363,11 +2403,18 @@ function icoClass(type) {
   if (type === "transfer" || type === "adjustment") return "ico t-neutral";
   return "ico";
 }
-// Les flèches et symboles portent le VARIATION SELECTOR-15 (U+FE0E) :
-// sans lui, iOS les rend en emoji bleus, hors palette et en conflit avec
-// la teinte sémantique de la pastille. Avec lui, ils héritent de
-// `currentColor` et prennent le sens de leur teinte.
-const TYPE_ICON = { income: "⬇\uFE0E", expense: "⬆\uFE0E", saving: "🏛", investment: "📈", transfer: "⇄\uFE0E", taxPayment: "🧾", refund: "↩\uFE0E", adjustment: "⚖\uFE0E" };
+// Les huit pastilles de mouvement portent le VARIATION SELECTOR-15
+// (U+FE0E) : sans lui, iOS rend ces caractères en emoji couleur, hors
+// palette et en conflit avec la teinte sémantique de la pastille. Avec lui,
+// ils héritent de `currentColor` et prennent le sens de leur teinte.
+//
+// 📈 et 🧾 n'ont AUCUNE présentation texte : U+FE0E ne les change pas.
+// Mesuré glyphe par glyphe (rendu sous deux couleurs CSS, comparé au
+// pixel) — le trait de 📈 reste rouge, donc une pastille « Investir »
+// violette portait un symbole de perte. Remplacés par des symboles qui,
+// eux, suivent la couleur : ↗ (la valeur monte) et ✉ (l'avis d'impôt
+// arrive par la poste — même métaphore que le 📮 de l'écran Impôts).
+const TYPE_ICON = { income: "⬇\uFE0E", expense: "⬆\uFE0E", saving: "🏛\uFE0E", investment: "↗\uFE0E", transfer: "⇄\uFE0E", taxPayment: "✉\uFE0E", refund: "↩\uFE0E", adjustment: "⚖\uFE0E" };
 const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", investment: "Investissement",
                      transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement",
                      adjustment: "Ajustement de solde" };
@@ -3451,7 +3498,7 @@ function renderGoals() {
 
 function backBar(title) {
   return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
-    <button class="btn secondary" data-back style="width:auto;padding:8px 14px;font-size:13px">‹ Gérer</button>
+    <button class="btn secondary" data-back style="width:auto;flex:none;white-space:nowrap;padding:8px 14px;font-size:13px">‹ Gérer</button>
     <h2 class="screen-title" style="margin:0;font-size:24px">${title}</h2>
   </div>`;
 }
@@ -3716,11 +3763,15 @@ function renderNetWorth() {
   const points = MONTHS12.map(mm =>
     ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
       + assetsTotal + pensionTotal - liabTotal);
+  // Les quatre classes empruntaient le vert, le corail et l'ambre : une
+  // courbe « Prévoyance » tracée en corail se lisait comme une perte. Elles
+  // prennent la rampe non sémantique, et chacune un TRAIT différent — deux
+  // indigos voisins ne se distinguent pas à 1,5 px sur un écran de téléphone.
   const CLASS_LINES = [
-    { label: "Argent disponible", color: "var(--amber)", series: classSeries(["current", "cash"]) },
-    { label: "Épargne", color: "var(--positive)", series: classSeries(["savings"]) },
-    { label: "Bourse", color: "var(--violet)", series: classSeries(["brokerage"]) },
-    { label: "Prévoyance", color: "var(--negative)", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
+    { label: "Argent disponible", color: "var(--series-1)", dash: "5 4", series: classSeries(["current", "cash"]) },
+    { label: "Épargne", color: "var(--series-3)", dash: "2 3", series: classSeries(["savings"]) },
+    { label: "Bourse", color: "var(--series-4)", dash: "9 4", series: classSeries(["brokerage"]) },
+    { label: "Prévoyance", color: "var(--series-5)", dash: "2 3 9 3", series: classSeries(["pension", "lifeinsurance"]).map(v => v + pensionTotal) },
   ].filter(l => l.series.some(v => Math.abs(v) >= 0.005));
   const allValues = points.concat(...CLASS_LINES.map(l => l.series));
   // L8 correctif : échelle d'affichage commune et sûre (constantes
@@ -3743,10 +3794,14 @@ function renderNetWorth() {
       ${(() => {
         // Répartition en composition : la part de chaque classe dans le
         // patrimoine BRUT (les dettes se lisent dans la décomposition).
+        // « Comptes » et « Prévoyance » tiraient sur --electric et --violet,
+        // qui pointent tous deux vers --brand-bright depuis L2 : deux
+        // segments de la MÊME couleur, et deux pastilles identiques en
+        // légende. La barre ne se lisait pas. Rampe non sémantique.
         const parts = [
-          ["Comptes", Math.max(0, accountsTotal), "var(--electric)"],
-          ["Actifs", Math.max(0, assetsTotal), "var(--amber)"],
-          ["Prévoyance", Math.max(0, pensionTotal), "var(--violet)"],
+          ["Comptes", Math.max(0, accountsTotal), "var(--series-1)"],
+          ["Actifs", Math.max(0, assetsTotal), "var(--series-2)"],
+          ["Prévoyance", Math.max(0, pensionTotal), "var(--series-3)"],
         ].filter(([, v]) => v > 0);
         const grossC = parts.reduce((a, [, v]) => a + toCents(v), 0);
         if (grossC <= 0 || parts.length < 2) return "";
@@ -3797,12 +3852,12 @@ function renderNetWorth() {
           <stop offset="0" stop-color="rgba(115,103,255,0.35)"/><stop offset="1" stop-color="rgba(115,103,255,0)"/>
         </linearGradient></defs>
         <polygon points="6,100 ${px.join(" ")} 294,100" fill="url(#nw)"/>
-        ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>`).join("")}
+        ${CLASS_LINES.map(l => `<polyline points="${toPx(l.series)}" fill="none" stroke="${l.color}" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="${l.dash}" opacity="0.9"/>`).join("")}
         <polyline points="${px.join(" ")}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>`,
       })}
       <div style="display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px">
-        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Fortune nette ${chf(net)}</span>
-        ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:9px;height:3px;border-radius:2px;background:${l.color};display:inline-block"></span>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
+        <span class="caption" style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;border-radius:2px;background:var(--electric);display:inline-block"></span>Fortune nette ${chf(net)}</span>
+        ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><svg width="18" height="3" aria-hidden="true" style="flex:none"><line x1="0" y1="1.5" x2="18" y2="1.5" stroke="${l.color}" stroke-width="3" stroke-dasharray="${l.dash}"/></svg>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
       </div>
     </div>
     <p class="section-title">Actifs hors comptes</p>

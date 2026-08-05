@@ -4409,6 +4409,178 @@ await goHome();
   await page.evaluate(() => { activeTab = "home"; render(); });
 }
 
+
+// ---------- Test 100 : les couleurs veulent dire quelque chose ----------
+currentTest = "couleurs et lignes honnêtes";
+// Quatre défauts mesurés sur l'app rendue, pas devinés en lecture :
+//   · les quatre courbes du Patrimoine empruntaient le vert, le corail et
+//     l'ambre — une courbe « Prévoyance » en corail se lisait comme une
+//     perte ;
+//   · --electric et --violet pointent tous deux vers --brand-bright depuis
+//     L2 : la barre de composition dessinait DEUX segments de la même
+//     couleur, et la répartition des Comptes peignait sa plus grosse
+//     classe avec une couleur de bordure, donc en « vide » ;
+//   · 📈 et 🧾 n'ont aucune présentation texte : dans une pastille teintée
+//     ils gardaient leurs propres couleurs, dont le rouge de 📈 ;
+//   · à 320 px, « Caisse maladie (LAMal) » tombait à 78 px de large.
+await goHome();
+{
+  const semantiques = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const lire = n => cs.getPropertyValue(n).trim().toLowerCase();
+    return {
+      series: [1, 2, 3, 4, 5].map(i => lire(`--series-${i}`)),
+      interdits: ["--positive", "--negative", "--warning"].map(lire),
+    };
+  });
+  check(new Set(semantiques.series).size === semantiques.series.length,
+    "les cinq couleurs de série sont réellement différentes");
+  for (const [i, couleur] of semantiques.series.entries())
+    check(!semantiques.interdits.includes(couleur),
+      `--series-${i + 1} n'emprunte ni le vert, ni le corail, ni l'ambre (${couleur})`);
+
+  // Un glyphe de pastille doit SUIVRE la couleur du sens. On le rend deux
+  // fois, sous deux couleurs CSS, avec la police réelle de .ico : un emoji
+  // couleur donne deux rendus identiques au pixel près.
+  const glyphes = await page.evaluate(() => {
+    const sonde = document.createElement("div");
+    sonde.className = "ico"; document.body.appendChild(sonde);
+    const cs = getComputedStyle(sonde);
+    const police = `${cs.fontSize} ${cs.fontFamily}`;
+    sonde.remove();
+    const dessine = (g, couleur) => {
+      const c = document.createElement("canvas"); c.width = 44; c.height = 44;
+      const x = c.getContext("2d");
+      x.fillStyle = "#000"; x.fillRect(0, 0, 44, 44);
+      x.font = police; x.fillStyle = couleur;
+      x.textBaseline = "middle"; x.textAlign = "center";
+      x.fillText(g, 22, 22);
+      return x.getImageData(0, 0, 44, 44).data;
+    };
+    return Object.entries(TYPE_ICON).map(([type, g]) => {
+      const a = dessine(g, "#36D399"), b = dessine(g, "#FF6B7A");
+      let encre = 0, change = 0;
+      for (let k = 0; k < a.length; k += 4) {
+        if (a[k] + a[k + 1] + a[k + 2] > 30) encre++;
+        if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) change++;
+      }
+      return { type, encre, change };
+    });
+  });
+  for (const g of glyphes) {
+    check(g.encre > 0, `la pastille « ${g.type} » dessine réellement un glyphe`);
+    check(g.change > 0,
+      `la pastille « ${g.type} » suit la teinte du sens (un emoji couleur l'ignorerait)`);
+  }
+
+  // Patrimoine : quatre courbes de classe, quatre couleurs ET quatre traits.
+  await page.evaluate(() => { activeTab = "more"; moreView = "networth"; render(); });
+  await page.waitForTimeout(400);
+  const courbes = await page.evaluate(() => {
+    const traits = [...document.querySelectorAll("#screen svg polyline[stroke-dasharray]")];
+    return traits.map(t => ({
+      couleur: getComputedStyle(t).stroke,
+      trait: t.getAttribute("stroke-dasharray"),
+    }));
+  });
+  check(courbes.length >= 2, `le Patrimoine trace ses classes (${courbes.length} courbes)`);
+  check(new Set(courbes.map(c => c.couleur)).size === courbes.length,
+    "deux classes ne partagent jamais la même couleur");
+  check(new Set(courbes.map(c => c.trait)).size === courbes.length,
+    "chaque classe a son propre trait — la couleur seule ne porte pas le sens");
+
+  // Composition du patrimoine : des segments distincts, jamais la piste.
+  const composition = await page.evaluate(() => {
+    const barre = [...document.querySelectorAll("#screen div[role='img']")]
+      .find(b => b.querySelector("span[style*='width']") && !b.querySelector("svg"));
+    if (!barre) return null;
+    const segs = [...barre.querySelectorAll("span")].map(s => getComputedStyle(s).backgroundColor);
+    return { segs, piste: getComputedStyle(barre).backgroundColor };
+  });
+  check(composition && composition.segs.length >= 2, "la composition du patrimoine est dessinée");
+  if (composition) {
+    check(new Set(composition.segs).size === composition.segs.length,
+      `les ${composition.segs.length} segments ont ${new Set(composition.segs).size} couleurs distinctes`);
+    check(!composition.segs.includes(composition.piste),
+      "aucun segment ne porte la couleur de la piste — une classe ne se lit jamais comme du vide");
+  }
+
+  // Comptes : même exigence sur « Où est votre argent ».
+  await page.evaluate(() => { activeTab = "accounts"; moreView = null; render(); });
+  await page.waitForTimeout(400);
+  const repartition = await page.evaluate(() => {
+    const barre = document.querySelector(".split-bar");
+    if (!barre) return null;
+    return {
+      segs: [...barre.querySelectorAll(".seg")].map(s => getComputedStyle(s).backgroundColor),
+      piste: getComputedStyle(barre).backgroundColor,
+    };
+  });
+  if (repartition) {
+    check(new Set(repartition.segs).size === repartition.segs.length,
+      "les segments des Comptes ont chacun leur couleur");
+    check(!repartition.segs.includes(repartition.piste),
+      "la plus grosse classe ne se peint pas en couleur de piste");
+  }
+
+  // 320 px : une ligne « à lire » garde la place de se lire.
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.evaluate(() => { activeTab = "more"; moreView = "insurance"; render(); });
+  await page.waitForTimeout(400);
+  const etroit = await page.evaluate(() => {
+    const rangee = document.querySelector("#screen .tx.read-row");
+    if (!rangee) return null;
+    const meta = rangee.querySelector(".meta");
+    const montant = rangee.querySelector(".amount");
+    const titre = meta && meta.querySelector(".t");
+    const lh = titre ? parseFloat(getComputedStyle(titre).lineHeight) : 0;
+    return {
+      rangeeW: rangee.getBoundingClientRect().width,
+      metaW: meta.getBoundingClientRect().width,
+      titreLignes: titre ? Math.round(titre.getBoundingClientRect().height / lh) : 0,
+      montantSousLeTexte: montant
+        ? montant.getBoundingClientRect().top >= meta.getBoundingClientRect().bottom - 1
+        : false,
+    };
+  });
+  check(etroit !== null, "l'écran Assurances a bien une ligne à lire");
+  if (etroit) {
+    check(etroit.montantSousLeTexte,
+      "à 320 px le montant descend SOUS le texte au lieu de l'étrangler");
+    check(etroit.metaW > etroit.rangeeW * 0.55,
+      `le titre garde plus de la moitié de la ligne (${Math.round(etroit.metaW)} px sur ${Math.round(etroit.rangeeW)})`);
+    check(etroit.titreLignes <= 2,
+      `« Caisse maladie (LAMal) » tient en deux lignes au plus (obtenu ${etroit.titreLignes})`);
+  }
+
+  // Deux libellés qui se coupaient en deux.
+  // La hauteur ne dit rien ici : .btn porte un plancher tactile de 44 px.
+  // On compte les lignes RÉELLES du texte avec un Range — un rectangle par
+  // ligne rendue.
+  const retour = await page.evaluate(() => {
+    const b = document.querySelector("#screen [data-back]");
+    if (!b || !b.firstChild) return null;
+    const r = document.createRange(); r.selectNodeContents(b);
+    return { lignes: r.getClientRects().length, txt: b.textContent.trim() };
+  });
+  if (retour) check(retour.lignes === 1,
+    `« ${retour.txt} » tient sur une seule ligne (${retour.lignes} rendue(s))`);
+
+  await page.evaluate(() => { activeTab = "more"; moreView = "goals"; render(); });
+  await page.waitForTimeout(400);
+  const pourcent = await page.evaluate(() => {
+    const v = document.querySelector("#screen .bar-head .vals");
+    if (!v) return null;
+    const lh = parseFloat(getComputedStyle(v).lineHeight) || 14;
+    return { lignes: Math.round(v.getBoundingClientRect().height / lh), txt: v.textContent.trim() };
+  });
+  if (pourcent) check(pourcent.lignes <= 1,
+    `« ${pourcent.txt} » ne se coupe pas en deux (${pourcent.lignes} ligne(s))`);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4418,4 +4590,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 99 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 100 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes), zéro erreur console ✓");

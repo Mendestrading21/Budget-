@@ -17,6 +17,68 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « couleurs et lignes honnêtes » (05.08.2026) — VERIFYING
+
+Demande du propriétaire : « continue de le peaufiner ». Quatre défauts
+trouvés en **mesurant l'app rendue**, pas en relisant du code. Preuves
+avant/après dans `docs/neon-ultra/couleurs/`.
+
+### 1. Des couleurs qui mentaient sur deux graphiques
+
+Les quatre courbes du Patrimoine empruntaient le vert, le corail et l'ambre.
+Une courbe « Prévoyance » tracée en corail se lit comme une perte, alors que
+la constitution réserve ces trois couleurs à leur sens financier.
+
+Plus grave : `--electric` et `--violet` pointent **tous deux** vers
+`--brand-bright` depuis la remise à plat L2. La barre de composition
+dessinait « Comptes » et « Prévoyance » dans la même couleur, avec deux
+pastilles identiques en légende — elle ne se lisait pas. La répartition des
+Comptes avait le même mal autrement : sa troisième classe tirait sur
+`--line-strong`, une couleur de **bordure**, si bien que la plus grosse part
+(48 %) se lisait comme du vide.
+
+Rampe `--series-1..5`, non sémantique, plus **un trait différent par
+courbe** : deux indigos voisins ne se distinguent pas à 1,5 px, et la
+couleur seule ne doit jamais porter le sens.
+
+### 2. Deux pastilles sur huit ignoraient la teinte
+
+📈 et 🧾 n'ont aucune présentation texte : U+FE0E ne les change pas. Mesuré
+glyphe par glyphe — rendu sous deux couleurs CSS, comparé au pixel — le
+trait de 📈 reste rouge : une pastille « Investir » violette portait un
+symbole de perte. Remplacés par ↗ et ✉, qui suivent `currentColor`.
+
+### 3. À 320 px, le texte n'avait plus la place d'exister
+
+Mesuré : ligne de 284 px, montant `flex: none` à 108 px, titre réduit à
+**78 px**. « Caisse maladie (LAMal) » tenait sur trois lignes hachées. Sous
+381 px le montant descend sous le texte. Les listes de mouvements, denses,
+gardent leur mise en page.
+
+### 4. Deux libellés coupés en deux
+
+« ‹ Gérer » se scindait en deux lignes, « 68,5 % » aussi.
+
+### Preuves
+
+- **100 parcours e2e** (99 conservés + le n° 100) · 5 fixtures de parité ·
+  design Obsidian, NU1 et NU2 verts · zéro erreur console.
+- **Contrôle négatif exécuté** : les quatre correctifs annulés un par un
+  produisent quatre échecs nommés.
+- Audit des 16 écrans propre à 320 **et** 390 px après correction — une
+  première version de mon correctif 320 débordait de 23 px sur six écrans
+  (`flex-basis: 100 %` plus une marge extérieure), rattrapée en marge
+  intérieure.
+- Captures régénérées et **regardées**, pas seulement produites.
+
+### Ce que ce lot ne fait pas
+
+Le natif ne reçoit rien : `AccountsTab` et le Patrimoine sont des écrans
+non pilotes (NU4/NU6). Et le **fond des textes reste trop technique** —
+retour du propriétaire le 05.08 sur ces mêmes écrans : « ça fait trop
+technique, c'est accessible à tout le monde, un peu comme Duolingo ».
+C'est le lot suivant, pas celui-ci.
+
 ## Lot « graphiques honnêtes » (05.08.2026) — VERIFYING
 
 Demande du propriétaire sur quatre captures iPhone (Abonnements, Comptes,
