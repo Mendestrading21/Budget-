@@ -234,10 +234,6 @@ struct TransactionFormView: View {
             // NU3 : feuille PILOTE — fond Neon Ultra et lignes de `Form`
             // sur la surface mate, jamais le gris système.
             .background { NeonUltraScreenBackground() }
-            // Sans cette teinte, « Annuler », « Enregistrer » et tous les
-            // sélecteurs héritaient de l'indigo Obsidian de `RootView` —
-            // visible sur la capture NU3, et hors palette.
-            .tint(NeonUltraColor.cyan)
             .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
             .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)
@@ -264,6 +260,11 @@ struct TransactionFormView: View {
             }
             .onAppear(perform: populate)
         }
+        // La teinte vit sur le NavigationStack, PAS sur le `Form` : posée
+        // sur le contenu, elle colore bien les sélecteurs mais la barre de
+        // navigation garde l'indigo Obsidian — « Annuler » et
+        // « Enregistrer » étaient encore hors palette sur la capture.
+        .tint(NeonUltraColor.cyan)
     }
 
     /// Duplication depuis la feuille : copie fidèle horodatée, enregistrée
