@@ -83,7 +83,8 @@ struct HomeTab: View {
 
         NavigationStack {
             ZStack {
-                BudgetScreenBackground()
+                // NU3 : cet écran est PILOTE — fond Neon Ultra, jamais Obsidian.
+                NeonUltraScreenBackground()
 
                 ScrollView {
                     VStack(spacing: BudgetSpacing.medium) {
@@ -141,7 +142,8 @@ struct HomeTab: View {
                     .monthTitle(currentAnchor, calendar: appContainer.calendar)
                     .capitalized
             )
-            .font(BudgetFont.sectionTitle)
+            .font(NeonUltraTypography.title)
+            .foregroundStyle(NeonUltraColor.textPrimary)
 
             Spacer()
 
@@ -153,7 +155,7 @@ struct HomeTab: View {
             }
             .accessibilityLabel("Mois suivant")
         }
-        .tint(BudgetColor.brandBright)
+        .tint(NeonUltraColor.cyan)
     }
 
     private func shiftMonth(by value: Int) {
@@ -171,23 +173,21 @@ struct HomeTab: View {
         let amount = isCurrentMonth ? snapshot.available.total : snapshot.cashFlow
         let title = isCurrentMonth ? "Disponible" : "Reste du mois"
 
-        return GlassCard(style: .hero) {
+        return NeonUltraElevatedCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text(title)
-                    .font(BudgetFont.cardLabel)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
 
-                AmountText(
-                    amount: amount,
-                    role: .hero,
-                    signed: !isCurrentMonth,
-                    emphasis: amount < 0 ? .negative : .neutral
-                )
+                // Montant héros SANS glow : la constitution l'interdit.
+                // Un mois passé garde son SIGNE explicite (+/−) : le sens
+                // ne repose jamais sur la seule couleur.
+                NeonUltraAmountText(amount: amount, hero: true, signed: !isCurrentMonth)
 
                 if isCurrentMonth, snapshot.daysRemaining > 0 {
                     Text("\(FinanceFormatting.chf(snapshot.dailyAvailableBudget)) par jour")
-                        .font(BudgetFont.caption)
-                        .foregroundStyle(.secondary)
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,22 +239,22 @@ struct HomeTab: View {
         symbol: String,
         emphasis: AmountEmphasis
     ) -> some View {
-        GlassCard(style: .row) {
+        NeonUltraCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Image(systemName: symbol)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
                     .accessibilityHidden(true)
 
                 Text(FinanceFormatting.chf(amount))
-                    .font(BudgetFont.amount)
+                    .font(NeonUltraTypography.amount)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .foregroundStyle(color(for: emphasis))
 
                 Text(title)
-                    .font(BudgetFont.cardLabel)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
             }
             .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
             .accessibilityElement(children: .combine)
@@ -271,10 +271,10 @@ struct HomeTab: View {
 
     private func color(for emphasis: AmountEmphasis) -> Color {
         switch emphasis {
-        case .positive: BudgetColor.positive
-        case .negative: BudgetColor.negative
-        case .warning: BudgetColor.warning
-        case .neutral: .primary
+        case .positive: NeonUltraColor.positive
+        case .negative: NeonUltraColor.negative
+        case .warning: NeonUltraColor.warning
+        case .neutral: NeonUltraColor.textPrimary
         }
     }
 
@@ -296,11 +296,12 @@ struct HomeTab: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Factures du mois")
-                        .font(BudgetFont.sectionTitle)
+                        .font(NeonUltraTypography.title)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
                     if check.total > 0 {
                         Text("\(check.done) sur \(check.total) payées")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
                     }
                 }
 
@@ -310,32 +311,46 @@ struct HomeTab: View {
                     RecurringListView()
                 } label: {
                     Text("Gérer")
-                        .font(BudgetFont.body.weight(.semibold))
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.cyan)
+                        .frame(minHeight: 44)
                 }
             }
 
             if check.total > 0 {
                 ProgressView(value: Double(check.done), total: Double(check.total))
-                    .tint(check.done == check.total ? BudgetColor.positive : BudgetColor.brandBright)
+                    .tint(check.done == check.total ? NeonUltraColor.positive : NeonUltraColor.violet)
                     .accessibilityLabel("Factures payées")
                     .accessibilityValue("\(check.done) sur \(check.total)")
             }
 
             if expenses.isEmpty {
-                GlassCard(style: .row) {
+                NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                         Text("Aucune facture à payer")
-                            .font(BudgetFont.body.weight(.semibold))
+                            .font(NeonUltraTypography.label)
+                            .foregroundStyle(NeonUltraColor.textPrimary)
                         Text("Ajoutez votre loyer, vos assurances ou vos abonnements une seule fois. Ils reviendront automatiquement chaque mois.")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
 
+                        // SEUL dégradé de l'écran quand le héros n'a rien à
+                        // dire : un point focal lumineux, jamais deux.
                         NavigationLink {
                             RecurringListView()
                         } label: {
                             Label("Ajouter une facture mensuelle", systemImage: "plus")
+                                .font(NeonUltraTypography.label)
+                                .foregroundStyle(NeonUltraColor.textOnCta)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(NeonUltraGradient.cta)
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: NeonUltraRadius.control,
+                                        style: .continuous
+                                    )
+                                )
                         }
-                        .buttonStyle(PrimaryActionButtonStyle())
                     }
                 }
             } else {
@@ -348,7 +363,8 @@ struct HomeTab: View {
                         RecurringListView()
                     } label: {
                         Text("Voir les \(expenses.count) factures")
-                            .font(BudgetFont.body.weight(.semibold))
+                            .font(NeonUltraTypography.label)
+                            .foregroundStyle(NeonUltraColor.cyan)
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
                 }
@@ -357,36 +373,51 @@ struct HomeTab: View {
     }
 
     private func recurringBillRow(_ occurrence: ForecastOccurrence) -> some View {
-        GlassCard(style: .row) {
+        NeonUltraCard {
             HStack(spacing: BudgetSpacing.medium) {
                 Image(systemName: "calendar")
                     .frame(width: 28)
-                    .foregroundStyle(BudgetColor.warning)
+                    .foregroundStyle(NeonUltraColor.warning)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(occurrence.title)
-                        .font(BudgetFont.body.weight(.semibold))
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
                         .lineLimit(1)
                     Text(FinanceFormatting.swissDate(occurrence.date))
-                        .font(BudgetFont.caption)
-                        .foregroundStyle(.secondary)
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
                 }
 
                 Spacer(minLength: BudgetSpacing.small)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(FinanceFormatting.chf(occurrence.amount))
-                        .font(BudgetFont.amount)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    NeonUltraAmountText(amount: occurrence.amount)
 
+                    // Action de ligne : surface mate + bordure, jamais le
+                    // dégradé — il reste réservé à l'action principale.
                     Button("Payée") {
                         post(occurrence)
                     }
-                    .font(BudgetFont.caption.weight(.semibold))
-                    .buttonStyle(.bordered)
-                    .tint(BudgetColor.brandBright)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
+                    .frame(minHeight: 44)
+                    .padding(.horizontal, BudgetSpacing.small)
+                    .background(NeonUltraColor.surfaceFallback)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: NeonUltraRadius.control,
+                            style: .continuous
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(
+                            cornerRadius: NeonUltraRadius.control,
+                            style: .continuous
+                        )
+                        .stroke(NeonUltraColor.border, lineWidth: 1)
+                    )
                     .accessibilityLabel("Marquer \(occurrence.title) comme payée")
                 }
             }

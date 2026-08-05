@@ -3,8 +3,10 @@ import SwiftUI
 // ============================================================
 // Budget — Neon Ultra · primitives réutilisables (ADR-024, NU1)
 // ------------------------------------------------------------
-// ISOLÉES : aucun écran de l'application ne les utilise encore
-// (rebranchement réservé à NU2/NU3). Aucune couleur brute ici —
+// PORTÉE (depuis NU3) : ces primitives habillent EXACTEMENT trois
+// surfaces natives — Mois (`HomeTab`), Budget (`BudgetTab`) et la
+// feuille Nouveau mouvement (`TransactionFormView`). Tous les autres
+// écrans restent Obsidian jusqu'à NU4–NU7. Aucune couleur brute ici —
 // uniquement les rôles `NeonUltraColor`/`NeonUltraGradient`.
 // Cartes mates SANS blur ; la carte élevée porte une profondeur
 // subtile (ombre noire), jamais un glow. Reduce Transparency
@@ -51,6 +53,19 @@ enum NeonUltraSurfaceResolver {
 
     static func elevated(reduceTransparency: Bool) -> Color {
         reduceTransparency ? NeonUltraColor.surfaceFallback : NeonUltraColor.surfaceElevated
+    }
+}
+
+// MARK: - Fond d'écran
+
+/// Fond d'écran Neon Ultra — noir profond `#05060A`, opaque, sans
+/// dégradé ni halo. DISTINCT de `BudgetScreenBackground` (Obsidian) :
+/// c'est ce qui garantit qu'un écran non piloté ne change pas de fond.
+struct NeonUltraScreenBackground: View {
+    var body: some View {
+        Rectangle()
+            .fill(NeonUltraColor.canvas)
+            .ignoresSafeArea()
     }
 }
 
@@ -291,14 +306,22 @@ struct NeonUltraBadge: View {
 struct NeonUltraAmountText: View {
     let amount: Decimal
     var hero = false
+    /// `true` : affiche `+CHF …` / `-CHF …` via `chfSigned`. Un solde de
+    /// FIN de mois se lit avec son signe — le sens ne repose jamais sur la
+    /// seule couleur (constitution).
+    var signed = false
+
+    private var formatted: String {
+        signed ? FinanceFormatting.chfSigned(amount) : FinanceFormatting.chf(amount)
+    }
 
     var body: some View {
-        Text(FinanceFormatting.chf(amount))
+        Text(formatted)
             .font(hero ? NeonUltraTypography.heroAmount : NeonUltraTypography.amount)
             .foregroundStyle(amount < 0 ? NeonUltraColor.negative : NeonUltraColor.textPrimary)
             .lineLimit(1)
             .minimumScaleFactor(0.6)
-            .accessibilityLabel(FinanceFormatting.chf(amount))
+            .accessibilityLabel(formatted)
     }
 }
 

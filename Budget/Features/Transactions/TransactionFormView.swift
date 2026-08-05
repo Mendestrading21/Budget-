@@ -119,22 +119,31 @@ struct TransactionFormView: View {
                         if !type.supportsDestinationAccount { destinationAccount = nil }
                     }
                 }
+                .listRowBackground(NeonUltraColor.surface)
 
                 Section("Montant") {
                     TextField("Montant (CHF)", text: $amountText)
                         .keyboardType(.decimalPad)
                         .focused($amountFocused)
-                        .font(BudgetFont.amount)
+                        // Le montant est le champ dominant de la feuille.
+                        // Volontairement `amount` et NON `heroAmount` : dans
+                        // une ligne de `Form`, un largeTitle déborde dès que
+                        // le texte est agrandi — et je ne peux pas vérifier
+                        // le rendu sans simulateur.
+                        .font(NeonUltraTypography.amount)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
                 }
+                .listRowBackground(NeonUltraColor.surface)
 
                 Section("Date et statut") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                     LabeledContent("Statut") {
                         Text(automaticStatus.displayName)
+                            .font(NeonUltraTypography.label)
                             .foregroundStyle(
                                 automaticStatus == .planned
-                                    ? BudgetColor.warning
-                                    : BudgetColor.positive
+                                    ? NeonUltraColor.warning
+                                    : NeonUltraColor.positive
                             )
                     }
                     Text(
@@ -142,8 +151,8 @@ struct TransactionFormView: View {
                             ? "Cette date est à venir : le mouvement restera neutre jusqu'au jour prévu."
                             : "Ce mouvement sera inclus dans vos soldes."
                     )
-                    .font(BudgetFont.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
                     if type == .adjustment {
                         Picker("Sens de l'ajustement", selection: $adjustmentIncreasesBalance) {
                             Text("Augmente le solde").tag(true)
@@ -151,6 +160,7 @@ struct TransactionFormView: View {
                         }
                     }
                 }
+                .listRowBackground(NeonUltraColor.surface)
 
                 Section(type == .transfer ? "Comptes" : "Compte") {
                     Picker("Compte", selection: $account) {
@@ -169,6 +179,7 @@ struct TransactionFormView: View {
                     }
                     flowSummary
                 }
+                .listRowBackground(NeonUltraColor.surface)
 
                 if validationService.categoryRequired(for: type) {
                     Section("Catégorie") {
@@ -179,6 +190,7 @@ struct TransactionFormView: View {
                             }
                         }
                     }
+                    .listRowBackground(NeonUltraColor.surface)
                 }
 
                 Section("Détails (facultatif)") {
@@ -186,15 +198,17 @@ struct TransactionFormView: View {
                     TextField("Commerçant", text: $merchant)
                     TextField("Note", text: $note, axis: .vertical)
                 }
+                .listRowBackground(NeonUltraColor.surface)
 
                 if !errors.isEmpty || saveErrorMessage != nil {
                     Section {
                         ForEach(errorMessages, id: \.self) { message in
                             Label(message, systemImage: "exclamationmark.circle")
-                                .foregroundStyle(BudgetColor.negative)
-                                .font(BudgetFont.body)
+                                .foregroundStyle(NeonUltraColor.negative)
+                                .font(NeonUltraTypography.body)
                         }
                     }
+                    .listRowBackground(NeonUltraColor.surface)
                 }
 
                 // L5 : équivalents VISIBLES des actions de liste (parité
@@ -210,13 +224,16 @@ struct TransactionFormView: View {
                             isConfirmingDelete = true
                         } label: {
                             Label("Supprimer ce mouvement", systemImage: "trash")
-                                .foregroundStyle(BudgetColor.negative)
+                                .foregroundStyle(NeonUltraColor.negative)
                         }
                     }
+                    .listRowBackground(NeonUltraColor.surface)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background { BudgetScreenBackground() }
+            // NU3 : feuille PILOTE — fond Neon Ultra et lignes de `Form`
+            // sur la surface mate, jamais le gris système.
+            .background { NeonUltraScreenBackground() }
             .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
             .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)
@@ -276,15 +293,15 @@ struct TransactionFormView: View {
                     "\(source.name) → \(destination.name) — neutre : ni revenu, ni dépense, votre fortune ne bouge pas.",
                     systemImage: "arrow.left.arrow.right"
                 )
-                .font(BudgetFont.caption)
-                .foregroundStyle(.secondary)
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textSecondary)
             } else if type == .saving || type == .investment {
                 Label(
                     "\(source.name) → \(destination.name) — compté comme « mis de côté », pas comme une dépense.",
                     systemImage: "building.columns"
                 )
-                .font(BudgetFont.caption)
-                .foregroundStyle(.secondary)
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textSecondary)
             }
         }
     }

@@ -9,13 +9,57 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU0 | Gouvernance et baseline | **DONE** (validation définitive du propriétaire le 27.07.2026, CI #231 verte sur `828ea63`) |
 | NU1 | Tokens et primitives | **DONE** (validation du propriétaire le 27.07.2026 sur `5796e3c`) |
 | NU2 | Pilote PWA — Mois, Budget, Ajouter | **DONE** (validation du propriétaire le 27.07.2026 sur `ff029388`, publication Pages autorisée) |
-| NU3 | Pilote SwiftUI équivalent | **READY** (non commencé) |
+| NU3 | Pilote SwiftUI équivalent | **IN_PROGRESS** (rebranchement livré le 05.08.2026, en attente de CI macOS) |
 | NU4 | Mouvements, Comptes et shell | À VENIR |
 | NU5 | Factures, Objectifs et Récurrents | À VENIR |
 | NU6 | Patrimoine et graphiques | À VENIR |
 | NU7 | Onboarding, confiance, réglages, identité | À VENIR |
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
+
+## NU3 — Pilote SwiftUI : Mois, Budget, Nouveau mouvement (05.08.2026) — IN_PROGRESS
+
+Lot démarré sur accord explicite du propriétaire (« Fait développe »,
+05.08.2026). Périmètre du plan de livraison, sans extension : `HomeTab`,
+`BudgetTab` et `TransactionFormView` portent l'identité Neon Ultra ; parité
+visuelle raisonnable avec NU2.
+
+### Stratégie d'isolation (le cœur du lot, comme en NU2)
+
+- Une primitive manquait : `NeonUltraScreenBackground` (canvas `#05060A`),
+  **distincte** de `BudgetScreenBackground` (dégradé Obsidian). C'est ce qui
+  garantit qu'un écran non piloté ne peut pas changer de fond par accident.
+- **EXACTEMENT trois fichiers** de `Budget/Features/` référencent Neon Ultra,
+  vérifié par recherche. Les vingt-six autres écrans restent Obsidian.
+- Aucun token Obsidian n'est modifié ; aucune primitive Obsidian n'est
+  retouchée. `StatusPill` et `PrimaryActionButtonStyle`, partagés avec des
+  écrans non pilotes, sont laissés intacts : les surfaces pilotes utilisent
+  les équivalents Neon Ultra.
+
+### Deux décisions prises en connaissance de cause
+
+1. **Le montant de la feuille reste `amount`, pas `heroAmount`.** Dans une
+   ligne de `Form`, un `largeTitle` déborde dès que le texte est agrandi — et
+   je ne peux pas vérifier le rendu sans simulateur. La domination du montant
+   est donc moindre que dans la PWA : écart assumé, à revoir sur captures.
+2. **`NeonUltraAmountText` gagne une option `signed`** (additive, calquée sur
+   le composant Obsidian). Sans elle, le solde d'un mois PASSÉ perdait son
+   `+`/`−` explicite et le sens serait retombé sur la seule couleur, ce que la
+   constitution interdit.
+
+### Preuves et limites — honnêtement
+
+- `NeonUltraPilotTests` ajouté : les trois surfaces se construisent à 320 et
+  390 pt, en `accessibility3`, et sous transparence réduite **Neon Ultra** ;
+  le fond piloté est prouvé opaque, égal au canvas et **différent** du fond
+  Obsidian ; les rôles Obsidian sont vérifiés intacts ; deux écrans non
+  pilotes continuent de se construire.
+- **LIMITE RÉELLE : aucun compilateur Swift dans cet environnement.** Le code
+  n'a pas été compilé localement — la CI macOS est la première vérification.
+  Tant qu'elle n'est pas verte, ce lot n'est pas vérifié.
+- **Aucune capture simulateur encore.** Le rendu n'a donc PAS été inspecté :
+  le workflow Demo reste à lancer. NU3 ne peut pas passer VERIFYING sans lui.
+- Aucune formule financière, aucun identifiant, aucune migration touchés.
 
 ## Lot « identité installée » (05.08.2026) — VERIFYING
 

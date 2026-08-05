@@ -48,7 +48,8 @@ struct BudgetTab: View {
         let report = makeReport()
         return NavigationStack {
             ZStack {
-                BudgetScreenBackground()
+                // NU3 : écran PILOTE — fond Neon Ultra.
+                NeonUltraScreenBackground()
                 ScrollView {
                     VStack(spacing: BudgetSpacing.medium) {
                         monthSelector
@@ -61,7 +62,8 @@ struct BudgetTab: View {
                         outOfBudgetSection(report)
                         if let actionErrorMessage {
                             Label(actionErrorMessage, systemImage: "exclamationmark.circle")
-                                .foregroundStyle(BudgetColor.negative)
+                                .font(NeonUltraTypography.body)
+                                .foregroundStyle(NeonUltraColor.negative)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
@@ -109,7 +111,8 @@ struct BudgetTab: View {
 
             Spacer()
             Text(FinanceFormatting.monthTitle(currentAnchor, calendar: appContainer.calendar).capitalized)
-                .font(BudgetFont.sectionTitle)
+                .font(NeonUltraTypography.title)
+                .foregroundStyle(NeonUltraColor.textPrimary)
             Spacer()
 
             Button {
@@ -120,7 +123,7 @@ struct BudgetTab: View {
             }
             .accessibilityLabel("Mois suivant")
         }
-        .tint(BudgetColor.indigo)
+        .tint(NeonUltraColor.cyan)
     }
 
     private func shiftMonth(by value: Int) {
@@ -135,34 +138,32 @@ struct BudgetTab: View {
         FinanceMath.safeRatio(report.spendingActual, report.spendingPlanned)
     }
 
-    private func planStatePill(_ fraction: Decimal) -> StatusPill {
-        if fraction > 1 { return StatusPill(text: "Dépassé", kind: .negative) }
-        if fraction > Decimal("0.85") { return StatusPill(text: "À surveiller", kind: .warning) }
-        return StatusPill(text: "Dans le plan", kind: .positive)
+    /// L'état du plan reste ÉCRIT et porte son symbole : ni la couleur
+    /// seule, ni la marque — les rôles sémantiques gardent leur sens.
+    private func planStateBadge(_ fraction: Decimal) -> NeonUltraBadge {
+        if fraction > 1 { return NeonUltraBadge(kind: .negative, label: "Dépassé") }
+        if fraction > Decimal("0.85") { return NeonUltraBadge(kind: .warning, label: "À surveiller") }
+        return NeonUltraBadge(kind: .positive, label: "Dans le plan")
     }
 
     private func summaryCard(_ report: BudgetReport) -> some View {
         let fraction = consumedFraction(report)
         let percentUsed = Int(NSDecimalNumber(decimal: fraction * 100).doubleValue.rounded())
-        return GlassCard(style: .hero) {
+        return NeonUltraElevatedCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Reste à dépenser (lignes budgétées)")
-                    .font(BudgetFont.cardLabel)
-                    .foregroundStyle(.secondary)
-                AmountText(
-                    amount: report.spendingVariance,
-                    role: .hero,
-                    emphasis: report.spendingVariance < 0 ? .negative : .neutral
-                )
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                NeonUltraAmountText(amount: report.spendingVariance, hero: true)
                 // L'état du plan est toujours ÉCRIT, jamais la couleur seule.
-                planStatePill(fraction)
+                planStateBadge(fraction)
                 // Barre plan/réel avec son résumé textuel explicite.
                 ProgressView(value: min(1, NSDecimalNumber(decimal: fraction).doubleValue))
-                    .tint(fraction > 1 ? BudgetColor.negative
-                          : (fraction > Decimal("0.85") ? BudgetColor.warning : BudgetColor.brand))
+                    .tint(fraction > 1 ? NeonUltraColor.negative
+                          : (fraction > Decimal("0.85") ? NeonUltraColor.warning : NeonUltraColor.violet))
                 Text("\(percentUsed) % du budget utilisé — planifié \(FinanceFormatting.chf(report.spendingPlanned)) · réel \(FinanceFormatting.chf(report.spendingActual)). L'épargne et les impôts sont suivis à part.")
-                    .font(BudgetFont.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Budget consommé : \(percentUsed) pour cent du planifié. Planifié \(FinanceFormatting.chf(report.spendingPlanned)), réel \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
@@ -186,8 +187,8 @@ struct BudgetTab: View {
         ForEach(groupedReports(report), id: \.title) { group in
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text(group.title)
-                    .font(BudgetFont.sectionTitle)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
                 ForEach(group.reports) { lineReport in
                     BudgetLineRow(report: lineReport)
                         .onTapGesture {
@@ -207,20 +208,19 @@ struct BudgetTab: View {
         if !report.outOfBudget.isEmpty {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Hors budget")
-                    .font(BudgetFont.sectionTitle)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.title)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
                 Text("Mouvements du mois sans ligne budgétée — total \(FinanceFormatting.chf(report.totalOutOfBudget))")
-                    .font(BudgetFont.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
                 ForEach(report.outOfBudget) { entry in
-                    GlassCard(style: .row) {
+                    NeonUltraCard {
                         HStack {
                             Text(entry.categoryName)
-                                .font(BudgetFont.body)
+                                .font(NeonUltraTypography.body)
+                                .foregroundStyle(NeonUltraColor.textPrimary)
                             Spacer()
-                            Text(FinanceFormatting.chf(entry.actual))
-                                .font(BudgetFont.amount)
-                                .foregroundStyle(.secondary)
+                            NeonUltraAmountText(amount: entry.actual)
                         }
                     }
                     .accessibilityElement(children: .combine)
@@ -233,25 +233,26 @@ struct BudgetTab: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        GlassCard {
+        NeonUltraCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Label("Aucun budget ce mois", systemImage: "chart.pie")
-                    .font(BudgetFont.sectionTitle)
+                    .font(NeonUltraTypography.title)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
                 Text("Planifiez des enveloppes par catégorie pour comparer le prévu et le réel.")
-                    .font(BudgetFont.body)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: BudgetSpacing.small) {
+                    .font(NeonUltraTypography.body)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                VStack(spacing: BudgetSpacing.small) {
+                    // Une SEULE action principale en dégradé ; la seconde
+                    // reste secondaire, mate et bordée.
                     Button("Ajouter une ligne") {
                         isPresentingNewLine = true
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(BudgetColor.indigo)
+                    .buttonStyle(NeonUltraPrimaryButtonStyle())
                     if hasPreviousMonthLines {
                         Button("Copier le mois précédent") {
                             copyPreviousMonth()
                         }
-                        .buttonStyle(.bordered)
-                        .tint(BudgetColor.brandBright)
+                        .buttonStyle(NeonUltraSecondaryButtonStyle())
                     }
                 }
             }
@@ -281,31 +282,32 @@ struct BudgetLineRow: View {
     let report: BudgetLineReport
 
     private var progressColor: Color {
-        if report.isOverrun { return BudgetColor.negative }
-        return report.consumedFraction > Decimal("0.85") ? BudgetColor.warning : BudgetColor.indigo
+        if report.isOverrun { return NeonUltraColor.negative }
+        return report.consumedFraction > Decimal("0.85") ? NeonUltraColor.warning : NeonUltraColor.violet
     }
 
     /// « À surveiller » dès 85 % — le même seuil et les mêmes mots que le
-    /// pilote PWA ; le statut est toujours ÉCRIT (StatusPill L2).
+    /// pilote PWA ; le statut est toujours ÉCRIT (badge NU3).
     private var watchZone: Bool {
         !report.isOverrun && report.consumedFraction > Decimal("0.85")
     }
 
     var body: some View {
-        GlassCard(style: .row) {
+        NeonUltraCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 HStack {
                     Text(report.categoryName)
-                        .font(BudgetFont.body.weight(.medium))
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
                     if report.isOverrun {
-                        StatusPill(text: "Dépassé", kind: .negative)
+                        NeonUltraBadge(kind: .negative, label: "Dépassé")
                     } else if watchZone {
-                        StatusPill(text: "À surveiller", kind: .warning)
+                        NeonUltraBadge(kind: .warning, label: "À surveiller")
                     }
                     Spacer()
                     Text("réel \(FinanceFormatting.chf(report.actual)) / planifié \(FinanceFormatting.chf(report.planned))")
-                        .font(BudgetFont.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .font(NeonUltraTypography.meta.monospacedDigit())
+                        .foregroundStyle(NeonUltraColor.textSecondary)
                         .multilineTextAlignment(.trailing)
                 }
                 ProgressView(value: min(1, NSDecimalNumber(decimal: report.consumedFraction).doubleValue))
@@ -315,8 +317,8 @@ struct BudgetLineRow: View {
                     Text(report.isOverrun
                          ? "Dépassement de \(FinanceFormatting.chf(-report.variance))"
                          : "Reste \(FinanceFormatting.chf(report.variance))")
-                        .font(BudgetFont.caption)
-                        .foregroundStyle(report.isOverrun ? BudgetColor.negative : .secondary)
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(report.isOverrun ? NeonUltraColor.negative : NeonUltraColor.textSecondary)
                 }
             }
         }
@@ -351,5 +353,5 @@ struct BudgetLineRow: View {
         .environment(AppRouter())
         .modelContainer(preview.modelContainer)
         .preferredColorScheme(.dark)
-        .environment(\.obsidianForcedReducedTransparency, true)
+        .environment(\.neonUltraForcedReducedTransparency, true)
 }
