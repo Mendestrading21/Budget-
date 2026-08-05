@@ -17,6 +17,57 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « rituel du mois » (05.08.2026) — VERIFYING
+
+Demande du propriétaire : « ce mois salaire reçu, bouton facture payée, op ça
+disparaît — rendre l'outil pratique et simple à remplir et à comprendre. »
+L'accueil raconte désormais le mois dans l'ordre où on le vit : ce qui doit
+rentrer, puis ce qui doit sortir, et chaque chose faite quitte la liste. Le
+programme visuel reste gelé : **NU3 n'est pas commencé.**
+
+### Trois manques réels
+
+1. **Aucune action pour encaisser un revenu** sur l'accueil simplifié : il
+   fallait quitter l'écran pour dire « salaire reçu ». Carte « Revenus
+   attendus » avec l'action au bon endroit.
+2. **Une échéance seulement PRÉVUE n'était plus actionnable du tout** — elle
+   restait « Planifiée » jusqu'à sa date sans aucun moyen de confirmer
+   qu'elle avait eu lieu. C'est exactement le salaire prévu le 25 : zéro
+   bouton, alors que « Entré » affichait CHF 0.00.
+3. **Ce qui était réglé restait dans la liste des choses à faire.** Elle ne
+   montre plus que le restant ; tout réglé, la carte le dit. Compteur, barre
+   et « Gérer » gardent la trace complète.
+
+Deux défauts d'affichage trouvés au passage : l'icône des lignes d'obligation
+n'héritait d'aucune taille (`.home-bill-row` n'est pas un `.tx`) — l'emoji se
+collait à gauche d'un rectangle teinté ; et chaque ligne coûtait 117 px, tombés
+à **75 px** à 390 px en sortant le nom du compte du libellé et en passant
+l'action en ligne au-dessus de 380 px.
+
+### Règles financières : inchangées
+
+Confirmer une échéance prévue est une transition explicite, pas un mélange.
+Seul un mouvement **prévu** bascule ; un mouvement comptabilisé n'est jamais
+retouché (verrouillé par test). La date ne recule **jamais** : seule une
+échéance encore à venir prend la date d'aujourd'hui, parce que c'est
+aujourd'hui que l'argent a bougé. Aucun montant, compte, catégorie ou
+identifiant modifié. Revenus et dépenses gardent deux cartes et deux totaux,
+jamais additionnés. Écriture annulable six secondes.
+
+### Preuves
+
+- **96 parcours e2e** (95 conservés sans affaiblissement + le n° 96) ·
+  5 fixtures de parité · design Obsidian, NU1 et NU2 verts · zéro erreur
+  console.
+- Le n° 96 coche un mois entier depuis l'accueil : salaire prévu →
+  comptabilisé **au jour réel**, « Entré » qui augmente, chaque facture réglée
+  qui quitte la liste, compteur atteignant son total, et garde-fou prouvant
+  qu'un mouvement comptabilisé n'est jamais re-daté.
+- **Contrôle négatif effectué** : sans l'action de confirmation, la suite
+  échoue.
+- **Rendu inspecté** à 390 px et 320 px sur les trois étapes du rituel :
+  `docs/neon-ultra/features/month-ritual/` (README + `capture-ritual.mjs`).
+
 ## Lot « feuilles de saisie » (02.08.2026) — VERIFYING
 
 Demande du propriétaire, deux captures iPhone à l'appui : « je suis pas fan,

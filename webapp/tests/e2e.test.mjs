@@ -4111,6 +4111,96 @@ await goHome();
   await page.waitForTimeout(150);
 }
 
+// ---------- Test 96 : le mois se coche depuis l'accueil ----------
+currentTest = "cocher son mois depuis l'accueil";
+// Demande du propriétaire du 05.08.2026 : « ce mois salaire reçu, bouton
+// facture payée, op ça disparaît ». Trois manques réels :
+//   · l'accueil simplifié n'offrait AUCUNE action pour encaisser un revenu ;
+//   · une échéance seulement PRÉVUE n'était plus actionnable du tout — elle
+//     restait « Planifiée » sans moyen de dire qu'elle avait eu lieu ;
+//   · ce qui était réglé restait dans la liste des choses à faire.
+await goHome();
+{
+  await page.evaluate(() => {
+    // Tout est dû aujourd'hui : on veut « Payer » et « ✓ Reçu ».
+    for (const r of RECURRINGS) r.day = 1;
+    saveState(); render();
+  });
+  await page.waitForTimeout(300);
+  const lire = () => page.evaluate(() => ({
+    revenus: [...document.querySelectorAll(".home-income-card .home-bill-row .meta .t")]
+      .map(e => e.textContent.trim()),
+    revenusCta: [...document.querySelectorAll(".home-income-card .home-bill-action")]
+      .map(e => e.textContent.trim()),
+    factures: [...document.querySelectorAll(".home-bills-card .home-bill-row .meta .t")]
+      .map(e => e.textContent.trim()),
+    facturesCta: [...document.querySelectorAll(".home-bills-card .home-bill-action")]
+      .map(e => e.textContent.trim()),
+    reglees: (document.querySelector(".home-bills-card .caption") || {}).textContent || "",
+    tout: !!document.querySelector(".home-bills-done"),
+    entre: snapshot(cursor.y, cursor.m).income,
+  }));
+
+  const depart = await lire();
+  check(depart.revenus.length > 0 && depart.revenusCta.includes("✓ Reçu"),
+    `un revenu attendu s'encaisse d'un tap depuis l'accueil (obtenu ${JSON.stringify(depart.revenusCta)})`);
+  // Le salaire de démonstration est PRÉVU le 25 : c'est justement le cas qui
+  // n'offrait plus aucun bouton.
+  const prevu = await page.evaluate(() => {
+    const t = transactions.find(t => t.recurringId === "r-salaire" && inMonth(t, cursor.y, cursor.m));
+    return t ? { statut: t.status, d: t.d } : null;
+  });
+  check(prevu && prevu.statut === "planned",
+    `le salaire du mois est bien seulement PRÉVU au départ (obtenu ${JSON.stringify(prevu)})`);
+
+  // Si l'action manque, on le dit par une assertion plutôt que de laisser la
+  // suite mourir sur un délai d'attente : un échec doit rester lisible.
+  const cta96 = await page.$(".home-income-card .home-bill-action");
+  check(!!cta96, "l'accueil porte réellement l'action d'encaissement");
+  if (cta96) await cta96.click();
+  await page.waitForTimeout(400);
+  const encaisse = await lire();
+  const apres = await page.evaluate(() => {
+    const t = transactions.find(t => t.recurringId === "r-salaire" && inMonth(t, cursor.y, cursor.m));
+    return { statut: t.status, d: t.d, aujourdhui: NOW.d };
+  });
+  check(apres.statut === "posted" && apres.d === apres.aujourdhui,
+    `confirmer un revenu le comptabilise AU JOUR RÉEL (obtenu ${JSON.stringify(apres)})`);
+  check(encaisse.revenus.length === depart.revenus.length - 1,
+    "le revenu encaissé quitte la liste des revenus attendus");
+  check(encaisse.entre > depart.entre,
+    `« Entré » augmente vraiment (${depart.entre} → ${encaisse.entre})`);
+
+  // Chaque facture réglée disparaît de la liste des choses à faire.
+  let garde = 0, vu = depart.factures.length;
+  while (garde++ < 8) {
+    const bouton = await page.$(".home-bills-card .home-bill-action");
+    if (!bouton) break;
+    await bouton.click();
+    await page.waitForTimeout(400);
+  }
+  const fin = await lire();
+  check(vu > 0 && fin.factures.length === 0 && fin.tout,
+    `tout réglé : la liste se vide et l'accueil le dit (restant ${JSON.stringify(fin.factures)}, message ${fin.tout})`);
+  check(/(\d+) sur \1 régl/.test(fin.reglees),
+    `le compteur atteint le total (obtenu « ${fin.reglees} »)`);
+
+  // Garde-fou : « confirmer » ne touche JAMAIS un mouvement déjà comptabilisé.
+  const garde96 = await page.evaluate(() => {
+    const t = transactions.find(t => t.status === "posted");
+    const avant = { statut: t.status, d: t.d };
+    const bouton = document.createElement("button");
+    bouton.setAttribute("data-confirmtx", String(t.id));
+    document.getElementById("screen").appendChild(bouton);
+    bouton.click();
+    const apres = { statut: t.status, d: t.d };
+    bouton.remove();
+    return { avant, apres };
+  });
+  check(garde96.avant.statut === garde96.apres.statut && garde96.avant.d === garde96.apres.d,
+    `un mouvement comptabilisé n'est jamais re-daté ni retouché (${JSON.stringify(garde96)})`);
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4120,4 +4210,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 95 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 96 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil), zéro erreur console ✓");

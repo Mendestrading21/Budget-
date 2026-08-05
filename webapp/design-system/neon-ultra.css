@@ -465,7 +465,17 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 }
 
 /* --- Accueil simple : un seul widget mensuel, lisible à 320 px --- */
-#screen.nu-pilot-screen .home-bills-card { padding: 18px; }
+#screen.nu-pilot-screen .home-bills-card,
+#screen.nu-pilot-screen .home-income-card { padding: 18px; }
+/* Les revenus attendus se lisent AVANT les factures : ce qui rentre, puis
+   ce qui sort. Le vert reste sémantique — il dit « entrée », pas « joli ». */
+#screen.nu-pilot-screen .home-income-card { margin-bottom: 12px; }
+#screen.nu-pilot-screen .home-income-card .home-bills-total.pos { color: var(--nu-positive); }
+#screen.nu-pilot-screen .home-bills-done {
+  margin: 14px 0 0;
+  color: var(--nu-positive);
+  font-weight: 700;
+}
 #screen.nu-pilot-screen .home-bills-head {
   display: flex;
   align-items: flex-start;
@@ -490,6 +500,16 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   display: grid;
   border-top: 1px solid var(--nu-border);
 }
+/* La ligne d'obligation n'est pas un `.tx` : sans cette règle, l'emoji se
+   collait à gauche d'une pastille teintée non dimensionnée — un rectangle
+   de couleur qui ressemblait à un bug d'affichage. */
+#screen.nu-pilot-screen .home-bill-row .ico {
+  flex: none;
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border-radius: 12px;
+  font-size: 18px;
+}
 #screen.nu-pilot-screen .home-bill-row {
   min-height: 56px;
   display: grid;
@@ -499,9 +519,10 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   padding: 9px 0;
   border-bottom: 1px solid var(--nu-border);
 }
-#screen.nu-pilot-screen .home-bill-row:has(.home-bill-action) {
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-}
+/* Action en ligne — mais SEULEMENT quand la largeur le permet vraiment.
+   Mesuré : à 390 px la ligne tombe de 117 à 75 px ; à 360 px le titre se
+   comprime et la ligne remonte à 119 px. Le repli à deux lignes reprend
+   donc la main sous 381 px (iPhone SE, mini, 8), où il est plus lisible. */
 #screen.nu-pilot-screen .home-bill-row .meta {
   min-width: 0;
   cursor: pointer;
@@ -524,6 +545,13 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   justify-self: end;
   width: auto;
   padding: 8px 12px;
+  white-space: nowrap;
+}
+@media (min-width: 381px) {
+  #screen.nu-pilot-screen .home-bill-row:has(.home-bill-action) {
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  }
+  #screen.nu-pilot-screen .home-bill-action { grid-column: auto; }
 }
 #screen.nu-pilot-screen .home-more-link {
   min-height: 44px;
@@ -538,7 +566,8 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 }
 #screen.nu-pilot-screen .home-bills-empty { padding-top: 12px; }
 @media (max-width: 340px) {
-  #screen.nu-pilot-screen .home-bill-row {
+  #screen.nu-pilot-screen .home-bill-row,
+  #screen.nu-pilot-screen .home-bill-row:has(.home-bill-action) {
     grid-template-columns: 38px minmax(0, 1fr);
     gap: 8px;
   }

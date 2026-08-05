@@ -2181,6 +2181,7 @@ function monthlyObligations(y, m) {
       amount: recurringAmountInBase(r),
       due,
       state: stateFor(linked, due),
+      linkedTxId: linked ? linked.id : null,
       accountName: (ACCOUNTS.find(a => a.id === recurringAccountId(r)) || {}).name || "",
     };
   });
@@ -2196,6 +2197,7 @@ function monthlyObligations(y, m) {
       amount: billAmountInBase(b),
       due,
       state: stateFor(linked, due, b.paidTxId === -1),
+      linkedTxId: linked ? linked.id : null,
       accountName: (ACCOUNTS.find(a => a.id === billAccountId(b)) || {}).name || "",
     };
   });
@@ -2744,6 +2746,61 @@ function renderSimpleHome() {
     <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}</div>
   </div>`;
 
+  /* Le mois se lit dans l'ordre où on le vit : ce qui doit RENTRER, puis ce
+     qui doit SORTIR. L'accueil simplifié n'offrait aucune action pour dire
+     « salaire reçu » — il fallait passer par une autre destination. Un tap
+     suffit désormais, et la ligne disparaît une fois encaissée.
+     Revenus et dépenses ne sont jamais additionnés : deux cartes, deux
+     totaux, deux sens. */
+  const incomeDue = RECURRINGS
+    .filter(r => {
+      if (r.type !== "income" || !recurringDueIn(r, y, m)) return false;
+      const occ = recurringOccurrence(r, y, m);
+      // Rien d'enregistré, ou seulement PRÉVU : dans les deux cas l'argent
+      // n'est pas encore là, donc la ligne a encore quelque chose à demander.
+      return !occ || occ.status === "planned";
+    })
+    .map(r => {
+      const lastDay = new Date(y, m, 0).getDate();
+      const due = { y, m, d: Math.min(r.day, lastDay) };
+      const occ = recurringOccurrence(r, y, m);
+      return { r, due, occ, amount: recurringAmountInBase(r), dueNow: compareDateParts(due, NOW) <= 0 };
+    })
+    .sort((a, b) => a.due.d - b.due.d);
+  const expectedIncome = fromCents(incomeDue.reduce((sum, i) => sum + toCents(i.amount), 0));
+  const incomeCard = (s.isCurrent && incomeDue.length) ? `
+    <section class="card home-income-card" aria-labelledby="homeIncomeTitle">
+      <div class="home-bills-head">
+        <div>
+          <p class="card-label" id="homeIncomeTitle">Revenus attendus</p>
+          <p class="home-bills-total pos">${chf(expectedIncome)}</p>
+          <span class="caption">pas encore ${incomeDue.length > 1 ? "encaissés" : "encaissé"} ce mois</span>
+        </div>
+      </div>
+      <div class="home-bills-list">
+        ${incomeDue.slice(0, 3).map(({ r, due, occ, amount, dueNow }) => {
+          const jour = `${String(due.d).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
+          const etat = occ ? `Prévu le ${jour}` : `${dueNow ? "Attendu depuis le" : "Attendu le"} ${jour}`;
+          // Déjà prévu → il reste à CONFIRMER l'encaissement ; rien de prévu
+          // et l'échéance est passée → « ✓ Reçu » l'enregistre directement.
+          const bouton = occ
+            ? `<button class="btn secondary home-bill-action" data-confirmtx="${occ.id}">✓ Reçu</button>`
+            : `<button class="btn secondary home-bill-action" data-postrec="${esc(r.id)}">${dueNow ? "✓ Reçu" : "Planifier"}</button>`;
+          return `
+        <div class="home-bill-row">
+          <div class="ico t-income" aria-hidden="true">${r.icon || "💰"}</div>
+          <div class="meta" data-recid="${esc(r.id)}" role="button" tabindex="0">
+            <div class="t">${esc(r.title)}</div>
+            <div class="s">${etat}</div>
+          </div>
+          <span class="amount pos">${chf(amount)}</span>
+          ${bouton}
+        </div>`;
+        }).join("")}
+      </div>
+      ${incomeDue.length > 3 ? `<button class="home-more-link" data-more="recurring">Voir les ${incomeDue.length} revenus attendus</button>` : ""}
+    </section>` : "";
+
   const obligations = monthlyObligations(y, m);
   const open = obligations.filter(item => item.state !== "paid");
   const paidCount = obligations.filter(item => item.state === "paid").length;
@@ -2756,6 +2813,14 @@ function renderSimpleHome() {
     return { label: today ? "À payer aujourd'hui" : `À venir le ${String(item.due.d).padStart(2, "0")}.${String(m).padStart(2, "0")}`, cls: "" };
   };
   const action = item => {
+    // Une échéance PRÉVUE n'était plus actionnable : elle restait affichée
+    // « Planifiée » jusqu'à sa date, sans aucun moyen de dire qu'elle avait
+    // été payée pour de bon. Un tap suffit désormais.
+    if (item.state === "scheduled") {
+      return item.linkedTxId != null
+        ? `<button class="btn secondary home-bill-action" data-confirmtx="${item.linkedTxId}">✓ Payé</button>`
+        : "";
+    }
     if (!["late", "upcoming"].includes(item.state)) return "";
     const attr = item.source === "recurring"
       ? `data-postrec="${esc(item.id)}"`
@@ -2768,17 +2833,23 @@ function renderSimpleHome() {
     const target = item.source === "recurring"
       ? `data-recid="${esc(item.id)}"`
       : `data-billid="${esc(item.id)}"`;
+    // Le compte utilisé n'a pas sa place ici : il allonge la ligne de trois
+    // mots sans aider à décider. Il reste dans la fiche, à un tap.
     return `<div class="home-bill-row" data-obligation-key="${esc(item.key)}">
       <div class="ico ${item.state === "paid" ? "t-income" : "t-expense"}" aria-hidden="true">${item.icon}</div>
       <div class="meta" ${target} role="button" tabindex="0">
         <div class="t">${esc(item.title)}</div>
-        <div class="s ${state.cls}">${state.label}${item.accountName ? ` · ${esc(item.accountName)}` : ""}</div>
+        <div class="s ${state.cls}">${state.label}</div>
       </div>
       <span class="amount">${chf(item.amount)}</span>
       ${action(item)}
     </div>`;
   };
-  const shown = [...open, ...obligations.filter(item => item.state === "paid")].slice(0, 3);
+  // Ce qui est réglé SORT de la liste : l'accueil montre ce qu'il reste à
+  // faire, pas ce qui est fait. Le compte réglé et la barre gardent la
+  // trace, « Gérer » montre le détail complet, et le toast « Annuler »
+  // rattrape une erreur pendant six secondes.
+  const shown = open.slice(0, 3);
   const bills = `<section class="card home-bills-card" aria-labelledby="monthlyBillsTitle">
     <div class="home-bills-head">
       <div>
@@ -2793,8 +2864,9 @@ function renderSimpleHome() {
         aria-valuemin="0" aria-valuemax="${obligations.length}" aria-valuenow="${paidCount}">
         <div class="fill" style="width:${(paidCount / obligations.length * 100).toFixed(1)}%"></div>
       </div>
-      <div class="home-bills-list">${shown.map(row).join("")}</div>
-      ${obligations.length > shown.length ? `<button class="home-more-link" data-more="recurring">Voir les ${obligations.length} factures</button>` : ""}
+      ${open.length ? `<div class="home-bills-list">${shown.map(row).join("")}</div>` : `
+        <p class="home-bills-done">Tout est réglé ce mois ✓</p>`}
+      ${open.length > shown.length ? `<button class="home-more-link" data-more="recurring">Voir les ${open.length} factures à régler</button>` : ""}
     ` : `
       <div class="home-bills-empty">
         <p class="caption">Ajoutez votre loyer, vos primes ou vos abonnements une fois : ils reviendront automatiquement chaque mois.</p>
@@ -2870,6 +2942,7 @@ function renderSimpleHome() {
     ${fxWarningHTML()}
     ${hero}
     ${metrics}
+    ${incomeCard}
     ${bills}
     ${tiles}
   </div>`;
@@ -4861,6 +4934,31 @@ document.getElementById("screen").addEventListener("click", (e) => {
     toast(scheduled ? `« ${rec.title} » planifié — ${chf(recurringAmountInBase(rec))}`
       : (rec.type === "income" ? `${rec.title} reçu : ${chf(recurringAmountInBase(rec))} 🎉`
         : `« ${rec.title} » validé — ${chf(recurringAmountInBase(rec))}`), true);
+    render();
+    return;
+  }
+  /* Confirmer qu'une échéance PRÉVUE a réellement eu lieu.
+     Règles respectées :
+     · seul un mouvement « prévu » peut basculer ; un mouvement comptabilisé
+       n'est jamais retouché ;
+     · la date ne recule JAMAIS — on n'avance au jour d'aujourd'hui qu'une
+       échéance encore à venir, parce que c'est aujourd'hui que l'argent a
+       bougé pour de vrai ;
+     · aucun montant, aucun compte, aucune catégorie n'est modifié ;
+     · annulable pendant six secondes comme toute écriture. */
+  const confirmBtn = e.target.closest("[data-confirmtx]");
+  if (confirmBtn) {
+    const tx = transactions.find(t => String(t.id) === confirmBtn.dataset.confirmtx);
+    if (!tx || tx.status !== "planned") return;
+    pushUndo();
+    tx.status = "posted";
+    if (compareDateParts({ y: tx.y, m: tx.m, d: tx.d }, NOW) > 0
+      && tx.y === NOW.y && tx.m === NOW.m) tx.d = NOW.d;
+    saveState();
+    const montant = money(tx.amount, accountCurrency(tx.acc));
+    toast(tx.type === "income"
+      ? `${tx.title} reçu : ${montant} 🎉`
+      : `« ${tx.title} » payé : ${montant}`, true);
     render();
     return;
   }
