@@ -17,7 +17,7 @@ final class DemoTourUITests: XCTestCase {
         app.launch()
 
         // Demo mode boots straight into the dashboard (a household exists).
-        if !app.tabBars.buttons["Accueil"].waitForExistence(timeout: 60) {
+        if !app.tabBars.buttons["Mois"].waitForExistence(timeout: 60) {
             snap(app, "00-echec-lancement")
             XCTFail("""
             Le dashboard doit apparaître en mode démo, sans onboarding.
@@ -27,7 +27,7 @@ final class DemoTourUITests: XCTestCase {
         }
         snap(app, "01-accueil")
 
-        openTab(app, "Mouvements")
+        openTab(app, "Historique")
         snap(app, "02-mouvements")
 
         openTab(app, "Budget")
@@ -36,7 +36,7 @@ final class DemoTourUITests: XCTestCase {
         openTab(app, "Comptes")
         snap(app, "04-comptes")
 
-        openTab(app, "Plus")
+        openTab(app, "Gérer")
         snap(app, "05-plus")
 
         // Correctif L6 (2e passe) : chaque module financier est PROUVÉ
@@ -66,7 +66,7 @@ final class DemoTourUITests: XCTestCase {
 
         // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
         // partie des trois parcours refondus — preuve native exigée.
-        openTab(app, "Accueil")
+        openTab(app, "Mois")
         let addMenu = app.buttons["Ajouter — dépense, revenu, épargne, investissement ou virement"]
         XCTAssertTrue(addMenu.waitForExistence(timeout: 10), "Le ＋ universel doit exister sur l'Accueil")
         addMenu.tap()
@@ -152,16 +152,16 @@ final class DemoTourUITests: XCTestCase {
         salaryField.typeText("5500")
         snap(app, "ios-l7-onboarding-revenus-logement")
         app.buttons["Créer mon ménage"].tap()
-        XCTAssertTrue(app.tabBars.buttons["Accueil"].waitForExistence(timeout: 30),
+        XCTAssertTrue(app.tabBars.buttons["Mois"].waitForExistence(timeout: 30),
                       "la finalisation doit ouvrir l'app")
         app.terminate()
 
         // ===== Phase 2 : surfaces de confiance (démo + crochets UI) =====
         app.launchArguments = ["-demoTour", "-uiTestImportCSV", "-uiTestRestorePrompt"]
         app.launch()
-        XCTAssertTrue(app.tabBars.buttons["Accueil"].waitForExistence(timeout: 60), "démo absente")
+        XCTAssertTrue(app.tabBars.buttons["Mois"].waitForExistence(timeout: 60), "démo absente")
 
-        openTab(app, "Plus")
+        openTab(app, "Gérer")
         XCTAssertTrue(app.staticTexts["À organiser"].waitForExistence(timeout: 10), "groupes du hub absents")
         snap(app, "ios-l7-plus")
 
@@ -290,9 +290,9 @@ final class DemoTourUITests: XCTestCase {
     /// termine — on vérifie que le hub est visible et on re-tape sinon.
     @MainActor
     private func openPlusHub(_ app: XCUIApplication) {
-        openTab(app, "Plus")
+        openTab(app, "Gérer")
         if app.staticTexts["À organiser"].waitForExistence(timeout: 3) { return }
-        app.tabBars.buttons["Plus"].tap()
+        app.tabBars.buttons["Gérer"].tap()
         if app.staticTexts["À organiser"].waitForExistence(timeout: 5) { return }
         // Hub encore défilé : revenir en haut.
         app.swipeDown()
