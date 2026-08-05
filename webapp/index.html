@@ -357,6 +357,35 @@
   details summary::-webkit-details-marker { display: none; }
   details summary::after { content: " ›"; }
   details[open] summary::after { content: " ˅"; }
+  /* Répartition du patrimoine : UNE barre segmentée + sa légende écrite.
+     Les segments utilisent des tons de MARQUE et un gris — jamais le
+     vert, le corail ou l'ambre, qui gardent leur sens financier. */
+  .split-bar {
+    display: flex;
+    height: 10px;
+    margin: 10px 0 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--tint-neutral);
+  }
+  .split-bar .seg { display: block; height: 100%; }
+  .seg.s-a, .dot.s-a { background: var(--brand); }
+  .seg.s-b, .dot.s-b { background: var(--brand-bright); }
+  .seg.s-c, .dot.s-c { background: var(--line-strong); }
+  .split-legend { display: grid; gap: 6px; }
+  .split-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .split-item .dot {
+    flex: none;
+    width: 9px; height: 9px;
+    border-radius: 999px;
+  }
+  .split-name { flex: 1; min-width: 0; color: var(--text-secondary); }
+  .split-val {
+    flex: none;
+    font-variant-numeric: tabular-nums;
+    color: var(--offwhite);
+    font-weight: 600;
+  }
   .breakdown { margin-top: 8px; display: grid; gap: 5px; }
   .breakdown div {
     display: flex; justify-content: space-between;
@@ -412,14 +441,27 @@
      un mouvement prévu d'un mouvement comptabilisé. Mesuré avant correctif :
      à 320 px le badge « Prévu » était rogné de 95 px, donc totalement
      invisible sur 7 lignes sur 10. C'est le TITRE qui cède la place. */
-  .tx .meta .t:has(.badge) { display: flex; align-items: baseline; gap: 0; }
+  /* Dès qu'un titre est encapsulé (`.t-label`), la ligne devient un
+     conteneur flex : sans cela `overflow`/`text-overflow` ne s'appliquent
+     pas à un span EN LIGNE, et le texte passe sous le montant au lieu
+     d'être coupé proprement. Mesuré : 54 px de recouvrement à 320 px. */
+  .tx .meta .t:has(.t-label) { display: flex; align-items: baseline; gap: 0; }
   .tx .meta .t > .t-label {
+    /* `flex: 1` est indispensable : sans lui le libellé se réduit à son
+       mot le plus long et le titre s'écrase en colonne étroite. */
+    flex: 1 1 auto;
     min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .tx .meta .t > .badge { flex: none; }
   /* Une pastille collée au titre se lit mal : même respiration que `.badge`. */
   .tx .meta .t > .pill { margin-left: 6px; flex: none; }
+  /* Là où la ligne s'ENROULE, `.t` redevient un bloc : en flex, le titre
+     se réduirait à son mot le plus long et la pastille lui rentrerait
+     dedans. Le flex ne sert qu'à la liste DENSE, où le badge doit rester
+     entier pendant que le titre est coupé. */
+  .tx.read-row .meta .t,
+  .priority-card .meta .t { display: block; }
   .tx.read-row .meta .t > .t-label,
   .priority-card .meta .t > .t-label {
     white-space: normal; overflow: visible; text-overflow: clip;
@@ -452,12 +494,14 @@
     color: var(--electric);
     font-size: 15px;
   }
-  /* Teintes par nature : l'icône oriente avant même la lecture. */
-  .ico.t-income { background: var(--tint-income); }
-  .ico.t-expense { background: var(--tint-expense); }
-  .ico.t-save { background: var(--tint-save); }
+  /* Teintes par nature : l'icône oriente avant même la lecture. Le
+     GLYPHE prend aussi la couleur du sens — un symbole monochrome dans
+     une pastille teintée, jamais un emoji d'une autre couleur. */
+  .ico.t-income { background: var(--tint-income); color: var(--positive); }
+  .ico.t-expense { background: var(--tint-expense); color: var(--negative); }
+  .ico.t-save { background: var(--tint-save); color: var(--brand-bright); }
   .ico.t-goal { background: var(--tint-goal); }
-  .ico.t-neutral { background: var(--tint-neutral); }
+  .ico.t-neutral { background: var(--tint-neutral); color: var(--text-secondary); }
   .tx .meta { flex: 1; min-width: 0; }
   .tx .meta .t { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tx .meta .s { font-size: 11px; color: var(--coolgray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2319,7 +2363,11 @@ function icoClass(type) {
   if (type === "transfer" || type === "adjustment") return "ico t-neutral";
   return "ico";
 }
-const TYPE_ICON = { income: "⬇", expense: "⬆", saving: "🏛", investment: "📈", transfer: "⇄", taxPayment: "🧾", refund: "↩", adjustment: "⚖" };
+// Les flèches et symboles portent le VARIATION SELECTOR-15 (U+FE0E) :
+// sans lui, iOS les rend en emoji bleus, hors palette et en conflit avec
+// la teinte sémantique de la pastille. Avec lui, ils héritent de
+// `currentColor` et prennent le sens de leur teinte.
+const TYPE_ICON = { income: "⬇\uFE0E", expense: "⬆\uFE0E", saving: "🏛", investment: "📈", transfer: "⇄\uFE0E", taxPayment: "🧾", refund: "↩\uFE0E", adjustment: "⚖\uFE0E" };
 const TYPE_LABEL = { income: "Revenu", expense: "Dépense", saving: "Épargne", investment: "Investissement",
                      transfer: "Virement interne", taxPayment: "Paiement d'impôts", refund: "Remboursement",
                      adjustment: "Ajustement de solde" };
@@ -2988,6 +3036,65 @@ function renderMovements() {
     <div id="moreTxList">${renderMoreTxList()}</div>`;
 }
 
+/* Graphique annuel du budget : douze barres, une par mois, hauteur =
+   part du budget de dépenses consommée. Remplace la grille de texte, qui
+   n'était qu'un tableau : on ne comparait pas deux mois d'un coup d'œil.
+   La barre est BORNÉE à 100 % de sa hauteur ; au-delà, un chapeau corail
+   dit le dépassement — un mois à 810 % ne peut pas dessiner huit fois la
+   colonne, mais il ne doit pas non plus ressembler à un mois à 100 %.
+   Aucune valeur financière n'est modifiée : seule la projection l'est. */
+function budgetYearMonths(year) {
+  return Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    const hasBudget = budgetLines(year, m).length > 0;
+    const hasTx = transactions.some(t => t.y === year && t.m === m);
+    let consumed = null;
+    if (hasBudget) {
+      const spending = budgetReport(year, m).lines.filter(l => l.kind === "expense");
+      const planned = spending.reduce((a, l) => a + l.planned, 0);
+      consumed = planned > 0
+        ? Math.round(spending.reduce((a, l) => a + l.actual, 0) / planned * 100) : 0;
+    }
+    return { m, hasBudget, hasTx, consumed };
+  });
+}
+
+function budgetYearChart() {
+  const months = budgetYearMonths(cursor.y);
+  const labels = ["jan", "fév", "mar", "avr", "mai", "juin", "juil", "août", "sep", "oct", "nov", "déc"];
+  const bars = months.map(({ m, hasBudget, hasTx, consumed }) => {
+    const isCurrent = m === cursor.m;
+    if (!hasBudget) {
+      // `empty` : PAS de rail gris pleine hauteur — un mois sans budget
+      // ressemblerait à un mois consommé à 100 %. Un simple trait de base.
+      return `<div class="by-col empty${isCurrent ? " on" : ""}">
+        <div class="by-track"><span class="by-none" aria-hidden="true"></span></div>
+        <div class="by-lbl">${labels[m - 1]}</div>
+      </div>`;
+    }
+    const over = consumed > 100;
+    const height = Math.max(4, Math.min(100, consumed));
+    const kind = over ? "neg" : (consumed > 85 ? "warn" : "ok");
+    return `<div class="by-col${isCurrent ? " on" : ""}"
+      title="${labels[m - 1]} : ${consumed} % du budget consommé">
+      <div class="by-track">
+        ${over ? '<span class="by-over" aria-hidden="true"></span>' : ""}
+        <span class="by-fill ${kind}" style="height:${height}%"></span>
+      </div>
+      <div class="by-lbl">${labels[m - 1]}</div>
+    </div>`;
+  }).join("");
+  // Le graphique est décoratif pour un lecteur d'écran : la même
+  // information est donnée EN TOUTES LETTRES juste en dessous.
+  const spoken = months.filter(x => x.hasBudget)
+    .map(x => `${labels[x.m - 1]} ${x.consumed} %`).join(", ");
+  return `<div class="card">
+    <div class="by-chart" role="img"
+         aria-label="${spoken ? `Part du budget consommée par mois : ${spoken}.` : "Aucun budget cette année."}">${bars}</div>
+    <span class="caption" style="display:block;margin-top:10px">Part du budget de dépenses consommée, mois par mois. Une barre pleine = 100 % ; le trait corail au-dessus signale un dépassement.</span>
+  </div>`;
+}
+
 function renderBudget() {
   const { y, m } = cursor;
   const report = budgetReport(y, m);
@@ -3099,28 +3206,7 @@ function renderBudget() {
     <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>
     ${outHTML}
     <p class="section-title">Année ${cursor.y}</p>
-    <div class="card">
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;text-align:center">
-        ${["jan","fév","mar","avr","mai","juin","juil","août","sep","oct","nov","déc"].map((lbl, i) => {
-          const cellMonth = i + 1;
-          const hasBudget = budgetLines(cursor.y, cellMonth).length > 0;
-          const hasTx = transactions.some(t => t.y === cursor.y && t.m === cellMonth);
-          let consumed = null;
-          if (hasBudget) {
-            const cellSpending = budgetReport(cursor.y, cellMonth).lines.filter(l => l.kind === "expense");
-            const cellPlanned = cellSpending.reduce((a, l) => a + l.planned, 0);
-            consumed = cellPlanned > 0
-              ? Math.round(cellSpending.reduce((a, l) => a + l.actual, 0) / cellPlanned * 100) : 0;
-          }
-          const active = hasBudget || hasTx;
-          return `<div style="padding:8px 2px;border-radius:10px;background:${active ? "var(--nu-tint-violet)" : "var(--nu-surface)"}">
-            <div style="font-size:10px;color:var(--nu-text-tertiary);text-transform:uppercase">${lbl}</div>
-            <div style="font-size:12px;font-weight:700;margin-top:2px">${hasBudget ? consumed + " %" : (hasTx ? "·" : "—")}</div>
-          </div>`;
-        }).join("")}
-      </div>
-      <span class="caption" style="display:block;margin-top:8px">Part du budget de dépenses consommée par mois (grille annuelle de l'app).</span>
-    </div>`;
+    ${budgetYearChart()}`;
 }
 
 /* L8 correctif : mise à l'échelle d'AFFICHAGE commune et sûre des
@@ -3235,12 +3321,40 @@ function renderAccounts() {
     ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
     [L("pensionGroup"), ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
   ].filter(([, accs]) => accs.length);
+  // Répartition de l'argent entre les trois natures de comptes : une
+  // liste de soldes ne dit pas où le patrimoine se trouve. Une seule
+  // barre segmentée le montre, avec sa légende écrite — jamais la
+  // couleur seule. Les comptes vides ne créent aucun segment.
+  const repartition = (() => {
+    const parts = groups.map(([title, accs]) => ({
+      title,
+      cents: accs.reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0),
+    })).filter(p => p.cents > 0);
+    const totalC = parts.reduce((a, p) => a + p.cents, 0);
+    if (totalC <= 0 || parts.length < 2) return "";
+    const tone = ["a", "b", "c"];
+    return `<div class="card">
+      <p class="card-label">Où est votre argent</p>
+      <div class="split-bar" role="img"
+           aria-label="Répartition : ${parts.map(p => `${p.title}, ${Math.round(p.cents / totalC * 100)} %`).join(" ; ")}">
+        ${parts.map((p, i) => `<span class="seg s-${tone[i % 3]}" style="width:${(p.cents / totalC * 100).toFixed(1)}%"></span>`).join("")}
+      </div>
+      <div class="split-legend">
+        ${parts.map((p, i) => `<div class="split-item">
+          <span class="dot s-${tone[i % 3]}" aria-hidden="true"></span>
+          <span class="split-name">${esc(p.title)}</span>
+          <span class="split-val">${chf(fromCents(p.cents))} · ${Math.round(p.cents / totalC * 100)} %</span>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  })();
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
       <p class="card-label">Argent disponible</p>
       <p class="hero-amount">${chf(liquid)}</p>
       <span class="caption">Comptes comptés dans le cash${hasForeign ? ` — comptes étrangers convertis en ${baseCurrency()} (taux manuels)` : ""}</span>
     </div>
+    ${repartition}
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
       <p class="section-title">${title}</p>
@@ -3861,11 +3975,20 @@ function renderSubs() {
       : `soit ${chf(recurringYearlyCost(r))} par an`;
     const endedNote = recurringIsActive(r) ? ""
       : ` · résilié depuis ${MONTH_NAMES[r.endedOn.m - 1]} ${r.endedOn.y}`;
+    // Part de ce poste dans le coût annuel total : la barre rend la
+    // comparaison immédiate, le pourcentage la rend exacte.
+    const share = yearlyC > 0 && recurringIsActive(r)
+      ? Math.round(toCents(recurringYearlyCost(r)) / yearlyC * 100) : null;
+    const shareBar = share === null ? "" : `
+      <div class="sub-share">
+        <div class="sub-share-track"><span style="width:${Math.max(2, share)}%"></span></div>
+        <span class="sub-share-pct">${share} %</span>
+      </div>`;
     return `<div class="card row tx sub-row" data-recid="${esc(r.id)}" role="button" tabindex="0"
-         style="cursor:pointer" aria-label="Modifier ${esc(r.title)}">
+         style="cursor:pointer" aria-label="Modifier ${esc(r.title)}${share === null ? "" : ` — ${share} % du coût annuel`}">
       <div class="ico t-expense" aria-hidden="true">${r.icon || "🔁"}</div>
-      <div class="meta"><div class="t">${esc(r.title)} ${rhythm}</div>
-        <div class="s">${when} · ${compare}${endedNote}</div></div>
+      <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span> ${rhythm}</div>
+        <div class="s">${when} · ${compare}${endedNote}</div>${shareBar}</div>
       <span class="amount neg">−${chf(amount)}</span></div>`;
   };
 
@@ -3877,7 +4000,7 @@ function renderSubs() {
     </div>` : `
     <div class="card hero">
       <p class="card-label">Ce que vos abonnements coûtent par an</p>
-      <p class="hero-amount neg${yearly >= 1000000 ? " long" : ""}">${chf(yearly)}</p>
+      <p class="hero-amount${yearly >= 1000000 ? " long" : ""}">${chf(yearly)}</p>
       <span class="caption">Soit ${chf(perMonth)} par mois en moyenne, sur ${active.length} abonnement${active.length > 1 ? "s" : ""} actif${active.length > 1 ? "s" : ""}.</span>
       <div class="breakdown" style="margin-top:10px">
         ${monthlyOnes.length ? `<div><span>${monthlyOnes.length} mensuel${monthlyOnes.length > 1 ? "s" : ""}</span><span>${chf(monthlySum)} / mois</span></div>` : ""}

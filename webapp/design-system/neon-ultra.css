@@ -581,6 +581,112 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   #screen.nu-pilot-screen .home-bill-action { grid-column: 2; justify-self: start; }
 }
 
+/* --- Part d'un abonnement dans le coût annuel -----------------------
+   Une liste de montants ne se compare pas : la barre montre le poids,
+   le pourcentage le chiffre. Violet de marque, pas corail — un coût qui
+   revient n'est ni une erreur ni un dépassement. */
+#screen.nu-pilot-screen .sub-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+#screen.nu-pilot-screen .sub-share-track {
+  flex: 1;
+  min-width: 0;
+  height: 5px;
+  background: var(--nu-tint-neutral);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#screen.nu-pilot-screen .sub-share-track span {
+  display: block;
+  height: 100%;
+  background: var(--nu-violet);
+  border-radius: 3px;
+}
+#screen.nu-pilot-screen .sub-share-pct {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--nu-text-secondary);
+}
+
+/* --- Graphique annuel du budget : douze barres comparables ---------
+   Remplace une grille de texte où deux mois ne se comparaient pas. La
+   colonne est bornée : une barre pleine vaut 100 %, et le chapeau corail
+   dit le dépassement. Le mois courant porte un liseré, pas une couleur
+   seule. */
+#screen.nu-pilot-screen .by-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 104px;
+}
+#screen.nu-pilot-screen .by-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+#screen.nu-pilot-screen .by-track {
+  position: relative;
+  width: 100%;
+  max-width: 18px;
+  height: 80px;
+  display: flex;
+  align-items: flex-end;
+  background: var(--nu-tint-neutral);
+  border-radius: 4px;
+  overflow: hidden;
+}
+#screen.nu-pilot-screen .by-fill {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+}
+#screen.nu-pilot-screen .by-fill.ok { background: var(--nu-violet); }
+#screen.nu-pilot-screen .by-fill.warn { background: var(--nu-warning); }
+#screen.nu-pilot-screen .by-fill.neg { background: var(--nu-negative); }
+/* Chapeau de dépassement : une barre pleine ne peut pas dire « 810 % ».
+   Ce trait le dit, en plus du pourcentage écrit dans l'infobulle et de
+   l'étiquette accessible. */
+#screen.nu-pilot-screen .by-over {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: var(--nu-negative);
+  border-radius: 4px 4px 0 0;
+}
+/* Mois sans budget : le rail disparaît. Sinon un bloc gris pleine
+   hauteur se lit comme une barre à 100 % — l'inverse de la vérité. */
+#screen.nu-pilot-screen .by-col.empty .by-track { background: transparent; }
+#screen.nu-pilot-screen .by-none {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: var(--nu-border);
+  align-self: flex-end;
+  border-radius: 3px;
+}
+#screen.nu-pilot-screen .by-lbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--nu-text-tertiary);
+}
+#screen.nu-pilot-screen .by-col.on .by-lbl {
+  color: var(--nu-text-primary);
+  font-weight: 700;
+}
+#screen.nu-pilot-screen .by-col.on .by-track {
+  outline: 1px solid var(--nu-violet);
+  outline-offset: 1px;
+}
+
 /* --- Priorité : texte + symbole + FORME (barre latérale), jamais la couleur seule --- */
 #screen.nu-pilot-screen .priority-card {
   border-color: var(--nu-violet);
@@ -676,6 +782,17 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   text-overflow: clip;
   line-height: 1.35;
 }
+/* Ces deux listes font le choix INVERSE de la liste dense des mouvements :
+   le nom s'enroule au lieu d'être coupé. Le titre encapsulé doit suivre —
+   sinon il garde le `nowrap` générique et déborde sous le montant. */
+#screen.nu-pilot-screen .year-month .t,
+#screen.nu-pilot-screen .sub-row .t { display: block; }
+#screen.nu-pilot-screen .year-month .t > .t-label,
+#screen.nu-pilot-screen .sub-row .t > .t-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
 #screen.nu-pilot-screen .year-month .amount,
 #screen.nu-pilot-screen .sub-row .amount { white-space: nowrap; }
 
@@ -746,11 +863,22 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   background: var(--nu-tint-neutral);
   color: var(--nu-text-primary);
 }
-#screen.nu-pilot-screen .ico.t-income { background: var(--nu-tint-positive); }
-#screen.nu-pilot-screen .ico.t-expense { background: var(--nu-tint-negative); }
+/* Le glyphe prend la couleur du SENS, comme la teinte de fond : un
+   symbole monochrome, jamais un emoji d'une autre couleur au milieu. */
+#screen.nu-pilot-screen .ico.t-income {
+  background: var(--nu-tint-positive);
+  color: var(--nu-positive);
+}
+#screen.nu-pilot-screen .ico.t-expense {
+  background: var(--nu-tint-negative);
+  color: var(--nu-negative);
+}
 #screen.nu-pilot-screen .ico.t-save,
 #screen.nu-pilot-screen .ico.t-goal,
-#screen.nu-pilot-screen .ico.t-neutral { background: var(--nu-tint-violet); }
+#screen.nu-pilot-screen .ico.t-neutral {
+  background: var(--nu-tint-violet);
+  color: var(--nu-text-primary);
+}
 
 /* --- Champ de recherche/entrée éventuel d'une surface pilote --- */
 #screen.nu-pilot-screen input,

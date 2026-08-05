@@ -4311,6 +4311,104 @@ currentTest = "identité installée cohérente";
   }
 }
 
+// ---------- Test 99 : les graphiques disent la vérité ----------
+currentTest = "graphiques honnêtes";
+// Quatre captures iPhone du propriétaire (05.08.2026) : « améliore ces
+// pages, le visuel, les graphs plus jolis ». Trois défauts réels :
+//   · la grille « Année » n'était qu'un tableau de texte — deux mois ne se
+//     comparaient pas ;
+//   · le total des abonnements était peint en CORAIL, couleur réservée au
+//     négatif et au dépassement : un coût qui revient n'est ni l'un ni
+//     l'autre, et le rouge criait sans rien dire ;
+//   · les Comptes ne montraient nulle part OÙ était l'argent.
+await goHome();
+{
+  await page.evaluate(() => {
+    // Un mois budgété et DÉPASSÉ : c'est le cas que la barre doit savoir
+    // raconter sans dessiner huit fois la colonne.
+    S.budgets[`${NOW.y}-${NOW.m}`] = [{ cat: "Logement", amount: 500 }];
+    saveState(); activeTab = "budget"; render();
+  });
+  await page.waitForTimeout(400);
+  const annee = await page.evaluate(() => {
+    const chart = document.querySelector(".by-chart");
+    if (!chart) return null;
+    const cols = [...chart.querySelectorAll(".by-col")];
+    const rails = cols.filter(c => c.classList.contains("empty"))
+      .map(c => getComputedStyle(c.querySelector(".by-track")).backgroundColor);
+    return {
+      colonnes: cols.length,
+      remplies: chart.querySelectorAll(".by-fill").length,
+      depassements: chart.querySelectorAll(".by-over").length,
+      // Un mois SANS budget ne doit pas porter de rail plein : il
+      // ressemblerait à un mois consommé à 100 %.
+      railsVides: rails,
+      aria: chart.getAttribute("aria-label") || "",
+      hauteurs: [...chart.querySelectorAll(".by-fill")]
+        .map(e => parseFloat(e.style.height)),
+    };
+  });
+  check(annee !== null, "l'année du Budget est un GRAPHIQUE, plus une grille de texte");
+  if (annee) {
+    check(annee.colonnes === 12, `douze mois, douze colonnes (obtenu ${annee.colonnes})`);
+    check(annee.depassements >= 1,
+      "un mois dépassé porte son chapeau de dépassement");
+    check(annee.hauteurs.every(h => h <= 100),
+      `aucune barre ne sort de son cadre (obtenu ${JSON.stringify(annee.hauteurs)})`);
+    check(annee.railsVides.every(c => c === "rgba(0, 0, 0, 0)"),
+      `un mois sans budget n'affiche AUCUN rail plein (obtenu ${JSON.stringify(annee.railsVides)})`);
+    check(/%/.test(annee.aria),
+      `le graphique est lisible par un lecteur d'écran (obtenu « ${annee.aria.slice(0, 60)} »)`);
+  }
+
+  // Abonnements : total apaisé + part de chaque poste.
+  await page.evaluate(() => { activeTab = "more"; moreView = "subs"; render(); });
+  await page.waitForTimeout(400);
+  const subs = await page.evaluate(() => {
+    const hero = document.querySelector(".home-bills-total, .hero-amount");
+    const parts = [...document.querySelectorAll(".sub-share-pct")]
+      .map(e => parseInt(e.textContent, 10));
+    return {
+      couleur: hero ? getComputedStyle(hero).color : "",
+      corail: hero ? hero.classList.contains("neg") : false,
+      parts,
+      barres: document.querySelectorAll(".sub-share-track").length,
+    };
+  });
+  check(!subs.corail,
+    `le coût annuel des abonnements n'est PAS peint en corail (couleur ${subs.couleur})`);
+  check(subs.barres > 0 && subs.parts.length === subs.barres,
+    `chaque abonnement montre sa part du total (${subs.barres} barres, ${subs.parts.length} pourcentages)`);
+  if (subs.parts.length) {
+    const somme = subs.parts.reduce((a, b) => a + b, 0);
+    check(Math.abs(somme - 100) <= subs.parts.length,
+      `les parts couvrent bien le total (somme ${somme} %)`);
+  }
+
+  // Comptes : la répartition existe et ses parts sont cohérentes.
+  await page.evaluate(() => { activeTab = "accounts"; moreView = null; render(); });
+  await page.waitForTimeout(400);
+  const comptes = await page.evaluate(() => {
+    const bar = document.querySelector(".split-bar");
+    if (!bar) return null;
+    return {
+      segments: [...bar.querySelectorAll(".seg")].map(e => parseFloat(e.style.width)),
+      legende: document.querySelectorAll(".split-item").length,
+      aria: bar.getAttribute("aria-label") || "",
+    };
+  });
+  check(comptes !== null, "les Comptes montrent OÙ est l'argent");
+  if (comptes) {
+    const somme = comptes.segments.reduce((a, b) => a + b, 0);
+    check(Math.abs(somme - 100) < 0.5,
+      `les segments couvrent exactement 100 % (obtenu ${somme.toFixed(1)})`);
+    check(comptes.legende === comptes.segments.length,
+      "chaque segment a sa ligne de légende ÉCRITE, jamais la couleur seule");
+    check(/%/.test(comptes.aria), "la répartition est lisible par un lecteur d'écran");
+  }
+  await page.evaluate(() => { activeTab = "home"; render(); });
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4320,4 +4418,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 98 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 99 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes), zéro erreur console ✓");

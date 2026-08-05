@@ -17,6 +17,67 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « graphiques honnêtes » (05.08.2026) — VERIFYING
+
+Demande du propriétaire sur quatre captures iPhone (Abonnements, Comptes,
+Budget, Mouvements) : « j'aimerais que tu m'améliore ces pages », puis
+« le visuel, les graphes plus jolis ».
+
+### 1. Les pastilles de type étaient hors palette
+
+`TYPE_ICON` utilisait des flèches et symboles nus. iOS les rend en **emoji
+bleus** : une dépense affichait une flèche bleue sur une pastille corail,
+deux couleurs qui se contredisent dans un carré de 34 px. Chaque symbole
+porte désormais le VARIATION SELECTOR-15 (`U+FE0E`), qui force le rendu
+texte, et `.ico.t-*` pose la `color` sémantique. Le symbole prend donc la
+teinte de sa pastille : vert pour une entrée, corail pour une sortie,
+violet pour l'épargne, gris pour le neutre.
+
+### 2. Trois graphiques remplacent trois listes de chiffres
+
+Aucun n'invente de donnée : chacun dessine une série qui existait déjà en
+texte, et rien d'autre.
+
+- **Budget → Année** : la grille « mois / dépensé / budget » devient douze
+  colonnes. La hauteur est le taux d'utilisation, plafonné à 100 % ; un
+  dépassement ajoute un chapeau corail au-dessus du plafond plutôt que de
+  faire mentir l'échelle. Un mois **sans mouvement** a une piste
+  transparente — sans quoi un mois vide se lisait comme un mois à 100 %.
+- **Abonnements** : une barre de part par ligne (73 / 18 / 9 %). Le total
+  perd sa couleur négative : un abonnement assumé n'est pas une alerte.
+- **Comptes** : « Où est votre argent » — une barre de répartition segmentée
+  avec sa légende, calculée sur les soldes réels.
+
+### 3. Les libellés ne débordent plus
+
+Le badge « Prévu » collé au titre rognait le libellé à 95 px sur 320. La
+ligne de métadonnée passe en flex **dans la liste dense uniquement** : le
+titre s'ellipse, le badge garde sa place. Partout où le texte doit revenir
+à la ligne (page Année, abonnements, cartes prioritaires, lignes de
+gestion), `display: block` est restauré — la première version de ce
+correctif faisait chevaucher « Stockage en ligne (annuel) » de 54 px avec
+son montant.
+
+### Preuves
+
+- **99 parcours e2e** (98 conservés + le n° 99) · 5 fixtures de parité ·
+  design Obsidian, NU1 et NU2 verts · zéro erreur console.
+- Le n° 99 vérifie que chaque colonne de l'année reste dans son cadre, que
+  les parts d'abonnement totalisent 100 %, et que la barre de répartition
+  correspond aux soldes affichés.
+- **Contrôle négatif effectué** : une colonne non plafonnée, une part
+  fausse et une pastille sans `color` produisent trois échecs nommés.
+- Sonde de chevauchement à 320 et 390 px : `[]` sur les 16 écrans. Captures
+  d'audit régénérées et **regardées**, notamment `320-subs.png`,
+  `320-year.png` et `390-comptes.png`.
+
+### Ce que ce lot ne fait pas
+
+Le natif n'a pas ces graphiques : `AccountsTab` et les abonnements sont des
+écrans **non pilotes**, ils appartiennent à NU4/NU6. L'écart PWA/iOS est
+donc temporairement plus grand sur ces trois pages — consigné, pas comblé
+en douce.
+
 ## NU3 — Pilote SwiftUI : Mois, Budget, Nouveau mouvement (05.08.2026) — VERIFYING
 
 Lot démarré sur accord explicite du propriétaire (« Fait développe »,
