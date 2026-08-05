@@ -125,12 +125,12 @@ struct TransactionFormView: View {
                     TextField("Montant (CHF)", text: $amountText)
                         .keyboardType(.decimalPad)
                         .focused($amountFocused)
-                        // Le montant est le champ dominant de la feuille.
-                        // Volontairement `amount` et NON `heroAmount` : dans
-                        // une ligne de `Form`, un largeTitle déborde dès que
-                        // le texte est agrandi — et je ne peux pas vérifier
-                        // le rendu sans simulateur.
-                        .font(NeonUltraTypography.amount)
+                        // Le montant est le champ DOMINANT de la feuille.
+                        // Première version en `amount` : la capture
+                        // simulateur a montré un champ impossible à
+                        // distinguer des autres libellés. `formAmount`
+                        // (title2) le fait ressortir sans déborder.
+                        .font(NeonUltraTypography.formAmount)
                         .foregroundStyle(NeonUltraColor.textPrimary)
                 }
                 .listRowBackground(NeonUltraColor.surface)
@@ -234,6 +234,10 @@ struct TransactionFormView: View {
             // NU3 : feuille PILOTE — fond Neon Ultra et lignes de `Form`
             // sur la surface mate, jamais le gris système.
             .background { NeonUltraScreenBackground() }
+            // Sans cette teinte, « Annuler », « Enregistrer » et tous les
+            // sélecteurs héritaient de l'indigo Obsidian de `RootView` —
+            // visible sur la capture NU3, et hors palette.
+            .tint(NeonUltraColor.cyan)
             .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
             .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)

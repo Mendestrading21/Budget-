@@ -47,6 +47,48 @@ visuelle raisonnable avec NU2.
    `+`/`−` explicite et le sens serait retombé sur la seule couleur, ce que la
    constitution interdit.
 
+### Ce que les captures simulateur ont réellement corrigé
+
+Cinq exécutions du workflow Demo ont été nécessaires pour obtenir les trois
+captures. Elles ont ensuite servi à quelque chose :
+
+1. **Bande morte de ~80 pt** entre le dernier contenu et la barre d'onglets,
+   sur Mois ET Budget — noir sur noir, invisible en lecture de code.
+   `obsidianFABClearance()` réservait la place d'un ＋ flottant supprimé par
+   ADR-026. Les écrans pilotes utilisent désormais
+   `neonUltraScrollClearance()` ; « Factures du mois » est réapparu.
+2. **Le montant de la feuille ne dominait pas du tout.** Mon premier choix
+   (`amount`, par crainte d'un débordement) rendait le champ indistinguable
+   des autres libellés. Nouveau token `formAmount` (`title2`) : visible sans
+   déborder, et il suit Dynamic Type.
+3. **La feuille héritait de l'indigo Obsidian** de `RootView` — « Annuler »,
+   « Enregistrer » et tous les sélecteurs hors palette sur une surface
+   pilote. Teinte cyan Neon Ultra appliquée à la feuille.
+
+### Ce que les captures montrent et que NU3 ne corrige PAS
+
+Le **shell reste Obsidian** : la bannière de démonstration forme un large
+bloc indigo saturé, et le ＋, l'icône de vue annuelle et l'onglet sélectionné
+tirent leur teinte de `RootView`. C'est visible et ça jure. Mais `RootView`
+n'est pas un fichier pilote et le shell appartient à **NU4** : consigné, pas
+élargi en douce.
+
+Les quatorze écrans non pilotes gardent la bande de 80 pt.
+
+### Le workflow Demo était cassé, et pas par NU3
+
+- Il n'avait plus tourné depuis le **25.07** (branche Obsidian, avant NU0).
+- Le runner `macos-15` ne livrait **aucun simulateur** : le nom `iPhone 16`
+  était figé. Le workflow résout désormais un iPhone disponible, en crée un
+  au besoin, et échoue bruyamment s'il n'y a aucun runtime iOS.
+- Le tour UI pilotait l'app avec les **anciens noms** (« Accueil »,
+  « Mouvements », « Plus », un ＋ universel à menu, un groupe « À organiser »)
+  — tous périmés depuis ADR-026. La CI saute `BudgetUITests` : personne ne
+  pouvait le voir.
+- Structurellement, la preuve de NU3 dépendait d'un tour de cinquante étapes
+  sur des écrans étrangers au lot. `NeonUltraPilotTourUITests` capture
+  désormais les trois surfaces et rien d'autre, indépendamment.
+
 ### Preuves et limites — honnêtement
 
 - `NeonUltraPilotTests` ajouté : les trois surfaces se construisent à 320 et

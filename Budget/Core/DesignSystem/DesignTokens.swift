@@ -404,4 +404,13 @@ enum NeonUltraTypography {
     static var amount: Font {
         .system(.body, design: .default).weight(.semibold).monospacedDigit()
     }
+
+    /// Montant SAISI dans une feuille : le champ dominant, sans être un
+    /// héros. `heroAmount` (largeTitle) déborde d'une ligne de `Form` dès
+    /// que le texte est agrandi ; `amount` (body) ne se distingue pas des
+    /// autres libellés — la capture simulateur NU3 l'a montré. `title2`
+    /// suit Dynamic Type et tient dans la ligne.
+    static var formAmount: Font {
+        .system(.title2, design: .default).weight(.semibold).monospacedDigit()
+    }
 }
