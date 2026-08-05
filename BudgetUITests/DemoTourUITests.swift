@@ -67,12 +67,12 @@ final class DemoTourUITests: XCTestCase {
         // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
         // partie des trois parcours refondus — preuve native exigée.
         openTab(app, "Mois")
-        let addMenu = app.buttons["Ajouter — dépense, revenu, épargne, investissement ou virement"]
-        XCTAssertTrue(addMenu.waitForExistence(timeout: 10), "Le ＋ universel doit exister sur l'Accueil")
-        addMenu.tap()
-        let expenseChoice = app.buttons["Dépense"]
-        XCTAssertTrue(expenseChoice.waitForExistence(timeout: 5), "Le menu ＋ doit proposer « Dépense »")
-        expenseChoice.tap()
+        // ADR-026 : plus d'ajout global à menu. Le bouton de la barre de
+        // navigation ouvre DIRECTEMENT « Nouveau mouvement ».
+        let addButton = app.buttons["Ajouter un mouvement"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 10),
+                      "L'accueil doit porter son action d'ajout")
+        addButton.tap()
         XCTAssertTrue(
             app.navigationBars["Nouveau mouvement"].waitForExistence(timeout: 10),
             "La feuille « Nouveau mouvement » doit s'ouvrir"
@@ -162,7 +162,7 @@ final class DemoTourUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Mois"].waitForExistence(timeout: 60), "démo absente")
 
         openTab(app, "Gérer")
-        XCTAssertTrue(app.staticTexts["À organiser"].waitForExistence(timeout: 10), "groupes du hub absents")
+        XCTAssertTrue(app.staticTexts["Mon mois"].waitForExistence(timeout: 10), "groupes du hub absents")
         snap(app, "ios-l7-plus")
 
         // Documents : registre rempli + fichier ABSENT écrit.

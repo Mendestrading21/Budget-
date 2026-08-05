@@ -95,7 +95,7 @@ struct HomeTab: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
-                .obsidianFABClearance()
+                .neonUltraScrollClearance()
             }
             .navigationTitle(greetingName.map { "Bonjour \($0)" } ?? "Accueil")
             .toolbar {

@@ -69,6 +69,20 @@ struct NeonUltraScreenBackground: View {
     }
 }
 
+/// Marge de fin de défilement des surfaces PILOTES.
+///
+/// Remplace `obsidianFABClearance()` sur ces écrans. Cette dernière réserve
+/// 80 pt pour un ＋ flottant qui n'existe PLUS : ADR-026 a supprimé l'ajout
+/// global. Les captures simulateur NU3 le montrent noir sur noir — une bande
+/// vide d'environ 80 pt entre le dernier contenu et la barre d'onglets, sur
+/// Mois comme sur Budget. On garde la respiration de fin de liste, on rend
+/// les 80 pt au contenu.
+extension View {
+    func neonUltraScrollClearance() -> some View {
+        contentMargins(.bottom, BudgetSpacing.medium, for: .scrollContent)
+    }
+}
+
 // MARK: - Cartes
 
 /// Carte standard MATE : surface `#11141C`, bordure `#293040`,

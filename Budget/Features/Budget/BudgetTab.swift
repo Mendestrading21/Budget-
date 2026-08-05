@@ -69,7 +69,7 @@ struct BudgetTab: View {
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
-                .obsidianFABClearance()
+                .neonUltraScrollClearance()
             }
             .navigationTitle("Budget")
             .toolbar {
