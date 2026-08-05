@@ -3388,8 +3388,11 @@ const restore85 = await page79.evaluate(async () => {
   };
 });
 check(restore85.unchanged, "une sauvegarde invalide ne doit jamais remplacer l'état sain");
-check(/invalide|illisible/.test(restore85.message),
-  `le refus doit être expliqué (obtenu « ${restore85.message.trim()} »)`);
+// Le refus doit dire DEUX choses : ce qui cloche avec le fichier, et que
+// rien n'a bougé. Les mots ont changé, l'exigence non.
+check(/ne se lit pas|n'est pas une sauvegarde|autre version|trop gros/.test(restore85.message)
+  && /rien n'a changé/i.test(restore85.message),
+  `le refus doit être expliqué ET rassurer (obtenu « ${restore85.message.trim()} »)`);
 check(/objectif/.test(restore85.malformedGoalError),
   `une collection secondaire mal formée doit être refusée pour la bonne raison (${restore85.malformedGoalError})`);
 check(/dernier import/.test(restore85.malformedImportError),

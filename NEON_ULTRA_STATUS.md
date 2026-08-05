@@ -17,6 +17,53 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « messages et retours » (05.08.2026) — VERIFYING
+
+Suite directe du précédent, sur les textes qu'on ne voit qu'au moment où
+quelque chose se passe : les refus de formulaire, l'accueil du premier
+lancement, et les dix-neuf messages de confirmation.
+
+| Avant | Maintenant |
+|---|---|
+| Solde d'ouverture invalide. | Ce solde n'est pas un montant valable. |
+| Jour entre 1 et 28 (les mois courts sont ainsi toujours couverts). | Choisissez un jour entre 1 et 28, comme ça février est couvert aussi. |
+| Les deux saisies ne correspondent pas. | Les deux codes ne sont pas les mêmes. |
+| Code incorrect — le verrouillage reste actif. | Ce code n'est pas le bon. L'app reste verrouillée. |
+| Salaire mensuel net | Ce que vous recevez chaque mois |
+| Stockage indisponible — ce changement ne survivra pas au rechargement | Votre navigateur refuse d'enregistrer. Ce changement disparaîtra si vous rechargez la page. |
+| Sauvegarde illisible — rien n'a été modifié | Ce fichier ne se lit pas. Rien n'a changé. |
+| Opérations effacées — comptes, budgets et réglages conservés | Mouvements effacés. Vos comptes, budgets et réglages sont gardés. |
+
+Les quatre refus de restauration restent **quatre messages distincts** —
+trop gros, illisible, autre version, pas une sauvegarde Budget. Les
+confondre aurait rendu le texte plus simple et l'app moins utile.
+
+### Preuves
+
+- 101 parcours e2e · 5 fixtures de parité · design system vert · zéro
+  erreur console.
+- Le test de restauration exige désormais **deux** choses du message : ce
+  qui cloche avec le fichier **et** que rien n'a bougé. C'est plus strict
+  qu'avant, qui cherchait seulement le mot « invalide ».
+- Chaque refus continue de DÉSIGNER son champ, y compris replié.
+
+## Note de méthode — une CI rouge que j'ai poussée (05.08.2026)
+
+`441f91c` est parti avec une CI rouge : la suite design échouait sur
+« les valeurs réel / planifié sont écrites en toutes lettres ».
+
+La cause n'est pas le code, c'est ma boucle. J'avais lancé les trois suites,
+**puis** modifié la ligne d'enveloppe du Budget après avoir regardé une
+capture, **puis** relancé l'e2e seul — celui que je pensais concerné — avant
+de committer. La suite design n'a jamais revu ce changement.
+
+Corrigé au commit suivant (`7e034b3`, CI #286 et Pages #57 vertes), et
+l'assertion est maintenant portée par le héros du Budget plutôt que par les
+lignes d'enveloppe : elle ne dépend plus de l'état des données. La règle
+tient toujours : **les trois suites, après la dernière modification, avant
+chaque commit** — sans exception, même quand la modification paraît
+cosmétique.
+
 ## Lot « l'app parle comme une personne » (05.08.2026) — VERIFYING
 
 Retour du propriétaire sur cinq captures : « j'aime beaucoup, mais ça fait

@@ -1979,7 +1979,7 @@ const INSURANCES = S.insurances;
 
 function saveState() {
   try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(S)); }
-  catch (e) { toast("Stockage indisponible — ce changement ne survivra pas au rechargement"); }
+  catch (e) { toast("Votre navigateur refuse d'enregistrer. Ce changement disparaîtra si vous rechargez la page."); }
 }
 
 /* Obsidian Glass (ADR-020, L2) : UNE seule identité sombre. L'ancien champ
@@ -5106,7 +5106,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     const { y, m } = cursor;
     S.budgets[`${y}-${m}`] = source.map(l => ({ ...l }));
     saveState();
-    toast("Budget copié — ajustez librement, le mois source reste intact");
+    toast("Budget copié. Modifiez-le comme vous voulez : le mois d'origine ne change pas.");
     render();
     return;
   }
@@ -5284,7 +5284,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   if (e.target.closest("[data-impcancel]")) {
     importDraft = null;
-    toast("Import annulé — rien n'a été écrit");
+    toast("Import annulé. Rien n'a été enregistré.");
     render();
     return;
   }
@@ -5303,7 +5303,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} mouvements) ? Le reste survit.`)) return;
     pushUndo();
     rollbackLastImport();
-    toast("Lot annulé — les autres mouvements sont intacts", true);
+    toast("Import annulé. Vos autres mouvements sont intacts.", true);
     render();
     return;
   }
@@ -5386,7 +5386,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
       localStorage.setItem(APP_STATE_KEY, JSON.stringify(seeded));
       localStorage.removeItem(LEGACY_TX_KEY);
     } catch (err) {
-      toast("Stockage plein — la démonstration n'a pas pu être chargée");
+      toast("Il n'y a plus de place dans votre navigateur : la démonstration n'a pas pu être chargée.");
       return;
     }
     location.reload();
@@ -5544,7 +5544,7 @@ function toast(message, undoable) {
   toastTimer = setTimeout(() => el.classList.remove("show"), undoable ? 6000 : 2600);
   const undoBtn = document.getElementById("toastUndo");
   if (undoBtn) undoBtn.addEventListener("click", () => {
-    if (undoLast()) { el.classList.remove("show"); toast("Annulé — état restauré"); render(); }
+    if (undoLast()) { el.classList.remove("show"); toast("Annulé. Tout est revenu comme avant."); render(); }
   });
 }
 
@@ -5927,7 +5927,7 @@ function exportBackup() {
 // pour qu'aucune donnée ne soit jamais perdue en silence.
 function downloadRescued() {
   const raw = localStorage.getItem(RESCUE_KEY);
-  if (!raw) { toast("Aucune donnée de secours à récupérer"); return false; }
+  if (!raw) { toast("Il n'y a aucune copie de secours à récupérer."); return false; }
   downloadFile(`budget-donnees-de-secours-${fileStamp()}.json`, raw, "application/json");
   toast("Copie de secours téléchargée");
   return true;
@@ -6264,7 +6264,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
 }
 function restoreFromFile(file) {
   if (!file || file.size > 20 * 1024 * 1024) {
-    toast("Sauvegarde trop volumineuse — rien n'a été modifié");
+    toast("Ce fichier est trop gros. Rien n'a changé.");
     return;
   }
   const reader = new FileReader();
@@ -6273,20 +6273,20 @@ function restoreFromFile(file) {
     try { payload = JSON.parse(reader.result); } catch (e) { payload = null; }
     if (!payload || payload.app !== "budget-web" || !payload.state
         || !Array.isArray(payload.state.transactions) || !Array.isArray(payload.state.accounts)) {
-      toast("Sauvegarde illisible — rien n'a été modifié");
+      toast("Ce fichier ne se lit pas. Rien n'a changé.");
       return;
     }
     // La version vit à la fois sur l'enveloppe ET sur l'état : les deux
     // doivent être exactement 1, sinon on refuse plutôt que d'écrire un
     // état que le prochain chargement mettrait de côté (perte évitée).
     if (payload.version !== 1 || payload.state.version !== 1) {
-      toast("Sauvegarde d'une autre version — rien n'a été modifié");
+      toast("Ce fichier vient d'une autre version de Budget. Rien n'a changé.");
       return;
     }
     let restoredState;
     try { restoredState = validatedRestoreState(payload.state); }
     catch (error) {
-      toast("Sauvegarde invalide — rien n'a été modifié");
+      toast("Ce fichier n'est pas une sauvegarde Budget. Rien n'a changé.");
       return;
     }
     const validatedPayload = { ...payload, state: restoredState };
@@ -6304,7 +6304,7 @@ function restoreFromFile(file) {
         if (previousRaw == null) localStorage.removeItem(APP_STATE_KEY);
         else localStorage.setItem(APP_STATE_KEY, previousRaw);
       } catch (rollbackError) {}
-      toast("Stockage indisponible — restauration impossible, données actuelles intactes");
+      toast("Votre navigateur refuse d'enregistrer : impossible de restaurer. Vos données actuelles sont intactes.");
     }
   };
   reader.readAsText(file);
@@ -6327,7 +6327,7 @@ function deleteAllData() {
   S.monthChecks = {}; // plus d'opérations → plus de mois « bouclés »
   saveState();
   moreView = null;
-  toast("Opérations effacées — comptes, budgets et réglages conservés", true);
+  toast("Mouvements effacés. Vos comptes, budgets et réglages sont gardés.", true);
   render();
 }
 
@@ -6455,7 +6455,7 @@ function openLineSheet(cat) {
     const taken = new Set(lines.map(l => l.cat));
     const available = Object.keys(CATEGORIES).filter(c => !taken.has(c) && CATEGORIES[c] !== "income");
     if (!available.length) {
-      toast("Toutes les catégories sont déjà budgétées ce mois");
+      toast("Toutes vos catégories ont déjà un budget ce mois-ci.");
       return;
     }
     select.disabled = false;
@@ -6998,8 +6998,8 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Le montant prévu à 65 ans n'est pas valable."; return; }
   const data = { name, value, projection };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
-  if (existing) { Object.assign(existing, data); toast("Position modifiée"); }
-  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Position ajoutée"); }
+  if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
+  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Prévoyance ajoutée"); }
   saveState(); backdrop.classList.remove("open"); render();
 });
 document.getElementById("penDelete").addEventListener("click", () => {
@@ -7007,7 +7007,7 @@ document.getElementById("penDelete").addEventListener("click", () => {
   pushUndo();
   const index = PENSIONS.findIndex(p => p.id === editingPenId);
   if (index >= 0) PENSIONS.splice(index, 1);
-  saveState(); backdrop.classList.remove("open"); toast("Position supprimée", true); render();
+  saveState(); backdrop.classList.remove("open"); toast("Prévoyance supprimée", true); render();
 });
 
 /* ---------- Feuille impôts (W4) ---------- */
@@ -7189,7 +7189,7 @@ document.getElementById("bUnpay").addEventListener("click", () => {
   bill.paidTxId = null;
   saveState();
   backdrop.classList.remove("open");
-  toast("Facture rouverte — mouvement retiré", true);
+  toast("Facture remise à payer. La dépense a été retirée.", true);
   render();
 });
 document.getElementById("bDelete").addEventListener("click", () => {
@@ -7226,7 +7226,7 @@ document.getElementById("fDuplicate").addEventListener("click", () => {
   document.getElementById("fDuplicate").style.display = "none";
   document.getElementById("fDate").value =
     `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
-  toast("Copie prête — ajustez puis enregistrez");
+  toast("Copie prête. Modifiez ce que vous voulez, puis enregistrez.");
 });
 
 
