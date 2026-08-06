@@ -8,9 +8,10 @@ import XCTest
 /// rebranchées — Mois, Budget, Nouveau mouvement — portent l'identité
 /// Neon Ultra et se construisent dans tous les états exigés.
 ///
-/// ADDITIF : les assertions Obsidian historiques (`ObsidianPilotTests`,
-/// `DesignSystemTests`) restent intouchées. Les deux familles coexistent
-/// tant que NU4 à NU7 n'ont pas rebranché le reste de l'application.
+/// Les SURFACES des deux familles ont été unifiées (ADR-024) : l'app peint
+/// un seul noir et une seule matière de carte. Ce qui distingue encore
+/// Obsidian de Neon Ultra, c'est l'ACCENT — indigo contre cyan/magenta —
+/// jusqu'à ce que NU4 à NU7 aient rebranché le reste des écrans.
 final class NeonUltraPilotTests: XCTestCase {
     // MARK: - Outils
 
@@ -35,32 +36,37 @@ final class NeonUltraPilotTests: XCTestCase {
         return controller
     }
 
-    // MARK: - Isolation : le fond piloté n'est PAS le fond Obsidian
+    // MARK: - Un seul fond pour toute l'application
 
-    /// Le cœur du contrat d'isolation. `NeonUltraScreenBackground` peint
-    /// le canvas `#05060A` ; `BudgetScreenBackground` peint le dégradé
-    /// Obsidian. Tant que les deux diffèrent, un écran non piloté ne peut
-    /// pas avoir changé de fond par accident.
-    func testPilotBackgroundIsCanvasAndDiffersFromObsidian() {
+    /// `NeonUltraScreenBackground` peint le canvas `#05060A`, et depuis
+    /// l'unification des surfaces (ADR-024) `BudgetColor.canvas` vaut la
+    /// même chose. Ce test a changé de sens : il ne prouve plus que les
+    /// deux fonds diffèrent, il prouve qu'ils sont IDENTIQUES.
+    func testPilotBackgroundIsCanvasAndMatchesTheRestOfTheApp() {
         let canvas = resolve(NeonUltraColor.canvas)
         XCTAssertEqual(Double(canvas.r) * 255, 5, accuracy: 0.75, "canvas #05060A — rouge")
         XCTAssertEqual(Double(canvas.g) * 255, 6, accuracy: 0.75, "canvas #05060A — vert")
         XCTAssertEqual(Double(canvas.b) * 255, 10, accuracy: 0.75, "canvas #05060A — bleu")
         XCTAssertEqual(Double(canvas.a), 1, accuracy: 0.005, "le fond piloté est OPAQUE")
 
-        // Le fond Obsidian part de `BudgetColor.canvas` : s'il devenait
-        // identique au canvas Neon Ultra, la preuve d'isolation ci-dessus
-        // ne prouverait plus rien.
+        // Ce contrôle exigeait auparavant que le fond piloté DIFFÈRE du fond
+        // Obsidian : c'était la preuve que le rebranchement avait bien eu
+        // lieu et n'avait pas débordé. Les surfaces sont maintenant unifiées
+        // volontairement (ADR-024) — mesuré côté web, le noir CHANGEAIT en
+        // passant d'un onglet à l'autre, et le natif portait la même
+        // divergence. Ce qu'il faut prouver s'est donc inversé : les deux
+        // familles doivent annoncer EXACTEMENT le même fond.
         let obsidian = resolve(BudgetColor.canvas)
-        XCTAssertNotEqual(
+        XCTAssertEqual(
             RGBA(r: canvas.r, g: canvas.g, b: canvas.b, a: canvas.a),
             RGBA(r: obsidian.r, g: obsidian.g, b: obsidian.b, a: obsidian.a),
-            "les deux identités doivent rester distinguables"
+            "l'app entière doit peindre le même noir"
         )
     }
 
-    /// Les rôles Obsidian restent INTACTS : NU3 rebranche des écrans, il
-    /// ne réécrit aucun token de l'ancienne famille.
+    /// L'ACCENT Obsidian reste intact. Les surfaces, elles, ont été
+    /// délibérément unifiées sur Neon Ultra (ADR-024) : c'est la teinte de
+    /// marque, pas le fond, qui distingue encore les deux familles.
     func testObsidianRolesAreUntouchedByThePilot() {
         let brand = resolve(BudgetColor.indigo)
         XCTAssertEqual(Double(brand.r) * 255, 115, accuracy: 1.5, "Indigo Aurora #7367FF — rouge")
