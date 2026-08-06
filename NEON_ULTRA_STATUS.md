@@ -17,6 +17,105 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Les vrais logos du propriétaire (06.08.2026) — VERIFYING
+
+Le propriétaire a fourni les **deux dessins officiels** de la marque, avec
+leur usage : « celle à la typo, c'est pour voir partout » ; « l'autre, c'est
+celle pour utiliser sur l'app qu'on voit sur l'iPhone » ; « fais les trucs
+transparents pour que ça soit bien carré sur un fond noir ».
+
+Les sources sont archivées dans
+`.claude/skills/budget-neon-ultra/assets/marque/` et **tous** les fichiers de
+l'app en dérivent par un seul script,
+`assets/tools/generer-marque.py`. Aucun PNG n'est retouché à la main : une
+correction se fait dans le script, sinon PWA et iOS divergent dès la
+première retouche. L'anneau que j'avais tracé pendant l'audit est remplacé,
+et son générateur (`generer-icones.mjs`) supprimé — le laisser en place
+aurait permis d'écraser silencieusement l'artwork du propriétaire.
+
+### Une réserve, et elle est de plateforme
+
+**Les icônes d'application restent OPAQUES.** iOS ne respecte pas la
+transparence d'une icône : il la composite sur du **BLANC**. Une icône
+trouée reviendrait cernée de blanc sur l'écran d'accueil — l'inverse exact
+de ce qui est demandé. La demande est donc honorée là où elle a un sens :
+
+| Fichier | Régime |
+|---|---|
+| `icon-192`, `icon-512`, `apple-touch-icon`, `AppIcon1024` | **opaques**, posées sur `#05060A` |
+| `webapp/logo-budget.png` (verrou anneau + mot) | **transparent** |
+| `webapp/logo-anneau.png` (anneau seul) | **transparent** |
+| `LogoBudget.imageset`, `LogoAnneau.imageset` (natif, ×1 ×2 ×3) | **transparents** |
+
+### Où ils apparaissent — les mêmes écrans des deux côtés
+
+- **Premier écran de l'onboarding** (PWA *et* natif) : le verrou remplace
+  l'icône de 76 px et le titre écrit « Budget ». Côté web l'image EST le
+  `h1`, avec `alt="Budget"` ; côté natif elle porte l'étiquette
+  d'accessibilité « Budget » et le trait `.isHeader`. Le mot est dans le
+  dessin : l'écrire une seconde fois en dessous le disait deux fois à l'œil
+  et deux fois à VoiceOver.
+- **Écran verrouillé** (PWA *et* natif) : l'anneau remplace le 🔒 de 44 px —
+  emoji côté web, `lock.fill` côté natif. Le sens est porté par la phrase
+  « Budget est verrouillé », pas par le pictogramme, et VoiceOver n'annonce
+  plus « cadenas » sans qu'on le lui demande.
+
+Les trois échelles natives sont générées par le même script. Un seul PNG
+suffirait à Xcode, mais il serait rééchantillonné sur les écrans @2x et @3x —
+sur un trait fin en dégradé, ça se voit.
+
+### Comment la transparence est calculée
+
+L'alpha vient de la luminosité (`max(r, v, b)`) au-dessus d'un **plancher
+mesuré sur le bord**, et la couleur est dé-prémultipliée. Un néon sur fond
+noir n'a pas de contour net : le halo FAIT partie du dessin, le découper sur
+un seuil le hacherait. Les logos internes sont ensuite **recadrés sur leur
+dessin** : l'artwork laisse ~30 % de vide, et posé tel quel dans une balise
+de 150 px le dessin n'en aurait occupé que 105.
+
+Conséquence assumée : ces deux logos sont faits pour des surfaces **sombres**
+— c'est le cas des cinq surfaces de l'app. Sur un fond clair ils paraîtraient
+délavés.
+
+### Preuves
+
+- **103 parcours e2e** · 5 fixtures de parité · design system vert.
+- Le n° 98 **décode réellement les pixels** des deux logos internes et exige
+  des coins à 0 et un dessin à 255. Vérifier « a un canal alpha » ne suffisait
+  pas : le premier essai en avait un et gardait quand même un voile à 17/255
+  dans les coins, parce que le fond de l'artwork n'est pas noir PUR mais
+  ≈ `#060612`. Le même test continue d'exiger l'**absence** d'alpha sur les
+  quatre icônes d'application.
+- Le n° 103 exige désormais le logo officiel, son `alt`, et l'absence de
+  « Budget » écrit deux fois. L'assertion `icon-192.png` a été **remplacée,
+  pas supprimée** : elle garde son rôle, empêcher le retour à un emoji.
+- **Contrôles négatifs exécutés** (voir plus bas).
+- Les fichiers produits ont été **ouverts et regardés** sur `#05060A` et sur
+  `#11141C`, l'icône aux tailles réelles 110 / 60 / 40 px, et les écrans
+  d'accueil et de verrouillage rendus à 390 et 320 px.
+- **Côté natif, rien n'est prouvé localement** : il n'y a pas de chaîne Swift
+  dans cet environnement. Le build, les 296 tests et le tour d'interface
+  dépendent de la CI macOS. `DemoTourUITests` cherchait
+  `staticTexts["Budget"]` ; l'assertion est **déplacée** sur
+  `images["Budget"]`, pas retirée.
+
+### Le rectangle que je n'avais pas vu
+
+Première version livrable, tests verts, coins à 0 — et un **rectangle plus
+clair visible autour du logo** sur la capture 390 px. Deux causes, toutes
+deux invisibles aux quatre coins :
+
+1. L'artwork porte une **nappe lumineuse très large** autour de l'anneau (18
+   au bord, ~46 près du trait). Invisible sur son fond d'origine, elle
+   devient une tache claire sur `#05060A`. Corrigé en mesurant le plancher
+   sur le 85ᵉ centile de toute l'image, pas seulement sur le bord.
+2. Le recadrage **tranchait le halo** là où il valait encore 14/255. Corrigé
+   par un fondu sur la largeur exacte de la marge ajoutée — le dessin est
+   intouché par construction, pas par chance.
+
+Le test regarde désormais **tout le pourtour**, pas quatre pixels : quatre
+coins propres ne prouvent rien sur les 1 864 autres pixels du bord.
+
 ## Le premier écran donne envie (06.08.2026) — VERIFYING
 
 Premier retour du test en conditions réelles, sur la toute première
@@ -31,7 +130,8 @@ capture : « je les trouve un peu simples ». Trois défauts, pas un goût.
 ### Ce qui change
 
 - L'**icône de l'app** remplace l'emoji, à 76 px, avec une ombre portée
-  discrète.
+  discrète. *(Remplacée le jour même par le logo officiel du propriétaire —
+  voir le lot ci-dessus.)*
 - Un **halo** derrière elle : c'est l'unique point lumineux que la
   constitution autorise, et il remplit le vide au lieu de le laisser noir.
 - **Entrée en cascade** : logo, titre, puis les choix un par un, 60 ms
@@ -778,9 +878,10 @@ claire. **La FORME est conservée** : seule l'identité chromatique change.
 Le choix du symbole lui-même (une courbe qui monte, héritée de l'ancienne
 marque) reste une décision du propriétaire, non tranchée ici.
 
-Le dessin est décrit en SVG dans
-`.claude/skills/budget-neon-ultra/assets/tools/generer-icones.mjs` : c'est
-LUI la source, les PNG n'en sont qu'un rendu. Les quatre cibles sont
+Le dessin était décrit en SVG dans `generer-icones.mjs`. **Périmé depuis le
+06.08.2026** : le propriétaire a fourni les vrais dessins, le script SVG est
+supprimé et la source est désormais `assets/marque/` + `generer-marque.py`.
+Le principe, lui, ne change pas — les quatre cibles sont
 générées ensemble — `icon-192`, `icon-512`, `apple-touch-icon` (180) et
 l'`AppIcon1024` natif — sans quoi PWA et iOS divergeraient à la première
 retouche. Pas de coin arrondi dessiné : iOS et Android appliquent déjà leur

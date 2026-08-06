@@ -381,9 +381,15 @@ struct LockScreenView: View {
             BudgetScreenBackground()
             VStack(spacing: BudgetSpacing.large) {
                 Spacer()
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(LinearGradient.budgetAccent)
+                // L'anneau de la marque plutôt qu'un cadenas système : le sens
+                // est porté par la phrase juste dessous, pas par le pictogramme
+                // — et VoiceOver n'annonce plus « cadenas » sans qu'on le lui
+                // demande. Même choix que sur la PWA, le même jour.
+                Image("LogoAnneau")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 84)
+                    .accessibilityHidden(true)
                 Text("Budget est verrouillé")
                     .font(BudgetFont.screenTitle)
                     .foregroundStyle(.primary)

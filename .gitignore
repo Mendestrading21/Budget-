@@ -22,3 +22,4 @@ xcuserdata/
 # Personal data — never commit real financial exports
 *.backup.json
 Exports/
+__pycache__/

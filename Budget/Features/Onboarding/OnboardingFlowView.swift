@@ -75,9 +75,17 @@ struct OnboardingFlowView: View {
     private var welcomeStep: some View {
         VStack(spacing: BudgetSpacing.large) {
             VStack(spacing: BudgetSpacing.small) {
-                Text("Budget")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(LinearGradient.budgetAccent)
+                // Le logo officiel du propriétaire (06.08.2026) porte déjà le
+                // mot « Budget » dans son dessin : le réécrire en texte à côté
+                // le dirait deux fois. L'étiquette d'accessibilité garde le nom
+                // pour VoiceOver, et l'identifiant le garde pour les tests.
+                Image("LogoBudget")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 180)
+                    .accessibilityLabel(Text("Budget"))
+                    .accessibilityIdentifier("Budget")
+                    .accessibilityAddTraits(.isHeader)
                 Text("Le tableau de bord financier de votre ménage")
                     .font(BudgetFont.body)
                     .foregroundStyle(.secondary)

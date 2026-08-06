@@ -5,6 +5,7 @@ import { chromium } from "playwright-core";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import fs from "node:fs";
+import zlib from "node:zlib";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_URL = "file://" + path.resolve(HERE, "..", "index.html");
@@ -4333,6 +4334,74 @@ currentTest = "identité installée cohérente";
     check(`${png.w}x${png.h}` === icone.sizes,
       `${icone.src} : la taille déclarée au manifeste est la vraie (déclaré ${icone.sizes}, réel ${png.w}x${png.h})`);
   }
+
+  // --- La règle INVERSE pour les logos posés DANS l'app.
+  // Les icônes doivent être opaques (iOS composite l'alpha sur du blanc) ;
+  // les logos internes doivent être troués, sinon ils rapportent un carré
+  // noir sur nos cinq surfaces. Vérifier « a un canal alpha » ne suffit pas :
+  // le premier essai en AVAIT un, et gardait quand même un voile à 17/255
+  // dans les coins parce que l'artwork d'origine n'est pas noir PUR. On
+  // décode donc réellement les pixels.
+  //
+  // Et on regarde TOUT le pourtour, pas seulement les quatre coins : le
+  // deuxième essai avait bien des coins à 0 et laissait quand même un
+  // rectangle visible à l'écran, parce que le recadrage tranchait le halo à
+  // mi-bord, là où il valait encore 14/255. Quatre coins propres ne prouvent
+  // rien sur les 1884 autres pixels du bord.
+  const bordAlpha = fichier => {
+    const octets = fs.readFileSync(path.join(racine, fichier));
+    const w = octets.readUInt32BE(16), h = octets.readUInt32BE(20);
+    const profondeur = octets.readUInt8(24), type = octets.readUInt8(25);
+    if (profondeur !== 8 || type !== 6) return { type, pourtour: null };
+    const morceaux = [];
+    let i = 8;
+    while (i < octets.length) {
+      const taille = octets.readUInt32BE(i);
+      const nom = octets.toString("ascii", i + 4, i + 8);
+      if (nom === "IDAT") morceaux.push(octets.subarray(i + 8, i + 8 + taille));
+      i += taille + 12;
+    }
+    const brut = zlib.inflateSync(Buffer.concat(morceaux));
+    const bpp = 4, ligne = w * bpp;
+    const pixels = Buffer.alloc(h * ligne);
+    for (let y = 0; y < h; y++) {
+      const filtre = brut[y * (ligne + 1)];
+      const src = y * (ligne + 1) + 1, dst = y * ligne, prec = (y - 1) * ligne;
+      for (let x = 0; x < ligne; x++) {
+        const a = x >= bpp ? pixels[dst + x - bpp] : 0;
+        const b = y > 0 ? pixels[prec + x] : 0;
+        const c = (x >= bpp && y > 0) ? pixels[prec + x - bpp] : 0;
+        let v = brut[src + x];
+        if (filtre === 1) v += a;
+        else if (filtre === 2) v += b;
+        else if (filtre === 3) v += (a + b) >> 1;
+        else if (filtre === 4) {
+          const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+          v += (pa <= pb && pa <= pc) ? a : (pb <= pc ? b : c);
+        }
+        pixels[dst + x] = v & 0xff;
+      }
+    }
+    const alpha = (x, y) => pixels[y * ligne + x * bpp + 3];
+    let pourtour = 0, creteAlpha = 0;
+    for (let x = 0; x < w; x++) pourtour = Math.max(pourtour, alpha(x, 0), alpha(x, h - 1));
+    for (let y = 0; y < h; y++) pourtour = Math.max(pourtour, alpha(0, y), alpha(w - 1, y));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) creteAlpha = Math.max(creteAlpha, alpha(x, y));
+    return { type, w, h, pourtour, creteAlpha };
+  };
+  for (const fichier of ["logo-budget.png", "logo-anneau.png"]) {
+    const png = bordAlpha(fichier);
+    check(png.type === 6, `${fichier} : a bien un canal alpha (type couleur ${png.type})`);
+    check(png.pourtour !== null && png.pourtour <= 2,
+      `${fichier} : TOUT le pourtour est transparent, pas seulement les coins — sinon le recadrage dessine un rectangle (alpha max relevé sur le bord ${png.pourtour})`);
+    check(png.creteAlpha >= 250,
+      `${fichier} : le dessin, lui, reste plein (alpha max relevé ${png.creteAlpha})`);
+  }
+  // Et il doit être servi hors ligne comme le reste : le service worker met en
+  // cache tout GET réussi, donc un logo demandé au premier écran y entre seul.
+  const utiliseParLApp = fs.readFileSync(path.join(racine, "index.html"), "utf8");
+  check(utiliseParLApp.includes("logo-budget.png"),
+    "le logo officiel est réellement posé dans l'app, pas seulement dans le dépôt");
 }
 
 // ---------- Test 99 : les graphiques disent la vérité ----------
@@ -4821,6 +4890,10 @@ currentTest = "premier écran vivant";
     const choix = [...document.querySelectorAll(".ob-choice")];
     return {
       logoSrc: logo ? logo.getAttribute("src") : null,
+      logoAlt: logo ? logo.getAttribute("alt") : null,
+      logoDansTitre: !!(logo && logo.closest("h1")),
+      titreTexteEnDouble: [...document.querySelectorAll("h1")]
+        .some(h => (h.textContent || "").trim().length > 0),
       logoVisible: logo ? logo.getBoundingClientRect().width >= 60 : false,
       halo: !!halo,
       emojiMarque: (etape ? etape.textContent : "").includes("\u{1F4B0}"),
@@ -4829,9 +4902,23 @@ currentTest = "premier écran vivant";
       transition: choix.length ? getComputedStyle(choix[0]).transitionDuration : "0s",
     };
   });
-  check(premier.logoSrc === "icon-192.png",
-    `le premier écran montre l'ICÔNE de l'app, pas un emoji (obtenu ${premier.logoSrc})`);
+  // 06.08.2026 — le propriétaire a fourni les DEUX dessins officiels : l'anneau
+  // seul (icône iPhone) et le verrou anneau + « Budget » (« ça, c'est pour voir
+  // partout »). Le premier écran porte donc le VERROU, pas l'icône : il dit le
+  // nom du produit, ce que l'anneau seul ne fait pas. L'assertion précédente
+  // (`icon-192.png`) est remplacée, pas supprimée — elle garde le même rôle,
+  // empêcher le retour à un emoji ou à une marque absente.
+  check(premier.logoSrc === "logo-budget.png",
+    `le premier écran montre le LOGO officiel de l'app (obtenu ${premier.logoSrc})`);
   check(premier.logoVisible, "le logo est réellement dessiné, à une taille lisible");
+  // Une image de marque sans texte de remplacement est un trou pour VoiceOver.
+  // Et comme le mot « Budget » est DANS l'image, ce texte doit être le titre :
+  // d'où l'image dans le h1, et aucun « Budget » écrit deux fois à l'écran.
+  check(premier.logoAlt === "Budget",
+    `le logo s'annonce « Budget » à la synthèse vocale (obtenu ${premier.logoAlt})`);
+  check(premier.logoDansTitre, "le logo EST le titre de l'écran, pas une décoration à côté");
+  check(!premier.titreTexteEnDouble,
+    "le nom n'est pas écrit une deuxième fois sous le logo qui le contient déjà");
   check(!premier.emojiMarque, "le sac d'argent ne sert plus de marque");
   check(premier.halo, "un halo donne l'unique point lumineux de l'écran");
   check(premier.anime === "ob-in",

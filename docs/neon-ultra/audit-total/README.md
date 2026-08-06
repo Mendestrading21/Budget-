@@ -50,7 +50,7 @@ autorisées, pas à leur nombre.
 | Fichier | |
 |---|---|
 | `logo-ancien.png` | La courbe boursière héritée de « Mendestrading » |
-| `logo-nouveau.png` | L'anneau du budget |
+| `logo-nouveau.png` | L'anneau tracé pendant l'audit — **remplacé depuis** |
 | `logo-a-toutes-les-tailles.png` | 120, 60, 40 et 29 px — les tailles réelles |
 
 L'ancien dessin promettait la **Bourse** alors que le produit promet de
@@ -74,9 +74,34 @@ coin haut-droit du cadre, exactement là où l'anneau est **ouvert** — la
 couleur n'apparaissait nulle part, et l'ouverture penchait. Corrigé en
 `userSpaceOnUse` avec un axe explicite et une ouverture centrée en haut.
 
+### Les vrais dessins, fournis le 06.08.2026
+
+Le propriétaire a fourni les **deux dessins officiels** : l'anneau seul, et le
+verrou anneau + mot « Budget ». Ils remplacent l'anneau tracé ci-dessus, qui
+n'était qu'une démonstration du diagnostic. Les sources vivent dans
+`.claude/skills/budget-neon-ultra/assets/marque/` et **tous** les fichiers de
+l'app en sont dérivés par un seul script — jamais retouchés à la main.
+
+Deux régimes, et c'est voulu :
+
+- **Icônes d'application : opaques.** iOS composite l'alpha sur du **blanc** ;
+  une icône trouée reviendrait cernée de blanc sur l'écran d'accueil. C'est une
+  règle de plateforme, pas une préférence. Le test e2e n° 98 exige l'absence de
+  canal alpha.
+- **Logos posés dans l'app : transparents**, sinon ils rapportent un carré noir
+  sur nos cinq surfaces. Le même test **décode les pixels** et exige des coins à
+  0 : vérifier « a un canal alpha » ne suffisait pas — le premier essai en avait
+  un et gardait quand même un voile à 17/255, parce que le fond de l'artwork
+  n'est pas noir PUR mais ≈ `#060612`.
+
+L'alpha est tiré de la luminosité (`max(r, v, b)` au-dessus du plancher mesuré
+sur le bord) et la couleur dé-prémultipliée. Un néon sur fond noir n'a pas de
+contour net : le halo FAIT partie du dessin, le découper sur un seuil le
+hacherait.
+
 ## Reproduire
 
 ```
 W=390 BUDGET_CHROMIUM=… node .claude/skills/budget-neon-ultra/assets/tools/audit-total.mjs
-BUDGET_CHROMIUM=… node .claude/skills/budget-neon-ultra/assets/tools/generer-icones.mjs
+python3 .claude/skills/budget-neon-ultra/assets/tools/generer-marque.py
 ```

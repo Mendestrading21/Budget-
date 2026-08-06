@@ -107,7 +107,10 @@ final class DemoTourUITests: XCTestCase {
         app.launch()
         let contains = { (needle: String) in NSPredicate(format: "label CONTAINS %@", needle) }
 
-        XCTAssertTrue(app.staticTexts["Budget"].waitForExistence(timeout: 30), "écran de bienvenue absent")
+        // Le nom du produit n'est plus un texte : c'est le logo officiel, qui
+        // contient le mot. L'assertion est déplacée sur l'image, pas retirée —
+        // elle garde son rôle, prouver que l'écran de bienvenue s'est affiché.
+        XCTAssertTrue(app.images["Budget"].waitForExistence(timeout: 30), "écran de bienvenue absent")
         XCTAssertTrue(app.staticTexts.matching(contains("restent sur cet appareil")).firstMatch.exists,
                       "la promesse de confidentialité RÉELLE doit ouvrir le parcours")
         snap(app, "ios-l7-onboarding-bienvenue")

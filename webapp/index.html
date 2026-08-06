@@ -702,10 +702,13 @@
     background: radial-gradient(circle, rgba(115, 103, 255, 0.20) 0%, rgba(115, 103, 255, 0.06) 42%, transparent 70%);
     pointer-events: none; z-index: -1;
   }
+  /* Le logo officiel est un VERROU : l'anneau ET le mot « Budget ». Il est
+     transparent et porte déjà son propre halo — lui ajouter un cadre arrondi
+     ou une ombre portée dessinerait une carte autour d'un dessin qui n'en a
+     pas. La hauteur suit la largeur pour que rien ne saute au chargement. */
   .ob-logo {
-    width: 76px; height: 76px; border-radius: 20px;
+    width: 150px; height: auto;
     display: block; margin: 0 auto;
-    box-shadow: 0 12px 34px rgba(115, 103, 255, 0.22);
   }
   @keyframes ob-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
   .ob-step > * { animation: ob-in 0.34s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
@@ -4771,8 +4774,7 @@ function renderOnboarding() {
   </div>`;
   if (obStep === 1) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <img class="ob-logo" src="icon-192.png" alt="" aria-hidden="true" width="76" height="76">
-      <h1 style="margin:14px 0 4px;font-size:26px;letter-spacing:-0.6px">Budget</h1>
+      <h1 style="margin:0 0 10px"><img class="ob-logo" src="logo-budget.png" alt="Budget" width="420" height="512"></h1>
       <p class="caption" style="max-width:280px;margin:0 auto">Vos données restent sur cet appareil.</p>
     </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
@@ -5002,7 +5004,7 @@ function finishOnboarding() {
 /* ---------- Écran verrouillé (Phase 12) ---------- */
 function renderLockScreen() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:14px">
-    <div style="font-size:44px">🔒</div>
+    <img src="logo-anneau.png" alt="" aria-hidden="true" width="512" height="492" style="width:78px;height:auto">
     <div style="font-size:19px;font-weight:700">Budget est verrouillé</div>
     <div class="caption" style="max-width:250px">Saisissez votre code pour continuer.</div>
     <input id="lockInput" type="password" inputmode="numeric" maxlength="6" aria-label="Code de déverrouillage"
