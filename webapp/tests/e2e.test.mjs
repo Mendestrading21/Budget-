@@ -3658,10 +3658,18 @@ await goHome();
 currentTest = "écran Abonnements";
 {
   await page.evaluate(() => {
+    // 06.08.2026 — un loyer n'est pas un abonnement : cet écran ne montre plus
+    // que ce qui se résilie. Ces deux fixtures sont rangées dans « Logement »,
+    // donc DÉDUITES comme charges du foyer ; le `family: "sub"` explicite les
+    // ramène ici. Ça teste au passage la règle qui compte : un choix explicite
+    // l'emporte toujours sur la déduction par catégorie.
     RECURRINGS.push({ id: "t-sub-m", title: "Mensuel Abo E2E", amount: 20, type: "expense",
-      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id });
+      cat: "Logement", day: 5, family: "sub", accountId: ACCOUNTS[0].id });
     RECURRINGS.push({ id: "t-sub-y", title: "Annuel Abo E2E", amount: 240, type: "expense",
-      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id, every: "year", dueM: 3 });
+      cat: "Logement", day: 5, family: "sub", accountId: ACCOUNTS[0].id, every: "year", dueM: 3 });
+    // Et une charge du foyer, qui ne doit PAS apparaître sur cet écran.
+    RECURRINGS.push({ id: "t-charge", title: "Loyer E2E", amount: 1500, type: "expense",
+      cat: "Logement", day: 5, accountId: ACCOUNTS[0].id });
     saveState(); render();
   });
   await page.click(`#tabbar button[aria-label="Gérer"]`);
@@ -3678,9 +3686,13 @@ currentTest = "écran Abonnements";
       monthRow: (row("t-sub-m") || {}).innerText || "",
       yearRow: (row("t-sub-y") || {}).innerText || "",
       // Les deux totaux calculés à la main depuis l'état, pour comparaison.
+      // Le total attendu ne compte QUE les abonnements : c'est la promesse de
+      // l'écran, et c'était le défaut signalé par le propriétaire.
       expectedYear: chf(fromCents(RECURRINGS
-        .filter(r => r.type === "expense" && recurringIsActive(r))
+        .filter(r => r.type === "expense" && recurringIsActive(r) && isSubscription(r))
         .reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0))),
+      chargeListee: !!document.getElementById("screen").querySelector('[data-recid="t-charge"]'),
+      chargeAnnoncee: /charges du foyer/i.test(document.getElementById("screen").innerText),
     };
   });
   check(subs90.piloted && subs90.canvas === "rgb(5, 6, 10)",
@@ -3689,6 +3701,10 @@ currentTest = "écran Abonnements";
     `le héros affiche le coût annuel EXACT ${subs90.expectedYear} (obtenu « ${subs90.hero.replace(/\n/g, " ").slice(0, 90)} »)`);
   check(/par mois en moyenne/.test(subs90.hero),
     "le héros donne aussi la moyenne mensuelle, sans la confondre avec un prélèvement");
+  check(!subs90.chargeListee,
+    "un loyer n'apparaît PAS dans les abonnements — c'est une charge du foyer");
+  check(subs90.chargeAnnoncee,
+    "ce qui est exclu est quand même annoncé : la page n'a pas l'air d'oublier des dépenses");
   check(/Mensuel/.test(subs90.monthRow) && /Tous les mois/.test(subs90.monthRow),
     `un mensuel porte son rythme écrit (obtenu « ${subs90.monthRow.replace(/\n/g, " ")} »)`);
   check(/Annuel/.test(subs90.yearRow) && /Chaque année en mars/.test(subs90.yearRow),
@@ -4876,7 +4892,13 @@ await goHome();
         .filter(e => vu(e) && e.children.length === 0 && (e.textContent || "").trim().length > 1)
         .map(e => parseFloat(getComputedStyle(e).fontSize))
         .filter(v => v > 0), 999),
-      bordsGauches: [...new Set([...s.querySelectorAll(".card")].filter(vu)
+      // Le bord gauche unique reste la règle POUR LA COLONNE de l'écran.
+      // Les cartes d'un carrousel horizontal sont posées côte à côte par
+      // construction : leurs bords gauches DOIVENT différer, sinon il n'y
+      // aurait pas de carrousel. On les exclut donc de cette mesure — et
+      // uniquement elles, pour ne pas relâcher la règle ailleurs.
+      bordsGauches: [...new Set([...s.querySelectorAll(".card")]
+        .filter(c => vu(c) && !c.closest(".hero-track"))
         .map(c => Math.round(c.getBoundingClientRect().left)))],
     };
   });
@@ -5160,6 +5182,65 @@ currentTest = "charges et abonnements dès la bienvenue";
   await ctx104b.close();
 }
 
+// ---------- Test 105 : le héros tourne, et chaque carte dit d'où elle vient --
+currentTest = "héros qui tourne";
+// Demande du propriétaire (06.08.2026), capture à l'appui : « que tu puisses
+// tourner le widget et avoir tout, placement, patrimoine, disponible,
+// prévoyance… que je puisse choisir de gauche à droite ». Et sa question, la
+// même nuit : « le mis de côté, c'est le montant disponible après les
+// factures ? » — non, et c'est bien pour ça que chaque carte doit s'expliquer.
+await goHome();
+{
+  const heros = await page.evaluate(() => {
+    const track = document.getElementById("heroTrack");
+    const slides = [...document.querySelectorAll("[data-heroslide]")];
+    return {
+      piste: !!track,
+      cles: slides.map(s => s.dataset.heroslide),
+      // Chaque carte porte UNE phrase qui dit d'où vient son montant.
+      toutesExpliquees: slides.every(s => {
+        const note = s.querySelector(".hero-note");
+        return note && note.textContent.trim().length > 20;
+      }),
+      snap: getComputedStyle(track).scrollSnapType,
+      points: document.querySelectorAll("[data-herodot]").length,
+      ciblePoint: Math.min(...[...document.querySelectorAll("[data-herodot]")]
+        .map(d => Math.min(d.getBoundingClientRect().width, d.getBoundingClientRect().height))),
+      // Le carrousel ne doit JAMAIS élargir la page : il défile en lui-même.
+      debordePage: document.getElementById("screen").scrollWidth
+        - document.getElementById("screen").clientWidth,
+    };
+  });
+  check(heros.piste && heros.cles.length >= 4,
+    `le héros propose plusieurs cartes (${heros.cles.join(", ")})`);
+  check(heros.cles.includes("disponible") && heros.cles.includes("patrimoine")
+    && heros.cles.includes("prevoyance") && heros.cles.includes("placements"),
+    `disponible, placements, prévoyance et patrimoine sont là (${heros.cles.join(", ")})`);
+  check(/mandatory/.test(heros.snap), `les cartes s'aimantent une par une (${heros.snap})`);
+  check(heros.toutesExpliquees,
+    "chaque carte écrit d'où vient son montant — c'est la question posée sur « Mis de côté »");
+  check(heros.points === heros.cles.length, `un point par carte (${heros.points}/${heros.cles.length})`);
+  check(heros.ciblePoint >= 44, `les points restent de vraies cibles tactiles (${heros.ciblePoint} px)`);
+  check(heros.debordePage <= 1, `le carrousel n'élargit pas la page (${heros.debordePage} px)`);
+
+  // Tourner par un point doit RÉELLEMENT changer la carte visible.
+  const avant = await page.evaluate(() => document.getElementById("heroTrack").scrollLeft);
+  await page.click('[data-herodot="2"]');
+  await page.waitForTimeout(500);
+  const apres = await page.evaluate(() => ({
+    scroll: document.getElementById("heroTrack").scrollLeft,
+    actif: [...document.querySelectorAll("[data-herodot]")]
+      .findIndex(d => d.getAttribute("aria-selected") === "true"),
+  }));
+  check(apres.scroll > avant, `un point fait tourner le héros (${avant} → ${apres.scroll})`);
+  check(apres.actif === 2, `le point touché devient le point actif (obtenu ${apres.actif})`);
+  // Et la tuile « Mis de côté » ne peut plus être confondue avec le reste.
+  const explication = await page.evaluate(() => document.getElementById("screen").innerText);
+  check(/Mis de côté.*argent envoyé vers vos comptes d'épargne/s.test(explication),
+    "« Mis de côté » est expliqué à côté de la tuile, pas laissé à deviner");
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5169,4 +5250,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 104 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 105 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne), zéro erreur console ✓");

@@ -17,6 +17,70 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Le héros tourne, et un loyer n'est plus un abonnement (06.08.2026) — VERIFYING
+
+Trois retours du propriétaire sur ses vraies données, la même nuit.
+
+### 1. « Le mis de côté, c'est le montant disponible après les factures ? »
+
+Non — et le fait qu'il pose la question EST le défaut. « Mis de côté », c'est
+l'argent envoyé vers ses comptes d'épargne. Ce qu'il cherchait, « Disponible »,
+était déjà là, en haut, sans le dire.
+
+Deux corrections, aucune invention de chiffre :
+
+- Une phrase sous les quatre tuiles : *« Mis de côté » = l'argent envoyé vers
+  vos comptes d'épargne ce mois. Ce n'est pas ce qui vous reste : ça, c'est
+  « Disponible », en haut.*
+- Chaque carte du héros écrit désormais **d'où vient son montant**.
+
+### 2. Le héros tourne
+
+Demande explicite : « que tu puisses tourner le widget et avoir tout,
+placement, patrimoine, disponible, prévoyance… que je puisse choisir de gauche
+à droite ». Cinq cartes aimantées, un point par carte :
+
+`Disponible` · `Mis de côté ce mois` · `Épargne et placements` ·
+`Prévoyance` · `Patrimoine`
+
+Aucun gestionnaire de geste maison : c'est le défilement natif avec
+`scroll-snap`. Le clavier, la molette et VoiceOver fonctionnent donc seuls, et
+le mouvement réduit remplace le glissement par un saut. Les points font 44 px
+de cible pour 7 px de dessin — la première version était à 30 px, le test l'a
+refusée.
+
+Rien n'est additionné entre les cartes : chacune répond à une question, avec sa
+propre phrase d'explication.
+
+### 3. Un loyer n'est pas un abonnement
+
+Sur ses données réelles, l'écran annonçait **« vos abonnements coûtent
+CHF 98'652.00 par an »** en comptant loyer, crèche et leasing dedans. Faux.
+
+Le champ `family` ajouté plus tôt ne réglait le cas que des NOUVELLES saisies.
+Il fallait une règle pour les données déjà là :
+
+- `family` explicite (« Abonnement » / « Charge du foyer ») dans la feuille,
+  sous « Détails », avec des pastilles ;
+- à défaut, **déduction par catégorie** : Logement, Assurance maladie,
+  Transports et Impôts sont des charges du foyer.
+
+Ce classement est **calculé à l'affichage** : aucun montant ne bouge, rien
+n'est réécrit sur le disque, et un choix explicite l'emporte toujours sur la
+déduction. L'écran Abonnements annonce en bas ce qu'il n'affiche pas — sinon il
+aurait l'air d'oublier des dépenses.
+
+### Preuves
+
+- **105 parcours e2e** (104 conservés + le n° 105) · 5 parités · design vert.
+- Deux gardes **adaptées avec leur raison écrite** : le total attendu de
+  l'écran Abonnements ne compte plus que les abonnements ; la règle « un seul
+  bord gauche » exclut les cartes d'un carrousel horizontal, qui sont côte à
+  côte par construction — et uniquement celles-là.
+- **Contrôles négatifs** : remettre le loyer dans les abonnements → échec
+  nommé ; figer le héros → échec nommé.
+- Défaut trouvé par le test et corrigé : points de 30 px, sous le seuil tactile.
+
 ## Plus de jour de paiement, et deux écrans de charges (06.08.2026) — VERIFYING
 
 Deux demandes du propriétaire, le même soir : « enlève les jours de paiement
