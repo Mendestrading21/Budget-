@@ -17,6 +17,37 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Déploiement Pages bloqué côté GitHub (06.08.2026) — À RELANCER
+
+Le site publié sert encore **`6bc7960`**, pas `77d8128`. Il lui manque donc
+uniquement le lot « feuilles de saisie ».
+
+Ce n'est pas le code : quatre tentatives sur ce SHA, toutes bloquées à la
+même étape.
+
+| Run | Résultat |
+|---|---|
+| Pages #62 | déploiement annulé |
+| relance du #62 | `Multiple artifacts named "github-pages" — count is 2` |
+| Pages #63 | SHA court refusé (ma faute : le workflow exige le SHA complet) |
+| Pages #64 et #65 | `in_progress` pendant ~10 min puis `error` |
+
+À chaque fois le job « Vérifier la CI du SHA » passe, le site s'assemble et
+s'empaquette : c'est l'action `deploy-pages` qui échoue. Un des messages
+d'erreur le dit lui-même — « Is githubstatus.com reporting issues with API
+requests, Pages, or Actions? Please re-run the deployment at a later time. »
+
+**Deux choses que j'ai apprises à mes dépens et qui sont notées ici pour la
+prochaine fois :**
+
+1. Ne jamais **relancer** un run Pages échoué — l'artefact de la tentative
+   précédente reste, `deploy-pages` en trouve deux et refuse. Il faut une
+   exécution NEUVE.
+2. L'entrée `sha` du `workflow_dispatch` exige le SHA **complet**.
+
+**Action** : relancer `Actions → Pages → Run workflow` avec le SHA complet
+quand le service est rétabli. Rien à corriger dans le dépôt.
+
 ## Les feuilles de saisie parlent enfin comme le reste (06.08.2026) — VERIFYING
 
 Trouvé en regardant une capture réelle du simulateur : la feuille
