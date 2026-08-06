@@ -153,7 +153,7 @@ struct AnnualBudgetView: View {
 
             // Column totals
             GridRow {
-                Text("Total planifié")
+                Text("Total prévu")
                     .font(BudgetFont.caption.weight(.semibold))
                     .frame(width: 140, alignment: .leading)
                 ForEach(1...12, id: \.self) { month in
@@ -199,7 +199,7 @@ struct AnnualBudgetView: View {
     }
 
     private func rowAccessibilityLabel(row: RowKey, reports: [Int: BudgetReport]) -> String {
-        "\(row.name), total planifié \(String(year)) : \(FinanceFormatting.chf(rowTotal(row: row, reports: reports)))"
+        "\(row.name), total prévu \(String(year)) : \(FinanceFormatting.chf(rowTotal(row: row, reports: reports)))"
     }
 }
 

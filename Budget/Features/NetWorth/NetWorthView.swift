@@ -82,7 +82,7 @@ struct NetWorthView: View {
         }
         return GlassCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Le chemin — patrimoine projeté")
+                Text("Si vous continuez comme ça")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
                 Picker("Profil d'hypothèses", selection: $projectionProfileRaw) {
@@ -102,7 +102,7 @@ struct NetWorthView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Text("Au rythme de vos versements de l'année, hypothèses annualisées par classe — une simulation, jamais une promesse.")
+                Text("On part de ce que vous avez mis de côté cette année et d'un rendement moyen. C'est une estimation, pas une promesse.")
                     .font(BudgetFont.caption)
                     .foregroundStyle(.secondary)
             }
@@ -121,7 +121,7 @@ struct NetWorthView: View {
                     assetsSection
                     liabilitiesSection
                     Label {
-                        Text("Les valeurs d'actifs sont vos estimations personnelles. Mettez-les à jour de temps en temps ; la courbe se construit au fil de vos visites.")
+                        Text("La valeur de vos biens, c'est vous qui l'estimez. Mettez-la à jour de temps en temps : la courbe se construit au fil de vos visites.")
                             .font(BudgetFont.caption)
                             .foregroundStyle(.secondary)
                     } icon: {
@@ -188,7 +188,7 @@ struct NetWorthView: View {
     private var heroCard: some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Fortune nette")
+                Text("Tout ce qui est à vous")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
                 AmountText(
@@ -204,12 +204,12 @@ struct NetWorthView: View {
                 }
                 .padding(.top, BudgetSpacing.micro)
                 // Fraîcheur : la fortune est dérivée des données du jour.
-                Text("Soldes du jour, dérivés de vos comptes, actifs, prévoyance et dettes enregistrés.")
+                Text("Vos comptes, vos biens et votre prévoyance, moins ce que vous devez.")
                     .font(BudgetFont.caption)
                     .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Fortune nette : \(FinanceFormatting.chf(breakdown.netWorth))")
+            .accessibilityLabel("Tout ce qui est à vous : \(FinanceFormatting.chf(breakdown.netWorth))")
         }
     }
 
@@ -266,12 +266,12 @@ struct NetWorthView: View {
     @ViewBuilder
     private var assetsSection: some View {
         VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-            Text("Actifs hors comptes")
+            Text("Vos biens")
                 .font(BudgetFont.sectionTitle)
                 .foregroundStyle(.secondary)
             if assets.isEmpty {
                 GlassCard(style: .row) {
-                    Text("Immobilier, véhicule, collection… Ajoutez ce qui a de la valeur en dehors de vos comptes.")
+                    Text("Un logement, une voiture, une collection… Ajoutez ce qui a de la valeur en dehors de vos comptes.")
                         .font(BudgetFont.body)
                         .foregroundStyle(.secondary)
                 }
@@ -288,7 +288,7 @@ struct NetWorthView: View {
                                 HStack(spacing: BudgetSpacing.micro) {
                                     Text(asset.kind.displayName)
                                     if !asset.includeInNetWorth {
-                                        Text("· Exclu du patrimoine")
+                                        Text("· Pas compté ici")
                                             .foregroundStyle(BudgetColor.warning)
                                     }
                                 }
@@ -303,7 +303,7 @@ struct NetWorthView: View {
                     }
                     .onTapGesture { editedAsset = asset }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(asset.name), \(FinanceFormatting.chf(asset.currentValue))\(asset.includeInNetWorth ? "" : ", exclu du patrimoine")")
+                    .accessibilityLabel("\(asset.name), \(FinanceFormatting.chf(asset.currentValue))\(asset.includeInNetWorth ? "" : ", pas compté ici")")
                     .accessibilityIdentifier("networth.asset.row")
                 }
             }
@@ -315,12 +315,12 @@ struct NetWorthView: View {
     @ViewBuilder
     private var liabilitiesSection: some View {
         VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-            Text("Dettes")
+            Text("Ce que vous devez")
                 .font(BudgetFont.sectionTitle)
                 .foregroundStyle(.secondary)
             if liabilities.isEmpty {
                 GlassCard(style: .row) {
-                    Text("Hypothèque, leasing, dette fiscale… Les dettes déjà portées par un compte (carte de crédit) restent sur ce compte.")
+                    Text("Un prêt, un leasing, un impôt à payer… Ce qui est déjà sur un compte (une carte de crédit) reste sur ce compte.")
                         .font(BudgetFont.body)
                         .foregroundStyle(.secondary)
                 }
@@ -337,7 +337,7 @@ struct NetWorthView: View {
                                 HStack(spacing: BudgetSpacing.micro) {
                                     Text(liability.kind.displayName)
                                     if !liability.includeInNetWorth {
-                                        Text("· Exclue du patrimoine")
+                                        Text("· Pas comptée ici")
                                             .foregroundStyle(BudgetColor.warning)
                                     }
                                 }
@@ -352,7 +352,7 @@ struct NetWorthView: View {
                     }
                     .onTapGesture { editedLiability = liability }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Dette \(liability.name), \(FinanceFormatting.chf(liability.outstandingAmount))\(liability.includeInNetWorth ? "" : ", exclue du patrimoine")")
+                    .accessibilityLabel("Dette \(liability.name), \(FinanceFormatting.chf(liability.outstandingAmount))\(liability.includeInNetWorth ? "" : ", pas comptée ici")")
                 }
             }
         }
@@ -481,7 +481,7 @@ struct NetWorthTrendCard: View {
                     }
                 }
                 .frame(height: 160)
-                .accessibilityLabel("Évolution de la fortune nette")
+                .accessibilityLabel("Évolution de tout ce qui est à vous")
                 .accessibilityValue(NetWorthView.trendAccessibilityValue(selected: selected, points: points))
                 .accessibilityIdentifier("networth.chart.evolution")
                 if let selected {

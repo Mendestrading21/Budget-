@@ -157,16 +157,16 @@ struct BudgetTab: View {
                 NeonUltraAmountText(amount: report.spendingVariance, hero: true)
                 // L'état du plan est toujours ÉCRIT, jamais la couleur seule.
                 planStateBadge(fraction)
-                // Barre plan/réel avec son résumé textuel explicite.
+                // Barre prévu/dépensé avec son résumé écrit en toutes lettres.
                 ProgressView(value: min(1, NSDecimalNumber(decimal: fraction).doubleValue))
                     .tint(fraction > 1 ? NeonUltraColor.negative
                           : (fraction > Decimal("0.85") ? NeonUltraColor.warning : NeonUltraColor.violet))
-                Text("\(percentUsed) % du budget utilisé — planifié \(FinanceFormatting.chf(report.spendingPlanned)) · réel \(FinanceFormatting.chf(report.spendingActual)). L'épargne et les impôts sont suivis à part.")
+                Text("Vous avez utilisé \(percentUsed) % de votre budget. Prévu \(FinanceFormatting.chf(report.spendingPlanned)), dépensé \(FinanceFormatting.chf(report.spendingActual)). L'épargne et les impôts sont comptés à part.")
                     .font(NeonUltraTypography.meta)
                     .foregroundStyle(NeonUltraColor.textSecondary)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Budget consommé : \(percentUsed) pour cent du planifié. Planifié \(FinanceFormatting.chf(report.spendingPlanned)), réel \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
+            .accessibilityLabel("Vous avez utilisé \(percentUsed) pour cent de votre budget. Prévu \(FinanceFormatting.chf(report.spendingPlanned)), dépensé \(FinanceFormatting.chf(report.spendingActual)), reste \(FinanceFormatting.chf(report.spendingVariance))")
         }
     }
 
@@ -305,7 +305,7 @@ struct BudgetLineRow: View {
                         NeonUltraBadge(kind: .warning, label: "À surveiller")
                     }
                     Spacer()
-                    Text("réel \(FinanceFormatting.chf(report.actual)) / planifié \(FinanceFormatting.chf(report.planned))")
+                    Text("\(FinanceFormatting.chf(report.actual)) dépensé sur \(FinanceFormatting.chf(report.planned)) prévu")
                         .font(NeonUltraTypography.meta.monospacedDigit())
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .multilineTextAlignment(.trailing)
@@ -323,7 +323,7 @@ struct BudgetLineRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(report.categoryName) : réel \(FinanceFormatting.chf(report.actual)) sur \(FinanceFormatting.chf(report.planned)) planifiés\(report.isOverrun ? ", dépassé de \(FinanceFormatting.chf(-report.variance))" : (watchZone ? ", à surveiller, reste \(FinanceFormatting.chf(report.variance))" : ", reste \(FinanceFormatting.chf(report.variance))"))")
+        .accessibilityLabel("\(report.categoryName) : \(FinanceFormatting.chf(report.actual)) dépensé sur \(FinanceFormatting.chf(report.planned)) prévu\(report.isOverrun ? ", dépassé de \(FinanceFormatting.chf(-report.variance))" : (watchZone ? ", à surveiller, reste \(FinanceFormatting.chf(report.variance))" : ", reste \(FinanceFormatting.chf(report.variance))"))")
     }
 }
 

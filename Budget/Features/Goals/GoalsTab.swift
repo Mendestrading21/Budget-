@@ -76,18 +76,18 @@ struct GoalsListView: View {
             VStack(spacing: BudgetSpacing.medium) {
                 GlassCard(style: .hero) {
                     VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
-                        Text("Épargné vers vos objectifs")
+                        Text("Déjà mis de côté")
                             .font(BudgetFont.cardLabel)
                             .foregroundStyle(.secondary)
                         AmountText(amount: totalSaved, role: .hero)
                         if totalTarget > 0 {
-                            Text("Sur \(FinanceFormatting.chf(totalTarget)) visés · \(achievedGoals.count) objectif(s) atteint(s)")
+                            Text("Sur \(FinanceFormatting.chf(totalTarget)) au total · \(achievedGoals.count) objectif(s) atteint(s)")
                                 .font(BudgetFont.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Épargné vers vos objectifs : \(FinanceFormatting.chf(totalSaved)) sur \(FinanceFormatting.chf(totalTarget))")
+                    .accessibilityLabel("Déjà mis de côté : \(FinanceFormatting.chf(totalSaved)) sur \(FinanceFormatting.chf(totalTarget))")
                 }
 
                 if !activeGoals.isEmpty {
@@ -219,7 +219,7 @@ struct GoalCard: View {
                 .font(BudgetFont.caption)
                 .foregroundStyle(.secondary)
         } else if report.scheduleStatus == .overdue {
-            Text("Échéance passée — il manque \(FinanceFormatting.chf(report.remainingAmount))")
+            Text("La date est passée — il manque \(FinanceFormatting.chf(report.remainingAmount))")
                 .font(BudgetFont.caption)
                 .foregroundStyle(BudgetColor.negative)
         } else if let projected = report.projectedCompletionDate {

@@ -69,7 +69,7 @@ enum TransactionValidationError: LocalizedError, Equatable {
         case .missingDate:
             "Indiquez une date."
         case .postedDateInFuture:
-            "Un mouvement comptabilisé ne peut pas être daté dans le futur. Utilisez le statut « Prévu »."
+            "Un mouvement déjà fait ne peut pas être daté dans le futur. Choisissez plutôt « Prévu »."
         case .missingAmount:
             "Indiquez un montant. Exemple : 45.50"
         case .nonPositiveAmount:

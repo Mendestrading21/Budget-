@@ -64,9 +64,9 @@ struct BudgetLineFormView: View {
                     TextField("0.00", text: $amountText)
                         .keyboardType(.decimalPad)
                 } header: {
-                    Text("Montant planifié (CHF)")
+                    Text("Montant prévu (CHF)")
                 } footer: {
-                    Text("Enveloppe prévue pour ce mois. Le réel est calculé automatiquement depuis les mouvements comptabilisés — il n'est jamais saisi ici.")
+                    Text("Ce que vous prévoyez pour ce mois. Le dépensé se calcule tout seul depuis vos mouvements : vous ne le saisissez jamais ici.")
                 }
 
                 if editedLine != nil {
@@ -101,7 +101,7 @@ struct BudgetLineFormView: View {
             ) {
                 Button("Supprimer", role: .destructive) { deleteLine() }
             } message: {
-                Text("Seule l'enveloppe planifiée est supprimée ; aucun mouvement n'est touché.")
+                Text("Seul le montant prévu est supprimé. Aucun mouvement n'est touché.")
             }
             .onAppear(perform: populate)
         }
@@ -121,7 +121,7 @@ struct BudgetLineFormView: View {
         }
         guard let parsed = FinanceFormatting.parseAmount(amountText.trimmingCharacters(in: .whitespaces)),
               parsed >= 0 else {
-            errorMessage = "Le montant planifié n'est pas valide. Exemple : 600.00"
+            errorMessage = "Ce montant n'est pas valable. Exemple : 600.00"
             return
         }
         let amount = FinanceMath.roundedToCents(parsed)

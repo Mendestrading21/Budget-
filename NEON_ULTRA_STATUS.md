@@ -17,6 +17,41 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « iPhone dit la même chose que le web » (05.08.2026) — VERIFYING
+
+Les trois lots de langage précédents n'avaient touché que la PWA. L'app
+iPhone continuait d'afficher « Fortune nette », « réel / planifié » et
+« Réserve constituée » : **les deux applications ne parlaient plus la même
+langue**. C'est un vrai défaut, pas un détail — le même utilisateur passe de
+l'une à l'autre.
+
+Cinquante-six lignes alignées sur le vocabulaire du web, dans douze
+fichiers : `NetWorthView`, `TaxesView`, `BudgetTab`, `BudgetLineFormView`,
+`AnnualBudgetView`, `GoalsTab`, `AccountDetailView`, `ReconcileSheet`,
+`SettingsView`, `AppContainer`, `TransactionValidationService`,
+`GoalProjectionService`.
+
+Les libellés d'accessibilité suivent les libellés visibles — sinon VoiceOver
+lirait l'ancien vocabulaire par-dessus le nouveau.
+
+### Ce qui a été vérifié AVANT d'écrire
+
+- Aucune des vingt-quatre étiquettes assertées par `BudgetUITests` ne fait
+  partie des textes modifiés (vérifié par extraction des sélecteurs).
+- Les occurrences de « comptabilisé » et « planifié » dans `BudgetTests`
+  sont toutes dans des **commentaires** et des **messages d'assertion**,
+  jamais dans une comparaison de chaîne d'interface.
+
+Sans ces deux contrôles, ce lot serait parti à l'aveugle : il n'y a pas de
+chaîne Swift ici, chaque essai coûte un tour complet de CI macOS.
+
+### Preuve
+
+La compilation et les 296 tests iOS ne peuvent être exécutés que par la CI
+macOS — aucune chaîne Swift dans cet environnement. Le diff a donc été relu
+ligne par ligne (interpolations, guillemets, apostrophes) avant d'être
+poussé, et c'est la CI qui fait foi.
+
 ## Lot « messages et retours » (05.08.2026) — VERIFYING
 
 Suite directe du précédent, sur les textes qu'on ne voit qu'au moment où

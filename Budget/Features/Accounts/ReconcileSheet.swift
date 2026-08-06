@@ -27,7 +27,7 @@ struct ReconcileSheet: View {
                     TextField("Solde réel constaté (CHF)", text: $balanceText)
                         .keyboardType(.decimalPad)
                 } footer: {
-                    Text("Indiquez le solde réel affiché par votre banque aujourd'hui. La réconciliation est horodatée et devient le nouveau point de départ ; les mouvements comptabilisés après cette date s'y ajoutent.")
+                    Text("Indiquez le solde que votre banque affiche aujourd'hui. Il devient votre nouveau point de départ, à cette date : vos mouvements suivants s'y ajoutent.")
                 }
 
                 if let errorMessage {

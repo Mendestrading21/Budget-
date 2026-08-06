@@ -147,11 +147,11 @@ struct AccountDetailView: View {
                         .foregroundStyle(.secondary)
                 } else if let lastMovement = movements.first {
                     // Fraîcheur du solde en langage simple.
-                    Text("Dernier mouvement le \(FinanceFormatting.swissDate(lastMovement.date)) — solde initial \(FinanceFormatting.chf(account.openingBalance)) + mouvements comptabilisés")
+                    Text("Dernier mouvement le \(FinanceFormatting.swissDate(lastMovement.date)) — votre solde de départ \(FinanceFormatting.chf(account.openingBalance)), plus vos mouvements")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Solde initial \(FinanceFormatting.chf(account.openingBalance)) + mouvements comptabilisés")
+                    Text("Votre solde de départ \(FinanceFormatting.chf(account.openingBalance)), plus vos mouvements")
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                 }

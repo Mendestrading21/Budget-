@@ -332,8 +332,8 @@ struct SettingsView: View {
         "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
         "Les virements internes déplacent l'argent entre vos comptes : ils ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
         "Provision d'impôts = revenus × votre taux configuré (30 % par défaut), corrigeable manuellement. Estimé = payé + encore dû, toujours.",
-        "Fortune nette = comptes inclus + actifs + prévoyance − dettes. Les projections de retraite affichées sont celles de vos certificats, jamais un calcul de l'app.",
-        "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas comptabilisé.",
+        "Tout ce qui est à vous, c'est vos comptes, vos biens et votre prévoyance, moins ce que vous devez. Les montants de retraite affichés viennent de vos certificats : l'app ne les calcule jamais.",
+        "Le prévu et le dépensé ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'a pas eu lieu.",
     ]
 }
 

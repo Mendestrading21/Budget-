@@ -69,7 +69,7 @@ final class AppContainer {
             duePostingErrorMessage = nil
         } catch {
             context.rollback()
-            duePostingErrorMessage = "Certaines échéances arrivées à leur date n'ont pas pu être comptabilisées. Vos données restent intactes ; réessayez."
+            duePostingErrorMessage = "Certaines factures arrivées à leur date n'ont pas pu être enregistrées. Vos données sont intactes : réessayez."
         }
     }
 

@@ -18,7 +18,7 @@ enum GoalScheduleStatus: Equatable {
         case .achieved: "Atteint"
         case .onTrack: "En bonne voie"
         case .behind: "À accélérer"
-        case .overdue: "Échéance dépassée"
+        case .overdue: "La date est passée"
         case .noDeadline: "Sans échéance"
         }
     }
