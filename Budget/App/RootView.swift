@@ -54,8 +54,17 @@ struct MainTabView: View {
                     .tabItem { Label(AppTab.more.title, systemImage: AppTab.more.systemImage) }
                     .tag(AppTab.more)
             }
-            .tint(BudgetColor.indigo)
+            // ADR-024 : la coquille portait encore l'indigo Obsidian
+            // pendant que les écrans pilotes tintaient leurs contrôles en
+            // cyan — deux accents qui se battaient sur la même capture. Le
+            // cyan mesure ≈ 9,3:1 sur la navigation `#0B0D13`, il peut donc
+            // porter seul un petit libellé actif ; le violet, à 3,41:1, ne
+            // le pourrait pas.
+            .tint(NeonUltraColor.cyan)
+            .toolbarBackground(NeonUltraColor.navigation, for: .tabBar)
+            .toolbarBackground(.visible, for: .tabBar)
         }
+        .background(NeonUltraColor.canvas)
     }
 }
 
@@ -76,6 +85,7 @@ struct DemoModeBanner: View {
     var body: some View {
         HStack(spacing: BudgetSpacing.small) {
             Image(systemName: "sparkles")
+                .foregroundStyle(NeonUltraColor.magenta)
             Text("Mode démonstration — données fictives")
                 .font(BudgetFont.caption)
             Spacer()
@@ -83,11 +93,21 @@ struct DemoModeBanner: View {
                 appContainer.isDemoMode = false
             }
             .font(BudgetFont.caption.weight(.semibold))
+            .foregroundStyle(NeonUltraColor.cyan)
         }
         .padding(.horizontal, BudgetSpacing.medium)
         .padding(.vertical, BudgetSpacing.small)
-        .background(BudgetColor.indigo.opacity(0.9))
-        .foregroundStyle(.white)
+        // Un rappel, pas une enseigne. En bloc indigo saturé, la bannière
+        // était le premier point lumineux de CHAQUE écran — elle volait le
+        // point focal unique que la constitution réserve au contenu.
+        // Surface mate + un liseré : elle se lit sans crier.
+        .background(NeonUltraColor.surface)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(NeonUltraColor.border)
+                .frame(height: 1)
+        }
+        .foregroundStyle(NeonUltraColor.textSecondary)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Mode démonstration actif, données fictives. Bouton Quitter pour revenir à vos données.")
     }

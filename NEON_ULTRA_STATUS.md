@@ -17,6 +17,41 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## NU4 (première tranche) — la coquille natives passe en Neon Ultra (05.08.2026) — VERIFYING
+
+Rendu possible par le lot précédent : le workflow Demo remarche, donc on
+peut enfin **regarder** l'app iPhone au lieu de l'écrire en aveugle.
+
+La capture `nu3-mois` du run Demo #42 montre trois choses :
+
+1. Une **bande indigo saturée** occupe tout le haut de l'écran — la
+   bannière de démonstration. C'est le premier point lumineux de CHAQUE
+   écran, alors que la constitution réserve le point focal unique au
+   contenu.
+2. La **barre d'onglets et le ＋ sont indigo Obsidian**, pendant que les
+   flèches de mois, elles, sont déjà **cyan Neon Ultra**. Deux accents se
+   battent sur la même capture.
+3. Le fond, lui, est bien le noir Neon Ultra : NU3 avait fait son travail,
+   c'est bien la coquille qui était restée en arrière.
+
+### Ce qui change
+
+- `.tint(BudgetColor.indigo)` → `.tint(NeonUltraColor.cyan)` sur la
+  `TabView`. Le cyan mesure ≈ 9,3:1 sur la navigation `#0B0D13` : il peut
+  porter seul un petit libellé actif. Le violet, à 3,41:1, ne le pourrait
+  pas — c'est écrit dans le token lui-même, et c'est pour ça que ce n'est
+  pas lui qui est choisi.
+- Fond de la barre d'onglets forcé sur `NeonUltraColor.navigation`.
+- La bannière de démonstration devient une surface mate avec un liseré :
+  un rappel, plus une enseigne. Le ✦ passe magenta, « Quitter » cyan.
+
+### Ce que ça ne fait pas
+
+Les vingt-six écrans non pilotes gardent leurs propres cartes Obsidian :
+seule la **coquille** change ici. C'est voulu — changer la coquille et les
+écrans dans le même lot rendrait impossible de dire lequel a cassé quoi si
+une capture cloche.
+
 ## Lot « le tour natif remarche » (05.08.2026) — VERIFYING
 
 Le workflow **Demo** — la seule façon d'obtenir des captures réelles du
