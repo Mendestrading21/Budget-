@@ -17,6 +17,58 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Lot « le tour natif remarche » (05.08.2026) — VERIFYING
+
+Le workflow **Demo** — la seule façon d'obtenir des captures réelles du
+simulateur — était rouge depuis le 25.07. Sans lui, aucun travail visuel
+natif n'est vérifiable à l'œil : on écrit du SwiftUI en aveugle.
+
+### Neuf choses périmées, pas deux
+
+Les deux échecs affichés (« ＋ flottant absent », « Documents introuvable »)
+n'étaient que les deux PREMIERS. En comparant les étiquettes tapées par le
+tour aux étiquettes réellement produites par `MoreTab`, il en restait sept :
+
+| Le tour tapait | L'app affiche |
+|---|---|
+| Année en revue | Bilan de l'année |
+| Récurrents et abonnements | Factures mensuelles |
+| Assurances | Assurances et prévoyance → Assurances |
+| Prévoyance | Assurances et prévoyance → Prévoyance |
+| Documents | Documents et import → Mes documents |
+| Import CSV | Documents et import → Importer un relevé CSV |
+| À organiser (repère de sommet) | Mon mois |
+
+Corriger les deux échecs visibles aurait produit un troisième run rouge.
+La comparaison mécanique des deux listes a évité trois tours de CI.
+
+**Deux entrées sont devenues des sommaires.** `visitMoreEntry` et
+`visitFinancialModule` acceptent maintenant un second niveau : sans ça, la
+capture montrerait le sommaire au lieu de l'écran promis — une preuve verte
+qui ne prouve rien.
+
+### L'invariant du ＋ n'a plus d'objet — il n'est pas supprimé, il est déplacé
+
+Le tour vérifiait qu'aucun contenu ne passait sous le ＋ flottant, grâce à
+une zone d'exclusion. ADR-026 a supprimé ce bouton : l'assertion ne pouvait
+plus que échouer.
+
+Ce qui la remplace n'est pas rien : c'est **la barre d'onglets**. Le défaut
+existe pour de vrai — NU3 l'a trouvé sur Mois et Budget, ~80 pt de contenu
+coincés dessous, invisibles en lecture de code parce que noir sur noir.
+`assertLastIdentifiedElementClearsTabBar` exige donc qu'après défilement
+complet, la dernière ligne financière soit ENTIÈREMENT au-dessus de la
+barre.
+
+Ce qui est assumé comme perdu : le contrôle à CHAQUE position intermédiaire.
+Il n'avait de sens que parce qu'une zone d'exclusion garantissait qu'aucun
+pixel ne pouvait passer sous le ＋. Sous une barre d'onglets translucide, du
+contenu passe dessous **légitimement** pendant le défilement ; seul l'état
+final est jugeable. Consigné plutôt que maquillé.
+
+`Self.hubTopSection` remplace quatre littéraux « À organiser » : le tour est
+resté périmé trois mois parce que le repère était recopié à quatre endroits.
+
 ## Lot « iPhone dit la même chose que le web » (05.08.2026) — VERIFYING
 
 Les trois lots de langage précédents n'avaient touché que la PWA. L'app

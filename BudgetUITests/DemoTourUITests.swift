@@ -40,7 +40,7 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "05-plus")
 
         // Correctif L6 (2e passe) : chaque module financier est PROUVÉ
-        // sans recouvrement par le ＋ dans l'état INITIAL (assertion AVANT
+        // avec du contenu réellement visible dans l'état INITIAL (assertion AVANT
         // la capture) puis après défilement complet — 12 captures.
         visitFinancialModule(app, label: "Objectifs", base: "06-objectifs",
                              lastProofPrefix: "goals.card")
@@ -50,19 +50,19 @@ final class DemoTourUITests: XCTestCase {
                              lastProofPrefix: nil,
                              namedProofs: ["networth.chart.evolution"])
         demoNetWorthSelectionProof(app)
-        visitFinancialModule(app, label: "Récurrents et abonnements", base: "09-recurrents",
+        visitFinancialModule(app, label: "Factures mensuelles", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
                              namedProofs: ["recurring.row.Loyer"])
         visitSettingsWithDestructiveProof(app)
-        visitMoreEntry(app, label: "Année en revue", shot: "11-annee")
+        visitMoreEntry(app, label: "Bilan de l'année", shot: "11-annee")
         // L7 : le registre des documents fait partie des surfaces de
         // confiance — asserté et capturé comme le reste.
-        visitMoreEntry(app, label: "Documents", shot: "16-documents")
-        visitFinancialModule(app, label: "Assurances", base: "14-assurances",
-                             lastProofPrefix: "insurance.row")
-        visitFinancialModule(app, label: "Prévoyance", base: "15-prevoyance",
+        visitMoreEntry(app, label: "Documents et import", shot: "16-documents", then: "Mes documents")
+        visitFinancialModule(app, label: "Assurances et prévoyance", base: "14-assurances",
+                             lastProofPrefix: "insurance.row", then: "Assurances")
+        visitFinancialModule(app, label: "Assurances et prévoyance", base: "15-prevoyance",
                              lastProofPrefix: "pension.info",
-                             namedProofs: ["pension.info.footer"])
+                             namedProofs: ["pension.info.footer"], then: "Prévoyance")
 
         // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
         // partie des trois parcours refondus — preuve native exigée.
@@ -166,7 +166,7 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "ios-l7-plus")
 
         // Documents : registre rempli + fichier ABSENT écrit.
-        visitMoreEntry(app, label: "Documents", shot: "ios-l7-documents-rempli")
+        visitMoreEntry(app, label: "Documents et import", shot: "ios-l7-documents-rempli", then: "Mes documents")
         XCTAssertTrue(
             app.descendants(matching: .any).matching(identifier: "document.fileMissing")
                 .firstMatch.waitForExistence(timeout: 10),
@@ -186,11 +186,8 @@ final class DemoTourUITests: XCTestCase {
 
         // Import CSV : mapping → compte → aperçu → confirmation → rapport.
         openPlusHub(app)
-        var importEntry = app.buttons["Import CSV"].firstMatch
-        if !importEntry.waitForExistence(timeout: 5) { importEntry = app.staticTexts["Import CSV"].firstMatch }
-        if !importEntry.isHittable { app.swipeUp() }
-        XCTAssertTrue(importEntry.waitForExistence(timeout: 10), "entrée Import CSV introuvable")
-        importEntry.tap()
+        tapHubEntry(app, label: "Documents et import")
+        tapHubEntry(app, label: "Importer un relevé CSV")
         XCTAssertTrue(app.staticTexts.matching(contains("colonnes détectées")).firstMatch.waitForExistence(timeout: 15),
                       "l'étape de correspondance doit détecter les colonnes")
         snap(app, "ios-l7-import-mapping")
@@ -291,12 +288,12 @@ final class DemoTourUITests: XCTestCase {
     @MainActor
     private func openPlusHub(_ app: XCUIApplication) {
         openTab(app, "Gérer")
-        if app.staticTexts["À organiser"].waitForExistence(timeout: 3) { return }
+        if app.staticTexts[Self.hubTopSection].waitForExistence(timeout: 3) { return }
         app.tabBars.buttons["Gérer"].tap()
-        if app.staticTexts["À organiser"].waitForExistence(timeout: 5) { return }
+        if app.staticTexts[Self.hubTopSection].waitForExistence(timeout: 5) { return }
         // Hub encore défilé : revenir en haut.
         app.swipeDown()
-        _ = app.staticTexts["À organiser"].waitForExistence(timeout: 5)
+        _ = app.staticTexts[Self.hubTopSection].waitForExistence(timeout: 5)
     }
 
     @MainActor
@@ -312,8 +309,19 @@ final class DemoTourUITests: XCTestCase {
     /// returns to the list. Missing entries fail the test — the tour must
     /// cover what the app claims to ship.
     @MainActor
-    private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String) {
+    private func visitMoreEntry(_ app: XCUIApplication, label: String, shot: String, then subEntry: String? = nil) {
         openPlusHub(app)
+        tapHubEntry(app, label: label)
+        // Deux entrées du hub sont devenues des SOMMAIRES (« Assurances et
+        // prévoyance », « Documents et import »). Sans suivre le lien, la
+        // capture montrerait le sommaire au lieu de l'écran promis — une
+        // preuve verte qui ne prouve rien.
+        if let subEntry { tapHubEntry(app, label: subEntry) }
+        snap(app, shot)
+    }
+
+    @MainActor
+    private func tapHubEntry(_ app: XCUIApplication, label: String) {
         var entry = app.buttons[label].firstMatch
         if !entry.waitForExistence(timeout: 5) {
             entry = app.staticTexts[label].firstMatch
@@ -321,10 +329,9 @@ final class DemoTourUITests: XCTestCase {
         if !entry.exists || !entry.isHittable {
             app.swipeUp()
         }
-        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Entrée « \(label) » introuvable dans Plus")
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Entrée « \(label) » introuvable")
         entry.tap()
         _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
-        snap(app, shot)
     }
 
     /// L7 : Réglages capturé, PUIS le dialogue de suppression totale est
@@ -373,7 +380,7 @@ final class DemoTourUITests: XCTestCase {
         XCTAssertTrue(chart.waitForExistence(timeout: 5), "courbe Évolution introuvable")
         // La courbe doit être ENTIÈREMENT visible et loin des bords : un
         // geste sur un élément à cheval sur le bord inférieur tomberait
-        // sur la tab bar ou le ＋ — cause des trois échecs précédents.
+        // sur la barre d'onglets — cause des trois échecs précédents.
         let viewport = scroll.frame
         var centering = 0
         while centering < 8 {
@@ -432,11 +439,15 @@ final class DemoTourUITests: XCTestCase {
                        "l'étiquette doit valoir l'instantané RÉEL de la fixture démo")
         XCTAssertEqual(chart.value as? String, text,
                        "la valeur accessible de la courbe doit annoncer le mois et le montant sélectionnés")
-        assertNoFABOverlap(app, screen: "Patrimoine", phase: "sélection active")
+        assertContentIsReadable(app, screen: "Patrimoine", phase: "sélection active")
         snap(app, "ios-l8-patrimoine-selection")
     }
 
-    private static let fabLabel = "Ajouter — dépense, revenu, épargne, investissement ou virement"
+    /// Premier titre de section du hub « Gérer ». Il sert de repère « le
+    /// hub est bien au sommet ». Le tour est resté trois mois sur
+    /// « À organiser » après son renommage — d'où une constante unique.
+    private static let hubTopSection = "Mon mois"
+
     /// Préfixes des éléments financiers identifiés (graphique, lignes,
     /// texte informatif) — balayés en PLUS des textes/boutons/images.
     private static let financialIdentifierPredicate = NSPredicate(format:
@@ -445,114 +456,92 @@ final class DemoTourUITests: XCTestCase {
         + " OR identifier BEGINSWITH 'insurance.row' OR identifier BEGINSWITH 'pension.'")
 
     /// Correctif L6 (2e passe) : visite un module financier en prouvant
-    /// l'absence de recouvrement par le ＋ AVANT la première capture,
+    /// que du contenu est réellement affiché AVANT la première capture,
     /// puis à nouveau après défilement complet — deux captures nommées
     /// `-initial` et `-fin`.
     @MainActor
     private func visitFinancialModule(
         _ app: XCUIApplication, label: String, base: String,
-        lastProofPrefix: String?, namedProofs: [String] = []
+        lastProofPrefix: String?, namedProofs: [String] = [], then subEntry: String? = nil
     ) {
         openPlusHub(app)
-        var entry = app.buttons[label].firstMatch
-        if !entry.waitForExistence(timeout: 5) {
-            entry = app.staticTexts[label].firstMatch
-        }
-        if !entry.exists || !entry.isHittable {
-            app.swipeUp()
-        }
-        XCTAssertTrue(entry.waitForExistence(timeout: 10), "Entrée « \(label) » introuvable dans Plus")
-        entry.tap()
-        _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
+        tapHubEntry(app, label: label)
+        if let subEntry { tapHubEntry(app, label: subEntry) }
 
         // 1) État INITIAL : l'assertion passe AVANT la capture.
-        assertNoFABOverlap(app, screen: label, phase: "état initial")
+        assertContentIsReadable(app, screen: label, phase: "état initial")
         assertNamedProofElements(app, ids: namedProofs, screen: label, phase: "état initial")
         snap(app, "\(base)-initial")
 
-        // 2) Défilement complet — le ＋ est vérifié à CHAQUE position
-        // intermédiaire (correctif L8), puis à l'état final.
+        // 2) Défilement complet — du contenu reste visible à CHAQUE
+        // position intermédiaire, puis l'état final est jugé sur la barre
+        // d'onglets : c'est elle qui peut désormais cacher la fin d'un écran.
         let scroll = app.scrollViews.firstMatch
         for step in 1...5 {
             scroll.swipeUp()
-            assertNoFABOverlap(app, screen: label, phase: "défilement \(step)/5")
+            assertContentIsReadable(app, screen: label, phase: "défilement \(step)/5")
         }
-        assertNoFABOverlap(app, screen: label, phase: "après défilement")
+        assertContentIsReadable(app, screen: label, phase: "après défilement")
         if let lastProofPrefix {
-            assertLastIdentifiedElementClearsFAB(app, prefix: lastProofPrefix, screen: label)
+            assertLastIdentifiedElementClearsTabBar(app, prefix: lastProofPrefix, screen: label)
         }
         assertNamedProofElements(app, ids: namedProofs, screen: label, phase: "après défilement")
         snap(app, "\(base)-fin")
     }
 
-    /// Preuve géométrique centrale : la zone d'exclusion sort le ＋ du
-    /// viewport du module, et AUCUN élément visible (texte, montant,
-    /// bouton, image/graphique, carte ou ligne identifiée) n'intersecte
-    /// son cadre réel. Jamais `isHittable` — uniquement des cadres.
+    /// ADR-026 a supprimé le ＋ flottant : sa zone d'exclusion n'a plus
+    /// d'objet, et l'assertion qui l'exigeait faisait échouer tout le tour.
+    /// Ce qui RESTE vérifiable ici, c'est qu'un écran affiche réellement
+    /// quelque chose — un module vide ne produit pas une capture verte.
+    /// La géométrie, elle, se juge sur la barre d'onglets, à l'état final :
+    /// voir `assertLastIdentifiedElementClearsTabBar`.
     @MainActor
-    private func assertNoFABOverlap(_ app: XCUIApplication, screen: String, phase: String) {
-        let fab = app.buttons[Self.fabLabel]
-        XCTAssertTrue(fab.waitForExistence(timeout: 5), "＋ flottant absent (\(screen), \(phase))")
+    private func assertContentIsReadable(_ app: XCUIApplication, screen: String, phase: String) {
         let scroll = app.scrollViews.firstMatch
         XCTAssertTrue(scroll.waitForExistence(timeout: 5), "contenu défilant absent (\(screen), \(phase))")
-        let fabFrame = fab.frame
         let viewport = scroll.frame
-        // Zone d'exclusion PERMANENTE : le viewport s'arrête au-dessus
-        // du ＋ — rien ne peut être rendu dessous, à aucun moment.
-        XCTAssertFalse(
-            viewport.intersects(fabFrame.insetBy(dx: 1, dy: 1)),
-            "le viewport du module recouvre la zone du ＋ (\(screen), \(phase))"
-        )
         var visibleElements = 0
-        func sweep(_ query: XCUIElementQuery, cap: Int, kind: String) {
-            for element in query.allElementsBoundByIndex.prefix(cap) {
-                // Seule la partie VISIBLE compte : ce qui dépasse sous le
-                // bord du viewport est coupé par le ScrollView (jamais
-                // rendu) — le cadre d'accessibilité, lui, n'est pas coupé.
-                let visible = element.frame.intersection(viewport)
-                guard !visible.isEmpty else { continue }
-                visibleElements += 1
-                XCTAssertFalse(
-                    visible.intersects(fabFrame),
-                    "\(kind) « \(element.label.prefix(48)) » recouvert par le ＋ (\(screen), \(phase))"
-                )
-            }
+        func sweep(_ query: XCUIElementQuery, cap: Int) {
+            for element in query.allElementsBoundByIndex.prefix(cap)
+            where !element.frame.intersection(viewport).isEmpty { visibleElements += 1 }
         }
-        sweep(scroll.staticTexts, cap: 60, kind: "texte")
-        sweep(scroll.buttons, cap: 20, kind: "bouton")
-        sweep(scroll.images, cap: 12, kind: "image")
-        sweep(scroll.descendants(matching: .any).matching(Self.financialIdentifierPredicate),
-              cap: 40, kind: "élément financier")
+        sweep(scroll.staticTexts, cap: 60)
+        sweep(scroll.buttons, cap: 20)
+        sweep(scroll.images, cap: 12)
+        sweep(scroll.descendants(matching: .any).matching(Self.financialIdentifierPredicate), cap: 40)
         XCTAssertGreaterThan(visibleElements, 0, "aucun contenu visible (\(screen), \(phase))")
     }
 
+    /// Cadre de la barre d'onglets. `app.tabBars` peut être vide selon la
+    /// version d'iOS pour une `TabView` SwiftUI : on retombe alors sur le
+    /// cadre du premier onglet, qui suffit à borner le bas de l'écran.
+    @MainActor
+    private func tabBarFrame(_ app: XCUIApplication) -> CGRect? {
+        let bar = app.tabBars.firstMatch
+        if bar.exists { return bar.frame }
+        let firstTab = app.buttons["Mois"].firstMatch
+        return firstTab.exists ? firstTab.frame : nil
+    }
+
     /// Preuves nommées (montant Loyer, graphique Évolution, texte
-    /// informatif Prévoyance…) : l'élément DOIT exister, et dès qu'il est
-    /// visible dans le viewport, il ne doit pas toucher le ＋.
+    /// informatif Prévoyance…) : l'élément DOIT exister. Le contrôle
+    /// géométrique associé portait sur le ＋ et a suivi sa suppression.
     @MainActor
     private func assertNamedProofElements(_ app: XCUIApplication, ids: [String], screen: String, phase: String) {
         guard !ids.isEmpty else { return }
         let scroll = app.scrollViews.firstMatch
-        let fabFrame = app.buttons[Self.fabLabel].frame
-        let viewport = scroll.frame
         for id in ids {
             let element = scroll.descendants(matching: .any).matching(identifier: id).firstMatch
             XCTAssertTrue(element.exists, "élément « \(id) » introuvable (\(screen), \(phase))")
-            let visible = element.frame.intersection(viewport)
-            if !visible.isEmpty {
-                XCTAssertFalse(
-                    visible.intersects(fabFrame),
-                    "« \(id) » est recouvert par le ＋ (\(screen), \(phase))"
-                )
-            }
         }
     }
 
     /// Après défilement complet, le DERNIER élément financier identifié
     /// (dernière carte Objectifs, dernière échéance Impôts, dernier
-    /// contrat Assurances…) doit être visible ET hors du cadre du ＋.
+    /// contrat Assurances…) doit être atteignable ET entièrement au-dessus
+    /// de la barre d'onglets.
     @MainActor
-    private func assertLastIdentifiedElementClearsFAB(_ app: XCUIApplication, prefix: String, screen: String) {
+    private func assertLastIdentifiedElementClearsTabBar(_ app: XCUIApplication, prefix: String, screen: String) {
         let scroll = app.scrollViews.firstMatch
         let matches = scroll.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", prefix))
@@ -562,15 +551,23 @@ final class DemoTourUITests: XCTestCase {
         let frame = last.frame
         // Atteignable = affiché dans le viewport final, ou déjà défilé
         // AU-DESSUS (donc lu en entier pendant le défilement). Jamais
-        // bloqué SOUS le viewport, jamais sous le ＋.
+        // bloqué SOUS le viewport.
         XCTAssertLessThan(
             frame.minY, scroll.frame.maxY,
             "le dernier élément « \(prefix) » reste inatteignable après défilement (\(screen))"
         )
-        XCTAssertFalse(
-            frame.intersection(scroll.frame).intersects(app.buttons[Self.fabLabel].frame),
-            "le dernier élément « \(prefix) » est recouvert par le ＋ (\(screen))"
-        )
+        // ADR-026 a supprimé le ＋ flottant : c'est désormais la BARRE
+        // D'ONGLETS qui peut cacher la fin d'un écran. Le défaut existe
+        // vraiment — NU3 l'a trouvé sur Mois et Budget, ~80 pt de contenu
+        // coincés dessous, invisibles en lecture de code parce que noir
+        // sur noir. Après défilement complet, la dernière ligne doit être
+        // ENTIÈREMENT au-dessus de la barre.
+        if let bar = tabBarFrame(app) {
+            XCTAssertLessThanOrEqual(
+                frame.maxY, bar.minY + 1,
+                "le dernier élément « \(prefix) » reste coincé sous la barre d'onglets (\(screen))"
+            )
+        }
     }
 
     @MainActor
