@@ -94,7 +94,7 @@ struct YearReviewView: View {
         }.filter { $0.1 > 0 }
         return GlassCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Versé par classe en \(String(year))")
+                Text("Mis de côté en \(String(year)), par type")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
                 if rows.isEmpty {

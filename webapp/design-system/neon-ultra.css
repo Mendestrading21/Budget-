@@ -673,7 +673,9 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   border-radius: 3px;
 }
 #screen.nu-pilot-screen .by-lbl {
-  font-size: 9px;
+  /* 9 px était la plus petite taille de l'app après le « utilisé » de
+     l'anneau. Douze colonnes tiennent largement une étiquette à 10 px. */
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--nu-text-tertiary);

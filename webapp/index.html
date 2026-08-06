@@ -71,10 +71,17 @@
     --tint-warning: rgba(255, 180, 84, 0.18);
     --tint-neutral: rgba(255, 255, 255, 0.08);
 
-    /* Géométrie */
-    --card-radius: 22px;
+    /* Géométrie — UNE seule pour toute l'app.
+       L'audit total a trouvé cinq rayons de carte distincts : Obsidian
+       arrondissait à 28/22/14, Neon Ultra à 26/18/14. Deux systèmes dans
+       la même application, visibles côte à côte dès qu'on passait de
+       Comptes (22) à Mois (18). Ces trois valeurs sont désormais celles de
+       Neon Ultra (identité cible, ADR-024) — `--nu-radius-*` dans
+       neon-ultra.css doit rester d'accord avec elles, et le design system
+       le vérifie. */
+    --card-radius: 18px;
     --row-radius: 14px;
-    --hero-radius: 28px;
+    --hero-radius: 26px;
 
     /* ----------------------------------------------------------
        ALIAS HÉRITÉS (transition L2 — à retirer quand les écrans
@@ -2541,7 +2548,7 @@ function renderHome() {
   </div>`;
   const contribSub = kinds => {
     const agg = contributionsFor(kinds);
-    return agg.total > 0 ? `Versé cette année : ${chf(agg.year)} · total : ${chf(agg.total)}` : "";
+    return agg.total > 0 ? `Mis de côté cette année : ${chf(agg.year)} · en tout : ${chf(agg.total)}` : "";
   };
 
   // Horizon L2 — LA priorité du mois : une seule recommandation, dérivée
@@ -3224,8 +3231,8 @@ function renderBudget() {
               stroke-linecap="round" stroke-dasharray="${(ringShown * ringCirc).toFixed(1)} ${ringCirc.toFixed(1)}"></circle>
       <text x="40" y="40" transform="rotate(90 40 40)" text-anchor="middle"
             style="font-size:15px;font-weight:800;fill:var(--nu-text-primary)">${ringPct}%</text>
-      <text x="40" y="52" transform="rotate(90 40 40)" text-anchor="middle"
-            style="font-size:8px;fill:var(--nu-text-tertiary)">utilisé</text>
+      <text x="40" y="53" transform="rotate(90 40 40)" text-anchor="middle"
+            style="font-size:10px;fill:var(--nu-text-tertiary)">utilisé</text>
     </svg>
     </div>` : "";
   return `<h2 class="screen-title">Budget</h2>
@@ -3334,7 +3341,7 @@ function renderAccountDetail(a) {
       <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
       <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
       ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${f} — calculé depuis votre solde de départ et vos mouvements</span>` : ""; })()}
-      ${c ? `<span class="caption" style="display:block">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
+      ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
@@ -3412,7 +3419,7 @@ function renderAccounts() {
         const perf = (a.kind === "brokerage" && c)
           ? balance(a.id) - a.opening - (c.total - c.withdrawn) : null;
         const contribLine = c && (c.total > 0 || (perf !== null && Math.abs(perf) >= 0.005))
-          ? `<div class="caption" style="margin-top:2px">Versé cette année : ${money(c.year, a.currency)} · total : ${money(c.total, a.currency)}${
+          ? `<div class="caption" style="margin-top:2px">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${
               perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
           : "";
         return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
@@ -4303,7 +4310,7 @@ function renderImport() {
     ${S.documents.map(doc => `<div class="card row tx" data-editdoc="${esc(doc.id)}" role="button" tabindex="0" style="cursor:pointer" aria-label="Modifier ${esc(doc.name)}">
       <div class="ico" aria-hidden="true">📄</div>
       <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · métadonnées seulement</div></div>
-      <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
+      <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;min-height:44px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
     <p class="caption" style="padding:6px 4px 0">Réimporter le même fichier sur le même compte ne crée jamais de doublon : chaque ligne est reconnue à sa date, son compte, son intitulé et son montant.</p>`;

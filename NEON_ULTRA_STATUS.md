@@ -17,6 +17,68 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Audit total + nouveau logo (06.08.2026) — VERIFYING
+
+Demande du propriétaire : « un audit total complet de A à Z, tous les petits
+détails, que tout soit aligné, cohérent, en ordre » — et « regarde aussi
+pour le logo ».
+
+Nouvel outil : `audit-total.mjs`. Il mesure les seize écrans à **320, 390 et
+430 px** sur des axes que l'œil rate après trois heures — alignement, rayons,
+paddings, tailles, contraste RÉEL de chaque texte sur son fond effectif,
+cibles tactiles, boutons sans destination, débordement, nombre de titres.
+
+### Ce qui était déjà bon
+
+Aux trois largeurs : zéro débordement, zéro contraste sous AA, zéro bouton
+mort, **un seul bord gauche à 18 px sur les seize écrans**, un titre par
+écran. La discipline des lots précédents tient.
+
+### Les trois défauts trouvés
+
+1. **Deux systèmes géométriques.** Obsidian arrondissait les cartes à
+   22 px, Neon Ultra à 18 px — cinq rayons distincts dans l'app. Visible
+   dès qu'on passait de Comptes à Mois. Unifié sur la géométrie Neon Ultra.
+2. **Deux textes sous le seuil.** Le « utilisé » de l'anneau à **8 px**, les
+   mois de la page Année à 9 px. Passés à 10 px.
+3. **Une cible à 43,5 px** — « Suppr. » d'un document, visible seulement à
+   430 px.
+
+### Une correction de l'outil lui-même
+
+Sa première version signalait « plus de deux rayons » et criait au loup sur
+quatre écrans qui contenaient simplement le système au complet (un héros,
+des cartes, des lignes). Un audit qui crie au loup est pire qu'aucun audit.
+Il compare désormais aux valeurs autorisées, pas à leur nombre.
+
+### Le logo
+
+L'ancien était une **courbe boursière** — l'héritage direct de
+« Mendestrading ». Sur une fiche App Store, c'est la première chose qu'un
+acheteur voit, et elle promettait la Bourse alors que le produit promet de
+savoir où passe son argent. Elle était en plus presque noire sur noir, et
+son trait fin disparaissait à 40 px.
+
+Le nouveau est l'**anneau du budget** — l'élément signature de l'app, celui
+de l'écran Budget. Vérifié à 120, 60, 40 et 29 px : il tient partout.
+
+Première tentative rejetée : le dégradé par défaut plaçait le cyan dans le
+coin du cadre, exactement là où l'anneau est ouvert — la couleur
+n'apparaissait nulle part. Corrigé en `userSpaceOnUse`.
+
+### Preuves
+
+- **102 parcours e2e** (101 conservés + le n° 102) · 5 fixtures de parité ·
+  design system vert · zéro erreur console.
+- Le n° 102 verrouille les trois rayons autorisés, l'absence de texte sous
+  10 px, l'unicité du bord gauche, et **l'accord des deux feuilles de style**
+  sur la géométrie — sans quoi la divergence reviendrait au premier écran
+  rebranché.
+- **Contrôle négatif exécuté** : rendre 22 px à Obsidian produit sept échecs
+  nommés plus le désaccord des feuilles ; redescendre le « utilisé » à 8 px
+  en produit un.
+- Audit total propre aux trois largeurs après correction.
+
 ## NU4 (première tranche) — la coquille natives passe en Neon Ultra (05.08.2026) — VERIFYING
 
 Rendu possible par le lot précédent : le workflow Demo remarche, donc on

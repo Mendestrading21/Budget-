@@ -176,7 +176,7 @@ struct AccountRow: View {
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                     if let contribution, contribution.total > 0 {
-                        Text("Versé cette année : \(FinanceFormatting.chf(contribution.currentYear)) · total : \(FinanceFormatting.chf(contribution.total))")
+                        Text("Mis de côté cette année : \(FinanceFormatting.chf(contribution.currentYear)) · en tout : \(FinanceFormatting.chf(contribution.total))")
                             .font(BudgetFont.caption)
                             .foregroundStyle(BudgetColor.brandBright)
                     }

@@ -268,8 +268,8 @@ check(screenHTML.includes("Compte E2E") && screenHTML.includes("1'500.00"), "com
 // ---------- Test 6b : cumuls Finary — chaque versement s'additionne ----------
 currentTest = "cumuls";
 screenHTML = await page.$eval("#screen", el => el.innerHTML); // toujours sur Comptes
-check(screenHTML.includes("Versé cette année : CHF 100.00"), "cumul annuel absent sur le compte Épargne");
-check(screenHTML.includes("total : CHF 100.00"), "cumul total absent sur le compte Épargne");
+check(screenHTML.includes("Mis de côté cette année : CHF 100.00"), "cumul annuel absent sur le compte Épargne");
+check(screenHTML.includes("en tout : CHF 100.00"), "cumul total absent sur le compte Épargne");
 // Fiche de compte : historique, courbe, cumuls, retour
 await page.click('#screen [data-accid]:has-text("Épargne")');
 await page.waitForTimeout(200);
@@ -4682,6 +4682,85 @@ await goHome();
   await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
 }
 
+
+// ---------- Test 102 : une seule géométrie, aucun texte illisible --------
+currentTest = "un seul système";
+// L'audit total a trouvé CINQ rayons de carte : Obsidian arrondissait à
+// 28/22/14, Neon Ultra à 26/18/14. Deux systèmes dans la même app, visibles
+// dès qu'on passait de Comptes à Mois. Et deux textes descendaient à 8 et
+// 9 px — le « utilisé » de l'anneau et les mois de la page Année.
+await goHome();
+{
+  const RAYONS = ["26px", "18px", "14px"];
+  const ECRANS = [
+    ["Mois", 'activeTab="home";moreView=null'],
+    ["Historique", 'activeTab="movements";moreView=null'],
+    ["Budget", 'activeTab="budget";moreView=null'],
+    ["Comptes", 'activeTab="accounts";moreView=null'],
+    ["Gérer", 'activeTab="more";moreView=null'],
+  ];
+  const VUES = ["year", "subs", "bills", "recurring", "goals", "taxes",
+                "networth", "insurance", "settings", "importcsv", "assistant"];
+
+  const releve = () => page.evaluate(() => {
+    const s = document.getElementById("screen");
+    const vu = e => {
+      const b = e.getBoundingClientRect();
+      return b.width > 0 && b.height > 0 && e.getAttribute("aria-hidden") !== "true";
+    };
+    return {
+      rayons: [...new Set([...s.querySelectorAll(".card")].filter(vu)
+        .map(c => getComputedStyle(c).borderRadius))],
+      // Le SVG compte aussi : le « utilisé » de l'anneau y vivait.
+      minPx: Math.min(...[...s.querySelectorAll("*")]
+        .filter(e => vu(e) && e.children.length === 0 && (e.textContent || "").trim().length > 1)
+        .map(e => parseFloat(getComputedStyle(e).fontSize))
+        .filter(v => v > 0), 999),
+      bordsGauches: [...new Set([...s.querySelectorAll(".card")].filter(vu)
+        .map(c => Math.round(c.getBoundingClientRect().left)))],
+    };
+  });
+
+  const horsSysteme = [], tropPetit = [], desalignes = [];
+  const passer = async (nom, aller) => {
+    await aller();
+    await page.waitForTimeout(260);
+    const r = await releve();
+    const mauvais = r.rayons.filter(v => !RAYONS.includes(v));
+    if (mauvais.length) horsSysteme.push(`${nom} : ${mauvais.join(", ")}`);
+    if (r.minPx < 10) tropPetit.push(`${nom} : ${r.minPx} px`);
+    if (r.bordsGauches.length > 1) desalignes.push(`${nom} : ${r.bordsGauches.join(", ")}`);
+  };
+  for (const [nom, code] of ECRANS) {
+    await passer(nom, () => page.evaluate(c => { eval(c); render(); }, code));
+  }
+  for (const vue of VUES) {
+    await passer(vue, () => page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue));
+  }
+
+  check(horsSysteme.length === 0,
+    `un seul système de rayons — héros 26, carte 18, ligne 14 (hors système : ${horsSysteme.join(" · ") || "aucun"})`);
+  check(tropPetit.length === 0,
+    `aucun texte sous 10 px (${tropPetit.join(" · ") || "aucun"})`);
+  check(desalignes.length === 0,
+    `toutes les cartes partagent le même bord gauche (${desalignes.join(" · ") || "aucun écart"})`);
+
+  // Les deux feuilles de style doivent annoncer la MÊME géométrie : sans
+  // ça, la divergence reviendrait au premier écran rebranché.
+  const geo = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    const l = n => cs.getPropertyValue(n).trim();
+    return {
+      obsidian: [l("--hero-radius"), l("--card-radius"), l("--row-radius")],
+      neon: [l("--nu-radius-hero"), l("--nu-radius-card"), l("--nu-radius-control")],
+    };
+  });
+  check(JSON.stringify(geo.obsidian) === JSON.stringify(geo.neon),
+    `les deux feuilles annoncent la même géométrie (Obsidian ${geo.obsidian.join("/")} · Neon ${geo.neon.join("/")})`);
+
+  await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4691,4 +4770,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 101 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 102 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système), zéro erreur console ✓");
