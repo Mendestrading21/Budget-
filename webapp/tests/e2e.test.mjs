@@ -62,6 +62,11 @@ await page.click('#obForm2 button[type="submit"]');
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "2000");
 await page.click('#obForm3 button[type="submit"]');
+// Charges puis abonnements : deux écrans facultatifs, passés ici.
+await page.waitForSelector("#obFormCharges", { state: "visible" });
+await page.click("[data-obskipcharges]");
+await page.waitForSelector("#obFormSubs", { state: "visible" });
+await page.click("[data-obskipsubs]");
 await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" }); // étape objectif (facultative)
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
@@ -469,6 +474,11 @@ await page.click("[data-obskip]");
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "1000");
 await page.click('#obForm3 button[type="submit"]');
+// Charges puis abonnements : deux écrans facultatifs, passés ici.
+await page.waitForSelector("#obFormCharges", { state: "visible" });
+await page.click("[data-obskipcharges]");
+await page.waitForSelector("#obFormSubs", { state: "visible" });
+await page.click("[data-obskipsubs]");
 await page.waitForSelector("[data-obskipgoal]", { state: "visible" }); // étape objectif : passer
 await page.click("[data-obskipgoal]");
 await page.waitForSelector("#tabbar button");
@@ -1171,6 +1181,11 @@ await page.click('#obForm2 button[type="submit"]');
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "1000");
 await page.click('#obForm3 button[type="submit"]');
+// Charges puis abonnements : deux écrans facultatifs, passés ici.
+await page.waitForSelector("#obFormCharges", { state: "visible" });
+await page.click("[data-obskipcharges]");
+await page.waitForSelector("#obFormSubs", { state: "visible" });
+await page.click("[data-obskipsubs]");
 await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
@@ -1722,8 +1737,11 @@ await page.click('#screen [data-more="recurring"]');
 await page.waitForTimeout(250);
 const rec54 = await page.evaluate(() => [...document.querySelectorAll("#screen [data-recid]")].map(r => r.textContent));
 check(rec54.length > 0, "des paiements réguliers sont affichés en démo");
-check(rec54.every(t => /Payée ce mois|Reçu ce mois|Planifiée|En retard|À venir/.test(t)),
-  "chaque paiement mensuel porte son état écrit (pill)");
+// « En retard » et « À venir » ont disparu avec le jour de paiement : sans
+// date promise, une charge n'est ni en avance ni en retard À L'INTÉRIEUR du
+// mois — elle est simplement encore à régler.
+check(rec54.every(t => /Payée ce mois|Reçu ce mois|Planifiée|À régler ce mois|À recevoir ce mois|Pas ce mois/.test(t)),
+  `chaque paiement mensuel porte son état écrit (pill) — obtenu ${JSON.stringify(rec54.slice(0, 2))}`);
 
 // ---------- Test 55 : a11y L6 — 320 px sur les 6 modules, extrême, cibles 44 px ----------
 currentTest = "a11y L6";
@@ -1802,6 +1820,11 @@ await p56.click('#obForm2 button[type="submit"]');
 await p56.waitForSelector("#obOpening");
 await p56.fill("#obOpening", "1000");
 await p56.click('#obForm3 button[type="submit"]');
+// Charges puis abonnements : deux écrans facultatifs, passés ici.
+await p56.waitForSelector("#obFormCharges", { state: "visible" });
+await p56.click("[data-obskipcharges]");
+await p56.waitForSelector("#obFormSubs", { state: "visible" });
+await p56.click("[data-obskipsubs]");
 await p56.waitForSelector("[data-obskipgoal]");
 await p56.click("[data-obskipgoal]");
 await p56.waitForSelector("#tabbar button", { timeout: 10000 });
@@ -3019,6 +3042,11 @@ currentTest = "NU2 HTTP, service worker et hors-ligne";
   await page78.waitForSelector("#obOpening", { state: "visible" });
   await page78.fill("#obOpening", "3400");
   await page78.click('#obForm3 button[type="submit"]');
+  // Charges puis abonnements : deux écrans facultatifs, passés ici.
+  await page78.waitForSelector("#obFormCharges", { state: "visible" });
+  await page78.click("[data-obskipcharges]");
+  await page78.waitForSelector("#obFormSubs", { state: "visible" });
+  await page78.click("[data-obskipsubs]");
   await page78.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
   await page78.click('[data-obgoal="urgence"]');
   await page78.waitForSelector("#tabbar button", { timeout: 10000 });
@@ -3320,6 +3348,7 @@ const recurring84 = await page79.evaluate(() => {
     recurringAccount: firstRecurring.transaction.acc,
     recurringStatus: recurringStatusAtCreation,
     recurringDay: firstRecurring.transaction.d,
+    lastDayOfNextMonth: new Date(next.y, next.m, 0).getDate(),
     recurringDuplicate: secondRecurring.created,
     billAccount: firstBill.transaction.acc,
     billStatus: billStatusAtCreation,
@@ -3342,8 +3371,15 @@ check(recurring84.recurringAccount === "alt-correctness" && recurring84.billAcco
   "facture et récurrent doivent débiter le compte choisi");
 check(recurring84.recurringStatus === "planned" && recurring84.billStatus === "planned",
   "les échéances futures doivent rester planifiées");
-check(recurring84.recurringDay === 5 && recurring84.billDay === 10,
-  "les échéances futures doivent conserver leur jour exact");
+// 06.08.2026 — plus de jour de paiement pour les récurrences (décision du
+// propriétaire). Une occurrence hors du mois courant tombe donc à la FIN de
+// son mois : une règle unique, prévisible, et qui ne prétend pas connaître
+// une date de prélèvement qu'on n'a jamais demandée. La FACTURE, elle, garde
+// son échéance au jour près — c'est sa raison d'être.
+check(recurring84.recurringDay === recurring84.lastDayOfNextMonth,
+  `une échéance récurrente future tombe en fin de mois (obtenu ${recurring84.recurringDay}, attendu ${recurring84.lastDayOfNextMonth})`);
+check(recurring84.billDay === 10,
+  `une FACTURE conserve son échéance au jour près (obtenu ${recurring84.billDay})`);
 check(recurring84.balanceBeforeDue === 0
     && recurring84.promotedRecurring === 1
     && recurring84.balanceAfterRecurring === -800
@@ -4081,7 +4117,7 @@ await goHome();
     await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
     await page.waitForTimeout(120);
   }
-  // Le salaire : jour pré-rempli même quand aucun salaire n'existe encore.
+  // Le salaire : le montant seul suffit — plus aucun jour n'est demandé.
   await page.evaluate(() => {
     const i = RECURRINGS.findIndex(r => r.id === "r-salaire");
     if (i >= 0) RECURRINGS.splice(i, 1);
@@ -4100,34 +4136,51 @@ await goHome();
     const s = RECURRINGS.find(r => r.id === "r-salaire");
     return { saved: !!s, day: s && s.day, err: document.getElementById("sError").textContent };
   });
+  // Le champ `day` survit dans les DONNÉES (le contrôle de chargement exige
+  // un entier 1-28) mais n'est plus jamais demandé.
   check(salary95.saved && salary95.day >= 1 && salary95.day <= 28,
-    `salaire : le jour est pré-rempli, le montant seul suffit (obtenu ${salary95.day}, message « ${salary95.err} »)`);
-  // Et si le propriétaire vide volontairement le jour, le message désigne un
-  // champ VISIBLE : la facture mensuelle déplie « Détails » toute seule.
+    `salaire : le montant seul suffit à enregistrer (jour interne ${salary95.day}, message « ${salary95.err} »)`);
+  // 06.08.2026, décision du propriétaire : « enlève les jours de paiement ».
+  // L'ancienne version de ce test vidait le champ jour pour vérifier qu'un
+  // refus ne désignait pas un champ replié. Le champ n'existe plus, donc le
+  // piège non plus — et c'est CELA qu'on verrouille désormais : aucune des
+  // deux feuilles ne réclame de date, et l'enregistrement passe sans.
   await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
   await goHome();
   await page.evaluate(() => openRecSheet(null));
   await page.waitForSelector("#recForm", { state: "visible" });
+  const sansDate95 = await page.evaluate(() => ({
+    jourRecurrent: !!document.getElementById("rDay"),
+    jourSalaire: !!document.getElementById("sDay"),
+    replie: (document.getElementById("rMore").textContent || "").toLowerCase(),
+  }));
+  check(!sansDate95.jourRecurrent, "aucun « jour du mois » dans la feuille des factures mensuelles");
+  check(!sansDate95.jourSalaire, "aucun « jour de réception » dans la feuille du salaire");
+  check(!/jour/.test(sansDate95.replie),
+    `rien ne réclame un jour, même replié sous « Détails » (obtenu « ${sansDate95.replie.slice(0, 60)} »)`);
   await page.fill("#rAmount", "50");
-  await page.fill("#rTitle", "Jour vidé");
-  // On vide le jour comme le ferait le propriétaire : en dépliant
-  // « Détails », puis on replie — le champ fautif redevient invisible.
-  await page.click("#rMore summary");
-  await page.waitForTimeout(150);
-  await page.fill("#rDay", "");
-  await page.click("#rMore summary");
-  await page.waitForTimeout(150);
+  await page.fill("#rTitle", "Sans aucune date");
   await page.click('#recForm button[type="submit"]');
   await page.waitForTimeout(250);
-  const reveal95 = await page.evaluate(() => ({
-    open: document.getElementById("rMore").open,
-    visible: document.getElementById("rDay").getBoundingClientRect().height > 0,
-    err: document.getElementById("rError").textContent,
-  }));
-  check(reveal95.open && reveal95.visible && /jour entre 1 et 28/i.test(reveal95.err),
-    "un refus ne désigne jamais un champ replié : « Détails » s'ouvre sur le champ fautif");
-  await page.click("#rCancel");
-  await page.waitForTimeout(150);
+  const cree95 = await page.evaluate(() => {
+    const r = RECURRINGS.find(x => x.title === "Sans aucune date");
+    return {
+      ok: !!r, jour: r && r.day,
+      ouverte: document.getElementById("sheetBackdrop").classList.contains("open"),
+      err: document.getElementById("rError").textContent,
+    };
+  });
+  check(cree95.ok && !cree95.ouverte,
+    `une facture mensuelle s'enregistre sans la moindre date (message « ${cree95.err} »)`);
+  check(Number.isInteger(cree95.jour) && cree95.jour >= 1 && cree95.jour <= 28,
+    `et les données restent valides pour le contrôle de chargement (jour ${cree95.jour})`);
+  // Le jour ne doit plus jamais être ÉCRIT à l'écran : c'était la demande.
+  await page.evaluate(() => { activeTab = "more"; moreView = "recurring"; render(); });
+  await page.waitForTimeout(300);
+  const affiche95 = await page.evaluate(() => document.getElementById("screen").innerText);
+  check(!/Tous les mois, le \d/.test(affiche95) && !/à régler depuis le \d/.test(affiche95),
+    "la liste des paiements réguliers n'affiche plus aucun jour");
+  await goHome();
 }
 
 // ---------- Test 96 : le mois se coche depuis l'accueil ----------
@@ -4955,6 +5008,158 @@ currentTest = "premier écran vivant";
   await calme.close();
 }
 
+// ---------- Test 104 : le questionnaire remplit déjà le mois ----------
+currentTest = "charges et abonnements dès la bienvenue";
+// Demande du propriétaire (06.08.2026) : « une page question avant pour les
+// dépenses mensuelles et une autre page abonnement — comme ça il peut déjà
+// rentrer pas mal de trucs avant d'ouvrir l'app ». L'enjeu n'est pas le
+// nombre d'écrans : c'est qu'à la PREMIÈRE ouverture, « Disponible » veuille
+// déjà dire quelque chose au lieu d'afficher le salaire entier comme s'il
+// était libre.
+{
+  const ctx104 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p104 = await ctx104.newPage();
+  const erreurs104 = [];
+  p104.on("pageerror", e => erreurs104.push("PAGEERROR " + e.message));
+  await p104.goto(APP_URL);
+  await p104.waitForSelector('[data-obcountry="CH"]');
+  await p104.click('[data-obcountry="CH"]');
+  await p104.click('[data-obhh="solo"]');
+  await p104.fill("#obName", "Elio");
+  await p104.click('#obForm1 button[type="submit"]');
+  await p104.fill("#obSalary", "5500");
+  await p104.click('#obForm2 button[type="submit"]');
+  await p104.waitForSelector("#obOpening", { state: "visible" });
+  await p104.fill("#obOpening", "3400");
+  await p104.click('#obForm3 button[type="submit"]');
+  await p104.waitForSelector("#obFormCharges", { state: "visible" });
+
+  // Aucun montant n'est proposé d'avance : remplir un budget à la place de
+  // quelqu'un, c'est lui mentir sur ses propres chiffres.
+  const vierge = await p104.evaluate(() =>
+    [...document.querySelectorAll("#obFormCharges .ob-line-amount")].map(i => i.value));
+  check(vierge.length >= 4, `l'écran des charges propose plusieurs postes (${vierge.length})`);
+  check(vierge.every(v => v === ""), `aucun montant n'est pré-rempli (obtenu ${JSON.stringify(vierge)})`);
+  // Et aucune date n'est demandée ici non plus.
+  const texteCharges = await p104.evaluate(() => document.getElementById("screen").innerText);
+  check(!/jour|date/i.test(texteCharges),
+    "l'écran des charges ne réclame ni jour ni date");
+
+  // Retour : une flèche en haut à gauche (demande du propriétaire du
+  // 06.08.2026). Le gros bouton « ‹ Retour » en pied d'écran avait le même
+  // poids visuel que « Continuer » — trois dalles empilées dont une qui
+  // recule. Il est REMPLACÉ, pas supprimé : le geste existe toujours.
+  const retour104 = await p104.evaluate(() => {
+    const fleche = document.querySelector(".ob-back");
+    const b = fleche && fleche.getBoundingClientRect();
+    const gros = [...document.querySelectorAll("#screen .btn")]
+      .filter(e => /retour/i.test(e.textContent || "")).length;
+    return {
+      existe: !!fleche,
+      etiquette: fleche ? fleche.getAttribute("aria-label") : null,
+      enHaut: b ? b.top < 140 : false,
+      aGauche: b ? b.left < 60 : false,
+      cible: b ? Math.min(b.width, b.height) : 0,
+      grosBoutons: gros,
+    };
+  });
+  check(retour104.existe && retour104.enHaut && retour104.aGauche,
+    "le retour est une flèche, en haut à gauche");
+  check(retour104.cible >= 44, `la flèche reste une vraie cible tactile (${retour104.cible} px)`);
+  check(!!retour104.etiquette, `la flèche s'annonce à la synthèse vocale (« ${retour104.etiquette} »)`);
+  check(retour104.grosBoutons === 0,
+    `plus aucun bouton « Retour » pleine largeur (${retour104.grosBoutons} trouvé(s))`);
+
+  // Un montant illisible est REFUSÉ en nommant sa ligne — jamais transformé
+  // en zéro dans le dos de la personne.
+  await p104.fill("#obCharge-loyer", "mille cinq cents");
+  await p104.click('#obFormCharges button[type="submit"]');
+  await p104.waitForTimeout(200);
+  // Lecture DÉFENSIVE : si l'écran a avancé malgré la saisie illisible, le
+  // bloc d'erreur n'existe plus. Sans cette précaution, le test plantait sur
+  // un `null` au lieu de nommer le défaut — un contrôle négatif l'a montré.
+  const refus = await p104.evaluate(() => {
+    const bloc = document.getElementById("obChargesError");
+    return { err: bloc ? bloc.textContent : "", encoreLa: !!document.getElementById("obFormCharges") };
+  });
+  check(refus.encoreLa,
+    "un montant illisible ne fait PAS avancer l'écran (sinon il a été transformé en zéro en silence)");
+  check(refus.encoreLa && /loyer/i.test(refus.err),
+    `un montant illisible est refusé en désignant sa ligne (obtenu « ${refus.err} »)`);
+  if (!refus.encoreLa) { await ctx104.close(); throw new Error("écran des charges franchi avec un montant illisible"); }
+
+  await p104.fill("#obCharge-loyer", "1650");
+  await p104.fill("#obCharge-sante", "410");
+  await p104.click('#obFormCharges button[type="submit"]');
+  await p104.waitForSelector("#obFormSubs", { state: "visible" });
+  await p104.fill("#obSub-video", "21.90");
+  await p104.click('#obFormSubs button[type="submit"]');
+  await p104.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+  await p104.click('[data-obgoal="urgence"]');
+  await p104.waitForSelector("#tabbar button");
+  await p104.waitForTimeout(400);
+
+  const cree = await p104.evaluate(() => ({
+    charges: RECURRINGS.filter(r => r.type === "expense")
+      .map(r => ({ t: r.title, a: r.amount, cat: r.cat, every: r.every })),
+    jourValide: RECURRINGS.every(r => Number.isInteger(r.day) && r.day >= 1 && r.day <= 28),
+    // Rien n'est COMPTABILISÉ : ce sont des dépenses prévues, pas des
+    // mouvements. Le planifié et le réel ne se mélangent jamais.
+    mouvements: transactions.length,
+  }));
+  check(cree.charges.length === 3,
+    `les trois lignes remplies deviennent trois charges régulières (obtenu ${cree.charges.length})`);
+  check(cree.charges.every(c => c.every === "month"),
+    "elles sont mensuelles, comme celles créées depuis l'app");
+  check(cree.charges.some(c => c.a === 1650) && cree.charges.some(c => c.a === 21.9),
+    `les montants sont repris exactement (obtenu ${JSON.stringify(cree.charges.map(c => c.a))})`);
+  check(cree.charges.some(c => c.cat === "Assurance maladie"),
+    "chaque poste tombe dans une catégorie réelle du budget");
+  check(cree.jourValide, "les données restent conformes au contrôle de chargement");
+  check(cree.mouvements === 0,
+    `rien n'est comptabilisé : ce sont des dépenses PRÉVUES (${cree.mouvements} mouvement(s))`);
+
+  // La preuve utile : le premier écran sait déjà ce qui doit sortir.
+  const accueil104 = await p104.evaluate(() => document.getElementById("screen").innerText);
+  check(/2'081\.90/.test(accueil104),
+    "dès la première ouverture, « à payer » vaut la somme réellement saisie");
+  check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
+  await ctx104.close();
+}
+
+// Et le parcours doit rester franchissable en ne remplissant RIEN : les deux
+// écrans sont facultatifs, pas un péage.
+{
+  const ctx104b = await browser.newContext({ viewport: { width: 320, height: 844 } });
+  const p104b = await ctx104b.newPage();
+  await p104b.goto(APP_URL);
+  await p104b.waitForSelector('[data-obcountry="CH"]');
+  await p104b.click('[data-obcountry="CH"]');
+  await p104b.click('[data-obhh="solo"]');
+  await p104b.fill("#obName", "Elio");
+  await p104b.click('#obForm1 button[type="submit"]');
+  await p104b.click("[data-obskip]");
+  await p104b.waitForSelector("#obOpening", { state: "visible" });
+  await p104b.click('#obForm3 button[type="submit"]');
+  await p104b.waitForSelector("#obFormCharges", { state: "visible" });
+  const deborde = await p104b.evaluate(() => {
+    const s = document.getElementById("screen");
+    return s.scrollWidth - s.clientWidth;
+  });
+  check(deborde <= 1, `l'écran des charges tient à 320 px (débordement ${deborde} px)`);
+  // « Continuer » sans rien saisir doit avancer, exactement comme « Passer ».
+  await p104b.click('#obFormCharges button[type="submit"]');
+  await p104b.waitForSelector("#obFormSubs", { state: "visible", timeout: 3000 });
+  await p104b.click("[data-obskipsubs]");
+  await p104b.waitForSelector('[data-obgoal="urgence"]', { state: "visible", timeout: 3000 });
+  await p104b.click('[data-obgoal="urgence"]');
+  await p104b.waitForSelector("#tabbar button", { timeout: 5000 });
+  const rien = await p104b.evaluate(() => RECURRINGS.filter(r => r.type === "expense").length);
+  check(rien === 0, `ne rien remplir ne crée aucune charge (obtenu ${rien})`);
+  check(true, "les deux écrans sont facultatifs des deux façons : « Continuer » à vide et « Passer »");
+  await ctx104b.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4964,4 +5169,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 103 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 104 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue), zéro erreur console ✓");

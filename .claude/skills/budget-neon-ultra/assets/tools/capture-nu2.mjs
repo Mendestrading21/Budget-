@@ -54,6 +54,11 @@ async function seeded(width, height = 844, opts = {}) {
   await page.waitForSelector("#obOpening", { state: "visible" });
   await page.fill("#obOpening", "3400");
   await page.click('#obForm3 button[type="submit"]');
+  // Charges puis abonnements : deux écrans facultatifs, passés ici.
+  await page.waitForSelector("#obFormCharges", { state: "visible" });
+  await page.click("[data-obskipcharges]");
+  await page.waitForSelector("#obFormSubs", { state: "visible" });
+  await page.click("[data-obskipsubs]");
   await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
   await page.click('[data-obgoal="urgence"]');
   await page.waitForSelector("#tabbar button");
@@ -170,6 +175,11 @@ const goto = async (page, label) => {
   await page.waitForSelector("#obOpening", { state: "visible" });
   await page.fill("#obOpening", "3400");
   await page.click('#obForm3 button[type="submit"]');
+  // Charges puis abonnements : deux écrans facultatifs, passés ici.
+  await page.waitForSelector("#obFormCharges", { state: "visible" });
+  await page.click("[data-obskipcharges]");
+  await page.waitForSelector("#obFormSubs", { state: "visible" });
+  await page.click("[data-obskipsubs]");
   await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
   await page.click('[data-obgoal="urgence"]');
   await page.waitForSelector("#tabbar button");

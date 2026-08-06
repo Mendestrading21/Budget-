@@ -17,6 +17,105 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Plus de jour de paiement, et deux écrans de charges (06.08.2026) — VERIFYING
+
+Deux demandes du propriétaire, le même soir : « enlève les jours de paiement
+ou date » et « ajoute une page question pour les dépenses mensuelles et une
+autre page abonnement — comme ça il peut déjà rentrer pas mal de trucs avant
+d'ouvrir l'app ».
+
+### 1. Le jour de paiement disparaît
+
+Personne ne connaît par cœur la date de prélèvement de six abonnements, et se
+tromper d'un jour faisait apparaître **« En retard »** sur une facture
+parfaitement à jour. La règle qui remplace le jour tient en une phrase :
+
+> **Une charge régulière est due DANS le mois.**
+
+Elle n'est donc jamais en retard tant que le mois court, et elle l'est dès que
+le mois est passé — ce que donne exactement la fin du mois comme échéance.
+Une seule fonction, `recurringDueDate(y, m)`, plutôt que `r.day` recopié à dix
+endroits.
+
+Conséquences assumées et vérifiées :
+
+- Le champ « Jour du mois (1-28) » disparaît de la feuille des factures
+  mensuelles, et « Jour de réception » de celle du salaire.
+- Les libellés perdent leur date : « Tous les mois, le 22 » → « Tous les
+  mois » ; « à régler depuis le 25 » → « pas encore payée ».
+- Les pastilles **« En retard »** et **« À venir »** disparaissent au profit de
+  **« À régler ce mois »** / **« À recevoir ce mois »**.
+- « Planifier ce mois » n'existe plus : sans date, il ne planifiait qu'une
+  date. Reste « Marquer payée ce mois ».
+- Marquer une charge payée la date **du jour**, pas d'un 1er inventé. Dater du
+  1er une facture réglée le 20 serait faux.
+- **Les FACTURES gardent leur échéance au jour près.** Une facture sans date
+  d'échéance ne sert plus à rien : l'app ne pourrait plus dire ce qui est en
+  retard. C'est le périmètre choisi par le propriétaire, sur trois options.
+- Le champ `day` **reste dans les données** (le contrôle de chargement exige un
+  entier 1-28) et n'est jamais réécrit sur un enregistrement existant.
+
+### 2. Deux écrans de plus à la bienvenue : charges, puis abonnements
+
+Le parcours passe de 6 à 8 étapes. Les deux nouveaux écrans posent une liste de
+postes courants avec un champ montant à droite. Ce qui n'est pas rempli
+n'existe pas ; **aucun montant n'est proposé d'avance** — remplir un budget à
+la place de quelqu'un, c'est lui mentir sur ses propres chiffres.
+
+L'enjeu n'est pas le nombre d'écrans. C'est qu'à la **première ouverture**,
+« Disponible » veuille déjà dire quelque chose au lieu d'afficher le salaire
+entier comme s'il était libre. Mesuré sur le parcours de test : salaire 5'500,
+solde 3'400, trois charges et un abonnement saisis → l'accueil affiche
+« À payer 2'081.90 » et « 0 sur 4 payées » sans que l'app ait été ouverte une
+seule fois.
+
+Rien n'est **comptabilisé** pour autant : ce sont des dépenses PRÉVUES, elles
+ne deviennent réelles qu'une fois marquées payées. Le test le vérifie
+(`transactions.length === 0`).
+
+Un montant illisible est **refusé en nommant sa ligne**, jamais transformé en
+zéro dans le dos de la personne.
+
+### 3. Un loyer n'est pas un abonnement
+
+Conséquence directe et non anticipée du point 2 : l'écran « Abonnements »
+listant toutes les dépenses régulières, il annonçait « vos abonnements coûtent
+27'009.60 par an » **en comptant le loyer dedans**. Faux en français courant.
+Champ **additif** `family: "charge"` sur les cinq postes du foyer ; l'écran
+Abonnements les exclut. Une récurrence enregistrée avant ce champ n'en a pas et
+reste affichée exactement comme avant — aucune donnée n'est réécrite. Après
+correction : 2 abonnements, CHF 1'330.80 par an.
+
+### 4. Le retour devient une flèche
+
+Demande du propriétaire, capture annotée à l'appui : le bouton « ‹ Retour »
+pleine largeur avait le même poids visuel que « Continuer » — trois dalles
+empilées dont une qui recule. Remplacé par une flèche de 44 px en haut à
+gauche, là où le pouce la cherche. Le geste existe toujours, il ne crie plus.
+
+### Un défaut préexistant trouvé au passage
+
+Le halo décoratif des écrans de bienvenue faisait **10 px de débordement
+horizontal à 320 px**, depuis sa création — un `width: 340px` en dur dans un
+écran plus étroit que lui. Personne ne l'avait vu parce qu'aucun test ne
+visitait l'onboarding à 320 px. Corrigé (`min(340px, 100%)`), et le nouveau
+test mesure désormais ce débordement.
+
+### Preuves
+
+- **104 parcours e2e** (103 conservés + le n° 104) · 5 fixtures de parité ·
+  design system vert · zéro erreur console.
+- Deux gardes **inversées, pas supprimées** : le test qui vidait le champ jour
+  pour vérifier qu'un refus ne désigne pas un champ replié vérifie désormais
+  qu'aucune des deux feuilles ne réclame de date ; celui qui exigeait « le jour
+  exact » d'une échéance future exige la fin de mois pour une récurrence, et
+  **le jour exact pour une facture**.
+- **Contrôles négatifs exécutés** : réafficher le jour dans la liste → échec
+  nommé ; accepter un montant illisible → échec nommé ; retirer « Passer » →
+  échec.
+- Écrans **rendus et regardés** à 390 et 320 px : charges, abonnements,
+  accueil, Abonnements, Factures mensuelles, écran verrouillé.
+
 ## Les vrais logos du propriétaire (06.08.2026) — VERIFYING
 
 Le propriétaire a fourni les **deux dessins officiels** de la marque, avec

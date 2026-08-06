@@ -29,6 +29,11 @@ await page.fill("#obName", "Alex"); await page.click('#obForm1 button[type="subm
 await page.fill("#obSalary", "5200"); await page.click('#obForm2 button[type="submit"]');
 await page.waitForSelector("#obOpening", { state: "visible" });
 await page.fill("#obOpening", "3400"); await page.click('#obForm3 button[type="submit"]');
+// Charges puis abonnements : deux écrans facultatifs, passés ici.
+await page.waitForSelector("#obFormCharges", { state: "visible" });
+await page.click("[data-obskipcharges]");
+await page.waitForSelector("#obFormSubs", { state: "visible" });
+await page.click("[data-obskipsubs]");
 await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
