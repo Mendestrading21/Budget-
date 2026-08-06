@@ -47,23 +47,19 @@ final class DesignSystemTests: XCTestCase {
         return (hi + 0.05) / (lo + 0.05)
     }
 
-    /// Verre standard composité sur le fond (rgba 20,25,37 × 0.72 sur canvas).
-    private var glassOnCanvas: Color {
-        let alpha = 0.72
-        func mix(_ top: Double, _ base: Double) -> Double {
-            (alpha * top + (1 - alpha) * base) / 255
-        }
-        return Color(red: mix(20, 9), green: mix(25, 12), blue: mix(37, 18))
-    }
+    /// La carte n'est plus translucide (ADR-024) : plus rien à compositer,
+    /// la couleur mesurée EST la couleur déclarée. Garder un calcul de
+    /// composition mesurerait une surface qui n'existe plus.
+    private var glassOnCanvas: Color { BudgetColor.glass }
 
     // MARK: - Rôles canoniques
 
     func testCanonicalObsidianRoles() {
-        assertColor(BudgetColor.canvas, red: 9, green: 12, blue: 18, "canvas #090C12")
-        assertColor(BudgetColor.canvasRaised, red: 13, green: 17, blue: 25, "canvasRaised #0D1119")
-        assertColor(BudgetColor.glass, red: 20, green: 25, blue: 37, alpha: 0.72, "glass")
-        assertColor(BudgetColor.glassStrong, red: 27, green: 34, blue: 48, alpha: 0.88, "glassStrong")
-        assertColor(BudgetColor.glassFallback, red: 21, green: 27, blue: 38, "glassFallback #151B26")
+        assertColor(BudgetColor.canvas, red: 5, green: 6, blue: 10, "canvas #05060A")
+        assertColor(BudgetColor.canvasRaised, red: 11, green: 13, blue: 19, "canvasRaised #0B0D13")
+        assertColor(BudgetColor.glass, red: 17, green: 20, blue: 28, "glass #11141C — mate")
+        assertColor(BudgetColor.glassStrong, red: 24, green: 28, blue: 38, "glassStrong #181C26 — mate")
+        assertColor(BudgetColor.glassFallback, red: 21, green: 25, blue: 35, "glassFallback #151923")
         assertColor(BudgetColor.strokeActive, red: 115, green: 103, blue: 255, alpha: 0.48, "strokeActive")
         assertColor(BudgetColor.brand, red: 115, green: 103, blue: 255, "brand #7367FF")
         assertColor(BudgetColor.brandBright, red: 145, green: 136, blue: 255, "brandBright #9188FF")

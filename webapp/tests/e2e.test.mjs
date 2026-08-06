@@ -4300,6 +4300,13 @@ currentTest = "identité installée cohérente";
     `le manifeste et la balise annoncent la MÊME couleur (manifeste ${manifeste.theme_color}, balise ${meta})`);
   check(manifeste.background_color.toLowerCase() === meta.toLowerCase(),
     `la couleur de fond au lancement est celle de l'app (obtenu ${manifeste.background_color})`);
+  // Les deux déclarations peuvent être d'accord ET fausses : c'est arrivé
+  // quand le canvas est passé de #090C12 à #05060A sans que le manifeste
+  // suive. On les compare donc à la couleur RÉELLEMENT peinte par l'app.
+  const canvasReel = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim());
+  check(canvasReel.toLowerCase() === meta.toLowerCase(),
+    `l'écran de lancement annonce le noir que l'app peint vraiment (canvas ${canvasReel}, annoncé ${meta})`);
   // En-tête PNG : IHDR commence à l'octet 16 — largeur, hauteur, profondeur,
   // puis TYPE DE COULEUR (2 = RVB, 6 = RVB + alpha). Une icône trouée est
   // compositée sur du blanc par iOS : elle doit rester opaque.

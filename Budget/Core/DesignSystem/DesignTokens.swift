@@ -7,16 +7,23 @@ import SwiftUI
 enum BudgetColor {
     // MARK: - Rôles Obsidian canoniques (constitution §2)
 
-    /// `#090C12` — fond principal.
-    static let canvas = rgb(9, 12, 18)
-    /// `#0D1119` — zone élevée ou navigation.
-    static let canvasRaised = rgb(13, 17, 25)
-    /// `rgba(20,25,37,0.72)` — carte standard.
-    static let glass = rgb(20, 25, 37, alpha: 0.72)
-    /// `rgba(27,34,48,0.88)` — héros, feuille, popover.
-    static let glassStrong = rgb(27, 34, 48, alpha: 0.88)
-    /// `#151B26` — surface opaque quand la transparence est réduite.
-    static let glassFallback = rgb(21, 27, 38)
+    // Surfaces unifiées sur Neon Ultra (ADR-024). Mesuré côté web avant
+    // correction : le fond noir CHANGEAIT d'un onglet à l'autre et les
+    // cartes n'avaient pas la même matière. Le natif portait exactement la
+    // même divergence — deux plateformes, quatre couleurs de fond. Ces cinq
+    // valeurs sont désormais celles de `NeonUltraColor`, et les cartes sont
+    // MATES : plus de `.ultraThinMaterial`, c'est ce qu'impose l'identité
+    // cible et c'est aussi plus lisible sur un fond très sombre.
+    /// `#05060A` — fond principal.
+    static let canvas = rgb(5, 6, 10)
+    /// `#0B0D13` — zone élevée ou navigation.
+    static let canvasRaised = rgb(11, 13, 19)
+    /// `#11141C` — carte standard, mate.
+    static let glass = rgb(17, 20, 28)
+    /// `#181C26` — héros, feuille, popover — mate.
+    static let glassStrong = rgb(24, 28, 38)
+    /// `#151923` — surface opaque quand la transparence est réduite.
+    static let glassFallback = rgb(21, 25, 35)
     /// `rgba(255,255,255,0.10)` — bord standard.
     static let stroke = Color.white.opacity(0.10)
     /// `rgba(115,103,255,0.48)` — sélection ou focus.

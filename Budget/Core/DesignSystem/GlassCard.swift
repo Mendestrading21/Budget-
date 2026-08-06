@@ -75,12 +75,9 @@ struct GlassCard<Content: View>: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         shape
             .fill(fillStyle)
-            .overlay {
-                // Voile de verre fort par-dessus l'unique matériau du héros.
-                if style == .hero && !isOpaqueFallback {
-                    shape.fill(BudgetColor.glassStrong.opacity(0.55))
-                }
-            }
+            // Le voile qui recouvrait le matériau du héros n'a plus d'objet :
+            // la carte est déjà remplie de `glassStrong`, opaque. Le garder
+            // n'aurait fait qu'assombrir une surface au hasard.
             .overlay {
                 // Reflet supérieur très discret — supprimé sans transparence.
                 if !isOpaqueFallback {
@@ -106,9 +103,11 @@ struct GlassCard<Content: View>: View {
         }
         switch style {
         case .hero:
-            // Un seul matériau (blur mesuré) — le voile glassStrong est
-            // appliqué en overlay dans `background`.
-            return AnyShapeStyle(.ultraThinMaterial)
+            // Plus de `.ultraThinMaterial` : les surfaces sont MATES
+            // (ADR-024). Un matériau système laisse transparaître le fond
+            // et rend la carte imprévisible selon ce qui défile dessous —
+            // sur un noir très sombre, ça se voyait.
+            return AnyShapeStyle(BudgetColor.glassStrong)
         case .standard, .row:
             // Cellule légère : pas de matériau dans les listes.
             return AnyShapeStyle(BudgetColor.glass)

@@ -195,8 +195,9 @@ struct ObsidianSheetSurface<Content: View>: View {
                     shape.fill(BudgetColor.glassFallback)
                         .overlay { shape.strokeBorder(BudgetColor.stroke, lineWidth: 1) }
                 } else {
-                    shape.fill(.ultraThinMaterial)
-                        .overlay { shape.fill(BudgetColor.glassStrong.opacity(0.55)) }
+                    // Surface MATE (ADR-024) : plus de matériau système, plus
+                    // de voile — la carte porte directement sa couleur.
+                    shape.fill(BudgetColor.glassStrong)
                         .overlay { shape.strokeBorder(BudgetColor.stroke, lineWidth: 1) }
                 }
             }

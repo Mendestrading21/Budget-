@@ -17,6 +17,45 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Le natif rejoint le web : une seule identité, deux plateformes (06.08.2026) — VERIFYING
+
+Le lot précédent avait unifié les surfaces du **web** — et créé du même
+coup un écart avec l'**iPhone**, qui portait exactement la même divergence
+en interne. Deux plateformes, quatre couleurs de fond. Ce lot le referme.
+
+- `BudgetColor.canvas / canvasRaised / glass / glassStrong / glassFallback`
+  prennent les valeurs de `NeonUltraColor`.
+- Les cartes deviennent **mates** : `.ultraThinMaterial` disparaît de
+  `GlassCard` et d'`ObsidianComponents`. Un matériau système laisse
+  transparaître ce qui défile dessous — sur un noir aussi sombre, la carte
+  changeait d'aspect selon le contenu.
+- Les deux voiles `glassStrong.opacity(0.55)` qui recouvraient ce matériau
+  n'ont plus d'objet : la carte porte directement sa couleur. Les garder
+  n'aurait fait qu'assombrir une surface au hasard.
+
+### La couleur de lancement mentait à nouveau
+
+Le manifeste et la balise `theme-color` annonçaient toujours `#090C12` :
+c'est la couleur de l'écran qui s'affiche pendant que l'app installée
+démarre. Elles étaient **d'accord entre elles et fausses toutes les deux**
+— précisément ce que le test n° 98 ne pouvait pas voir, puisqu'il ne
+comparait que les deux déclarations l'une à l'autre.
+
+Le test compare désormais les déclarations à la couleur **réellement
+peinte** par l'app. C'est un contrôle strictement plus fort, et il aurait
+attrapé cette régression tout seul.
+
+### Preuves
+
+- 102 parcours e2e · 5 fixtures de parité · design system vert · zéro
+  erreur console.
+- **Contrôle négatif exécuté** : laisser le manifeste sur `#090C12` produit
+  deux échecs nommés.
+- Côté Swift, les assertions de `DesignSystemTests` suivent les nouvelles
+  valeurs, et l'assistant de composition du verre est remplacé par la
+  couleur elle-même — composer une transparence qui n'existe plus
+  mesurerait une surface fantôme.
+
 ## Une seule identité de surface sur toute la PWA (06.08.2026) — VERIFYING
 
 Suite directe de l'audit total. Après avoir unifié la géométrie, la même
