@@ -684,6 +684,52 @@
     border-radius: 11px;
   }
   .sheet input:focus, .sheet select:focus { outline: 2px solid var(--indigo); }
+  /* ---------- Onboarding : ce qu'on voit en premier ----------
+     Retour du propriétaire sur la première capture : « je les trouve un peu
+     simples ». Trois défauts réels, pas un goût :
+       · un 💰 en guise de logo — l'app a une icône, autant la montrer ;
+       · ~600 px de noir vide au-dessus du contenu ;
+       · trois dalles identiques, rien qui bouge, rien sous le doigt.
+     Le halo donne l'UNIQUE point lumineux que la constitution autorise ;
+     l'entrée en cascade guide l'œil du logo vers les choix ; le retour au
+     toucher dit que le bouton a été pressé avant même que l'écran change.
+     Tout est désactivé en mouvement réduit — sans exception. */
+  .ob-halo { position: relative; z-index: 0; }
+  .ob-halo::before {
+    content: "";
+    position: absolute; left: 50%; top: 44%;
+    width: 340px; height: 340px; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(115, 103, 255, 0.20) 0%, rgba(115, 103, 255, 0.06) 42%, transparent 70%);
+    pointer-events: none; z-index: -1;
+  }
+  .ob-logo {
+    width: 76px; height: 76px; border-radius: 20px;
+    display: block; margin: 0 auto;
+    box-shadow: 0 12px 34px rgba(115, 103, 255, 0.22);
+  }
+  @keyframes ob-in { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .ob-step > * { animation: ob-in 0.34s cubic-bezier(0.22, 0.9, 0.3, 1) backwards; }
+  .ob-step > *:nth-child(1) { animation-delay: 0.02s; }
+  .ob-step > *:nth-child(2) { animation-delay: 0.09s; }
+  .ob-step > *:nth-child(3) { animation-delay: 0.15s; }
+  .ob-step > *:nth-child(4) { animation-delay: 0.21s; }
+  .ob-step > *:nth-child(n+5) { animation-delay: 0.27s; }
+  .ob-choice {
+    transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+  }
+  .ob-choice:active { transform: scale(0.975); }
+  /* Confirmation visuelle AVANT le changement d'écran : sans elle, on doute
+     d'avoir appuyé au bon endroit. */
+  .ob-choice.ob-chosen {
+    border-color: var(--brand);
+    background-color: var(--brand-tint);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ob-step > * { animation: none; }
+    .ob-choice { transition: none; }
+    .ob-choice:active { transform: none; }
+  }
+
   .ob-form label { display: block; font-size: 11px; font-weight: 600; color: var(--coolgray); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
   .ob-form input, .ob-form select {
     width: 100%;
@@ -4719,18 +4765,18 @@ function obProgress() {
 }
 
 function renderOnboarding() {
-  const shell = (inner, opts = {}) => `<div style="display:flex;flex-direction:column;min-height:100%;max-width:340px;margin:0 auto">
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:${opts.top ? "flex-start" : "center"};gap:10px${opts.top ? ";padding-top:8px" : ""}">${inner}</div>
+  const shell = (inner, opts = {}) => `<div class="ob-halo" style="display:flex;flex-direction:column;min-height:100%;max-width:340px;margin:0 auto">
+    <div class="ob-step" style="flex:1;display:flex;flex-direction:column;justify-content:${opts.top ? "flex-start" : "center"};gap:10px${opts.top ? ";padding-top:8px" : ";padding-bottom:14vh"}">${inner}</div>
     <div style="padding:18px 0 6px">${obProgress()}</div>
   </div>`;
   if (obStep === 1) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:34px" aria-hidden="true">💰</div>
-      <h1 style="margin:6px 0 4px;font-size:22px;letter-spacing:-0.5px">Budget</h1>
+      <img class="ob-logo" src="icon-192.png" alt="" aria-hidden="true" width="76" height="76">
+      <h1 style="margin:14px 0 4px;font-size:26px;letter-spacing:-0.6px">Budget</h1>
       <p class="caption" style="max-width:280px;margin:0 auto">Vos données restent sur cet appareil.</p>
     </div>
     ${Object.entries(COUNTRIES).map(([code, c]) => `
-    <button type="button" class="btn secondary" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px">
+    <button type="button" class="btn secondary ob-choice" data-obcountry="${code}" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px">
       <span><strong>${c.name}</strong></span>
       <span style="font-size:18px">${c.flag}</span>
     </button>`).join("")}`);
@@ -4740,9 +4786,9 @@ function renderOnboarding() {
       <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Pour parler de « nous » quand vous êtes deux — rien d'autre.</p>
     </div>
-    <button type="button" class="btn secondary" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
-    <button type="button" class="btn secondary" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
-    <button type="button" class="btn secondary" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>
     <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>`);
   if (obStep === 3) return shell(`
     <div style="text-align:center;margin-bottom:14px">
@@ -4783,9 +4829,9 @@ function renderOnboarding() {
       <h2 style="margin:10px 0 6px;font-size:22px">Un premier objectif ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Facultatif — il vous donne un cap dès le premier jour. Modifiable à tout moment.</p>
     </div>
-    <button type="button" class="btn secondary" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
-    <button type="button" class="btn secondary" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
-    <button type="button" class="btn secondary" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
     <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>
     <button type="button" class="btn secondary" data-obback style="margin-top:10px">‹ Retour</button>`);
   const accToggle = (key, label, icon) => `
@@ -4827,15 +4873,28 @@ function bindOnboarding() {
     else { obStep = Math.max(1, obStep - 1); }
     render(); scrollTop();
   }));
+  // Un choix se confirme À L'ÉCRAN avant que l'écran change : sans ce
+  // battement, on ne sait pas si on a appuyé au bon endroit. 140 ms, c'est
+  // assez pour le voir et trop peu pour attendre. En mouvement réduit, on
+  // enchaîne tout de suite — la personne a demandé qu'on n'anime rien.
+  const choisirPuis = (btn, suite) => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { suite(); return; }
+    btn.classList.add("ob-chosen");
+    setTimeout(suite, 140);
+  };
   document.querySelectorAll("[data-obcountry]").forEach(btn => btn.addEventListener("click", () => {
-    obCountry = btn.dataset.obcountry;
-    obBase = COUNTRIES[obCountry].currency;
-    obStep = 2; render(); scrollTop();
+    choisirPuis(btn, () => {
+      obCountry = btn.dataset.obcountry;
+      obBase = COUNTRIES[obCountry].currency;
+      obStep = 2; render(); scrollTop();
+    });
   }));
   document.querySelectorAll("[data-obhh]").forEach(btn => btn.addEventListener("click", () => {
-    obHousehold = btn.dataset.obhh;
-    if (obHousehold === "solo") obPartner = "";
-    obStep = 3; render(); scrollTop();
+    choisirPuis(btn, () => {
+      obHousehold = btn.dataset.obhh;
+      if (obHousehold === "solo") obPartner = "";
+      obStep = 3; render(); scrollTop();
+    });
   }));
   const form1 = document.getElementById("obForm1");
   if (form1) form1.addEventListener("submit", (e) => {
@@ -4882,8 +4941,7 @@ function bindOnboarding() {
     render(); scrollTop();
   }));
   document.querySelectorAll("[data-obgoal]").forEach(btn => btn.addEventListener("click", () => {
-    obGoal = btn.dataset.obgoal;
-    finishOnboarding();
+    choisirPuis(btn, () => { obGoal = btn.dataset.obgoal; finishOnboarding(); });
   }));
   const skipGoal = document.querySelector("[data-obskipgoal]");
   if (skipGoal) skipGoal.addEventListener("click", () => { obGoal = null; finishOnboarding(); });

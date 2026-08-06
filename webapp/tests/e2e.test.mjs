@@ -4799,6 +4799,75 @@ await goHome();
   await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
 }
 
+
+// ---------- Test 103 : le premier écran donne envie, et sait se taire ----
+currentTest = "premier écran vivant";
+// Retour du propriétaire sur la toute première capture : « je les trouve un
+// peu simples ». Trois défauts réels, pas un goût :
+//   · un 💰 en guise de logo, alors que l'app a une icône dessinée ;
+//   · ~600 px de noir vide au-dessus du contenu ;
+//   · trois dalles identiques, rien qui bouge, rien sous le doigt.
+// Ce test verrouille les deux choses qui peuvent silencieusement régresser :
+// le logo redevenu emoji, et l'animation qui ignore le mouvement réduit.
+{
+  const neuf = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p103 = await neuf.newPage();
+  await p103.goto(APP_URL);
+  await p103.waitForSelector('[data-obcountry="CH"]');
+  const premier = await p103.evaluate(() => {
+    const logo = document.querySelector(".ob-logo");
+    const halo = document.querySelector(".ob-halo");
+    const etape = document.querySelector(".ob-step");
+    const choix = [...document.querySelectorAll(".ob-choice")];
+    return {
+      logoSrc: logo ? logo.getAttribute("src") : null,
+      logoVisible: logo ? logo.getBoundingClientRect().width >= 60 : false,
+      halo: !!halo,
+      emojiMarque: (etape ? etape.textContent : "").includes("\u{1F4B0}"),
+      anime: etape ? getComputedStyle(etape.firstElementChild).animationName : "none",
+      choix: choix.length,
+      transition: choix.length ? getComputedStyle(choix[0]).transitionDuration : "0s",
+    };
+  });
+  check(premier.logoSrc === "icon-192.png",
+    `le premier écran montre l'ICÔNE de l'app, pas un emoji (obtenu ${premier.logoSrc})`);
+  check(premier.logoVisible, "le logo est réellement dessiné, à une taille lisible");
+  check(!premier.emojiMarque, "le sac d'argent ne sert plus de marque");
+  check(premier.halo, "un halo donne l'unique point lumineux de l'écran");
+  check(premier.anime === "ob-in",
+    `le contenu entre en animation (obtenu ${premier.anime})`);
+  check(premier.choix >= 3, `les choix sont des cibles vivantes (${premier.choix})`);
+  check(parseFloat(premier.transition) > 0, "un choix réagit au toucher");
+  await neuf.close();
+
+  // MOUVEMENT RÉDUIT : tout s'arrête. C'est une promesse d'accessibilité,
+  // pas une option — une animation qui l'ignore est un défaut.
+  const calme = await browser.newContext({
+    viewport: { width: 390, height: 844 }, reducedMotion: "reduce",
+  });
+  const p103b = await calme.newPage();
+  await p103b.goto(APP_URL);
+  await p103b.waitForSelector('[data-obcountry="CH"]');
+  const immobile = await p103b.evaluate(() => {
+    const etape = document.querySelector(".ob-step");
+    const choix = document.querySelector(".ob-choice");
+    return {
+      anime: getComputedStyle(etape.firstElementChild).animationName,
+      transition: getComputedStyle(choix).transitionDuration,
+    };
+  });
+  check(immobile.anime === "none",
+    `mouvement réduit : plus aucune entrée animée (obtenu ${immobile.anime})`);
+  check(parseFloat(immobile.transition) === 0,
+    `mouvement réduit : plus aucune transition (obtenu ${immobile.transition})`);
+  // Et le parcours doit rester FRANCHISSABLE sans animation : la
+  // confirmation de 140 ms est sautée, jamais bloquante.
+  await p103b.click('[data-obcountry="CH"]');
+  await p103b.waitForSelector('[data-obhh="solo"]', { timeout: 3000 });
+  check(true, "mouvement réduit : le choix avance immédiatement, sans attente");
+  await calme.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -4808,4 +4877,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 102 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 103 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant), zéro erreur console ✓");

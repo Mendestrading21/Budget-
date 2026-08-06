@@ -17,6 +17,47 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Le premier écran donne envie (06.08.2026) — VERIFYING
+
+Premier retour du test en conditions réelles, sur la toute première
+capture : « je les trouve un peu simples ». Trois défauts, pas un goût.
+
+1. **Un 💰 en guise de logo** — alors qu'on venait de dessiner l'anneau. Le
+   tout premier écran de l'app ne montrait pas l'app.
+2. **Environ 600 px de noir vide** au-dessus du contenu, qui flottait au
+   milieu de rien.
+3. **Trois dalles identiques**, rien qui bouge, rien sous le doigt.
+
+### Ce qui change
+
+- L'**icône de l'app** remplace l'emoji, à 76 px, avec une ombre portée
+  discrète.
+- Un **halo** derrière elle : c'est l'unique point lumineux que la
+  constitution autorise, et il remplit le vide au lieu de le laisser noir.
+- **Entrée en cascade** : logo, titre, puis les choix un par un, 60 ms
+  d'écart. L'œil suit le chemin au lieu de découvrir trois blocs d'un coup.
+- **Retour au toucher** : le bouton s'enfonce légèrement, puis se colore
+  140 ms avant que l'écran change. Sans ce battement, on ne sait pas si on a
+  appuyé au bon endroit.
+- Contenu remonté de 14 % de la hauteur : il ne flotte plus au centre.
+
+### Ce qui n'est pas négociable
+
+**Tout s'arrête en mouvement réduit** — animation, transition, et même le
+battement de 140 ms, qui est sauté et jamais bloquant. Une animation qui
+ignore ce réglage est un défaut d'accessibilité, pas un détail de style.
+
+### Preuves
+
+- **103 parcours e2e** (102 conservés + le n° 103) · 5 fixtures de parité ·
+  design system vert.
+- Le n° 103 vérifie le logo (la vraie icône, pas un emoji), sa taille
+  réelle, le halo, l'animation d'entrée, la réaction au toucher — puis
+  rejoue tout en **mouvement réduit** et exige que plus rien ne bouge ET
+  que le parcours reste franchissable.
+- **Contrôles négatifs exécutés** : remettre le 💰 produit trois échecs
+  nommés ; retirer la règle de mouvement réduit en produit un.
+
 ## Déploiement Pages bloqué côté GitHub (06.08.2026) — À RELANCER
 
 Le site publié sert encore **`6bc7960`**, pas `77d8128`. Il lui manque donc
