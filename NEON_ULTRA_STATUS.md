@@ -52,6 +52,18 @@ seule la **coquille** change ici. C'est voulu — changer la coquille et les
 écrans dans le même lot rendrait impossible de dire lequel a cassé quoi si
 une capture cloche.
 
+### Preuve regardée, pas supposée
+
+**Demo #43 verte sur `da1358e`**, CI #290 verte (Web + 296 tests iOS).
+Captures avant/après dans `docs/neon-ultra/nu4/` — extraites des journaux
+en base64 et **ouvertes**. La bande indigo a disparu ; le ＋, les flèches
+de mois, « Quitter », « Gérer » et l'onglet actif partagent le même cyan ;
+le ✦ magenta reste la seule autre touche.
+
+| Lot | État |
+|---|---|
+| NU4 (coquille) | VERIFYING |
+
 ## Lot « le tour natif remarche » (05.08.2026) — VERIFYING
 
 Le workflow **Demo** — la seule façon d'obtenir des captures réelles du
