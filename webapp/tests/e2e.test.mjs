@@ -770,7 +770,9 @@ const obsidian = await page.evaluate(() => ({
 }));
 check(obsidian.applied === "dark", "une préférence claire héritée ne doit plus changer l'apparence");
 check(obsidian.pref === "light", "S.theme doit être PRÉSERVÉ dans l'état (compatibilité des sauvegardes)");
-check(obsidian.canvas === "#090C12", `le token --canvas doit valoir #090C12 (obtenu ${obsidian.canvas})`);
+// Surfaces unifiées sur Neon Ultra (ADR-024) : l'app entière peint le
+// même noir. Ce qui compte ici reste que le thème soit UNIQUE et sombre.
+check(obsidian.canvas === "#05060A", `le token --canvas doit valoir #05060A (obtenu ${obsidian.canvas})`);
 // Le sélecteur d'apparence a été retiré des Réglages.
 await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.click('#screen [data-more="settings"]');
@@ -1370,7 +1372,7 @@ check(focusRing.style !== "none" && focusRing.width >= 2, `focus visible ≥ 2px
 await page.evaluate(() => { document.documentElement.dataset.reducedTransparency = "true"; });
 const rtSurface = await page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue("--surface").trim());
-check(rtSurface === "#151B26", `transparence réduite : surface opaque attendue (obtenu ${rtSurface})`);
+check(rtSurface === "#151923", `transparence réduite : surface opaque attendue (obtenu ${rtSurface})`);
 await page.evaluate(() => { delete document.documentElement.dataset.reducedTransparency; });
 // Libellés accessibles des graphiques et de l'action principale.
 const a11yLabels = await page.evaluate(() => ({
@@ -2603,8 +2605,13 @@ await page.waitForTimeout(200);
   check(!comptes73.piloted, "Comptes n'est PAS piloté (identité Obsidian préservée)");
   check(comptes73.canvas === "rgba(0, 0, 0, 0)",
     `Comptes : le canvas pilote ne déborde pas (obtenu ${comptes73.canvas})`);
-  check(/rgba\(20, 25, 37|rgba\(27, 34, 48/.test(String(comptes73.cardBg)),
-    `Comptes : cartes en verre Obsidian inchangées (obtenu ${comptes73.cardBg})`);
+  // Ce contrôle exigeait des cartes translucides sur les écrans non
+  // pilotes : c'était la preuve que le rebranchement ne débordait pas. Les
+  // surfaces sont désormais unifiées volontairement — ce qu'il faut prouver
+  // est que Comptes peint la MÊME matière que les écrans pilotes, sans pour
+  // autant porter leur classe ni leurs accents.
+  check(/rgb\(17, 20, 28\)|rgb\(24, 28, 38\)/.test(String(comptes73.cardBg)),
+    `Comptes : même matière de carte que les écrans pilotes (obtenu ${comptes73.cardBg})`);
   check(comptes73.cta === 0, `Comptes : aucun CTA Neon Ultra (obtenu ${comptes73.cta})`);
   const firstAccount73 = await page.$("#screen [data-accid]");
   check(!!firstAccount73, "Comptes : un détail de compte est disponible pour vérifier l'isolation");

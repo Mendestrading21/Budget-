@@ -17,6 +17,54 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Une seule identité de surface sur toute la PWA (06.08.2026) — VERIFYING
+
+Suite directe de l'audit total. Après avoir unifié la géométrie, la même
+question se posait sur les couleurs de fond — et la mesure a confirmé le
+pire cas.
+
+### Ce qui était mesuré avant
+
+| Écran | fond | carte |
+|---|---|---|
+| Mois, Budget, Année, Abonnements | `#05060A` | `#181C26` mate |
+| Historique, Comptes, Gérer, Objectifs, Patrimoine… | `#090C12` | `rgba(20,25,37,0.72)` **translucide** |
+
+**Le noir du fond changeait en changeant d'onglet**, et les cartes n'étaient
+pas de la même matière — verre flouté d'un côté, surface mate de l'autre.
+Personne ne l'avait vu parce que les deux noirs sont proches ; la sonde,
+elle, ne se fatigue pas.
+
+Les cinq surfaces d'Obsidian prennent les valeurs de Neon Ultra. Le flou
+disparaît : la constitution cible impose des cartes **mates**.
+
+### Onze garde-fous retournés, aucun relâché
+
+Onze assertions exigeaient précisément la séparation qu'on vient de
+supprimer. Aucune n'a été effacée — chacune a été **retournée** :
+
+- « index.html ne doit contenir AUCUNE valeur Neon Ultra » devient « les
+  deux feuilles doivent DÉCLARER LA MÊME valeur pour les cinq surfaces
+  partagées ». Les accents, eux, restent interdits en dur dans l'app.
+- « le verre doit être translucide par défaut puis devenir opaque en
+  transparence réduite » devient « les cartes sont opaques et sans flou
+  **dans les deux modes** » — la garantie utilisateur est désormais vraie en
+  permanence, plus seulement quand on l'a demandée. C'est plus strict.
+- « Comptes et Gérer gardent leurs cartes translucides » devient « Comptes
+  et Gérer peignent la MÊME matière que les écrans pilotes, sans porter
+  leur classe ni leurs accents ».
+- Le contrat de contraste était calculé sur `#090C12` et sur un verre
+  composité. Recalculé sur le noir réel et sur la carte opaque réelle —
+  sinon il mesurerait une surface qui n'existe plus.
+
+### Preuves
+
+- 102 parcours e2e · 5 fixtures de parité · design system vert · zéro
+  erreur console.
+- Sonde de fond re-mesurée après correction : deux matières de carte sur
+  les seize écrans (`#11141C` standard, `#181C26` élevée), un seul noir.
+- Audit total propre à 320, 390 et 430 px.
+
 ## Audit total + nouveau logo (06.08.2026) — VERIFYING
 
 Demande du propriétaire : « un audit total complet de A à Z, tous les petits

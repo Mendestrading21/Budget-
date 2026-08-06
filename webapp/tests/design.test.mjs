@@ -25,11 +25,14 @@ function check(condition, message) {
 // ---------- D1 : tokens canoniques — index.html ↔ obsidian.css ----------
 currentTest = "tokens canoniques";
 const CANONICAL = {
-  "--canvas": "#090C12",
-  "--canvas-raised": "#0D1119",
-  "--glass": "rgba(20, 25, 37, 0.72)",
-  "--glass-strong": "rgba(27, 34, 48, 0.88)",
-  "--glass-fallback": "#151B26",
+  // Surfaces unifiées sur Neon Ultra (ADR-024) : mesuré, le fond noir
+  // changeait d'un onglet à l'autre et les cartes n'avaient pas la même
+  // matière. Le verre translucide devient une surface MATE.
+  "--canvas": "#05060A",
+  "--canvas-raised": "#0B0D13",
+  "--glass": "#11141C",
+  "--glass-strong": "#181C26",
+  "--glass-fallback": "#151923",
   "--stroke": "rgba(255, 255, 255, 0.10)",
   "--stroke-active": "rgba(115, 103, 255, 0.48)",
   "--brand": "#7367FF",
@@ -87,25 +90,23 @@ function contrast(fg, bg) {
   const [l1, l2] = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
   return (l1 + 0.05) / (l2 + 0.05);
 }
-// Verre standard composité sur le fond : rgba(20,25,37,0.72) sur #090C12.
-function composite(rgba, alpha, base) {
-  const b = base.replace("#", "");
-  const mix = (c, i) => Math.round(alpha * c + (1 - alpha) * parseInt(b.slice(i * 2, i * 2 + 2), 16));
-  return "#" + [mix(20, 0), mix(25, 1), mix(37, 2)].map(v => v.toString(16).padStart(2, "0")).join("");
-}
-const GLASS_ON_CANVAS = composite([20, 25, 37], 0.72, "#090C12");
+// La carte n'est plus translucide : plus rien à compositer, la couleur
+// mesurée EST la couleur déclarée. Garder un calcul de composition ici
+// mesurerait une surface qui n'existe plus.
+const CANVAS = "#05060A";
+const CARTE = "#11141C";
 const CHECKS = [
-  ["texte primaire / canvas", "#F6F7FB", "#090C12", 7],
-  ["texte primaire / verre", "#F6F7FB", GLASS_ON_CANVAS, 7],
-  ["texte primaire / fallback opaque", "#F6F7FB", "#151B26", 7],
-  ["texte secondaire / verre", "#A7B0C0", GLASS_ON_CANVAS, 4.5],
-  ["texte tertiaire / verre", "#758094", GLASS_ON_CANVAS, 4.5],
-  ["brand (lien) / canvas", "#7367FF", "#090C12", 4.5],
-  ["brand-bright (lien, focus) / canvas", "#9188FF", "#090C12", 4.5],
+  ["texte primaire / canvas", "#F6F7FB", CANVAS, 7],
+  ["texte primaire / carte", "#F6F7FB", CARTE, 7],
+  ["texte primaire / fallback opaque", "#F6F7FB", "#151923", 7],
+  ["texte secondaire / carte", "#A7B0C0", CARTE, 4.5],
+  ["texte tertiaire / carte", "#758094", CARTE, 4.5],
+  ["brand (lien) / canvas", "#7367FF", CANVAS, 4.5],
+  ["brand-bright (lien, focus) / canvas", "#9188FF", CANVAS, 4.5],
   ["blanc / bouton primaire (brand-deep)", "#FFFFFF", "#6457F0", 4.5],
-  ["positive / canvas", "#36D399", "#090C12", 4.5],
-  ["negative / canvas", "#FF6B7A", "#090C12", 4.5],
-  ["warning / canvas", "#FFB454", "#090C12", 4.5],
+  ["positive / canvas", "#36D399", CANVAS, 4.5],
+  ["negative / canvas", "#FF6B7A", CANVAS, 4.5],
+  ["warning / canvas", "#FFB454", CANVAS, 4.5],
 ];
 const measured = [];
 for (const [label, fg, bg, min] of CHECKS) {
@@ -168,10 +169,29 @@ currentTest = "NU isolation";
   check(links.length === 1,
     `index.html doit charger neon-ultra.css EXACTEMENT une fois (obtenu ${links.length})`);
 }
-// Aucune VALEUR canonique Neon Ultra recopiée dans l'app : uniquement des rôles.
+// Les SURFACES sont désormais partagées : l'app entière peint le même noir
+// et la même matière de carte (ADR-024). Ces cinq valeurs ont donc leur
+// place dans index.html — mais les deux feuilles doivent RESTER D'ACCORD,
+// sinon le fond se remettrait à changer d'un onglet à l'autre.
+const SURFACES_PARTAGEES = {
+  "--nu-canvas": "--canvas",
+  "--nu-navigation": "--canvas-raised",
+  "--nu-surface": "--glass",
+  "--nu-surface-elevated": "--glass-strong",
+  "--nu-surface-fallback": "--glass-fallback",
+};
+for (const [nu, obs] of Object.entries(SURFACES_PARTAGEES)) {
+  const attendu = NU_CANONICAL[nu];
+  const declare = (indexSrc.match(new RegExp(`${obs}:\\s*([^;]+);`)) || [])[1];
+  check(declare && declare.trim().toLowerCase() === attendu.toLowerCase(),
+    `surface partagée : ${obs} doit valoir ${attendu} comme ${nu} (obtenu ${declare || "absent"})`);
+}
+// Les ACCENTS, eux, restent la propriété de la feuille pilote : aucune de
+// leurs valeurs ne doit être recopiée dans l'app.
 for (const [name, value] of Object.entries(NU_CANONICAL)) {
+  if (SURFACES_PARTAGEES[name]) continue;
   check(!indexSrc.includes(value),
-    `index.html ne doit contenir AUCUNE valeur brute Neon Ultra (${name} = ${value})`);
+    `index.html ne doit contenir AUCUN accent Neon Ultra en dur (${name} = ${value})`);
 }
 check(!/--nu-[a-z-]+\s*:/.test(indexSrc),
   "index.html ne doit DÉCLARER aucun token --nu- (les tokens vivent dans neon-ultra.css)");
@@ -418,24 +438,32 @@ currentTest = "focus clavier";
   await page.context().close();
 }
 
-// ---------- D5 : transparence réduite = fallback OPAQUE ----------
+// ---------- D5 : les cartes sont OPAQUES, dans les deux modes ----------
 currentTest = "transparence reduite";
+// Ce contrôle exigeait auparavant une carte TRANSLUCIDE par défaut, qui
+// devenait opaque en transparence réduite. Les surfaces sont désormais
+// unifiées sur Neon Ultra, qui impose des cartes MATES : la garantie
+// utilisateur — « aucun flou, aucune surface translucide illisible » — est
+// donc vraie en permanence, plus seulement quand on l'a demandé. Le test ne
+// vérifie plus la bascule mais l'ÉTAT FINAL, dans les deux modes.
 {
   const page = await newPage(390);
   await page.goto(GALLERY_URL);
   await page.waitForSelector("#toggleTransparency");
-  const before = await page.$eval(".os-card--strong", el => getComputedStyle(el).backgroundColor);
-  check(before.includes("0.88") || before.startsWith("rgba"), `le verre fort doit être translucide par défaut (obtenu ${before})`);
-  await page.click("#toggleTransparency");
-  const after = await page.evaluate(() => ({
+  const lire = () => page.evaluate(() => ({
     strong: getComputedStyle(document.querySelector(".os-card--strong")).backgroundColor,
     std: getComputedStyle(document.querySelector(".os-card:not(.os-card--strong)")).backgroundColor,
     blur: getComputedStyle(document.querySelector(".os-sheet")).backdropFilter,
   }));
-  // #151B26 = rgb(21, 27, 38)
-  check(after.strong === "rgb(21, 27, 38)", `verre fort → glassFallback opaque attendu (obtenu ${after.strong})`);
-  check(after.std === "rgb(21, 27, 38)", `verre standard → glassFallback opaque attendu (obtenu ${after.std})`);
-  check(after.blur === "none", `le blur doit disparaître en transparence réduite (obtenu ${after.blur})`);
+  const opaque = c => /^rgb\(\d+, \d+, \d+\)$/.test(c);
+  const avant = await lire();
+  check(opaque(avant.strong) && opaque(avant.std),
+    `cartes opaques par défaut (obtenu ${avant.strong} / ${avant.std})`);
+  await page.click("#toggleTransparency");
+  const apres = await lire();
+  check(opaque(apres.strong) && opaque(apres.std),
+    `cartes toujours opaques en transparence réduite (obtenu ${apres.strong} / ${apres.std})`);
+  check(apres.blur === "none", `le blur doit disparaître en transparence réduite (obtenu ${apres.blur})`);
   await page.context().close();
 }
 // Le même mécanisme s'applique à l'APP elle-même.
@@ -446,7 +474,7 @@ currentTest = "transparence reduite";
   await page.evaluate(() => { document.documentElement.dataset.reducedTransparency = "true"; });
   const surface = await page.evaluate(() =>
     getComputedStyle(document.documentElement).getPropertyValue("--surface").trim());
-  check(surface === "#151B26", `l'app doit basculer --surface sur glassFallback (obtenu ${surface})`);
+  check(surface === "#151923", `l'app doit basculer --surface sur glassFallback (obtenu ${surface})`);
   await page.context().close();
 }
 
@@ -928,8 +956,13 @@ void clippedIn;
   await page.click("#fCancel"); // fermeture sans garde-fou de saisie
   await page.waitForTimeout(250);
 
-  // ISOLATION : les écrans restants gardent EXACTEMENT leur rendu Obsidian.
-  const OBSIDIAN_SURFACES = ["rgba(20, 25, 37, 0.72)", "rgba(27, 34, 48, 0.88)"];
+  // Ce bloc exigeait auparavant que les écrans non pilotes gardent leurs
+  // cartes translucides — c'était la preuve que le rebranchement n'avait
+  // pas débordé. Les SURFACES sont maintenant unifiées volontairement
+  // (ADR-024) : ce qu'il faut prouver a changé de sens. L'app entière doit
+  // peindre la MÊME matière de carte, et les écrans non pilotes ne doivent
+  // toujours pas porter la classe pilote ni ses accents.
+  const SURFACES_UNIQUES = ["rgb(17, 20, 28)", "rgb(24, 28, 38)"];
   for (const label of ["Comptes", "Gérer"]) {
     await page.click(`#tabbar button[aria-label="${label}"]`);
     await page.waitForTimeout(250);
@@ -943,9 +976,8 @@ void clippedIn;
       };
     });
     check(!iso.pilot, `${label} ne porte AUCUNE classe pilote`);
-    check(iso.bg === "rgba(0, 0, 0, 0)", `${label} garde le fond Obsidian (obtenu ${iso.bg})`);
-    check(OBSIDIAN_SURFACES.includes(iso.card),
-      `${label} garde ses cartes Obsidian translucides (obtenu ${iso.card})`);
+    check(SURFACES_UNIQUES.includes(iso.card),
+      `${label} peint la MÊME matière de carte que les écrans pilotes (obtenu ${iso.card})`);
     if (label === "Comptes") {
       const accountTrigger = await page.$("#screen [data-accid]");
       check(!!accountTrigger, "Comptes expose au moins un détail de compte testable");

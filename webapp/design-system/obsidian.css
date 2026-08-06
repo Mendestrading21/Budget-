@@ -12,11 +12,14 @@
 
 :root {
   /* --- Tokens Obsidian canoniques (constitution §2) --- */
-  --canvas: #090C12;                       /* fond principal */
-  --canvas-raised: #0D1119;                /* zone élevée / navigation */
-  --glass: rgba(20, 25, 37, 0.72);         /* carte standard */
-  --glass-strong: rgba(27, 34, 48, 0.88);  /* héros, feuille, popover */
-  --glass-fallback: #151B26;               /* transparence réduite */
+  /* Surfaces unifiées sur Neon Ultra (ADR-024) : le fond noir changeait
+     d'un onglet à l'autre et les cartes n'étaient pas de la même matière.
+     Cartes MATES, sans flou — c'est ce qu'impose la constitution cible. */
+  --canvas: #05060A;                       /* fond principal */
+  --canvas-raised: #0B0D13;                /* zone élevée / navigation */
+  --glass: #11141C;                        /* carte standard — mate */
+  --glass-strong: #181C26;                 /* héros, feuille, popover */
+  --glass-fallback: #151923;               /* transparence réduite */
   --stroke: rgba(255, 255, 255, 0.10);     /* bord standard */
   --stroke-active: rgba(115, 103, 255, 0.48); /* sélection / focus */
   --brand: #7367FF;                        /* Indigo Aurora — action, série principale */

@@ -31,11 +31,18 @@
        webapp/tests/design.test.mjs). Vert, corail et ambre sont
        STRICTEMENT sémantiques — jamais décoratifs.
        ========================================================== */
-    --canvas: #090C12;                       /* fond principal */
-    --canvas-raised: #0D1119;                /* zone élevée / navigation */
-    --glass: rgba(20, 25, 37, 0.72);         /* carte standard */
-    --glass-strong: rgba(27, 34, 48, 0.88);  /* héros, feuille, popover */
-    --glass-fallback: #151B26;               /* transparence réduite */
+    /* UNE seule identité de surface pour toute la PWA.
+       Mesuré avant correction : le fond noir CHANGEAIT en passant d'un
+       onglet à l'autre — #05060A sur les écrans rebranchés, #090C12 sur
+       les autres — et les cartes n'étaient pas de la même matière
+       (verre translucide d'un côté, surface mate de l'autre). Ces valeurs
+       sont désormais celles de Neon Ultra, identité cible d'ADR-024, qui
+       impose des cartes MATES : le flou disparaît, c'est voulu. */
+    --canvas: #05060A;                       /* fond principal */
+    --canvas-raised: #0B0D13;                /* zone élevée / navigation */
+    --glass: #11141C;                        /* carte standard — mate */
+    --glass-strong: #181C26;  /* héros, feuille, popover */
+    --glass-fallback: #151923;               /* transparence réduite */
     --stroke: rgba(255, 255, 255, 0.10);     /* bord standard */
     --stroke-active: rgba(115, 103, 255, 0.48); /* sélection / focus */
     --brand: #7367FF;                        /* Indigo Aurora */
