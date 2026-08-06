@@ -1260,7 +1260,10 @@ check(afterChip.destVisible, "l'épargne demande une destination");
 check(afterChip.note.includes("mis de côté"), "le résumé explique « mis de côté », pas une dépense");
 // Statut affiché, dérivé de la date (logique inchangée).
 const statusNow = await page.$eval("#fStatusNote", el => el.textContent);
-check(statusNow.includes("Comptabilisé"), "aujourd'hui → Comptabilisé affiché");
+// La note doit DIRE que le mouvement compte déjà, sans le mot de
+// comptable. L'exigence est la même, le vocabulaire a changé.
+check(/déjà fait.*compte dans vos soldes/i.test(statusNow),
+  `aujourd'hui → la note dit que ça compte déjà (obtenu « ${statusNow.trim()} »)`);
 await page.evaluate(() => {
   const last = new Date(NOW.y, NOW.m, 0).getDate();
   if (NOW.d < last) {
@@ -1270,7 +1273,7 @@ await page.evaluate(() => {
   }
 });
 const statusFuture = await page.$eval("#fStatusNote", el => el.textContent);
-check(statusFuture.includes("Prévu") || statusFuture.includes("Comptabilisé"), "note de statut toujours présente");
+check(/c'est prévu|déjà fait/i.test(statusFuture), "note de statut toujours présente");
 // Retour à la date du jour (le statut redevient Comptabilisé).
 await page.evaluate(() => {
   document.getElementById("fDate").value =
@@ -1491,8 +1494,8 @@ const accId50 = await page.evaluate(() => accountView);
 await page.click("[data-reconacc]");
 await page.waitForSelector("#reconForm", { state: "visible" });
 const reconText = await page.$eval("#reconForm", el => el.textContent);
-check(reconText.includes("relevé bancaire") && reconText.includes("jamais réécrit"),
-  "la réconciliation s'explique en langage simple (historique jamais réécrit)");
+check(/solde que votre banque affiche/i.test(reconText) && reconText.includes("jamais réécrit"),
+  "la mise à jour du solde s'explique en langage simple (historique jamais réécrit)");
 const beforeRecon = await page.evaluate(id => balance(id), accId50);
 await page.fill("#reconAmount", (Math.abs(beforeRecon) + 111).toFixed(2));
 await page.evaluate(() => { document.getElementById("reconNegative").checked = false; });
@@ -4659,8 +4662,29 @@ await goHome();
     const txt = (await lireTexte()).toLowerCase();
     for (const mot of INTERDITS) if (txt.includes(mot)) fautes.push(`${vue} : « ${mot} »`);
   }
+  // Les FEUILLES aussi. Elles échappaient au balayage — et c'est là que
+  // « Comptabilisé », « Nature », « Périodicité » et « Solde d'ouverture »
+  // avaient survécu à trois passes de langage.
+  const INTERDITS_FEUILLES = INTERDITS.concat([
+    "nature", "périodicité", "solde d'ouverture", "ligne budgétaire",
+    "montant cible", "contribution prévue", "cash disponible",
+    "fortune nette", "récurrence", "projection à la retraite",
+  ]);
+  const feuilles = await page.evaluate(interdits => {
+    const trouves = [];
+    for (const s of document.querySelectorAll(".sheet")) {
+      const avant = s.style.display;
+      s.style.display = "flex";
+      const txt = (s.innerText || "").replace(/\s+/g, " ").toLowerCase();
+      s.style.display = avant;
+      for (const mot of interdits) if (txt.includes(mot)) trouves.push(`${s.id} : « ${mot} »`);
+    }
+    return trouves;
+  }, INTERDITS_FEUILLES);
+  fautes.push(...feuilles);
+
   check(fautes.length === 0,
-    `aucun mot de comptable à l'écran (trouvés : ${fautes.join(" · ") || "aucun"})`);
+    `aucun mot de comptable à l'écran NI dans les feuilles (trouvés : ${fautes.join(" · ") || "aucun"})`);
 
   // Une phrase courte se lit ; une phrase de trente mots se saute. On mesure
   // uniquement la PROSE — les paragraphes et les légendes. Mesurer l'écran

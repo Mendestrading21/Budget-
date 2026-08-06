@@ -71,7 +71,7 @@ enum TransactionStatus: String, CaseIterable, Codable, Identifiable {
     var displayName: String {
         switch self {
         case .planned: "Prévu"
-        case .posted: "Comptabilisé"
+        case .posted: "Déjà fait"
         }
     }
 }

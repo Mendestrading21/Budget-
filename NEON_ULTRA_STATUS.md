@@ -17,6 +17,50 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Les feuilles de saisie parlent enfin comme le reste (06.08.2026) — VERIFYING
+
+Trouvé en regardant une capture réelle du simulateur : la feuille
+« Nouveau mouvement » affichait **« Statut : Comptabilisé »**. Le mot que
+trois passes de langage avaient chassé de partout ailleurs.
+
+### Pourquoi il avait survécu
+
+Le garde-fou anti-jargon (test n° 101) balaie les **seize écrans**. Les
+**feuilles**, elles, n'étaient pas balayées — et c'est précisément là que
+s'étaient réfugiés « Comptabilisé », « Nature », « Périodicité »,
+« Solde d'ouverture », « ligne budgétaire », « Contribution prévue »,
+« cash disponible », « fortune nette », « récurrence », « Projection à la
+retraite ». Vingt-six textes dans treize feuilles.
+
+Le test balaie désormais aussi les feuilles, avec dix mots de plus.
+
+### Quelques exemples
+
+| Avant | Maintenant |
+|---|---|
+| Sera compté comme : Comptabilisé. | C'est déjà fait : ça compte dans vos soldes. |
+| Nature · Devise · Solde d'ouverture | Type de compte · Monnaie · Solde de départ |
+| Compter dans le cash disponible | Compter dans l'argent disponible |
+| Nouvelle ligne budgétaire · Montant planifié | Nouveau budget par catégorie · Montant prévu |
+| Déjà atteint (si non lié) · Contribution prévue | Déjà là (si pas relié à un compte) · Ce que vous mettez chaque mois |
+| Périodicité | Vous payez |
+| Institution / position | Nom (caisse, banque…) |
+| Marquer payée (crée le mouvement) | Marquer payée (crée la dépense) |
+
+Côté natif, `TransactionStatus.posted` disait aussi « Comptabilisé » : il
+dit « Déjà fait ».
+
+### Preuves
+
+- 102 parcours e2e · 5 fixtures de parité · design system vert · audit
+  total propre.
+- **Contrôle négatif exécuté** : remettre « Nature » dans la feuille Compte
+  produit un échec nommé, avec le nom de la feuille.
+- Trois assertions existantes suivent le nouveau vocabulaire sans être
+  affaiblies : la note de statut doit toujours DIRE que le mouvement compte
+  déjà, la mise à jour de solde doit toujours promettre que l'historique
+  n'est jamais réécrit.
+
 ## Le natif rejoint le web : une seule identité, deux plateformes (06.08.2026) — VERIFYING
 
 Le lot précédent avait unifié les surfaces du **web** — et créé du même
