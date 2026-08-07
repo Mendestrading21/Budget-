@@ -74,7 +74,11 @@ const mesurer = () => page.evaluate(() => {
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   };
 
-  const cartes = [...s.querySelectorAll(".card")].filter(vu);
+  // Les cartes d'un carrousel horizontal sont posées CÔTE À CÔTE : leurs
+  // bords gauches diffèrent par construction, sinon il n'y aurait pas de
+  // carrousel. Les exclure de la mesure d'alignement, et elles seules —
+  // un outil qui crie au loup est pire qu'aucun outil.
+  const cartes = [...s.querySelectorAll(".card")].filter(c => vu(c) && !c.closest(".hero-track"));
   const textes = [...s.querySelectorAll("*")].filter(e =>
     vu(e) && e.children.length === 0 && (e.textContent || "").trim().length > 1);
 

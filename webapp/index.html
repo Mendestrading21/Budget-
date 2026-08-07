@@ -1044,7 +1044,7 @@
       <div class="type-grid" id="typeGrid" role="group" aria-labelledby="typeGridLabel">
         <button type="button" data-ftype="expense" aria-pressed="false">💸 Dépense</button>
         <button type="button" data-ftype="income" aria-pressed="false">💰 Revenu</button>
-        <button type="button" data-ftype="saving" aria-pressed="false">🏛 Épargne</button>
+        <button type="button" data-ftype="saving" aria-pressed="false">🏛️ Épargne</button>
         <button type="button" data-ftype="investment" aria-pressed="false">📈 Investir</button>
         <button type="button" data-ftype="transfer" aria-pressed="false">⇄ Virement</button>
         <button type="button" data-ftype="taxPayment" aria-pressed="false">🧾 Impôts</button>
@@ -1265,7 +1265,7 @@
       <h3 id="itemSheetTitle">Nouvel actif ou dette</h3>
       <label id="iKindLabel">Type de compte</label>
       <div class="type-grid" id="iKindGrid" role="group" aria-labelledby="iKindLabel">
-        <button type="button" data-ikind="asset" aria-pressed="false">🏛 Actif</button>
+        <button type="button" data-ikind="asset" aria-pressed="false">🏛️ Actif</button>
         <button type="button" data-ikind="liability" aria-pressed="false">📄 Dette</button>
       </div>
       <p class="caption" style="margin:4px 0 0">Actif : voiture, immobilier, collection… · Dette : leasing, prêt, impôt dû…</p>
@@ -1398,8 +1398,8 @@
         <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
         <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
         <button type="button" class="btn secondary" data-quick="rec">🔁 Facture mensuelle</button>
-        <button type="button" class="btn secondary" data-quick="item">🏛 Actif / dette</button>
-        <button type="button" class="btn secondary" data-quick="ins">🛡 Assurance</button>
+        <button type="button" class="btn secondary" data-quick="item">🏛️ Actif / dette</button>
+        <button type="button" class="btn secondary" data-quick="ins">🛡️ Assurance</button>
         <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
       </div>
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
@@ -1831,10 +1831,10 @@ const ACCOUNTS_SEED = [
 ];
 const ACCOUNT_KINDS = {
   current: { label: "Compte courant", icon: "💳" },
-  savings: { label: "Compte épargne", icon: "🏛" },
+  savings: { label: "Compte épargne", icon: "🏛️" },
   brokerage: { label: "Bourse / titres", icon: "📈" },
   cash: { label: "Espèces", icon: "💵" },
-  pension: { label: "Prévoyance (3a, LPP)", icon: "🛡" },
+  pension: { label: "Prévoyance (3a, LPP)", icon: "🛡️" },
   lifeinsurance: { label: "Assurance vie (3b)", icon: "📜" },
 };
 
@@ -1896,14 +1896,14 @@ const RECURRINGS_SEED = [
 const GOALS_SEED = [
   { id: "g-urgence", name: "Fonds d'urgence", emoji: "🛟", target: 20000, manualCurrent: 0,
     linked: "sav", monthly: 600, dueY: NOW.y, dueM: 12, priority: true, achieved: false },
-  { id: "g-vacances", name: "Prochaines vacances", emoji: "🏖", target: 3000, manualCurrent: 1200,
+  { id: "g-vacances", name: "Prochaines vacances", emoji: "🏖️", target: 3000, manualCurrent: 1200,
     linked: null, monthly: 150, ...(() => { const d = shiftMonth(NOW, 14); return { dueY: d.y, dueM: d.m }; })(), priority: false, achieved: false },
 ];
 
 /* Patrimoine hors comptes (Phase 10) et prévoyance (Phase 9). */
 const ASSETS_SEED = [{ id: "as-voiture", name: "Voiture", icon: "🚗", value: 8500, include: true }];
 const LIABILITIES_SEED = [{ id: "li-leasing", name: "Leasing voiture", icon: "📄", value: 6200, include: true }];
-const PENSIONS_SEED = [{ id: "pen-lpp", name: "Caisse LPP (2e pilier)", icon: "🛡", value: 42300, projection: 245000 }];
+const PENSIONS_SEED = [{ id: "pen-lpp", name: "Caisse LPP (2e pilier)", icon: "🛡️", value: 42300, projection: 245000 }];
 const INSURANCES_SEED = [
   { id: "ins-lamal", name: "Caisse maladie (LAMal)", insurer: "Assureur Exemple", premium: 745.60, unit: "month", icon: "🩺" },
   { id: "ins-rc", name: "RC + ménage", insurer: "Assureur Exemple", premium: 390.00, unit: "year", icon: "🏠" },
@@ -2983,13 +2983,13 @@ function renderHome() {
       <span class="caption">Argent disponible ce mois : ${chf(s.available)}</span>
     </div>
     ${portfolioRow("Comptes et argent disponible", liquid, null, "💳")}
-    ${portfolioRow("Épargne", savingsTotal, null, "🏛", contribSub(["savings"]))}
+    ${portfolioRow("Épargne", savingsTotal, null, "🏛️", contribSub(["savings"]))}
     ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
-    ${portfolioRow(L("pensionGroup"), pensionAccounts + pensionPositions, "insurance", "🛡", contribSub(["pension", "lifeinsurance"]))}
+    ${portfolioRow(L("pensionGroup"), pensionAccounts + pensionPositions, "insurance", "🛡️", contribSub(["pension", "lifeinsurance"]))}
     ${portfolioRow("Actifs (voiture, biens…)", assetsTotal, "networth", "🏷")}
     ${liabTotal ? portfolioRow("Dettes", -liabTotal, "networth", "📄") : ""}
     <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🛡</div>
+      <div class="ico" aria-hidden="true">🛡️</div>
       <div class="meta"><div class="t">Assurances</div><div class="s">${INSURANCES.length} contrat${INSURANCES.length > 1 ? "s" : ""}</div></div>
       <span class="amount">${chf(insuranceMonthlyTotal)}/mois</span>
     </div>
@@ -3236,7 +3236,7 @@ function renderSimpleHome() {
       ["taxes", "📮", "Impôts", tax.reserveGap > 0
         ? `${chf(tax.reserveGap)} à réserver`
         : `Réserve ${NOW.y} couverte ✓`],
-      ["networth", "🏛", "Patrimoine", chf(netWorth)],
+      ["networth", "🏛️", "Patrimoine", chf(netWorth)],
       ["goals", "🎯", "Objectifs", prio.length
         ? `${prio.length} en cours`
         : "Aucun objectif en cours"],
@@ -3676,9 +3676,9 @@ function renderGoals() {
       <div class="track" role="progressbar" aria-valuenow="${Math.round(fr * 100)}" aria-valuemin="0" aria-valuemax="100"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
       <div class="breakdown" style="margin-top:10px">
         <div><span>${g.linked ? "Déjà là (sur le compte)" : "Déjà là"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
-        <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠ passée" : ""}</span></div>
+        <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠️ passée" : ""}</span></div>
         ${g.achieved ? "" : `
-        <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}">${chf(paceMonthly)} / mois ${onTrack ? "✓" : "⚠"}</span></div>
+        <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}" aria-label="${chf(paceMonthly)} par mois — ${onTrack ? "dans les temps" : "en dessous du rythme nécessaire"}">${chf(paceMonthly)} / mois <span aria-hidden="true">${onTrack ? "✓" : "⚠️"}</span></span></div>
         ${eta ? `<div><span>Prêt vers</span><span style="font-weight:700">${MONTH_NAMES[eta.m - 1]} ${eta.y}</span></div>` : ""}
         ${extraNeeded > 0.005 ? `<div><span>Pour y être à temps</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}
         ${(() => {
@@ -3948,9 +3948,9 @@ function renderYearReview() {
     <div class="card">
       <p class="card-label">Mis de côté en ${y}, par type</p>
       <div class="breakdown">
-        ${[["🏛 Épargne", contributionsFor(["savings"])],
+        ${[["🏛️ Épargne", contributionsFor(["savings"])],
            ["📈 Bourse / titres", contributionsFor(["brokerage"])],
-           [`🛡 ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])]]
+           [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])]]
           .filter(([, agg]) => agg.year > 0)
           .map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)}</span></div>`).join("")
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
@@ -4025,9 +4025,9 @@ function renderNetWorth() {
     </div>
     ${(() => {
       const rows = [
-        ["🏛 Épargne", contributionsFor(["savings"])],
+        ["🏛️ Épargne", contributionsFor(["savings"])],
         ["📈 Bourse / titres", contributionsFor(["brokerage"])],
-        [`🛡 ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])],
+        [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])],
       ].filter(([, agg]) => agg.total > 0);
       if (!rows.length) return "";
       const yearSum = rows.reduce((a, [, agg]) => a + agg.year, 0);
@@ -4114,7 +4114,7 @@ function renderInsurance() {
         const days = Math.round((due - today) / 86400000);
         if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
       }
-      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡"}</div>
+      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡️"}</div>
       <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`;
     }).join("")}
@@ -4132,7 +4132,7 @@ function renderInsurance() {
       </div>`;
     })()}
     ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez ce qui est écrit sur vos certificats pour voir votre total.</span></div>` : ""}
-    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡"}</div>
+    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡️"}</div>
       <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Le montant de votre certificat</div></div>
       <span class="amount acct-total">${chf(p.value)}</span></div>
       ${p.projection ? `<div class="breakdown" style="margin-top:10px">
@@ -4141,7 +4141,7 @@ function renderInsurance() {
     <button class="btn secondary" data-addpen style="margin-top:4px">＋ Ajouter une prévoyance</button>
     ${(() => {
       const p3a = ACCOUNTS.find(a => a.id === "p3a");
-      return p3a ? `<div class="card row tx read-row" data-accid="p3a" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">🛡</div>
+      return p3a ? `<div class="card row tx read-row" data-accid="p3a" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">🛡️</div>
       <div class="meta"><div class="t">${esc(p3a.name)}</div><div class="s">${esc(p3a.inst || kindLabel("pension"))} — aussi visible dans Comptes</div></div>
       <span class="amount acct-total">${money(balance("p3a"), accountCurrency("p3a"))}</span></div>` : "";
     })()}`;
@@ -4820,10 +4820,10 @@ const MORE_GROUPS = [
   ]],
   ["À prévoir", [
     ["taxes", "📮", "Impôts", "Ce qu'il reste à payer, et ce que vous avez mis de côté"],
-    ["insurance", "🛡", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
+    ["insurance", "🛡️", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
   ]],
   ["À construire", [
-    ["networth", "🏛", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
+    ["networth", "🏛️", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
     ["year", "📅", "Année", () => {
       const done = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
@@ -5079,7 +5079,7 @@ function renderOnboarding() {
     </div>
     <button type="button" class="btn secondary ob-choice" data-obgoal="urgence" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Fonds d'urgence</strong> · 3 mois devant soi</span><span style="font-size:18px">🛟</span></button>
     <button type="button" class="btn secondary ob-choice" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
-    <button type="button" class="btn secondary ob-choice" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡️</span></button>
     <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>`);
   const accToggle = (key, label, icon) => `
     <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
@@ -5095,8 +5095,8 @@ function renderOnboarding() {
     <form id="obForm3" class="ob-form">
       <input id="obOpening" inputmode="decimal" placeholder="Solde actuel (${obBase})"
         aria-label="Solde actuel du compte courant (${obBase})" autocomplete="off" style="margin-top:10px" />
-      ${accToggle("savings", "Épargne", "🏛")}
-      ${accToggle("pension", L("pensionKind"), "🛡")}
+      ${accToggle("savings", "Épargne", "🏛️")}
+      ${accToggle("pension", L("pensionKind"), "🛡️")}
       ${accToggle("brokerage", "Bourse / titres", "📈")}
       <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
     </form>`);
@@ -5293,7 +5293,7 @@ function finishOnboarding() {
     const presets = {
       urgence: { name: "Fonds d'urgence", emoji: "🛟", target: obSalary ? round2(obSalary * 3) : 10000, linked: savingsAcc ? savingsAcc.id : null },
       voyage: { name: "Voyage", emoji: "✈️", target: 3000, linked: null },
-      pension: { name: L2("pensionKind", obCountry), emoji: "🛡", target: 7056, linked: (ACCOUNTS.find(a => a.kind === "pension") || {}).id || null },
+      pension: { name: L2("pensionKind", obCountry), emoji: "🛡️", target: 7056, linked: (ACCOUNTS.find(a => a.kind === "pension") || {}).id || null },
     };
     const g = presets[obGoal];
     if (g) GOALS.push({ id: "g-" + txSeq++, name: g.name, emoji: g.emoji, target: g.target,
@@ -7379,7 +7379,7 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
                  premium, unit: document.getElementById("insUnit").value, ...due };
   const existing = editingInsId ? INSURANCES.find(i => i.id === editingInsId) : null;
   if (existing) { delete existing.monthly; Object.assign(existing, data); toast("Assurance modifiée"); }
-  else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Assurance ajoutée"); }
+  else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Assurance ajoutée"); }
   saveState();
   backdrop.classList.remove("open");
   render();
@@ -7422,7 +7422,7 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const data = { name, value, projection };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
   if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
-  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡", ...data }); toast("Prévoyance ajoutée"); }
+  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Prévoyance ajoutée"); }
   saveState(); backdrop.classList.remove("open"); render();
 });
 document.getElementById("penDelete").addEventListener("click", () => {
