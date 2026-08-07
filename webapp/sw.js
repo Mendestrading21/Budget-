@@ -1,7 +1,12 @@
 // Service worker Budget — réseau d'abord, cache en secours.
 // En ligne : toujours la dernière version. Hors ligne : l'app s'ouvre
 // quand même (les données vivent déjà dans localStorage, sur l'appareil).
-const CACHE = "budget-app-v2";
+//
+// Le NOM du cache est un numéro de version. Le changer fait supprimer toutes
+// les autres clés à l'activation : c'est le seul moyen de jeter une page
+// héritée qu'une app installée rouvrirait depuis sa mémoire. Aucune donnée
+// utilisateur là-dedans — comptes et mouvements sont dans localStorage.
+const CACHE = "budget-app-v3";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) =>
