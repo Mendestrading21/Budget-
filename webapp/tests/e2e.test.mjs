@@ -5241,6 +5241,70 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 106 : « mis de côté » n'est pas une dépense ----------
+currentTest = "facture ou mis de côté";
+// Demande du propriétaire (07.08.2026) : « il faudrait pouvoir définir
+// clairement ce que représente le montant… cette distinction doit ensuite
+// avoir un impact RÉEL sur les calculs ». C'est le cœur du lot : un 3e
+// pilier saisi comme facture était compté comme une dépense de vie, ce qui
+// viole l'invariant du projet et faisait mentir le budget et le disponible.
+await goHome();
+{
+  const avant = await page.evaluate(() => {
+    const s = snapshot(NOW.y, NOW.m);
+    return { vie: s.living, misDeCote: s.savings + s.invest };
+  });
+  // Une réserve mensuelle de 500, rangée dans « Pilier 3a ».
+  const apres = await page.evaluate(() => {
+    RECURRINGS.push({ id: "t-reserve", title: "3e pilier E2E", amount: 500,
+      type: "expense", cat: "Pilier 3a", day: 1, nature: "reserve",
+      accountId: defaultCashAccount() });
+    const r = RECURRINGS.find(x => x.id === "t-reserve");
+    const cree = materializeRecurring(r, NOW.y, NOW.m);
+    saveState(); render();
+    const s = snapshot(NOW.y, NOW.m);
+    return {
+      typeDuMouvement: cree.transaction.type,
+      vie: s.living, misDeCote: s.savings + s.invest,
+      nature: recurringNature(r), reserve: recurringIsReserve(r),
+    };
+  });
+  check(apres.nature === "reserve" && apres.reserve,
+    `une charge rangée en « mis de côté » est reconnue comme telle (${apres.nature})`);
+  check(apres.typeDuMouvement === "investment",
+    `le mouvement créé est un ENVOI, pas une dépense (obtenu ${apres.typeDuMouvement})`);
+  check(Math.abs(apres.vie - avant.vie) < 0.02,
+    `le coût de la vie ne bouge PAS d'un centime (${avant.vie} → ${apres.vie})`);
+  check(Math.abs((apres.misDeCote - avant.misDeCote) - 500) < 0.02,
+    `« mis de côté » augmente exactement de 500 (${avant.misDeCote} → ${apres.misDeCote})`);
+
+  // Et la déduction par catégorie doit marcher SANS champ explicite : c'est
+  // ce qui rattrape tout ce qui a déjà été saisi avant aujourd'hui.
+  const deduit = await page.evaluate(() => ({
+    troisA: recurringNature({ cat: "Pilier 3a" }),
+    epargne: recurringNature({ cat: "Épargne" }),
+    impots: recurringNature({ cat: "Impôts" }),
+    loyer: recurringNature({ cat: "Logement" }),
+    sport: recurringNature({ cat: "Restaurants et sorties" }),
+    ancienFamily: recurringNature({ cat: "Logement", family: "sub" }),
+  }));
+  check(deduit.troisA === "reserve" && deduit.epargne === "reserve" && deduit.impots === "reserve",
+    `3e pilier, épargne et impôts sont déduits comme réserves (${JSON.stringify(deduit)})`);
+  check(deduit.loyer === "facture" && deduit.sport === "abonnement",
+    "un loyer reste une facture, une salle de sport un abonnement");
+  check(deduit.ancienFamily === "abonnement",
+    `l'ancien champ family reste compris (${deduit.ancienFamily})`);
+
+  await page.evaluate(() => {
+    const i = RECURRINGS.findIndex(r => r.id === "t-reserve");
+    if (i >= 0) RECURRINGS.splice(i, 1);
+    const j = transactions.findIndex(t => t.recurringId === "t-reserve");
+    if (j >= 0) transactions.splice(j, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5250,4 +5314,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 105 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 106 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté), zéro erreur console ✓");

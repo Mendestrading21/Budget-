@@ -983,6 +983,8 @@
     border-top: 1px solid var(--stroke);
   }
   .sheet input, .sheet select { min-height: 44px; box-sizing: border-box; }
+  .type-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .type-grid-3 button { padding-left: 6px; padding-right: 6px; font-size: 13px; }
   .type-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1234,15 +1236,17 @@
       <!-- 5. Le reste est replié : le parcours fréquent tient en trois gestes. -->
       <details class="f-more" id="rMore">
         <summary>Détails (facultatif)</summary>
-        <label id="rFamilyLabel">Genre</label>
-        <div class="type-grid" id="rFamilyGrid" role="group" aria-labelledby="rFamilyLabel">
-          <button type="button" data-rfamily="sub" aria-pressed="false">🔁 Abonnement</button>
-          <button type="button" data-rfamily="charge" aria-pressed="false">🏠 Charge du foyer</button>
+        <label id="rFamilyLabel">C'est quoi, ce montant ?</label>
+        <div class="type-grid type-grid-3" id="rFamilyGrid" role="group" aria-labelledby="rFamilyLabel">
+          <button type="button" data-rfamily="facture" aria-pressed="false">🧾 Facture</button>
+          <button type="button" data-rfamily="abonnement" aria-pressed="false">🔁 Abonnement</button>
+          <button type="button" data-rfamily="reserve" aria-pressed="false">🏦 Mis de côté</button>
         </div>
-        <p class="caption" id="rFamilyNote" style="margin:4px 0 0">Un abonnement se résilie (streaming, sport). Une charge du foyer, non (loyer, caisse maladie). Seuls les abonnements sont comptés dans l'écran « Abonnements ».</p>
+        <p class="caption" id="rFamilyNote" style="margin:4px 0 0">« Mis de côté » n'est pas une dépense : l'argent change de poche et reste à vous. C'est le cas du 3e pilier, d'une provision d'impôts ou d'une épargne mensuelle.</p>
         <select id="rFamily" class="sr-select" aria-hidden="true" tabindex="-1">
-          <option value="sub">Abonnement</option>
-          <option value="charge">Charge du foyer</option>
+          <option value="facture">Facture</option>
+          <option value="abonnement">Abonnement</option>
+          <option value="reserve">Mis de côté</option>
         </select>
         <label for="rCat">Catégorie</label>
         <select id="rCat"></select>
@@ -2270,7 +2274,7 @@ function materializeRecurring(recurring, y, m) {
   const day = (y === NOW.y && m === NOW.m) ? NOW.d : lastDay;
   const transaction = {
     id: ++txSeq, y, m, d: day,
-    title: recurring.title, amount: recurring.amount, type: recurring.type,
+    title: recurring.title, amount: recurring.amount, type: recurringMovementType(recurring),
     cat: recurring.cat || null, acc: recurringAccountId(recurring), dest: null,
     status: statusForDate(y, m, day), recurringId: recurring.id,
   };
@@ -4209,25 +4213,45 @@ function renderRecurring() {
    Deux totaux HONNÊTES et jamais mélangés : le poids d'un mois moyen et le
    coût réel d'une année. Additionner un prix annuel à un prix mensuel dans
    la même colonne ne veut rien dire — l'app ne le fait jamais. */
-/* UN LOYER N'EST PAS UN ABONNEMENT — capture du propriétaire, 06.08.2026 :
-   l'écran annonçait « vos abonnements coûtent 98'652.- par an » en comptant
-   son loyer, sa crèche et son leasing dedans. Faux en français courant.
+/* LA NATURE D'UNE CHARGE RÉGULIÈRE — trois réponses, une seule question.
+   Demande du propriétaire (07.08.2026) : « il faudrait pouvoir définir
+   clairement ce que représente le montant ». Trois natures, et elles ne
+   veulent pas dire la même chose pour l'argent :
 
-   Champ ADDITIF `family` : "charge" (dépense du foyer) ou "sub" (abonnement).
-   Quand il est absent — toutes les données enregistrées avant aujourd'hui —
-   on retombe sur la CATÉGORIE, qui porte déjà l'information : un poste rangé
-   dans Logement, Assurance maladie, Transports ou Impôts est une charge du
-   foyer, pas un abonnement qu'on résilie d'un clic.
+     facture     loyer, caisse maladie, électricité — une DÉPENSE de vie
+     abonnement  streaming, sport — une dépense de vie, mais qui se résilie
+     réserve     3e pilier, provision d'impôts, épargne — PAS une dépense :
+                 l'argent change de poche et reste à vous
 
-   Rien n'est réécrit sur le disque : ce classement est calculé à l'affichage,
-   aucun montant ne bouge, et un choix explicite dans la feuille l'emporte
-   toujours sur la déduction. */
+   La troisième change un CALCUL, pas une étiquette : une réserve ne pèse
+   plus sur le coût de la vie ni sur le budget des dépenses, elle alimente
+   « mis de côté ». C'est l'invariant du projet — épargne et investissement
+   ne sont pas des dépenses de vie — enfin appliqué aux charges régulières.
+
+   Champ ADDITIF `nature`. Quand il est absent (tout ce qui existe déjà), on
+   le DÉDUIT de la catégorie, qui porte déjà l'information. Rien n'est
+   réécrit sur le disque : la déduction se fait à la lecture, et un choix
+   explicite l'emporte toujours. L'ancien champ `family` reste compris. */
 const CATEGORIES_DE_CHARGE = new Set(["Logement", "Assurance maladie", "Transports", "Impôts"]);
-function recurringFamily(r) {
-  if (r && (r.family === "charge" || r.family === "sub")) return r.family;
-  return r && CATEGORIES_DE_CHARGE.has(r.cat) ? "charge" : "sub";
+const CATEGORIES_DE_RESERVE = new Set(["Épargne", "Pilier 3a", "Impôts"]);
+const NATURES = ["facture", "abonnement", "reserve"];
+function recurringNature(r) {
+  if (r && NATURES.includes(r.nature)) return r.nature;
+  if (r && r.family === "charge") return "facture";
+  if (r && r.family === "sub") return "abonnement";
+  if (r && CATEGORIES_DE_RESERVE.has(r.cat)) return "reserve";
+  return r && CATEGORIES_DE_CHARGE.has(r.cat) ? "facture" : "abonnement";
 }
-function isSubscription(r) { return recurringFamily(r) !== "charge"; }
+/* Une réserve n'est pas une dépense : le mouvement créé est un ENVOI vers
+   une poche (épargne, ou investissement pour le 3e pilier), pas une sortie
+   de vie courante. Tout le reste — neutralité pour le patrimoine, exclusion
+   du coût de la vie — découle déjà de ce type dans `snapshot()`. */
+function recurringIsReserve(r) { return recurringNature(r) === "reserve"; }
+function recurringMovementType(r) {
+  if (!recurringIsReserve(r)) return r.type;
+  return r.cat === "Pilier 3a" ? "investment" : "saving";
+}
+function isSubscription(r) { return recurringNature(r) === "abonnement"; }
 function renderSubs() {
   const all = RECURRINGS.filter(r => r.type === "expense" && isSubscription(r));
   const active = all.filter(recurringIsActive);
@@ -7068,8 +7092,8 @@ function openRecSheet(rec) {
   // Genre : la valeur enregistrée si elle existe, sinon la DÉDUCTION par
   // catégorie — la même que celle affichée. La feuille ne montre jamais un
   // classement différent de celui que l'écran applique.
-  document.getElementById("rFamily").value =
-    rec ? recurringFamily(rec) : (CATEGORIES_DE_CHARGE.has(document.getElementById("rCat").value) ? "charge" : "sub");
+  document.getElementById("rFamily").value = recurringNature(
+    rec || { cat: document.getElementById("rCat").value });
   // Rythme et mois d'échéance : les options existent toujours, le bloc
   // annuel n'apparaît que si le rythme l'exige.
   const dueSel = document.getElementById("rDueM");
@@ -7165,7 +7189,8 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     // existant — les données du propriétaire ne se réécrivent pas parce
     // qu'un champ a disparu de l'écran — et on ancre les nouveaux au 1er.
     day: existing && Number.isInteger(existing.day) ? existing.day : 1,
-    family: document.getElementById("rFamily").value === "charge" ? "charge" : "sub",
+    nature: NATURES.includes(document.getElementById("rFamily").value)
+      ? document.getElementById("rFamily").value : "facture",
     type: document.getElementById("rType").value,
     cat: document.getElementById("rCat").value,
     accountId: document.getElementById("rAccount").value,
