@@ -3735,16 +3735,34 @@ function taxSummary(year) {
     .filter(t => t.type === "taxPayment" && t.status === "posted" && t.y === year)
     .reduce((a, t) => a + txCHF(t), 0);
   const due = Math.max(0, estimated - paid);
-  const reserved = S.taxReserve ?? 0;
-  const reserveGap = Math.max(0, due - reserved);
+  // C2 (07.08.2026) — LA PROVISION EST CE QUE VOUS AVEZ VRAIMENT MIS DE CÔTÉ.
+  // Avant, `S.taxReserve` était un nombre TAPÉ À LA MAIN, relié à aucun
+  // mouvement : virer 2'500 vers un compte pour ses impôts ne le remplissait
+  // pas, il fallait le retaper. C'était la double saisie signalée par le
+  // propriétaire.
+  // Désormais on additionne les vrais envois de l'année rangés dans
+  // « Impôts » — exactement ce que crée une charge régulière de nature
+  // « mis de côté » depuis C1.
+  const reservedFromMovements = round2(transactions
+    .filter(t => t.y === year && t.status === "posted"
+      && (t.type === "saving" || t.type === "investment") && t.cat === "Impôts")
+    .reduce((a, t) => a + txCHF(t), 0));
+  // Le nombre déjà saisi n'est PAS effacé : il devient un report, affiché à
+  // part. Faire disparaître un chiffre que quelqu'un a écrit serait pire que
+  // le défaut qu'on corrige.
+  const reservedManual = S.taxReserve ?? 0;
+  const reserved = round2(reservedFromMovements + reservedManual);
+  const reserveGap = Math.max(0, round2(due - reserved));
   // Échéances réelles : les factures de catégorie Impôts encore ouvertes.
   const taxBills = (S.bills || []).filter(b => !billIsCovered(b) && b.cat === "Impôts" && b.dueY === year);
-  return { rate, yearIncome, estimated, paid, due, reserved, reserveGap, observedMonths: observed.length, taxBills };
+  return { rate, yearIncome, estimated, paid, due, reserved, reservedFromMovements,
+           reservedManual, reserveGap, observedMonths: observed.length, taxBills };
 }
 
 function renderTaxes() {
   const summary = taxSummary(cursor.y);
-  const { rate, estimated, paid, due, reserved, reserveGap, observedMonths, taxBills } = summary;
+  const { rate, estimated, paid, due, reserved, reservedFromMovements, reservedManual,
+          reserveGap, observedMonths, taxBills } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
       <p class="card-label">Il vous reste à payer, à peu près</p>
@@ -3752,16 +3770,20 @@ function renderTaxes() {
       <div style="margin:6px 0 4px">${reserveGap > 0
         ? `<span class="pill warn">Il manque ${chf(reserveGap)} de côté</span>`
         : '<span class="pill pos">Vous avez tout mis de côté</span>'}</div>
-      <span class="caption" style="display:block;margin-top:4px">${COUNTRIES[S.country || "CH"].flag} ${COUNTRIES[S.country || "CH"].taxHint}</span>
     </div>
     <div class="stat-grid">
-      <div class="stat"><span class="card-label">Pour toute l'année</span><span class="amount">${chf(estimated)}</span>
-        <span class="caption">Vos revenus depuis le 1er janvier, à ${pct(rate)}. ${observedMonths || 0} mois avec un revenu.</span></div>
-      <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span>
-        <span class="caption">Les paiements d'impôts que vous avez notés en ${cursor.y}.</span></div>
-      <div class="stat"><span class="card-label">Déjà mis de côté</span><span class="amount info">${chf(reserved)}</span>
-        <span class="caption">Le montant que vous avez indiqué.</span></div>
+      <div class="stat"><span class="card-label">Pour toute l'année</span><span class="amount">${chf(estimated)}</span></div>
+      <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span></div>
+      <div class="stat"><span class="card-label">Déjà mis de côté</span><span class="amount info">${chf(reserved)}</span></div>
       <div class="stat"><span class="card-label">Encore à mettre de côté</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
+    </div>
+    <div class="card" style="margin-top:8px">
+      <p class="card-label">D'où vient « déjà mis de côté »</p>
+      <div class="breakdown">
+        <div><span>Vos envois vers « Impôts »</span><span>${chf(reservedFromMovements)}</span></div>
+        ${reservedManual > 0 ? `<div><span>Report que vous aviez saisi</span><span>${chf(reservedManual)}</span></div>` : ""}
+      </div>
+      <p class="caption" style="margin:8px 0 0">Chaque envoi rangé dans « Impôts » compte ici tout seul. Plus rien à retaper.</p>
     </div>
     ${observedMonths === 0 ? `<div class="card" style="border-color:var(--warning)">
       <p class="card-label warn">Il manque des informations</p>

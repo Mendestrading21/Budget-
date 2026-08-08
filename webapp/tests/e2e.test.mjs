@@ -5305,6 +5305,66 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 107 : la provision d'impôts est CE QU'ON A VRAIMENT MIS ----
+currentTest = "provision d'impôts réelle";
+// Demande du propriétaire (07.08.2026) : « si je mets 2'500 CHF de côté pour
+// les impôts, ce montant doit apparaître correctement… il faut une source de
+// données cohérente, pas deux calculs indépendants ». Avant, S.taxReserve
+// était un nombre tapé à la main, relié à aucun mouvement.
+await goHome();
+{
+  const r = await page.evaluate(() => {
+    const avant = taxSummary(NOW.y);
+    // Un vrai envoi de 2'500 rangé dans « Impôts », comme en crée une charge
+    // régulière de nature « mis de côté ».
+    addTx({ id: 91001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Provision impôts E2E",
+      amount: 2500, type: "saving", cat: "Impôts",
+      acc: defaultCashAccount(), dest: null, status: "posted" });
+    const apres = taxSummary(NOW.y);
+    const snap = snapshot(NOW.y, NOW.m);
+    return {
+      avantReserve: avant.reserved, apresReserve: apres.reserved,
+      depuisMouvements: apres.reservedFromMovements,
+      report: apres.reservedManual,
+      gapAvant: avant.reserveGap, gapApres: apres.reserveGap,
+      // La même vérité doit servir le dashboard : jamais deux formules.
+      gapDashboard: snap.taxGap,
+    };
+  });
+  check(Math.abs((r.apresReserve - r.avantReserve) - 2500) < 0.02,
+    `mettre 2'500 de côté remplit la provision sans rien retaper (${r.avantReserve} → ${r.apresReserve})`);
+  check(Math.abs(r.depuisMouvements - 2500) < 0.02,
+    `la part « vos envois » vaut exactement le mouvement (${r.depuisMouvements})`);
+  check(r.report >= 0 && Math.abs(r.apresReserve - (r.depuisMouvements + r.report)) < 0.02,
+    `le report saisi n'est pas effacé, il s'ajoute (report ${r.report})`);
+  check(r.gapApres <= r.gapAvant,
+    `ce qui reste à réserver diminue d'autant (${r.gapAvant} → ${r.gapApres})`);
+  check(Math.abs(r.gapDashboard - r.gapApres) < 0.02,
+    `l'accueil consomme la MÊME vérité que l'écran Impôts (${r.gapDashboard} vs ${r.gapApres})`);
+  // Un paiement d'impôts reste un paiement, pas une provision.
+  const p = await page.evaluate(() => {
+    const avant = taxSummary(NOW.y);
+    addTx({ id: 91002, y: NOW.y, m: NOW.m, d: NOW.d, title: "Acompte E2E",
+      amount: 800, type: "taxPayment", cat: "Impôts",
+      acc: defaultCashAccount(), dest: null, status: "posted" });
+    const apres = taxSummary(NOW.y);
+    return { payeAvant: avant.paid, payeApres: apres.paid,
+             reserveAvant: avant.reserved, reserveApres: apres.reserved };
+  });
+  check(Math.abs((p.payeApres - p.payeAvant) - 800) < 0.02,
+    `un acompte payé augmente « déjà payé » (${p.payeAvant} → ${p.payeApres})`);
+  check(Math.abs(p.reserveApres - p.reserveAvant) < 0.02,
+    "un acompte payé n'est PAS compté comme une provision — payer et réserver sont deux gestes");
+  await page.evaluate(() => {
+    for (const id of [91001, 91002]) {
+      const i = transactions.findIndex(t => t.id === id);
+      if (i >= 0) transactions.splice(i, 1);
+    }
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5314,4 +5374,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 106 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 107 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle), zéro erreur console ✓");
