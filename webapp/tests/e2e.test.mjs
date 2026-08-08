@@ -5489,6 +5489,72 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 110 : un objectif ne vieillit plus en silence ------------
+currentTest = "objectif relié par défaut";
+// Audit des connexions : un objectif à saisie manuelle est juste le jour où
+// on l'écrit, puis chaque virement le laisse en arrière sans le dire. Relié
+// au compte, il suit le solde et reste vrai tout seul.
+await goHome();
+{
+  await page.evaluate(() => { activeTab = "more"; moreView = "goals"; render(); });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => openGoalSheet(null));
+  await page.waitForSelector("#goalForm", { state: "visible" });
+  const neuf = await page.evaluate(() => {
+    const sel = document.getElementById("gLinked");
+    const compte = ACCOUNTS.find(a => a.id === sel.value);
+    return {
+      relie: !!sel.value,
+      estEpargne: compte ? compte.kind : null,
+      // Le champ manuel n'a pas de sens quand un compte est relié.
+      manuelCache: getComputedStyle(document.getElementById("gCurrent")).display === "none",
+    };
+  });
+  check(neuf.relie, "un objectif NEUF est relié à un compte par défaut");
+  check(neuf.estEpargne === "savings",
+    `et c'est le compte d'épargne qui est proposé (obtenu ${neuf.estEpargne})`);
+  check(neuf.manuelCache,
+    "le champ « déjà là » disparaît quand un compte est relié — sinon c'est une saisie ignorée");
+
+  // Choisir la saisie manuelle le fait réapparaître : l'exception reste
+  // possible, pour un objectif sans compte dans l'app.
+  const manuel = await page.evaluate(() => {
+    const sel = document.getElementById("gLinked");
+    sel.value = "";
+    sel.dispatchEvent(new Event("change"));
+    return getComputedStyle(document.getElementById("gCurrent")).display !== "none";
+  });
+  check(manuel, "choisir la saisie manuelle redonne le champ — l'exception reste possible");
+  await page.click("#gCancel");
+  await page.waitForTimeout(150);
+
+  // Et la preuve qui compte : un objectif relié SUIT le solde.
+  const suit = await page.evaluate(() => {
+    const compte = ACCOUNTS.find(a => a.kind === "savings");
+    GOALS.push({ id: "t-goal-c5", name: "Suivi E2E", emoji: "🎯", target: 99999,
+      manualCurrent: 12, linked: compte.id, monthly: 0,
+      dueY: NOW.y + 1, dueM: NOW.m, priority: false, achieved: false });
+    const g = GOALS.find(x => x.id === "t-goal-c5");
+    const avant = goalCurrent(g);
+    addTx({ id: 94001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Virement objectif E2E",
+      amount: 400, type: "saving", cat: "Épargne",
+      acc: defaultCashAccount(), dest: compte.id, status: "posted" });
+    return { avant, apres: goalCurrent(g), manuel: g.manualCurrent };
+  });
+  check(Math.abs((suit.apres - suit.avant) - 400) < 0.02,
+    `un virement de 400 fait avancer l'objectif tout seul (${suit.avant} → ${suit.apres})`);
+  check(suit.manuel === 12 && Math.abs(suit.apres - 12) > 1,
+    "et le vieux montant saisi est ignoré, pas effacé — la donnée du propriétaire reste");
+  await page.evaluate(() => {
+    const i = GOALS.findIndex(x => x.id === "t-goal-c5");
+    if (i >= 0) GOALS.splice(i, 1);
+    const j = transactions.findIndex(t => t.id === 94001);
+    if (j >= 0) transactions.splice(j, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5498,4 +5564,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 109 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 110 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut), zéro erreur console ✓");

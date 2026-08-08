@@ -1180,7 +1180,7 @@
       <input id="gTarget" data-primary-amount inputmode="decimal" placeholder="10000.00" autocomplete="off" />
       <label for="gLinked">Suivre le solde d'un compte</label>
       <select id="gLinked"></select>
-      <label for="gCurrent">Déjà là (si pas relié à un compte, <span class="curlabel">CHF</span>, si non lié)</label>
+      <label for="gCurrent" id="gCurrentLabel">Déjà là (<span class="curlabel">CHF</span>)</label>
       <input id="gCurrent" inputmode="decimal" placeholder="0.00" autocomplete="off" />
       <label for="gMonthly">Ce que vous mettez chaque mois (<span class="curlabel">CHF</span> / mois)</label>
       <input id="gMonthly" inputmode="decimal" placeholder="200.00" autocomplete="off" />
@@ -3731,6 +3731,17 @@ function renderAccounts() {
 function goalCurrent(g) {
   return g.linked ? toCHF(balance(g.linked), accountCurrency(g.linked)) : (g.manualCurrent || 0);
 }
+/* Le champ « déjà là » ne veut rien dire quand un compte est relié : c'est
+   le solde qui fait foi. Le laisser visible invitait à saisir un chiffre qui
+   serait ignoré — la double saisie en plus petit. */
+function refreshGoalManualField() {
+  const lie = !!document.getElementById("gLinked").value;
+  for (const id of ["gCurrentLabel", "gCurrent"]) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = lie ? "none" : "";
+  }
+}
+
 function goalMonthsLeft(g) {
   return Math.max(0, (g.dueY - NOW.y) * 12 + (g.dueM - NOW.m));
 }
@@ -3767,7 +3778,9 @@ function renderGoals() {
       </div>
       <div class="track" role="progressbar" aria-valuenow="${Math.round(fr * 100)}" aria-valuemin="0" aria-valuemax="100"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div>
       <div class="breakdown" style="margin-top:10px">
-        <div><span>${g.linked ? "Déjà là (sur le compte)" : "Déjà là"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
+        <div><span>${g.linked
+          ? `Sur « ${esc((ACCOUNTS.find(a => a.id === g.linked) || {}).name || "le compte")} »`
+          : "Montant que vous avez saisi"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
         <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠️ passée" : ""}</span></div>
         ${g.achieved ? "" : `
         <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}" aria-label="${chf(paceMonthly)} par mois — ${onTrack ? "dans les temps" : "en dessous du rythme nécessaire"}">${chf(paceMonthly)} / mois <span aria-hidden="true">${onTrack ? "✓" : "⚠️"}</span></span></div>
@@ -7084,8 +7097,17 @@ function openGoalSheet(goal) {
   if (goal) achieveBtn.textContent = goal.achieved ? "Réactiver cet objectif" : "Marquer comme atteint 🎉";
   const linkedSelect = document.getElementById("gLinked");
   const linkable = ACCOUNTS.filter(a => ["savings", "pension"].includes(a.kind));
-  linkedSelect.innerHTML = '<option value="">— (saisie manuelle)</option>'
+  linkedSelect.innerHTML = '<option value="">Je saisis le montant moi-même</option>'
     + linkable.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
+  // C5 (07.08.2026) — un objectif NEUF est relié par défaut. Un objectif à
+  // saisie manuelle est juste le jour où on l'écrit, puis vieillit en
+  // silence : chaque virement le laisse en arrière sans le dire. Relié, il
+  // suit le solde et reste vrai tout seul. La saisie manuelle reste possible
+  // — pour un objectif sans compte dans l'app — mais devient l'exception.
+  if (!goal) {
+    const defaut = linkable.find(a => a.kind === "savings") || linkable[0];
+    linkedSelect.value = defaut ? defaut.id : "";
+  }
   if (goal) {
     document.getElementById("gName").value = goal.name;
     document.getElementById("gEmoji").value = goal.emoji || "";
@@ -7096,10 +7118,12 @@ function openGoalSheet(goal) {
     document.getElementById("gDue").value = `${goal.dueY}-${String(goal.dueM).padStart(2, "0")}`;
     document.getElementById("gPriority").checked = !!goal.priority;
   }
+  refreshGoalManualField();
   document.getElementById("gError").textContent = "";
   openSheet("goalForm");
   document.getElementById("gName").focus();
 }
+document.getElementById("gLinked").addEventListener("change", refreshGoalManualField);
 document.getElementById("gCancel").addEventListener("click", () => backdrop.classList.remove("open"));
 document.getElementById("goalForm").addEventListener("submit", (e) => {
   e.preventDefault();
