@@ -5236,8 +5236,9 @@ await goHome();
   check(apres.actif === 2, `le point touché devient le point actif (obtenu ${apres.actif})`);
   // Et la tuile « Mis de côté » ne peut plus être confondue avec le reste.
   const explication = await page.evaluate(() => document.getElementById("screen").innerText);
-  check(/Mis de côté.*argent envoyé vers vos comptes d'épargne/s.test(explication),
-    "« Mis de côté » est expliqué à côté de la tuile, pas laissé à deviner");
+  check(/Où va votre argent mis de côté/.test(explication)
+      || /Mis de côté.*argent envoyé vers vos comptes/s.test(explication),
+    "« Mis de côté » ne se devine pas : soit la phrase, soit la répartition poche par poche");
   await goHome();
 }
 
@@ -5431,6 +5432,63 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 109 : où va l'argent mis de côté, sans double compte ------
+currentTest = "répartition du mis de côté";
+// « Je veux comprendre combien est destiné aux impôts, au 3e pilier, aux
+// autres objectifs… il faut vérifier que les calculs ne comptabilisent pas
+// deux fois le même montant. » La garantie doit être STRUCTURELLE : chaque
+// mouvement tombe dans UNE seule poche.
+await goHome();
+{
+  const r = await page.evaluate(() => {
+    const compteEpargne = ACCOUNTS.find(a => a.kind === "savings");
+    const comptePrev = ACCOUNTS.find(a => a.kind === "pension");
+    // Le piège : un compte d'épargne qui sert À LA FOIS de provision
+    // d'impôts et d'objectif. Sans priorité, les 300 seraient comptés deux
+    // fois et le total ne tomberait plus juste.
+    GOALS.push({ id: "t-goal-c4", name: "Objectif E2E", emoji: "🎯", target: 5000,
+      manualCurrent: 0, linked: compteEpargne.id, monthly: 0,
+      dueY: NOW.y + 1, dueM: NOW.m, priority: false, achieved: false });
+    const base = misDeCoteParDestination(NOW.y, NOW.m);
+    addTx({ id: 93001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Impôts C4",
+      amount: 300, type: "saving", cat: "Impôts",
+      acc: defaultCashAccount(), dest: compteEpargne.id, status: "posted" });
+    addTx({ id: 93002, y: NOW.y, m: NOW.m, d: NOW.d, title: "3a C4",
+      amount: 200, type: "investment", cat: "Pilier 3a",
+      acc: defaultCashAccount(), dest: comptePrev.id, status: "posted" });
+    addTx({ id: 93003, y: NOW.y, m: NOW.m, d: NOW.d, title: "Objectif C4",
+      amount: 150, type: "saving", cat: "Épargne",
+      acc: defaultCashAccount(), dest: compteEpargne.id, status: "posted" });
+    const d = misDeCoteParDestination(NOW.y, NOW.m);
+    const snap = snapshot(NOW.y, NOW.m);
+    return { base, d,
+      somme: round2(d.impots + d.prevoyance + d.objectifs + d.autres),
+      misDeCoteSnapshot: round2(snap.savings + snap.invest) };
+  });
+  const d = r.d;
+  check(Math.abs((d.impots - r.base.impots) - 300) < 0.02,
+    `les 300 vers « Impôts » vont dans la poche impôts (${d.impots})`);
+  check(Math.abs((d.prevoyance - r.base.prevoyance) - 200) < 0.02,
+    `les 200 vers le 3e pilier vont dans la poche prévoyance (${d.prevoyance})`);
+  check(Math.abs((d.objectifs - r.base.objectifs) - 150) < 0.02,
+    `les 150 vers le compte d'un objectif vont dans la poche objectifs (${d.objectifs})`);
+  // LE contrôle qui compte : les parts font exactement le total, ni plus ni moins.
+  check(Math.abs(r.somme - d.total) < 0.02,
+    `les quatre poches font EXACTEMENT le total, aucun franc compté deux fois (${r.somme} vs ${d.total})`);
+  check(Math.abs(d.total - r.misDeCoteSnapshot) < 0.02,
+    `et ce total est celui de l'accueil, pas un deuxième calcul (${d.total} vs ${r.misDeCoteSnapshot})`);
+  await page.evaluate(() => {
+    for (const id of [93001, 93002, 93003]) {
+      const i = transactions.findIndex(t => t.id === id);
+      if (i >= 0) transactions.splice(i, 1);
+    }
+    const g = GOALS.findIndex(x => x.id === "t-goal-c4");
+    if (g >= 0) GOALS.splice(g, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5440,4 +5498,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 108 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 109 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté), zéro erreur console ✓");

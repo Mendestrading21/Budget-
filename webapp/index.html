@@ -2166,6 +2166,39 @@ function pensionPositionsTotal() {
     .reduce((a, p) => a + (p.value || 0), 0));
 }
 /* Le total À MONTRER sur l'écran Prévoyance : tout, lié ou non. */
+/* C4 (07.08.2026) — OÙ VA CHAQUE FRANC MIS DE CÔTÉ.
+   « Je veux pouvoir comprendre rapidement combien j'ai mis de côté, combien
+   est destiné aux impôts, combien au 3e pilier, combien aux autres objectifs,
+   et ce qu'il me reste réellement. Il faut vérifier que les calculs ne
+   comptabilisent pas deux fois le même montant. »
+
+   La garantie est STRUCTURELLE, pas déclarative : chaque mouvement tombe dans
+   UNE seule poche, dans cet ordre de priorité. Un virement vers un compte
+   d'épargne qui sert à la fois de provision d'impôts et d'objectif est donc
+   compté une fois, du côté des impôts. Les parts s'additionnent exactement au
+   total, par construction — le test le vérifie au centime. */
+function misDeCoteParDestination(y, m) {
+  const envois = transactions.filter(t => inMonth(t, y, m) && t.status === "posted"
+    && (t.type === "saving" || t.type === "investment"));
+  const comptesObjectifs = new Set(GOALS.map(g => g.linked).filter(Boolean));
+  const comptesPrevoyance = new Set(ACCOUNTS
+    .filter(a => ["pension", "lifeinsurance"].includes(a.kind)).map(a => a.id));
+  const poches = { impots: 0, prevoyance: 0, objectifs: 0, autres: 0 };
+  for (const t of envois) {
+    const c = toCents(txCHF(t));
+    if (t.cat === "Impôts") poches.impots += c;
+    else if (t.cat === "Pilier 3a" || comptesPrevoyance.has(t.dest)) poches.prevoyance += c;
+    else if (comptesObjectifs.has(t.dest)) poches.objectifs += c;
+    else poches.autres += c;
+  }
+  const total = poches.impots + poches.prevoyance + poches.objectifs + poches.autres;
+  return {
+    total: fromCents(total), impots: fromCents(poches.impots),
+    prevoyance: fromCents(poches.prevoyance), objectifs: fromCents(poches.objectifs),
+    autres: fromCents(poches.autres),
+  };
+}
+
 function pensionDisplayTotal() {
   return round2(PENSIONS.reduce((a, p) => a + pensionValue(p), 0));
 }
@@ -3120,7 +3153,25 @@ function renderSimpleHome() {
     <div class="stat">${metricLabel("À payer")}${metricAmount(toPay, "warn")}</div>
     <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}</div>
   </div>
-  <p class="caption" style="margin:-4px 0 10px;padding:0 4px">« Mis de côté » = l'argent envoyé vers vos comptes d'épargne ce mois. Ce n'est pas ce qui vous reste : ça, c'est « Disponible », en haut.</p>`;
+  ${(() => {
+    // La répartition DIT ce que « mis de côté » veut dire, mieux qu'une
+    // phrase d'explication : on voit où va l'argent, poche par poche.
+    const d = misDeCoteParDestination(y, m);
+    if (!(d.total > 0)) {
+      return `<p class="caption" style="margin:-4px 0 10px;padding:0 4px">« Mis de côté » = l'argent envoyé vers vos comptes. Ce n'est pas ce qui vous reste : ça, c'est « Disponible ».</p>`;
+    }
+    const lignes = [
+      ["Impôts", d.impots], [L("pensionKind"), d.prevoyance],
+      ["Objectifs", d.objectifs], ["Épargne libre", d.autres],
+    ].filter(([, v]) => v > 0);
+    return `<div class="card" style="margin:-2px 0 10px">
+      <p class="card-label">Où va votre argent mis de côté</p>
+      <div class="breakdown">
+        ${lignes.map(([nom, v]) => `<div><span>${esc(nom)}</span><span>${chf(v)}</span></div>`).join("")}
+      </div>
+      <p class="caption" style="margin:8px 0 0">Total ${chf(d.total)} — cet argent reste à vous, il n'est pas dépensé.</p>
+    </div>`;
+  })()}`;
 
   /* Le mois se lit dans l'ordre où on le vit : ce qui doit RENTRER, puis ce
      qui doit SORTIR. L'accueil simplifié n'offrait aucune action pour dire
