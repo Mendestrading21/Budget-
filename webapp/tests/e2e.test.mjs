@@ -5365,6 +5365,72 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 108 : la prévoyance n'est plus comptée deux fois ----------
+currentTest = "prévoyance sans double compte";
+// Demande du propriétaire (07.08.2026) : « chaque versement mensuel doit être
+// enregistré et additionné… si un versement de 500 est enregistré depuis le
+// budget mensuel, je ne dois pas devoir retourner dans la page 3e pilier
+// pour saisir une nouvelle fois ces 500 ».
+// Et le défaut trouvé à l'audit : le patrimoine additionnait les COMPTES de
+// prévoyance ET les POSITIONS saisies à la main. Rien n'empêchait de compter
+// deux fois le même argent, en faveur de l'utilisateur — le pire sens.
+await goHome();
+{
+  const r = await page.evaluate(() => {
+    const compte = ACCOUNTS.find(a => a.kind === "pension");
+    const soldeCompte = toCHF(balance(compte.id), compte.currency);
+    const patrimoine = () => {
+      const liquide = ACCOUNTS.filter(a => a.cash)
+        .reduce((s, a) => s + toCents(toCHF(balance(a.id), a.currency)), 0);
+      const placements = ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))
+        .reduce((s, a) => s + toCents(toCHF(balance(a.id), a.currency)), 0);
+      const prev = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
+        .reduce((s, a) => s + toCents(toCHF(balance(a.id), a.currency)), 0);
+      const biens = ASSETS.filter(x => x.include !== false).reduce((s, x) => s + toCents(x.value), 0);
+      return (liquide + placements + prev + toCents(pensionPositionsTotal()) + biens
+        - toCents(liabilitiesTotal())) / 100;
+    };
+    const avant = patrimoine();
+    // La position LIÉE au compte : elle ne doit rien ajouter au patrimoine,
+    // le solde du compte y est déjà.
+    PENSIONS.push({ id: "t-pen-lie", name: "3a lié E2E", value: 9999,
+      accountId: compte.id, icon: "🛡️" });
+    const apresLie = patrimoine();
+    const valeurAffichee = pensionValue(PENSIONS.find(p => p.id === "t-pen-lie"));
+    // Un versement de 500 vers ce compte doit remonter TOUT SEUL.
+    addTx({ id: 92001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Versement 3a E2E",
+      amount: 500, type: "investment", cat: "Pilier 3a",
+      acc: defaultCashAccount(), dest: compte.id, status: "posted" });
+    const apresVersement = pensionValue(PENSIONS.find(p => p.id === "t-pen-lie"));
+    const affiche = pensionDisplayTotal();
+    // Une position NON liée garde exactement son ancien comportement.
+    PENSIONS.push({ id: "t-pen-libre", name: "LPP libre E2E", value: 1000, icon: "🛡️" });
+    const apresLibre = patrimoine();
+    return { soldeCompte, avant, apresLie, valeurAffichee, apresVersement,
+             affiche, apresLibre };
+  });
+  check(Math.abs(r.apresLie - r.avant) < 0.02,
+    `une position LIÉE n'ajoute rien au patrimoine — le solde y est déjà (${r.avant} → ${r.apresLie})`);
+  check(Math.abs(r.valeurAffichee - r.soldeCompte) < 0.02,
+    `elle AFFICHE le solde du compte, pas la valeur résiduelle saisie (${r.valeurAffichee} vs ${r.soldeCompte}, résidu 9999)`);
+  check(Math.abs(r.apresVersement - (r.soldeCompte + 500)) < 0.02,
+    `un versement de 500 remonte tout seul, sans ressaisie (${r.soldeCompte} → ${r.apresVersement})`);
+  check(r.affiche >= r.apresVersement - 0.02,
+    `l'écran Prévoyance montre bien la valeur vivante (total ${r.affiche})`);
+  check(Math.abs((r.apresLibre - r.apresLie) - 1000) < 0.02,
+    `une position NON liée continue de compter, comme avant (${r.apresLie} → ${r.apresLibre})`);
+  await page.evaluate(() => {
+    for (const id of ["t-pen-lie", "t-pen-libre"]) {
+      const i = PENSIONS.findIndex(p => p.id === id);
+      if (i >= 0) PENSIONS.splice(i, 1);
+    }
+    const j = transactions.findIndex(t => t.id === 92001);
+    if (j >= 0) transactions.splice(j, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5374,4 +5440,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 107 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 108 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte), zéro erreur console ✓");

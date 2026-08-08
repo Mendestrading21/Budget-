@@ -1328,6 +1328,9 @@
       <h3 id="penSheetTitle">Nouvelle prévoyance</h3>
       <label for="penName">Nom (caisse, banque…)</label>
       <input id="penName" placeholder="Caisse LPP (2e pilier)" autocomplete="off" />
+      <label for="penAccount">Compte lié (facultatif)</label>
+      <select id="penAccount"></select>
+      <p class="caption" style="margin:4px 0 0">Reliez cette ligne au compte où vous versez : le total suivra vos versements tout seul, et rien ne sera compté deux fois dans votre patrimoine.</p>
       <label for="penValue">Valeur actuelle (<span class="curlabel">CHF</span>)</label>
       <input id="penValue" data-primary-amount inputmode="decimal" placeholder="85000.00" autocomplete="off" />
       <label for="penProjection">Montant prévu à la retraite (selon votre certificat, <span class="curlabel">CHF</span>, selon certificat, facultatif)</label>
@@ -1604,7 +1607,7 @@ function projectWealth(years) {
   const liquid = ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))
     .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
-  const pensionManual = PENSIONS.reduce((a, p) => a + p.value, 0);
+  const pensionManual = pensionPositionsTotal();
   const liabTotal = liabilitiesTotal();
   return projected + liquid + assetsTotal + pensionManual - liabTotal;
 }
@@ -2132,6 +2135,40 @@ const GOALS = S.goals;
 const ASSETS = S.assets;
 const LIABILITIES = S.liabilities;
 const PENSIONS = S.pensions;
+
+/* C3 (07.08.2026) — FIN DU DOUBLE COMPTE DE LA PRÉVOYANCE.
+   Le patrimoine additionnait les COMPTES de prévoyance ET les POSITIONS
+   saisies à la main. Rien n'empêchait de compter deux fois le même argent,
+   et l'erreur allait dans le sens de l'utilisateur : le pire pour un chiffre
+   censé dire ce qu'on possède.
+
+   Champ ADDITIF `accountId` sur une position. Quand il désigne un compte
+   réel, la position ne porte plus de valeur propre : elle AFFICHE le solde
+   du compte. Un versement mensuel de 500 alimente donc le total tout seul —
+   plus besoin de retourner le saisir ici, ce qui était la demande.
+
+   Et comme ce solde est déjà compté dans les comptes de prévoyance, la
+   position liée est retirée du cumul manuel : une seule fois, jamais deux.
+   Une position sans compte lié garde exactement son comportement d'avant. */
+function pensionIsLinked(p) {
+  return !!(p && p.accountId && ACCOUNTS.some(a => a.id === p.accountId));
+}
+function pensionValue(p) {
+  if (!p) return 0;
+  if (!pensionIsLinked(p)) return p.value || 0;
+  const compte = ACCOUNTS.find(a => a.id === p.accountId);
+  return toCHF(balance(compte.id), compte.currency);
+}
+/* Le cumul À AJOUTER au patrimoine : uniquement les positions NON liées.
+   Les autres sont déjà dans le solde des comptes. */
+function pensionPositionsTotal() {
+  return round2(PENSIONS.filter(p => !pensionIsLinked(p))
+    .reduce((a, p) => a + (p.value || 0), 0));
+}
+/* Le total À MONTRER sur l'écran Prévoyance : tout, lié ou non. */
+function pensionDisplayTotal() {
+  return round2(PENSIONS.reduce((a, p) => a + pensionValue(p), 0));
+}
 const INSURANCES = S.insurances;
 
 function saveState() {
@@ -2694,7 +2731,7 @@ function renderHome() {
   const savingsTotal = ACCOUNTS.filter(a => a.kind === "savings").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const brokerageTotal = ACCOUNTS.filter(a => a.kind === "brokerage").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const pensionAccounts = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const pensionPositions = PENSIONS.reduce((a, p) => a + p.value, 0);
+  const pensionPositions = pensionPositionsTotal();
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const liabTotal = liabilitiesTotal();
   const insuranceMonthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
@@ -3028,7 +3065,7 @@ function renderSimpleHome() {
   const prevoyance = fromCents(
     ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
       .reduce((acc, a) => acc + toCents(toCHF(balance(a.id), a.currency)), 0)
-    + PENSIONS.reduce((acc, p) => acc + toCents(p.value), 0));
+    + toCents(pensionPositionsTotal()));
   const biens = fromCents(ASSETS.filter(x => x.include !== false)
     .reduce((acc, x) => acc + toCents(x.value), 0));
   const patrimoine = round2(cash + placements + prevoyance + biens - liabilitiesTotal());
@@ -3225,7 +3262,7 @@ function renderSimpleHome() {
     const netWorth = round2(
       ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
       + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
-      + PENSIONS.reduce((a, x) => a + x.value, 0)
+      + pensionPositionsTotal()
       - liabilitiesTotal());
     const prio = GOALS.filter(g => !g.achieved);
 
@@ -3988,7 +4025,7 @@ function renderYearReview() {
 function renderNetWorth() {
   const accountsTotal = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
-  const pensionTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
+  const pensionTotal = pensionPositionsTotal();
   const liabTotal = liabilitiesTotal();
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
   // Courbes DÉRIVÉES des soldes réels de fin de mois, sur 12 mois, par
@@ -4148,7 +4185,7 @@ function renderInsurance() {
     <p class="section-title">Prévoyance</p>
     ${(() => {
       // L6 : total constitué + versements de l'année — valeurs existantes.
-      const positionsTotal = PENSIONS.reduce((a, x) => a + x.value, 0);
+      const positionsTotal = pensionDisplayTotal();
       const acc = contributionsFor(["pension", "lifeinsurance"]);
       if (positionsTotal <= 0 && acc.total <= 0) return "";
       return `<div class="card">
@@ -4159,8 +4196,10 @@ function renderInsurance() {
     })()}
     ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez ce qui est écrit sur vos certificats pour voir votre total.</span></div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡️"}</div>
-      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">Le montant de votre certificat</div></div>
-      <span class="amount acct-total">${chf(p.value)}</span></div>
+      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">${pensionIsLinked(p)
+        ? `Suit le solde de « ${esc((ACCOUNTS.find(a => a.id === p.accountId) || {}).name || "")} »`
+        : "Le montant de votre certificat"}</div></div>
+      <span class="amount acct-total">${chf(pensionValue(p))}</span></div>
       ${p.projection ? `<div class="breakdown" style="margin-top:10px">
         <div><span>Prévu à 65 ans, selon le certificat</span><span>${chf(p.projection)}</span></div>
       </div>` : ""}</div>`).join("")}
@@ -7446,9 +7485,16 @@ function openPenSheet(position) {
   document.getElementById("penForm").reset();
   document.getElementById("penSheetTitle").textContent = position ? "Modifier la prévoyance" : "Nouvelle prévoyance";
   document.getElementById("penDelete").style.display = position ? "block" : "none";
+  // Seuls les comptes de prévoyance ont un sens ici — lier un 3e pilier à un
+  // compte courant ferait entrer le salaire dans la prévoyance.
+  const sel = document.getElementById("penAccount");
+  sel.innerHTML = `<option value="">Aucun — je saisis la valeur moi-même</option>`
+    + ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
+      .map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
+  sel.value = position && position.accountId ? position.accountId : "";
   if (position) {
     document.getElementById("penName").value = position.name;
-    document.getElementById("penValue").value = position.value.toFixed(2);
+    document.getElementById("penValue").value = (position.value || 0).toFixed(2);
     document.getElementById("penProjection").value = position.projection ? position.projection.toFixed(2) : "";
   }
   document.getElementById("penError").textContent = "";
@@ -7461,12 +7507,18 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const err = document.getElementById("penError");
   const name = document.getElementById("penName").value.trim();
   if (!name) { err.textContent = "Donnez un nom à cette prévoyance."; return; }
-  const value = parseAmountField(document.getElementById("penValue").value);
-  if (!(value > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 85000.00"; return; }
+  const accountId = document.getElementById("penAccount").value || null;
+  const lie = !!accountId && ACCOUNTS.some(a => a.id === accountId);
+  // Une position LIÉE tire sa valeur du compte : exiger un montant en plus
+  // serait exactement la double saisie qu'on supprime.
+  const brut = document.getElementById("penValue").value.trim();
+  const value = brut === "" && lie ? 0 : parseAmountField(brut);
+  if (!lie && !(value > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 85000.00"; return; }
+  if (lie && brut !== "" && !(value >= 0)) { err.textContent = "Ce montant n'est pas valable."; return; }
   const projectionRaw = document.getElementById("penProjection").value.trim();
   const projection = projectionRaw === "" ? null : parseAmountField(projectionRaw);
   if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Le montant prévu à 65 ans n'est pas valable."; return; }
-  const data = { name, value, projection };
+  const data = { name, value, projection, accountId };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
   if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
   else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Prévoyance ajoutée"); }
