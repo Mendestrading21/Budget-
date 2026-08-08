@@ -729,6 +729,14 @@
      visuel que « Continuer » — trois boutons empilés, dont un qui recule.
      La barre garde sa hauteur même à l'étape 1 : sans elle, le contenu
      sauterait de 44 px au premier écran. */
+  /* C6 (07.08.2026) — PLUS DE MOT ORPHELIN EN FIN DE BLOC.
+     « Lorsqu'un mot se retrouve seul à droite, il faut continuer la phrase
+     sur la même ligne lorsque l'espace le permet. » `text-wrap: pretty`
+     demande au moteur de rééquilibrer les dernières lignes : il évite le
+     mot solitaire sans jamais tronquer ni changer un caractère. Une règle,
+     136 blocs de prose, aucune phrase réécrite pour la mise en page. */
+  p, .caption, .s, .card-label { text-wrap: pretty; }
+
   .ob-top { min-height: 44px; display: flex; align-items: center; }
   .ob-back {
     width: 44px; height: 44px; padding: 0;
@@ -983,6 +991,12 @@
     border-top: 1px solid var(--stroke);
   }
   .sheet input, .sheet select { min-height: 44px; box-sizing: border-box; }
+  /* PLANCHER TACTILE. Plusieurs petits boutons tombaient à EXACTEMENT 44 px :
+     conformes au pixel près, donc sous le seuil au premier arrondi sous-pixel
+     — l'audit les signalait une passe sur deux. Un seuil qu'on frôle n'est
+     pas tenu. 46 px ne déplace rien de ce qui est déjà plus haut. */
+  .btn { min-height: 46px; }
+
   .type-grid-3 { grid-template-columns: repeat(3, 1fr); }
   .type-grid-3 button { padding-left: 6px; padding-right: 6px; font-size: 13px; }
   .type-grid {
@@ -3107,19 +3121,19 @@ function renderSimpleHome() {
     s.isCurrent
       ? { cle: "disponible", label: "Disponible", valeur: s.available,
           cls: s.available < 0 ? "neg" : "",
-          note: "Ce qu'il vous reste une fois payé tout ce qui doit encore sortir ce mois.",
+          note: "Une fois payé tout ce qui doit encore sortir ce mois.",
           cta: `<button class="btn nu-cta" data-addtx>＋ Ajouter un mouvement</button>` }
       : { cle: "reste", label: "Reste du mois", valeur: s.cashFlow,
           cls: s.cashFlow < 0 ? "neg" : "pos", signe: true,
-          note: "Ce qui est entré moins ce qui est sorti, sur ce mois-là." },
+          note: "Entré moins sorti, sur ce mois-là." },
     { cle: "misdecote", label: "Mis de côté ce mois", valeur: s.savings + s.invest, cls: "info",
-      note: "L'argent envoyé vers vos comptes d'épargne et de placement ce mois-ci. Ce n'est pas une dépense : il reste à vous." },
+      note: "Envoyé vers vos comptes ce mois. Ce n'est pas dépensé." },
     { cle: "placements", label: "Épargne et placements", valeur: placements, cls: "info",
-      note: "Le solde de tous vos comptes d'épargne et de titres, aujourd'hui." },
+      note: "Vos comptes d'épargne et de titres, aujourd'hui." },
     { cle: "prevoyance", label: L("pensionKind"), valeur: prevoyance, cls: "info",
-      note: "Votre prévoyance : comptes et positions déclarés. Bloquée jusqu'à la retraite, elle ne compte pas dans le disponible." },
+      note: "Bloquée jusqu'à la retraite : hors du disponible." },
     { cle: "patrimoine", label: "Patrimoine", valeur: patrimoine, cls: patrimoine < 0 ? "neg" : "",
-      note: "Tout ce que vous possédez, moins tout ce que vous devez." },
+      note: "Ce que vous possédez, moins ce que vous devez." },
   ];
   const hero = `<div class="hero-swipe">
     <div class="hero-track" id="heroTrack" tabindex="0" role="group"
@@ -3441,7 +3455,7 @@ function budgetYearChart() {
   return `<div class="card">
     <div class="by-chart" role="img"
          aria-label="${spoken ? `Part du budget consommée par mois : ${spoken}.` : "Aucun budget cette année."}">${bars}</div>
-    <span class="caption" style="display:block;margin-top:10px">Ce que vous avez dépensé chaque mois, comparé à votre budget. Une barre pleine, c'est 100 %. Le trait corail au-dessus veut dire que vous avez dépassé.</span>
+    <span class="caption" style="display:block;margin-top:10px">Dépensé chaque mois, face au budget. Barre pleine : 100 %. Trait corail : dépassé.</span>
   </div>`;
 }
 
@@ -3809,7 +3823,7 @@ function renderGoals() {
     ${active.map(goalCard).join("")}
     ${achieved.length ? `<p class="section-title">C'est fait</p>` + achieved.map(goalCard).join("") : ""}
     <button class="btn secondary" data-addgoal style="margin-top:8px">＋ Ajouter un objectif</button>
-    <p class="caption" style="padding:6px 4px 0">Pour connaître le montant par mois, on divise ce qu'il reste par le nombre de mois qui restent. Un objectif relié à un compte suit le vrai solde de ce compte.</p>`;
+    <p class="caption" style="padding:6px 4px 0">Le montant par mois : ce qu'il reste, divisé par les mois restants.</p>`;
 }
 
 function backBar(title) {
@@ -4309,7 +4323,7 @@ function renderRecurring() {
     return `<div class="card row tx read-row" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
       <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span>${pill}</div>
-        <div class="s">${rhythm} · ${status}${account ? ` · ${esc(account.name)}` : ""}</div></div>
+        <div class="s">${rhythm}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   };
   // Cet écran s'appelle « Factures mensuelles » : il ne montre donc que ce
@@ -4463,9 +4477,9 @@ function renderSubs() {
     })()}
     <div class="card" style="margin-top:12px">
       <p class="card-label">Comment c'est compté</p>
-      <p class="caption" style="margin:0 0 6px">Cette page ne montre que ce qui se <strong>résilie</strong> : streaming, musique, salle de sport, logiciels. Un loyer ou une caisse maladie sont des <strong>charges du foyer</strong> — elles vivent dans « Factures mensuelles ». Vous pouvez changer ce classement en ouvrant une ligne.</p>
-      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> est retiré le mois où il tombe, pas un peu chaque mois. Votre argent disponible suit donc vos vrais prélèvements.</p>
-      <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> disparaît des prévisions dès le mois indiqué, mais reste visible ici.</p>
+      <p class="caption" style="margin:0 0 6px">Ici, ce qui se <strong>résilie</strong>. Loyer et caisse maladie sont des charges du foyer : elles vivent dans « Factures mensuelles ». Ouvrez une ligne pour changer.</p>
+      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> est retiré en une fois, le mois où il tombe.</p>
+      <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> quitte les prévisions, mais reste visible ici.</p>
     </div>`;
 }
 
@@ -4620,7 +4634,7 @@ function renderImport() {
   return backBar("Import CSV & documents") + `
     <div class="card">
       <p class="card-label">Importer des mouvements</p>
-      <p class="caption" style="margin:4px 0 10px">Un fichier CSV (export Notion, banque…) ou un simple copier-coller. On reconnaît les colonnes date, montant, intitulé et catégorie ; un montant négatif est une dépense. Vous voyez d'abord le résultat : rien n'est enregistré avant que vous confirmiez.</p>
+      <p class="caption" style="margin:4px 0 10px">Un fichier CSV ou un copier-coller. On y cherche la date, le montant, l'intitulé et la catégorie. Vous voyez le résultat avant de confirmer.</p>
       <button type="button" class="btn secondary" data-importpick>Choisir un fichier CSV…</button>
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
       <label for="importPaste" style="display:block;font-size:11px;font-weight:600;color:var(--coolgray);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.04em">Ou coller le contenu</label>
@@ -4769,7 +4783,7 @@ function renderBills() {
     ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
     ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture ponctuelle</button>` : ""}
-    <p class="caption" style="padding:6px 4px 0">Quand vous marquez une facture payée, la dépense est créée pour vous et les deux restent liées. Les factures pas encore payées sont déjà retirées de votre argent vraiment disponible.</p>`;
+    <p class="caption" style="padding:6px 4px 0">Marquez une facture payée : la dépense est créée pour vous. Les factures en attente sont déjà retirées du disponible.</p>`;
 }
 
 /* ---------- Réglages (Phase 12) ---------- */

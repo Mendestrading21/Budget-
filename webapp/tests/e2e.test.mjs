@@ -5555,6 +5555,71 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 111 : voir, comprendre, agir — pas lire un paragraphe -----
+currentTest = "textes courts, pas de mot orphelin";
+// « L'objectif de Budget n'est pas d'expliquer longuement la psychologie de
+// la gestion financière… quelques mots bien choisis sont préférables à
+// plusieurs paragraphes. » Et : « lorsqu'un mot se retrouve seul à droite,
+// il faut continuer la phrase sur la même ligne. »
+{
+  const ctx111 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p111 = await ctx111.newPage();
+  p111.on("dialog", d => d.accept());
+  await p111.goto(APP_URL);
+  await p111.waitForSelector('[data-obcountry="CH"]');
+  await p111.click('[data-obcountry="CH"]'); await p111.click('[data-obhh="solo"]');
+  await p111.fill("#obName", "Alex"); await p111.click('#obForm1 button[type="submit"]');
+  await p111.fill("#obSalary", "5200"); await p111.click('#obForm2 button[type="submit"]');
+  await p111.waitForSelector("#obOpening", { state: "visible" });
+  await p111.fill("#obOpening", "3400"); await p111.click('#obForm3 button[type="submit"]');
+  await p111.waitForSelector("#obFormCharges", { state: "visible" });
+  await p111.click("[data-obskipcharges]");
+  await p111.waitForSelector("#obFormSubs", { state: "visible" });
+  await p111.click("[data-obskipsubs]");
+  await p111.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+  await p111.click('[data-obgoal="urgence"]');
+  await p111.waitForSelector("#tabbar button");
+  await p111.waitForTimeout(400);
+
+  // La règle systémique doit être POSÉE : c'est elle qui évite le mot seul
+  // sans qu'on réécrive une phrase pour la mise en page.
+  const regle = await p111.evaluate(() => {
+    const p = document.querySelector("#screen .caption") || document.createElement("p");
+    return getComputedStyle(p).textWrap || getComputedStyle(p).textWrapStyle || "";
+  });
+  check(/pretty/.test(regle), `les blocs de prose demandent un rendu sans orphelin (obtenu « ${regle} »)`);
+
+  const VUES111 = ["subs", "bills", "recurring", "goals", "taxes", "networth",
+                   "insurance", "importcsv", "assistant", "year"];
+  const trop = [];
+  for (const [nom, code] of [["mois", 'activeTab="home";moreView=null'],
+                             ["budget", 'activeTab="budget";moreView=null'],
+                             ["comptes", 'activeTab="accounts";moreView=null'],
+                             ...VUES111.map(v => [v, `activeTab="more";moreView="${v}"`])]) {
+    await p111.evaluate(c => { eval(c); render(); }, code);
+    await p111.waitForTimeout(260);
+    const longs = await p111.evaluate(() => {
+      const s = document.getElementById("screen");
+      return [...s.querySelectorAll("p, .caption, .s")]
+        .filter(e => {
+          const b = e.getBoundingClientRect();
+          return b.width > 0 && b.height > 0
+            // Les avertissements destructifs sont EXCLUS : « ceci efface
+            // tout » doit rester explicite. Raccourcir une mise en garde
+            // pour gagner une ligne serait un mauvais échange.
+            && !/efface|supprim|définitif|irréversible/i.test(e.textContent || "");
+        })
+        .map(e => ({ mots: (e.textContent || "").trim().split(/\s+/).length,
+                     t: (e.textContent || "").trim().slice(0, 46) }))
+        .filter(x => x.mots > 32);
+    });
+    for (const l of longs) trop.push(`${nom} : ${l.mots} mots « ${l.t} »`);
+  }
+  check(trop.length === 0,
+    `aucun bloc de prose au-delà de 32 mots hors avertissement (${trop.slice(0, 4).join(" · ") || "aucun"})`);
+  await ctx111.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5564,4 +5629,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 110 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 111 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts), zéro erreur console ✓");
