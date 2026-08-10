@@ -1415,6 +1415,7 @@
       <h3>Ajouter</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button type="button" class="btn secondary" data-quick="tx">💸 Mouvement</button>
+        <button type="button" class="btn secondary" data-quick="save">🏦 Mettre de côté</button>
         <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
         <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
         <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
@@ -2948,7 +2949,7 @@ function renderHome() {
     <div class="quick-row">
       <button class="btn secondary" data-quickexp>💸 Dépense</button>
       <button class="btn secondary" data-quickinc>💰 Revenu</button>
-      <button class="btn secondary" data-quicksend>📤 Épargne</button>
+      <button class="btn secondary" data-quicksend>🏦 Mettre de côté</button>
       <button class="btn secondary" data-quickinv>📈 Investir</button>
     </div>
     ${w("budgetrest", (() => {
@@ -7820,7 +7821,8 @@ document.getElementById("quickMenu").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-quick]");
   if (!btn) return;
   const open = {
-    tx: () => openTxSheet(null), bill: () => openBillSheet(null),
+    tx: () => openTxSheet(null), save: () => openTxSheet(null, "saving"),
+    bill: () => openBillSheet(null),
     acc: () => openAccSheet(null), goal: () => openGoalSheet(null),
     rec: () => openRecSheet(null), item: () => openItemSheet("asset", null),
     ins: () => openInsSheet(null), pen: () => openPenSheet(null),

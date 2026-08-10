@@ -5645,6 +5645,35 @@ await goHome();
   await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
   await page.waitForTimeout(150);
 
+  // Le même mot AUX TROIS ENDROITS où le geste est proposé, et chacun ouvre
+  // vraiment la feuille pré-réglée — un raccourci qui n'aboutit pas est pire
+  // qu'un raccourci absent.
+  const partout = await page.evaluate(async () => {
+    // On lit TOUS les points d'entrée du geste dans le document, visibles ou
+    // non : le raccourci de l'accueil détaillé n'est plus affiché aujourd'hui,
+    // mais s'il revient il doit porter le même mot. Un vocabulaire cohérent
+    // ne se vérifie pas seulement sur ce qui est à l'écran.
+    const mots = [...document.querySelectorAll(
+      '[data-quicksend], [data-quick="save"], [data-ftype="saving"]')]
+      .map(b => b.textContent.trim());
+    openSheet("quickMenu");
+    await new Promise(r => setTimeout(r, 120));
+    const menu = (document.querySelector('[data-quick="save"]') || {}).textContent?.trim() || null;
+    document.querySelector('[data-quick="save"]').click();
+    await new Promise(r => setTimeout(r, 200));
+    const typeOuvert = document.getElementById("fType").value;
+    document.getElementById("sheetBackdrop").classList.remove("open");
+    return { mots, menu, typeOuvert };
+  });
+  check(partout.mots.length >= 2,
+    `le geste est proposé à plusieurs endroits (${partout.mots.length})`);
+  check(partout.mots.every(m => /mettre de côté/i.test(m)),
+    `et TOUS portent le même mot (obtenu ${JSON.stringify(partout.mots)})`);
+  check(/mettre de côté/i.test(partout.menu || ""),
+    `le menu ＋ le propose aussi (obtenu « ${partout.menu} »)`);
+  check(partout.typeOuvert === "saving",
+    `et il ouvre la feuille DÉJÀ réglée sur le bon geste (obtenu ${partout.typeOuvert})`);
+
   // LA réponse à la question : mettre 500 de côté n'est PAS une dépense du
   // mois — mais ça sort quand même du compte courant, donc le disponible
   // baisse. Les deux à la fois, et c'est ça qui est juste.
