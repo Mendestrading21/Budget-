@@ -17,6 +17,50 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Le retour ressemble enfin à un retour (10.08.2026) — VERIFYING
+
+Question du propriétaire, capture de « Factures mensuelles » à l'appui :
+**« pourquoi il y a ici le bouton ? pour voir les mouvements du mois ? »**
+
+Réponse : non. C'était le **retour vers Gérer**. Écrit `‹ Gérer` dans un
+bouton plein, il avait exactement la forme des actions de contenu de l'écran
+(`＋ Ajouter une facture…`), donc il se lisait comme une destination à
+ouvrir. Le propriétaire avait déjà tranché la même question sur le
+questionnaire d'accueil le 06.08 : *« enlève la barre retour et ajoute une
+flèche vers la gauche »*. La règle valait pour les douze autres écrans, elle
+n'y avait simplement pas été appliquée.
+
+### Ce qui change
+
+`backBar()` — la barre partagée par les **douze écrans de Gérer** — passe du
+bouton plein `‹ Gérer` à la même flèche 44 × 44 que le questionnaire
+(`.ob-back`). Le nom de la destination ne disparaît pas : il passe dans
+`aria-label="Retour à Gérer"`, donc VoiceOver annonce toujours où l'on va.
+Un seul point de code, douze écrans corrigés.
+
+Le mois, lui, était déjà là : chaque ligne porte sa pastille
+« Payée ce mois », « À régler ce mois » ou « Pas ce mois ». L'écran répond
+déjà à la question, aucun bouton supplémentaire n'était nécessaire.
+
+### Preuves
+
+- **Parcours 113 « retour lisible sur les écrans de Gérer »** (nouveau) :
+  pour chacune des douze vues, le retour est une flèche seule, porte un nom
+  accessible qui contient encore la destination, mesure au moins 44 × 44 et
+  s'aligne au centre du titre ; puis un clic réel prouve qu'il ramène bien à
+  Gérer (`activeTab = "more"`, `moreView = null`).
+- **Contrôle négatif exécuté** : l'ancien bouton remis en place fait tomber
+  **24 assertions sur 12 écrans**. Le test discrimine, il ne décore pas.
+- 113 e2e · 5 parités · design system · audit-total 320/390/430
+  (« Aucun écran en défaut », un seul bord gauche à 18 px) · audit-final
+  (14 contrôles) — verts.
+- Captures inspectées à 390 px : Factures mensuelles, Impôts 2026,
+  Abonnements.
+
+### Prochaine action exacte
+
+Retour du propriétaire sur l'app installée.
+
 ## Le héros tourne, et un loyer n'est plus un abonnement (06.08.2026) — VERIFYING
 
 Trois retours du propriétaire sur ses vraies données, la même nuit.

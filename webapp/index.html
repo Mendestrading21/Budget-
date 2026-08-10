@@ -3827,9 +3827,18 @@ function renderGoals() {
     <p class="caption" style="padding:6px 4px 0">Le montant par mois : ce qu'il reste, divisé par les mois restants.</p>`;
 }
 
+/* RETOUR — une flèche, pas une étiquette.
+   Question du propriétaire (10.08.2026) sur l'écran Factures mensuelles :
+   « pourquoi il y a ici le bouton ? pour voir les mouvements du mois ? ».
+   Non : c'était le retour. Écrit « ‹ Gérer » dans un bouton plein, il se
+   lisait comme une DESTINATION à visiter, au même titre que les lignes de
+   l'écran. Le propriétaire avait déjà tranché pour le questionnaire :
+   une flèche vers la gauche, rien d'autre.
+   Le nom de la destination ne disparaît pas — il passe dans le nom
+   accessible, donc VoiceOver annonce toujours « Retour à Gérer ». */
 function backBar(title) {
-  return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
-    <button class="btn secondary" data-back style="width:auto;flex:none;white-space:nowrap;padding:8px 14px;font-size:13px">‹ Gérer</button>
+  return `<div class="ob-top" style="gap:10px;margin:6px 0 12px">
+    <button type="button" class="ob-back" data-back aria-label="Retour à Gérer">‹</button>
     <h2 class="screen-title" style="margin:0;font-size:24px">${title}</h2>
   </div>`;
 }

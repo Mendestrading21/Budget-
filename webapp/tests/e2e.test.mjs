@@ -5710,6 +5710,56 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 113 : le retour ressemble à un retour ----------------------
+currentTest = "retour lisible sur les écrans de Gérer";
+// Question du propriétaire (10.08.2026), capture de « Factures mensuelles » :
+// « pourquoi il y a ici le bouton ? pour voir les mouvements du mois ? ».
+// Le bouton « ‹ Gérer » était un bouton PLEIN, de la même famille visuelle
+// que les actions de contenu : il se lisait comme une destination à ouvrir.
+// Il devient une flèche, comme le propriétaire l'avait déjà demandé pour le
+// questionnaire — et le nom de la destination passe dans le nom accessible.
+{
+  // Les DOUZE écrans de Gérer : aucun n'est laissé de côté.
+  const VUES113 = ["goals", "bills", "taxes", "networth", "insurance", "recurring",
+                   "importcsv", "settings", "assistant", "year", "subs", "movements"];
+  for (const vue of VUES113) {
+    await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
+    await page.waitForTimeout(160);
+    const retour = await page.evaluate(() => {
+      const b = document.querySelector("#screen [data-back]");
+      if (!b) return null;
+      const r = b.getBoundingClientRect();
+      const titre = b.parentElement.querySelector("h2");
+      return {
+        texte: b.textContent.trim(),
+        nom: b.getAttribute("aria-label") || "",
+        w: Math.round(r.width), h: Math.round(r.height),
+        // Aligné avec le titre, pas empilé au-dessus.
+        memeLigne: titre
+          ? Math.abs(r.top + r.height / 2
+              - (titre.getBoundingClientRect().top + titre.getBoundingClientRect().height / 2)) <= 6
+          : false,
+      };
+    });
+    check(retour !== null, `« ${vue} » a bien un retour`);
+    if (!retour) continue;
+    check(retour.texte === "‹",
+      `« ${vue} » : le retour est une flèche seule (obtenu « ${retour.texte} »)`);
+    check(/retour/i.test(retour.nom) && /gérer/i.test(retour.nom),
+      `« ${vue} » : VoiceOver entend toujours la destination (obtenu « ${retour.nom} »)`);
+    check(retour.w >= 44 && retour.h >= 44,
+      `« ${vue} » : la cible reste tactile (${retour.w}×${retour.h})`);
+    check(retour.memeLigne, `« ${vue} » : la flèche est alignée avec le titre`);
+  }
+  // Et elle ramène VRAIMENT à Gérer.
+  await page.click("#screen [data-back]");
+  await page.waitForTimeout(220);
+  const revenu = await page.evaluate(() => ({ onglet: activeTab, vue: moreView }));
+  check(revenu.onglet === "more" && revenu.vue === null,
+    `la flèche ramène à Gérer (obtenu ${revenu.onglet}/${revenu.vue})`);
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5719,4 +5769,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 112 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 113 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible), zéro erreur console ✓");
