@@ -17,6 +17,72 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Mettre de côté est une ligne mensuelle — et l'argent arrive quelque part (10.08.2026) — VERIFYING
+
+Demande du propriétaire : **« Je veux ça dans facture 🧾. Parce que pour moi,
+mettre de côté, ça part de mes factures mensuelles… sans le virement : ce qui
+sort de mon compte chaque mois. »**
+
+### Ce que j'ai trouvé en allant vérifier — un défaut d'argent (P1)
+
+Le choix existait bien, mais replié sous « Détails (facultatif) ». En ouvrant
+le code pour le remonter, j'ai mesuré bien pire. Sonde reproductible sur
+données fictives :
+
+```
+patrimoine avant   3'400.00
+patrimoine après   2'900.00      ← 500 CHF disparus
+solde d'épargne        0.00      ← l'argent n'est arrivé nulle part
+mouvement créé     type saving, dest: null
+```
+
+Une ligne mensuelle de nature « réserve » créait un mouvement `saving` /
+`investment` **sans compte d'arrivée**. L'argent quittait le compte source et
+n'atterrissait sur aucun compte : le patrimoine baissait du montant réservé,
+**chaque mois**. C'est l'exact inverse de l'invariant du projet — mettre de
+côté est neutre pour le patrimoine. Le défaut date du lot C1 (07.08).
+
+### Ce qui change
+
+1. **Un seul axe visible dans la feuille**, à la place de deux (Dépense/Revenu
+   en haut + nature cachée sous « Détails ») : `🧾 Facture · 🔁 Abonnement ·
+   🏦 Mettre de côté · 💰 Revenu`. Pas de virement — une ligne mensuelle est
+   ce qui **sort** du compte. Les deux selects historiques (`rType`,
+   `rFamily`) restent la source de vérité ; le choix unique les écrit.
+2. **La poche d'arrivée devient un vrai champ**, visible seulement pour une
+   mise de côté et **jamais facultatif**. Défaut déduit de la catégorie
+   (3e pilier → prévoyance, sinon épargne), jamais le compte de départ.
+3. **`materializeRecurring` pose la destination** et **refuse** de créer le
+   mouvement s'il n'existe aucune poche possible — un refus visible plutôt
+   qu'un patrimoine faux. Les deux appelants affichaient déjà le message.
+4. **Réparation des mouvements déjà créés** : un mouvement `saving` /
+   `investment` sans destination **et lié à une ligne mensuelle** retrouve la
+   poche de sa ligne. Bornée exprès : un mouvement saisi à la main n'est
+   jamais touché, et si aucune poche ne se déduit, rien n'est modifié.
+
+### Preuves
+
+- **Parcours 114 « mise de côté sans évaporation »** : 500 sortent du compte
+  courant, arrivent sur l'épargne, le patrimoine ne bouge pas d'un centime, le
+  mois compte 500 de mis de côté ; sans compte d'arrivée l'app refuse et le
+  dit ; la réparation touche l'ancien mouvement lié et **rien d'autre**.
+- **Parcours 115 « mettre de côté au premier plan »** : quatre choix sur un
+  seul axe, aucun virement, rien sous un repli, 44 px chacun, la poche
+  apparaît pour une réserve et jamais pour un revenu ni une facture.
+- **Contrôle négatif exécuté** : `dest` remis à `null` → 4 assertions tombent,
+  dont `le patrimoine ne bouge pas d'un centime (44963.95 → 44463.95)`.
+- 115 e2e · 5 parités · design system · audit-total 320/390/430 · audit-final
+  (14 contrôles) — verts. Captures 390 et 320 px inspectées.
+
+### Dette reconnue
+
+L'app native iOS n'a **pas** été relue sur ce point. Si `RecurringService`
+matérialise de la même façon, le même défaut y est probable — à auditer.
+
+### Prochaine action exacte
+
+Audit du même défaut côté natif, puis retour du propriétaire sur l'app.
+
 ## Le retour ressemble enfin à un retour (10.08.2026) — VERIFYING
 
 Question du propriétaire, capture de « Factures mensuelles » à l'appui :

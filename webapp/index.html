@@ -1215,13 +1215,30 @@
 
     <form class="sheet nu-pilot-sheet" id="recForm" style="display:none">
       <h3 id="recSheetTitle">Nouvelle facture mensuelle</h3>
-      <!-- 1. Type : deux pastilles tactiles plutôt qu'un menu déroulant.
-           Le select historique reste présent et pilote toujours la logique. -->
-      <label id="rTypeLabel">Type</label>
-      <div class="type-grid" id="rTypeGrid" role="group" aria-labelledby="rTypeLabel">
-        <button type="button" data-rtype="expense" aria-pressed="false">💸 Dépense</button>
-        <button type="button" data-rtype="income" aria-pressed="false">💰 Revenu</button>
+      <!-- 1. UNE seule question visible, quatre réponses.
+           Demande du propriétaire (10.08.2026) : « je veux ça dans facture,
+           parce que pour moi mettre de côté ça part de mes factures
+           mensuelles… sans le virement, ce qui sort de mon compte chaque
+           mois ». Mettre de côté n'est donc plus un réglage caché sous
+           « Détails » : c'est une nature de ligne mensuelle à part entière,
+           au même rang qu'une facture. Pas de virement ici : une ligne
+           mensuelle est ce qui SORT du compte.
+           Les deux selects historiques (`rType`, `rFamily`) restent la
+           source de vérité et sont pilotés par ce choix unique. -->
+      <label id="rKindLabel">C'est quoi&nbsp;?</label>
+      <div class="type-grid" id="rKindGrid" role="group" aria-labelledby="rKindLabel">
+        <button type="button" data-rkind="facture" aria-pressed="false">🧾 Facture</button>
+        <button type="button" data-rkind="abonnement" aria-pressed="false">🔁 Abonnement</button>
+        <button type="button" data-rkind="reserve" aria-pressed="false">🏦 Mettre de côté</button>
+        <button type="button" data-rkind="revenu" aria-pressed="false">💰 Revenu</button>
       </div>
+      <select id="rKind" class="sr-select" aria-hidden="true" tabindex="-1">
+        <option value="facture">Facture</option>
+        <option value="abonnement">Abonnement</option>
+        <option value="reserve">Mettre de côté</option>
+        <option value="revenu">Revenu</option>
+      </select>
+      <p class="caption" id="rKindNote" style="margin:4px 0 0"></p>
       <select id="rType" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="expense">Dépense</option>
         <option value="income">Revenu</option>
@@ -1247,21 +1264,22 @@
         <select id="rDueM"></select>
         <p class="caption" id="rDueNote" style="margin:4px 0 0"></p>
       </div>
-      <!-- 5. Le reste est replié : le parcours fréquent tient en trois gestes. -->
+      <!-- 5. La destination — visible SEULEMENT pour une mise de côté, et
+           obligatoire. Sans elle, l'argent quittait le compte sans arriver
+           nulle part et le patrimoine baissait chaque mois. -->
+      <div id="rDestWrap" style="display:none">
+        <label for="rDest">Vers quel compte</label>
+        <select id="rDest"></select>
+        <p class="caption" id="rDestNote" style="margin:4px 0 0">Cet argent sort de votre compte chaque mois et arrive ici. Il reste à vous : ce n'est pas une dépense.</p>
+      </div>
+      <select id="rFamily" class="sr-select" aria-hidden="true" tabindex="-1">
+        <option value="facture">Facture</option>
+        <option value="abonnement">Abonnement</option>
+        <option value="reserve">Mis de côté</option>
+      </select>
+      <!-- 6. Le reste est replié : le parcours fréquent tient en trois gestes. -->
       <details class="f-more" id="rMore">
         <summary>Détails (facultatif)</summary>
-        <label id="rFamilyLabel">C'est quoi, ce montant ?</label>
-        <div class="type-grid type-grid-3" id="rFamilyGrid" role="group" aria-labelledby="rFamilyLabel">
-          <button type="button" data-rfamily="facture" aria-pressed="false">🧾 Facture</button>
-          <button type="button" data-rfamily="abonnement" aria-pressed="false">🔁 Abonnement</button>
-          <button type="button" data-rfamily="reserve" aria-pressed="false">🏦 Mis de côté</button>
-        </div>
-        <p class="caption" id="rFamilyNote" style="margin:4px 0 0">« Mis de côté » n'est pas une dépense : l'argent change de poche et reste à vous. C'est le cas du 3e pilier, d'une provision d'impôts ou d'une épargne mensuelle.</p>
-        <select id="rFamily" class="sr-select" aria-hidden="true" tabindex="-1">
-          <option value="facture">Facture</option>
-          <option value="abonnement">Abonnement</option>
-          <option value="reserve">Mis de côté</option>
-        </select>
         <label for="rCat">Catégorie</label>
         <select id="rCat"></select>
         <label for="rAccount">Compte utilisé</label>
@@ -1736,6 +1754,38 @@ function stampAllTransactions(state) {
    recurringId, le salaire de démo était rapproché par simple intitulé.
    Les vraies données utilisateur ne sont jamais devinées ; elles suivent
    désormais exclusivement le lien explicite. */
+/* RÉPARATION — l'argent mis de côté qui n'arrivait nulle part.
+   Entre le 07.08 et le 10.08.2026, une ligne mensuelle de nature « réserve »
+   créait un mouvement `saving`/`investment` avec `dest: null` : l'argent
+   quittait le compte source sans arriver sur aucun compte, donc le
+   patrimoine baissait de ce montant chaque mois.
+   Ces mouvements-là ne sont pas un choix de l'utilisateur : aucun écran ne
+   permet de créer une mise de côté sans destination. On leur rend donc la
+   poche d'arrivée de LEUR ligne mensuelle — une valeur déduite, jamais
+   inventée — et uniquement à eux : un mouvement saisi à la main n'est
+   jamais touché, car la réparation exige un `recurringId` reconnu.
+   Si aucune destination ne peut être déduite, on ne touche à rien : mieux
+   vaut une donnée visiblement incomplète qu'une donnée inventée. */
+function repairReserveDestinations(state) {
+  const parId = new Map((state.recurrings || []).map(r => [r.id, r]));
+  const comptes = state.accounts || [];
+  for (const t of state.transactions || []) {
+    if (t.dest || !t.recurringId) continue;
+    if (t.type !== "saving" && t.type !== "investment") continue;
+    const recurring = parId.get(t.recurringId);
+    if (!recurring) continue;
+    const source = t.acc;
+    const ailleurs = comptes.filter(a => a.id !== source);
+    let cible = null;
+    if (recurring.destAccountId && ailleurs.some(a => a.id === recurring.destAccountId)) {
+      cible = recurring.destAccountId;
+    } else if (t.cat === "Pilier 3a") {
+      cible = (ailleurs.find(a => ["pension", "lifeinsurance"].includes(a.kind)) || {}).id || null;
+    }
+    if (!cible) cible = (ailleurs.find(a => a.kind === "savings") || {}).id || null;
+    if (cible) t.dest = cible;
+  }
+}
 function linkDemoRecurringTransactions(state) {
   if (!state || state.isDemo !== true) return 0;
   const accounts = state.accounts || [];
@@ -2357,10 +2407,17 @@ function materializeRecurring(recurring, y, m) {
   // dit « payée » ce mois-ci, c'est aujourd'hui. Dater du 1er une facture
   // réglée le 20 serait faux, et le statut en découle directement.
   const day = (y === NOW.y && m === NOW.m) ? NOW.d : lastDay;
+  // Une mise de côté DOIT arriver quelque part. Plutôt que de créer un
+  // mouvement qui fait disparaître l'argent, on refuse et on le dit : les
+  // deux appelants affichent déjà ce message.
+  const dest = recurringDestAccountId(recurring);
+  if (recurringIsReserve(recurring) && !dest) {
+    throw new Error("Créez d'abord un compte d'épargne : une mise de côté doit arriver quelque part.");
+  }
   const transaction = {
     id: ++txSeq, y, m, d: day,
     title: recurring.title, amount: recurring.amount, type: recurringMovementType(recurring),
-    cat: recurring.cat || null, acc: recurringAccountId(recurring), dest: null,
+    cat: recurring.cat || null, acc: recurringAccountId(recurring), dest,
     status: statusForDate(y, m, day), recurringId: recurring.id,
   };
   addTx(transaction);
@@ -4400,6 +4457,30 @@ function recurringMovementType(r) {
   if (!recurringIsReserve(r)) return r.type;
   return r.cat === "Pilier 3a" ? "investment" : "saving";
 }
+/* LA POCHE D'ARRIVÉE — sans elle, l'argent s'évapore.
+   Défaut mesuré le 10.08.2026 : une mise de côté mensuelle créait un
+   mouvement `saving` avec `dest: null`. L'argent quittait le compte source
+   et n'arrivait sur AUCUN compte : patrimoine 3'400 → 2'900 pour 500 CHF
+   réservés, solde d'épargne inchangé à 0. C'est exactement l'inverse de
+   l'invariant du projet — une mise de côté est neutre pour le patrimoine.
+   Une réserve a donc toujours une destination. Explicite si elle a été
+   choisie, sinon DÉDUITE de la catégorie comme la nature l'est déjà. */
+function reserveDefaultDest(cat, sourceId) {
+  const ailleurs = ACCOUNTS.filter(a => a.id !== sourceId);
+  if (cat === "Pilier 3a") {
+    const prevoyance = ailleurs.find(a => ["pension", "lifeinsurance"].includes(a.kind));
+    if (prevoyance) return prevoyance.id;
+  }
+  const epargne = ailleurs.find(a => a.kind === "savings");
+  return epargne ? epargne.id : (ailleurs.length ? ailleurs[0].id : null);
+}
+function recurringDestAccountId(r) {
+  if (!recurringIsReserve(r)) return null;
+  const source = recurringAccountId(r);
+  if (r && r.destAccountId && r.destAccountId !== source
+      && ACCOUNTS.some(a => a.id === r.destAccountId)) return r.destAccountId;
+  return reserveDefaultDest(r && r.cat, source);
+}
 function isSubscription(r) { return recurringNature(r) === "abonnement"; }
 function renderSubs() {
   const all = RECURRINGS.filter(r => r.type === "expense" && isSubscription(r));
@@ -6250,10 +6331,9 @@ function bindChoiceChips(gridId, selectId, attr) {
   select.addEventListener("change", sync);
   return sync;
 }
-const syncRecTypeChips = bindChoiceChips("rTypeGrid", "rType", "rtype");
+const syncRecKindChips = bindChoiceChips("rKindGrid", "rKind", "rkind");
 const syncRecEveryChips = bindChoiceChips("rEveryGrid", "rEvery", "revery");
 const syncItemKindChips = bindChoiceChips("iKindGrid", "iKind", "ikind");
-const syncRecFamilyChips = bindChoiceChips("rFamilyGrid", "rFamily", "rfamily");
 
 /* L3 — notes en langage simple : devise du compte source, statut dérivé
    de la date (logique de calcul INCHANGÉE), résumé d'un envoi/virement. */
@@ -6830,6 +6910,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
 
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
+  repairReserveDestinations(state);
   for (const transaction of state.transactions) {
     if (transaction.sourceCurrency !== state.baseCurrency
         && !(transaction.fx > 0 && transaction.fxBase === state.baseCurrency)) {
@@ -7240,20 +7321,23 @@ function openRecSheet(rec) {
       ? "Marquer reçu ce mois" : "Marquer payée ce mois";
   }
   fillAccountOptions("rAccount", rec && rec.accountId);
+  // La nature enregistrée si elle existe, sinon la DÉDUCTION par catégorie —
+  // la même que celle affichée dans la liste. La feuille ne montre jamais un
+  // classement différent de celui que l'écran applique.
+  document.getElementById("rKind").value = rec ? recurringKind(rec) : "facture";
+  applyRecKind();
   if (rec) {
     document.getElementById("rTitle").value = rec.title;
     document.getElementById("rAmount").value = rec.amount.toFixed(2);
-    document.getElementById("rType").value = rec.type === "income" ? "income" : "expense";
-    refreshRecCatOptions();
     if (rec.cat) document.getElementById("rCat").value = rec.cat;
-  } else {
-    refreshRecCatOptions();
   }
-  // Genre : la valeur enregistrée si elle existe, sinon la DÉDUCTION par
-  // catégorie — la même que celle affichée. La feuille ne montre jamais un
-  // classement différent de celui que l'écran applique.
-  document.getElementById("rFamily").value = recurringNature(
-    rec || { cat: document.getElementById("rCat").value });
+  // Destination : celle qui a été choisie, sinon la poche déduite. Elle est
+  // recalculée APRÈS la catégorie, dont elle dépend (3e pilier → prévoyance).
+  refreshRecDest();
+  if (rec && rec.destAccountId && ACCOUNTS.some(a => a.id === rec.destAccountId)) {
+    const destSel = document.getElementById("rDest");
+    if ([...destSel.options].some(o => o.value === rec.destAccountId)) destSel.value = rec.destAccountId;
+  }
   // Rythme et mois d'échéance : les options existent toujours, le bloc
   // annuel n'apparaît que si le rythme l'exige.
   const dueSel = document.getElementById("rDueM");
@@ -7264,10 +7348,8 @@ function openRecSheet(rec) {
   dueSel.value = String(rec ? (recurringDueMonth(rec) || NOW.m) : NOW.m);
   refreshRecRhythm();
   // Les pastilles reflètent le select à chaque ouverture.
-  syncRecTypeChips();
+  syncRecKindChips();
   syncRecEveryChips();
-  syncRecFamilyChips();
-  refreshRecFamilyVisibility();
   // Résiliation : proposée seulement sur une récurrence existante.
   const endBtn = document.getElementById("rEnd");
   endBtn.style.display = rec ? "block" : "none";
@@ -7280,18 +7362,62 @@ function openRecSheet(rec) {
   openSheet("recForm");
   document.getElementById("rTitle").focus();
 }
+/* UNE question, quatre réponses — et deux selects historiques pilotés.
+   Le modèle de données ne bouge pas : `rType` (revenu/dépense) et `rFamily`
+   (facture/abonnement/réserve) restent la vérité. Le choix unique de
+   l'écran les écrit tous les deux, pour que le propriétaire n'ait plus à
+   comprendre deux axes pour dire une chose simple. */
+const RECURRING_KINDS = ["facture", "abonnement", "reserve", "revenu"];
+function recurringKind(r) {
+  if (r && r.type === "income") return "revenu";
+  return recurringNature(r);
+}
+const KIND_NOTES = {
+  facture: "Loyer, caisse maladie, électricité : une dépense qui revient.",
+  abonnement: "Streaming, sport, téléphone : une dépense qu'on peut résilier.",
+  reserve: "L'argent sort de votre compte mais reste à vous. Ce n'est pas une dépense.",
+  revenu: "Salaire, allocation, loyer encaissé : ce qui entre chaque mois.",
+};
+function applyRecKind() {
+  const kind = RECURRING_KINDS.includes(document.getElementById("rKind").value)
+    ? document.getElementById("rKind").value : "facture";
+  const type = document.getElementById("rType");
+  const family = document.getElementById("rFamily");
+  type.value = kind === "revenu" ? "income" : "expense";
+  // Pour un revenu, la nature n'a pas de sens : on garde « facture », qui
+  // est le défaut neutre et n'entraîne aucun calcul de réserve.
+  family.value = kind === "revenu" ? "facture" : kind;
+  document.getElementById("rKindNote").textContent = KIND_NOTES[kind];
+  refreshRecCatOptions();
+  refreshRecDest();
+}
+document.getElementById("rKind").addEventListener("change", applyRecKind);
+
+/* La destination n'apparaît que pour une mise de côté, et n'y est jamais
+   facultative : sans compte d'arrivée, l'argent disparaît du patrimoine. */
+function refreshRecDest() {
+  const reserve = document.getElementById("rFamily").value === "reserve"
+    && document.getElementById("rType").value !== "income";
+  const wrap = document.getElementById("rDestWrap");
+  wrap.style.display = reserve ? "" : "none";
+  if (!reserve) return;
+  const source = document.getElementById("rAccount").value;
+  const select = document.getElementById("rDest");
+  const voulu = select.value;
+  const cibles = ACCOUNTS.filter(a => a.id !== source);
+  select.innerHTML = cibles.map(a =>
+    `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== baseCurrency() ? ` (${a.currency})` : ""}</option>`
+  ).join("");
+  const defaut = reserveDefaultDest(document.getElementById("rCat").value, source);
+  select.value = cibles.some(a => a.id === voulu) ? voulu : (defaut || "");
+  document.getElementById("rDestNote").textContent = cibles.length
+    ? "Cet argent sort de votre compte chaque mois et arrive ici. Il reste à vous : ce n'est pas une dépense."
+    : "Créez d'abord un deuxième compte : une mise de côté doit arriver quelque part.";
+}
+document.getElementById("rAccount").addEventListener("change", refreshRecDest);
+document.getElementById("rCat").addEventListener("change", refreshRecDest);
 /* Le bloc « mois d'échéance » suit le rythme choisi, et la note dit
    explicitement ce que l'app fera du montant — aucun lissage caché. */
-/* Le genre n'a de sens que pour une DÉPENSE : un salaire n'est ni un
-   abonnement ni une charge du foyer. */
-function refreshRecFamilyVisibility() {
-  const income = document.getElementById("rType").value === "income";
-  for (const id of ["rFamilyLabel", "rFamilyGrid", "rFamilyNote"]) {
-    const el = document.getElementById(id);
-    if (el) el.style.display = income ? "none" : "";
-  }
-}
-document.getElementById("rType").addEventListener("change", refreshRecFamilyVisibility);
 
 function refreshRecRhythm() {
   const every = document.getElementById("rEvery").value;
@@ -7359,14 +7485,29 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   // retire réellement plutôt que de laisser un champ orphelin.
   if (every === "year") data.dueM = dueM; else data.dueM = undefined;
   if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
+  // Une mise de côté doit arriver quelque part, sinon l'argent disparaît du
+  // patrimoine. On refuse ici plutôt que d'enregistrer une ligne qui ment.
+  if (data.nature === "reserve" && data.type !== "income") {
+    const dest = document.getElementById("rDest").value;
+    if (!dest || dest === data.accountId || !ACCOUNTS.some(a => a.id === dest)) {
+      err.textContent = "Choisissez le compte qui reçoit cet argent.";
+      return;
+    }
+    data.destAccountId = dest;
+  } else {
+    data.destAccountId = undefined;
+  }
   const label = every === "year" ? "Abonnement annuel" : "Récurrence mensuelle";
   if (existing) {
     Object.assign(existing, data);
     if (data.dueM === undefined) delete existing.dueM;
+    if (data.destAccountId === undefined) delete existing.destAccountId;
     toast(`${label} modifié${every === "year" ? "" : "e"}`);
   } else {
-    const created = { id: "r-" + Date.now().toString(36), icon: data.type === "income" ? "💰" : "🔁", ...data };
+    const icone = data.type === "income" ? "💰" : (data.nature === "reserve" ? "🏦" : "🔁");
+    const created = { id: "r-" + Date.now().toString(36), icon: icone, ...data };
     if (created.dueM === undefined) delete created.dueM;
+    if (created.destAccountId === undefined) delete created.destAccountId;
     RECURRINGS.push(created);
     toast(`${label} ajouté${every === "year" ? "" : "e"}`);
   }

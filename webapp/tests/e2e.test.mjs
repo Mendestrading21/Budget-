@@ -4058,13 +4058,18 @@ await goHome();
   // Les pastilles pilotent le select historique, qui reste la source de vérité.
   await page.evaluate(() => openRecSheet(null));
   await page.waitForSelector("#recForm", { state: "visible" });
-  await page.click('#rTypeGrid button[data-rtype="income"]');
+  // Adapté le 10.08.2026 : les deux pastilles Dépense/Revenu et les trois
+  // pastilles de nature cachées sous « Détails » sont devenues UNE grille de
+  // quatre (facture, abonnement, mettre de côté, revenu), à la demande du
+  // propriétaire. L'assertion est la même — la pastille pilote le select
+  // historique — mais sur le nouveau point d'entrée.
+  await page.click('#rKindGrid button[data-rkind="revenu"]');
   await page.click('#rEveryGrid button[data-revery="year"]');
   await page.waitForTimeout(200);
   const wired94 = await page.evaluate(() => ({
     type: document.getElementById("rType").value,
     every: document.getElementById("rEvery").value,
-    typePressed: document.querySelector('#rTypeGrid button[data-rtype="income"]').getAttribute("aria-pressed"),
+    typePressed: document.querySelector('#rKindGrid button[data-rkind="revenu"]').getAttribute("aria-pressed"),
     everyPressed: document.querySelector('#rEveryGrid button[data-revery="year"]').getAttribute("aria-pressed"),
     // Le rythme annuel révèle son mois d'échéance, comme avant.
     dueShown: document.getElementById("rDueWrap").style.display !== "none",
@@ -5760,6 +5765,172 @@ currentTest = "retour lisible sur les écrans de Gérer";
   await goHome();
 }
 
+// ---------- Test 114 : une mise de côté mensuelle ARRIVE quelque part ------
+currentTest = "mise de côté mensuelle sans évaporation";
+// Demande du propriétaire (10.08.2026) : « je veux ça dans facture, parce que
+// pour moi mettre de côté ça part de mes factures mensuelles… sans le
+// virement, ce qui sort de mon compte chaque mois ».
+// En allant vérifier, j'ai trouvé pire qu'un bouton mal placé : une ligne
+// mensuelle de nature « réserve » créait un mouvement `saving` avec
+// `dest: null`. L'argent quittait le compte et n'arrivait NULLE PART —
+// patrimoine 3'400 → 2'900 pour 500 CHF réservés, épargne toujours à 0.
+// C'est l'inverse de l'invariant : une mise de côté est neutre pour le
+// patrimoine. Ce test tient les deux bouts : la poche se remplit, et le
+// total ne bouge pas.
+await goHome();
+{
+  const effet = await page.evaluate(() => {
+    const courant = defaultCashAccount();
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const patrimoine = () => round2(ACCOUNTS.reduce((a, c) => a + toCHF(balance(c.id), c.currency), 0));
+    const avant = { patrimoine: patrimoine(), epargne: round2(balance(epargne.id)),
+                    courant: round2(balance(courant)) };
+    const rec = { id: "rec-e2e-114", title: "Épargne mensuelle E2E", amount: 500,
+                  type: "expense", cat: "Épargne", nature: "reserve",
+                  accountId: courant, destAccountId: epargne.id, every: "month", day: 1 };
+    RECURRINGS.push(rec);
+    const { transaction } = materializeRecurring(rec, NOW.y, NOW.m);
+    const snap = snapshot(NOW.y, NOW.m);
+    return {
+      type: transaction.type, dest: transaction.dest, epargneId: epargne.id,
+      avant, apres: { patrimoine: patrimoine(), epargne: round2(balance(epargne.id)),
+                      courant: round2(balance(courant)) },
+      vie: round2(snap.living), coté: round2(snap.savings + snap.invest),
+    };
+  });
+  check(effet.type === "saving", `le mouvement créé est une mise de côté (obtenu ${effet.type})`);
+  check(effet.dest === effet.epargneId,
+    `il a une poche d'arrivée (obtenu ${effet.dest})`);
+  check(Math.abs((effet.avant.courant - effet.apres.courant) - 500) < 0.02,
+    `500 sortent bien du compte courant (${effet.avant.courant} → ${effet.apres.courant})`);
+  check(Math.abs((effet.apres.epargne - effet.avant.epargne) - 500) < 0.02,
+    `et arrivent sur l'épargne (${effet.avant.epargne} → ${effet.apres.epargne})`);
+  check(Math.abs(effet.apres.patrimoine - effet.avant.patrimoine) < 0.02,
+    `le patrimoine ne bouge pas d'un centime (${effet.avant.patrimoine} → ${effet.apres.patrimoine})`);
+  check(effet.coté >= 499.98,
+    `le mois compte 500 de mis de côté (obtenu ${effet.coté})`);
+
+  // Sans destination possible, l'app REFUSE au lieu de faire disparaître
+  // l'argent. Un refus visible vaut mieux qu'un patrimoine faux.
+  const refus = await page.evaluate(() => {
+    const courant = defaultCashAccount();
+    const sauvegarde = ACCOUNTS.slice();
+    ACCOUNTS.length = 0;
+    ACCOUNTS.push(sauvegarde.find(a => a.id === courant));
+    const rec = { id: "rec-e2e-114b", title: "Réserve orpheline", amount: 100,
+                  type: "expense", cat: "Épargne", nature: "reserve",
+                  accountId: courant, every: "month", day: 1 };
+    RECURRINGS.push(rec);
+    let message = null;
+    try { materializeRecurring(rec, NOW.y, NOW.m); }
+    catch (e) { message = e.message; }
+    const cree = transactions.some(t => t.recurringId === "rec-e2e-114b");
+    ACCOUNTS.length = 0; sauvegarde.forEach(a => ACCOUNTS.push(a));
+    RECURRINGS.splice(RECURRINGS.findIndex(r => r.id === "rec-e2e-114b"), 1);
+    return { message, cree };
+  });
+  check(refus.message !== null && !refus.cree,
+    `sans compte d'arrivée, l'app refuse et le dit (« ${refus.message} »)`);
+
+  // La réparation des mouvements déjà créés sans poche d'arrivée.
+  const repare = await page.evaluate(() => {
+    const courant = defaultCashAccount();
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const etat = {
+      accounts: [{ id: courant, kind: "current" }, { id: epargne.id, kind: "savings" }],
+      recurrings: [{ id: "rec-vieux", destAccountId: null }],
+      transactions: [
+        { id: 1, type: "saving", cat: "Épargne", acc: courant, dest: null, recurringId: "rec-vieux" },
+        { id: 2, type: "saving", cat: "Épargne", acc: courant, dest: null },
+        { id: 3, type: "expense", cat: "Logement", acc: courant, dest: null, recurringId: "rec-vieux" },
+      ],
+    };
+    repairReserveDestinations(etat);
+    return etat.transactions.map(t => t.dest);
+  });
+  check(repare[0] !== null,
+    `un ancien mouvement de réserve retrouve sa poche (obtenu ${repare[0]})`);
+  check(repare[1] === null,
+    "un mouvement saisi à la main n'est jamais touché");
+  check(repare[2] === null,
+    "une dépense ordinaire n'est jamais touchée");
+
+  await page.evaluate(() => {
+    for (let i = transactions.length - 1; i >= 0; i--) {
+      if (transactions[i].recurringId === "rec-e2e-114") transactions.splice(i, 1);
+    }
+    const i = RECURRINGS.findIndex(r => r.id === "rec-e2e-114");
+    if (i >= 0) RECURRINGS.splice(i, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
+// ---------- Test 115 : « Mettre de côté » est au premier plan ---------------
+currentTest = "mettre de côté au premier plan de la facture";
+// « Je veux ça dans facture 🧾 ». Le choix ne doit plus être caché sous un
+// repli « Détails », et le virement n'a rien à faire dans une ligne
+// mensuelle : une facture, c'est ce qui SORT du compte.
+{
+  await page.evaluate(() => openRecSheet(null));
+  await page.waitForSelector("#recForm", { state: "visible" });
+  const feuille = await page.evaluate(() => {
+    const grid = document.getElementById("rKindGrid");
+    const chips = [...grid.querySelectorAll("button[data-rkind]")];
+    const replie = grid.closest("details");
+    const cote = chips.find(b => b.dataset.rkind === "reserve");
+    return {
+      genres: chips.map(b => b.dataset.rkind),
+      textes: chips.map(b => b.textContent.trim()),
+      sousUnRepli: !!replie,
+      hauteurs: chips.map(b => Math.round(b.getBoundingClientRect().height)),
+      destVisible: document.getElementById("rDestWrap").style.display !== "none",
+      coteVisible: !!(cote && cote.getBoundingClientRect().height > 0),
+    };
+  });
+  check(feuille.genres.join(",") === "facture,abonnement,reserve,revenu",
+    `quatre choix et un seul axe (obtenu ${feuille.genres.join(",")})`);
+  check(!feuille.genres.includes("transfer") && !feuille.textes.some(t => /virement/i.test(t)),
+    "aucun virement dans une ligne mensuelle");
+  check(!feuille.sousUnRepli && feuille.coteVisible,
+    "« Mettre de côté » est visible d'emblée, pas replié sous « Détails »");
+  check(feuille.hauteurs.every(h => h >= 44),
+    `chaque choix reste une cible tactile (obtenu ${JSON.stringify(feuille.hauteurs)})`);
+  check(!feuille.destVisible, "une facture ordinaire ne demande pas de destination");
+
+  // Choisir « Mettre de côté » pilote les deux selects historiques ET fait
+  // apparaître la poche d'arrivée.
+  await page.click('#rKindGrid button[data-rkind="reserve"]');
+  await page.waitForTimeout(220);
+  const apres = await page.evaluate(() => ({
+    type: document.getElementById("rType").value,
+    nature: document.getElementById("rFamily").value,
+    destVisible: document.getElementById("rDestWrap").style.display !== "none",
+    destOptions: document.getElementById("rDest").options.length,
+    destChoisie: document.getElementById("rDest").value,
+    source: document.getElementById("rAccount").value,
+  }));
+  check(apres.type === "expense" && apres.nature === "reserve",
+    `le choix unique écrit les deux axes (obtenu ${apres.type}/${apres.nature})`);
+  check(apres.destVisible && apres.destOptions > 0,
+    `la poche d'arrivée apparaît avec des comptes (obtenu ${apres.destOptions})`);
+  check(apres.destChoisie && apres.destChoisie !== apres.source,
+    "et elle n'est jamais le compte de départ");
+
+  // Un revenu ne demande jamais de destination.
+  await page.click('#rKindGrid button[data-rkind="revenu"]');
+  await page.waitForTimeout(200);
+  const revenu = await page.evaluate(() => ({
+    type: document.getElementById("rType").value,
+    destVisible: document.getElementById("rDestWrap").style.display !== "none",
+  }));
+  check(revenu.type === "income" && !revenu.destVisible,
+    "un revenu mensuel ne demande pas de poche d'arrivée");
+  await page.click("#rCancel");
+  await page.waitForTimeout(150);
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5769,4 +5940,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 113 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 115 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan), zéro erreur console ✓");
