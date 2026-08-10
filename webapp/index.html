@@ -1060,7 +1060,7 @@
       <div class="type-grid" id="typeGrid" role="group" aria-labelledby="typeGridLabel">
         <button type="button" data-ftype="expense" aria-pressed="false">💸 Dépense</button>
         <button type="button" data-ftype="income" aria-pressed="false">💰 Revenu</button>
-        <button type="button" data-ftype="saving" aria-pressed="false">🏛️ Épargne</button>
+        <button type="button" data-ftype="saving" aria-pressed="false">🏦 Mettre de côté</button>
         <button type="button" data-ftype="investment" aria-pressed="false">📈 Investir</button>
         <button type="button" data-ftype="transfer" aria-pressed="false">⇄ Virement</button>
         <button type="button" data-ftype="taxPayment" aria-pressed="false">🧾 Impôts</button>
@@ -1070,7 +1070,7 @@
         <option value="expense">Dépense</option>
         <option value="income">Revenu</option>
         <option value="refund">Remboursement</option>
-        <option value="saving">Épargne → compte Épargne</option>
+        <option value="saving">Mettre de côté → vers un autre compte</option>
         <option value="investment">Investissement (bourse, retraite)</option>
         <option value="taxPayment">Paiement d'impôts</option>
         <option value="transfer">Virement interne → Espèces</option>
@@ -3393,7 +3393,7 @@ function renderMovements() {
       placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
       aria-label="Rechercher un mouvement" autocomplete="off" />
     <div class="filter-row" role="group" aria-label="Filtrer par type">
-      ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Épargne"], ["transfer", "Virements"]]
+      ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Mis de côté"], ["transfer", "Virements"]]
         .map(([id, label]) => `<button type="button" class="filter-chip" data-morefilter="${id}"
           aria-pressed="${moreFilter === id}">${label}</button>`).join("")}
     </div>

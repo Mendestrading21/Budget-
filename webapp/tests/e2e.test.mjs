@@ -5620,6 +5620,67 @@ currentTest = "textes courts, pas de mot orphelin";
   await ctx111.close();
 }
 
+// ---------- Test 112 : « Mettre de côté » se trouve, et ne dépense rien ----
+currentTest = "mettre de côté depuis un mouvement";
+// Question du propriétaire (08.08.2026) : « quand je paye une facture pour
+// aller sur un compte épargne, est-ce que c'est considéré comme une facture
+// ou comme mis de côté ? Regarde pour ajouter le bouton mettre de côté. »
+// Le geste EXISTAIT, mais s'appelait « Épargne » — un nom de produit
+// bancaire, pas le geste — alors que le reste de l'app dit « Mis de côté ».
+// Il ne l'a pas reconnu. C'est le même mot partout, ou ce n'est pas la même
+// chose.
+await goHome();
+{
+  await page.evaluate(() => openTxSheet(null));
+  await page.waitForSelector("#txForm", { state: "visible" });
+  const geste = await page.evaluate(() => {
+    const b = document.querySelector('[data-ftype="saving"]');
+    return { existe: !!b, texte: b ? b.textContent.trim() : null,
+             haut: b ? b.getBoundingClientRect().height : 0 };
+  });
+  check(geste.existe, "le geste « mettre de côté » est proposé à la saisie");
+  check(/mettre de côté/i.test(geste.texte || ""),
+    `il porte le mot de l'app, pas un nom de banque (obtenu « ${geste.texte} »)`);
+  check(geste.haut >= 44, `et c'est une vraie cible tactile (${geste.haut} px)`);
+  await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+  await page.waitForTimeout(150);
+
+  // LA réponse à la question : mettre 500 de côté n'est PAS une dépense du
+  // mois — mais ça sort quand même du compte courant, donc le disponible
+  // baisse. Les deux à la fois, et c'est ça qui est juste.
+  const effet = await page.evaluate(() => {
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const courant = defaultCashAccount();
+    const avant = snapshot(NOW.y, NOW.m);
+    const soldeAvant = balance(courant);
+    addTx({ id: 95001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Mise de côté E2E",
+      amount: 500, type: "saving", cat: "Épargne",
+      acc: courant, dest: epargne.id, status: "posted" });
+    const apres = snapshot(NOW.y, NOW.m);
+    return {
+      vieAvant: avant.living, vieApres: apres.living,
+      cotéAvant: round2(avant.savings + avant.invest),
+      cotéApres: round2(apres.savings + apres.invest),
+      soldeAvant, soldeApres: balance(courant),
+      epargneApres: balance(epargne.id),
+    };
+  });
+  check(Math.abs(effet.vieApres - effet.vieAvant) < 0.02,
+    `mettre de côté n'entre PAS dans les dépenses du mois (${effet.vieAvant} → ${effet.vieApres})`);
+  check(Math.abs((effet.cotéApres - effet.cotéAvant) - 500) < 0.02,
+    `ça entre dans « mis de côté » (${effet.cotéAvant} → ${effet.cotéApres})`);
+  check(Math.abs((effet.soldeAvant - effet.soldeApres) - 500) < 0.02,
+    `l'argent quitte bien le compte courant (${effet.soldeAvant} → ${effet.soldeApres})`);
+  check(effet.epargneApres > 0,
+    `et arrive sur l'autre compte (solde épargne ${effet.epargneApres})`);
+  await page.evaluate(() => {
+    const i = transactions.findIndex(t => t.id === 95001);
+    if (i >= 0) transactions.splice(i, 1);
+    saveState(); render();
+  });
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5629,4 +5690,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 111 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 112 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté), zéro erreur console ✓");
