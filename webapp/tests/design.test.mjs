@@ -778,10 +778,10 @@ void clippedIn;
       metrics: document.querySelectorAll("#screen .stat").length,
       priorities: document.querySelectorAll("#screen .priority-card").length,
       quick: document.querySelectorAll("#screen .quick-row .btn").length,
-      bills: /factures mensuelles/i.test(s.innerText),
+      bills: /transactions mensuelles/i.test(s.innerText),
       // Ordre du premier niveau : salutation → héros → métriques → factures.
       order: [html.indexOf("Bonjour"), html.indexOf("Disponible"),
-              html.indexOf('class="stat-grid'), html.indexOf("Factures mensuelles")],
+              html.indexOf('class="stat-grid'), html.indexOf("Transactions mensuelles")],
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
       blurred: [...document.querySelectorAll("#screen .card")]
@@ -802,7 +802,7 @@ void clippedIn;
   check(mois.metrics === 4, `exactement 4 métriques (obtenu ${mois.metrics})`);
   check(mois.priorities === 0, `aucune priorité technique sur l'accueil (obtenu ${mois.priorities})`);
   check(mois.quick === 0, `aucune rangée d'actions rapides (obtenu ${mois.quick})`);
-  check(mois.bills, "la section « Factures mensuelles » est visible");
+  check(mois.bills, "la section « Transactions mensuelles » est visible");
   check(mois.order.every(i => i >= 0) && mois.order[0] < mois.order[1]
     && mois.order[1] < mois.order[2] && mois.order[2] < mois.order[3],
     `ordre du premier niveau : salutation → héros → métriques → factures (${mois.order})`);

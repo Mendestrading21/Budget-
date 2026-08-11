@@ -9,7 +9,7 @@ struct MoreTab: View {
             List {
                 section("Mon mois") {
                     row(
-                        "Factures mensuelles",
+                        "Transactions mensuelles",
                         subtitle: "Loyer, abonnements et revenus qui reviennent",
                         systemImage: "calendar.badge.clock"
                     ) { RecurringListView() }

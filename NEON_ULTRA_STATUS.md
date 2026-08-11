@@ -121,6 +121,59 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## Choisir où va l'argent, et un seul mot pour la ligne mensuelle (10.08.2026) — VERIFYING
+
+Deux demandes du propriétaire sur la feuille d'une ligne mensuelle.
+
+### 1. « Affiche-moi les comptes que j'ai ouverts »
+
+Le champ existait mais ne montrait que des noms nus, dans l'ordre de
+création. Il dit maintenant, pour chaque compte réel : **son nom et son
+solde** — `Épargne · CHF 13'700.00`, `Pilier 3a · CHF 19'364.00`. La poche
+la plus probable est proposée en premier (prévoyance pour un 3e pilier,
+épargne sinon), et le compte de départ n'y figure jamais.
+
+Première version testée : `nom — nature · solde`. La capture à 390 px a
+montré le montant coupé par le chevron du sélecteur, et la nature répétait
+ce que le nom dit déjà. Retirée.
+
+L'exemple d'intitulé suit aussi le choix : proposer « Loyer » sous une mise
+de côté, c'était suggérer le contraire de ce qu'on vient de choisir. Chaque
+nature a le sien — Loyer, Netflix, Épargne de secours, Salaire.
+
+### 2. « Facture mensuelle » devient « Transaction mensuelle »
+
+Le mot était devenu faux : l'écran accueille aussi des abonnements, des
+mises de côté et des revenus. Renommé partout sur les deux plateformes —
+écran, menu Gérer, accueil, menu ＋, feuille, états vides, messages de
+confirmation, et l'app iPhone. Deux défauts de langue corrigés au passage :
+« Supprimer cette facture mensuelle **mensuelle** ? » et une bascule de
+genre devenue fausse.
+
+Les messages disent aussi le bon geste : on ne « paie » pas une mise de
+côté. Le bouton dit « Marquer mis de côté ce mois », et le message de
+confirmation « Mis de côté ce mois — l'argent est arrivé sur l'autre
+compte ».
+
+### Preuves
+
+- **Parcours 116 « choisir où va l'argent »** : tous les autres comptes
+  proposés et eux seuls, le compte de départ jamais, le nom réel de chaque
+  compte présent, le solde affiché, l'épargne en tête, et quatre exemples
+  d'intitulé distincts.
+- **Parcours 117 « un seul mot »** : plus aucun « facture mensuelle » visible
+  sur l'accueil, le menu Gérer, l'écran, les abonnements ni la feuille.
+- **Contrôle négatif exécuté** : ancien libellé et ancienne liste remis →
+  4 assertions tombent.
+- Neuf assertions existantes **adaptées** au nouveau mot, aucune supprimée
+  ni affaiblie.
+- 117 e2e · 5 parités · design system · audit-total 320/390/430 ·
+  audit-final — verts. Captures 390 px inspectées.
+
+### Prochaine action exacte
+
+Retour du propriétaire sur l'app installée.
+
 ## Le retour ressemble enfin à un retour (10.08.2026) — VERIFYING
 
 Question du propriétaire, capture de « Factures mensuelles » à l'appui :

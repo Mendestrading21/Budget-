@@ -1214,7 +1214,7 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="recForm" style="display:none">
-      <h3 id="recSheetTitle">Nouvelle facture mensuelle</h3>
+      <h3 id="recSheetTitle">Nouvelle transaction mensuelle</h3>
       <!-- 1. UNE seule question visible, quatre réponses.
            Demande du propriétaire (10.08.2026) : « je veux ça dans facture,
            parce que pour moi mettre de côté ça part de mes factures
@@ -1294,7 +1294,7 @@
       <button type="button" class="btn secondary" id="rEnd"
               style="display:none;margin-top:10px">Résilier à partir de ce mois</button>
       <button type="button" class="btn secondary" id="rDelete"
-              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette facture mensuelle</button>
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette transaction mensuelle</button>
     </form>
 
     <form class="sheet nu-pilot-sheet" id="itemForm" style="display:none">
@@ -1437,7 +1437,7 @@
         <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
         <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
         <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
-        <button type="button" class="btn secondary" data-quick="rec">🔁 Facture mensuelle</button>
+        <button type="button" class="btn secondary" data-quick="rec">🔁 Transaction mensuelle</button>
         <button type="button" class="btn secondary" data-quick="item">🏛️ Actif / dette</button>
         <button type="button" class="btn secondary" data-quick="ins">🛡️ Assurance</button>
         <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
@@ -3346,7 +3346,7 @@ function renderSimpleHome() {
   const bills = `<section class="card home-bills-card" aria-labelledby="monthlyBillsTitle">
     <div class="home-bills-head">
       <div>
-        <p class="card-label" id="monthlyBillsTitle">Factures mensuelles</p>
+        <p class="card-label" id="monthlyBillsTitle">Transactions mensuelles</p>
         <p class="home-bills-total">${chf(remaining)}</p>
         <span class="caption">à payer · ${paidCount} sur ${obligations.length} payée${paidCount === 1 ? "" : "s"}</span>
       </div>
@@ -3363,7 +3363,7 @@ function renderSimpleHome() {
     ` : `
       <div class="home-bills-empty">
         <p class="caption">Ajoutez votre loyer, vos primes ou vos abonnements une fois : ils reviendront automatiquement chaque mois.</p>
-        <button class="btn secondary" data-addrec>＋ Ajouter une facture mensuelle</button>
+        <button class="btn secondary" data-addrec>＋ Ajouter une transaction mensuelle</button>
       </div>`}
   </section>`;
 
@@ -4393,16 +4393,16 @@ function renderRecurring() {
         <div class="s">${rhythm}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   };
-  // Cet écran s'appelle « Factures mensuelles » : il ne montre donc que ce
+  // Cet écran s'appelle « Transactions mensuelles » : il ne montre donc que ce
   // qui revient CHAQUE mois et n'est pas résilié. Les charges annuelles et
   // les résiliations vivent dans l'écran Abonnements, qui porte le rythme.
   const monthly = r => recurringEvery(r) === "month" && recurringIsActive(r);
   const expenses = RECURRINGS.filter(r => r.type === "expense" && monthly(r));
   const incomes = RECURRINGS.filter(r => r.type === "income" && monthly(r));
   const annualCount = RECURRINGS.filter(r => recurringEvery(r) === "year" && recurringIsActive(r)).length;
-  return backBar("Factures mensuelles") + `
-    <p class="caption" style="margin:0 0 12px">Ajoutez une facture une seule fois : elle revient toute seule chaque mois, sur le bon compte. Vous dites simplement quand elle est payée.</p>
-    ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune facture mensuelle. Ajoutez par exemple le loyer, les primes ou un abonnement.</span></div>`}
+  return backBar("Transactions mensuelles") + `
+    <p class="caption" style="margin:0 0 12px">Ajoutez une ligne une seule fois : elle revient toute seule chaque mois, sur le bon compte. Facture, abonnement, mise de côté ou revenu.</p>
+    ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune transaction mensuelle. Ajoutez par exemple le loyer, une prime, un abonnement ou une mise de côté.</span></div>`}
     ${incomes.length ? `<p class="section-title">Revenus mensuels</p>${incomes.map(row).join("")}` : ""}
     <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une facture ou un revenu mensuel</button>
     ${annualCount ? `<div class="card row tx read-row" data-more="subs" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
@@ -4568,7 +4568,7 @@ function renderSubs() {
     })()}
     <div class="card" style="margin-top:12px">
       <p class="card-label">Comment c'est compté</p>
-      <p class="caption" style="margin:0 0 6px">Ici, ce qui se <strong>résilie</strong>. Loyer et caisse maladie sont des charges du foyer : elles vivent dans « Factures mensuelles ». Ouvrez une ligne pour changer.</p>
+      <p class="caption" style="margin:0 0 6px">Ici, ce qui se <strong>résilie</strong>. Loyer et caisse maladie sont des charges du foyer : elles vivent dans « Transactions mensuelles ». Ouvrez une ligne pour changer.</p>
       <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> est retiré en une fois, le mois où il tombe.</p>
       <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> quitte les prévisions, mais reste visible ici.</p>
     </div>`;
@@ -5058,7 +5058,7 @@ function renderAssistant() {
 // Hub « Gérer » par intentions (ADR-026).
 const MORE_GROUPS = [
   ["À organiser", [
-    ["recurring", "🔁", "Factures mensuelles", "Loyer, primes et revenus réguliers"],
+    ["recurring", "🔁", "Transactions mensuelles", "Loyer, abonnements, mises de côté et revenus"],
     ["subs", "🎬", "Abonnements", () => {
       const active = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
       if (!active.length) return "Streaming, logiciels, assurances";
@@ -7305,8 +7305,8 @@ function openRecSheet(rec) {
   editingRecId = rec ? rec.id : null;
   document.getElementById("recForm").reset();
   document.getElementById("recSheetTitle").textContent = rec
-    ? (rec.type === "income" ? "Modifier le revenu mensuel" : "Modifier la facture mensuelle")
-    : "Nouvelle facture ou revenu mensuel";
+    ? "Modifier la transaction mensuelle"
+    : "Nouvelle transaction mensuelle";
   document.getElementById("rDelete").style.display = rec ? "block" : "none";
   const postBtn = document.getElementById("rPost");
   const alreadyThisMonth = rec && recurringOccurrence(rec, NOW.y, NOW.m);
@@ -7317,8 +7317,8 @@ function openRecSheet(rec) {
   // Sans jour promis, il n'y a plus de « planifier pour le 25 » : le seul
   // geste est de constater que c'est fait, aujourd'hui.
   if (rec) {
-    postBtn.textContent = rec.type === "income"
-      ? "Marquer reçu ce mois" : "Marquer payée ce mois";
+    postBtn.textContent = rec.type === "income" ? "Marquer reçu ce mois"
+      : (recurringIsReserve(rec) ? "Marquer mis de côté ce mois" : "Marquer payée ce mois");
   }
   fillAccountOptions("rAccount", rec && rec.accountId);
   // La nature enregistrée si elle existe, sinon la DÉDUCTION par catégorie —
@@ -7378,6 +7378,12 @@ const KIND_NOTES = {
   reserve: "L'argent sort de votre compte mais reste à vous. Ce n'est pas une dépense.",
   revenu: "Salaire, allocation, loyer encaissé : ce qui entre chaque mois.",
 };
+const KIND_EXEMPLES = {
+  facture: "Loyer",
+  abonnement: "Netflix",
+  reserve: "Épargne de secours",
+  revenu: "Salaire",
+};
 function applyRecKind() {
   const kind = RECURRING_KINDS.includes(document.getElementById("rKind").value)
     ? document.getElementById("rKind").value : "facture";
@@ -7388,6 +7394,9 @@ function applyRecKind() {
   // est le défaut neutre et n'entraîne aucun calcul de réserve.
   family.value = kind === "revenu" ? "facture" : kind;
   document.getElementById("rKindNote").textContent = KIND_NOTES[kind];
+  // L'exemple d'intitulé suit le choix : proposer « Loyer » sous une mise
+  // de côté, c'est suggérer le contraire de ce qu'on vient de choisir.
+  document.getElementById("rTitle").placeholder = KIND_EXEMPLES[kind];
   refreshRecCatOptions();
   refreshRecDest();
 }
@@ -7404,15 +7413,25 @@ function refreshRecDest() {
   const source = document.getElementById("rAccount").value;
   const select = document.getElementById("rDest");
   const voulu = select.value;
-  const cibles = ACCOUNTS.filter(a => a.id !== source);
-  select.innerHTML = cibles.map(a =>
-    `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== baseCurrency() ? ` (${a.currency})` : ""}</option>`
-  ).join("");
+  // Les comptes RÉELS du propriétaire, avec leur nature et leur solde —
+  // demande du 10.08.2026 : « affiche-moi les comptes que j'ai ouverts, que
+  // je puisse choisir où va l'argent mis de côté ». Un nom nu ne suffit
+  // pas : « Épargne » et « Épargne 3a » se ressemblent, leur nature et leur
+  // solde les séparent. Même information que la feuille « Nouveau
+  // mouvement », pour que les deux écrans parlent pareil.
+  const preferees = document.getElementById("rCat").value === "Pilier 3a"
+    ? ["pension", "lifeinsurance"] : ["savings"];
+  const cibles = ACCOUNTS
+    .filter(a => a.id !== source)
+    .sort((a, b) => (preferees.includes(b.kind) ? 1 : 0) - (preferees.includes(a.kind) ? 1 : 0));
+  select.innerHTML = cibles.length
+    ? cibles.map(a => `<option value="${esc(a.id)}">${esc(a.name)} · ${esc(chf(toCHF(balance(a.id), a.currency)))}</option>`).join("")
+    : `<option value="">— aucun autre compte —</option>`;
   const defaut = reserveDefaultDest(document.getElementById("rCat").value, source);
   select.value = cibles.some(a => a.id === voulu) ? voulu : (defaut || "");
   document.getElementById("rDestNote").textContent = cibles.length
     ? "Cet argent sort de votre compte chaque mois et arrive ici. Il reste à vous : ce n'est pas une dépense."
-    : "Créez d'abord un deuxième compte : une mise de côté doit arriver quelque part.";
+    : "Créez d'abord un deuxième compte (Comptes → ＋) : une mise de côté doit arriver quelque part.";
 }
 document.getElementById("rAccount").addEventListener("change", refreshRecDest);
 document.getElementById("rCat").addEventListener("change", refreshRecDest);
@@ -7497,19 +7516,19 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   } else {
     data.destAccountId = undefined;
   }
-  const label = every === "year" ? "Abonnement annuel" : "Récurrence mensuelle";
+  const label = every === "year" ? "Transaction annuelle" : "Transaction mensuelle";
   if (existing) {
     Object.assign(existing, data);
     if (data.dueM === undefined) delete existing.dueM;
     if (data.destAccountId === undefined) delete existing.destAccountId;
-    toast(`${label} modifié${every === "year" ? "" : "e"}`);
+    toast(`${label} modifiée`);
   } else {
     const icone = data.type === "income" ? "💰" : (data.nature === "reserve" ? "🏦" : "🔁");
     const created = { id: "r-" + Date.now().toString(36), icon: icone, ...data };
     if (created.dueM === undefined) delete created.dueM;
     if (created.destAccountId === undefined) delete created.destAccountId;
     RECURRINGS.push(created);
-    toast(`${label} ajouté${every === "year" ? "" : "e"}`);
+    toast(`${label} ajoutée`);
   }
   saveState();
   backdrop.classList.remove("open");
@@ -7535,13 +7554,14 @@ document.getElementById("rPost").addEventListener("click", () => {
   }
   saveState();
   backdrop.classList.remove("open");
-  toast(rec.type === "income"
-    ? "Revenu mensuel enregistré"
-    : "Facture mensuelle enregistrée — retirée des prévisions");
+  toast(rec.type === "income" ? "Revenu mensuel enregistré"
+    : recurringIsReserve(rec)
+      ? "Mis de côté ce mois — l'argent est arrivé sur l'autre compte"
+      : "Transaction mensuelle enregistrée — retirée des prévisions");
   render();
 });
 document.getElementById("rDelete").addEventListener("click", () => {
-  if (!editingRecId || !confirm("Supprimer cette facture mensuelle mensuelle ? (les mouvements déjà saisis restent)")) return;
+  if (!editingRecId || !confirm("Supprimer cette transaction mensuelle ? (les mouvements déjà saisis restent)")) return;
   pushUndo();
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);

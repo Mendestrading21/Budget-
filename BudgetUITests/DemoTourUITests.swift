@@ -50,7 +50,7 @@ final class DemoTourUITests: XCTestCase {
                              lastProofPrefix: nil,
                              namedProofs: ["networth.chart.evolution"])
         demoNetWorthSelectionProof(app)
-        visitFinancialModule(app, label: "Factures mensuelles", base: "09-recurrents",
+        visitFinancialModule(app, label: "Transactions mensuelles", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
                              namedProofs: ["recurring.row.Loyer"])
         visitSettingsWithDestructiveProof(app)

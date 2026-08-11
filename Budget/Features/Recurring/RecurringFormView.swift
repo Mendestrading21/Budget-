@@ -257,7 +257,7 @@ struct RecurringFormView: View {
         errorMessage = nil
         let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
         guard !trimmedTitle.isEmpty else {
-            errorMessage = "Donnez un nom à cette facture."
+            errorMessage = "Donnez un nom à cette transaction."
             return
         }
         guard let parsed = FinanceFormatting.parseAmount(amountText.trimmingCharacters(in: .whitespaces)),

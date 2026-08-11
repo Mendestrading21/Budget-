@@ -53,7 +53,7 @@ struct RecurringListView: View {
                 .padding(BudgetSpacing.screenMargin)
             }
         }
-        .navigationTitle("Factures mensuelles")
+        .navigationTitle("Transactions mensuelles")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -61,7 +61,7 @@ struct RecurringListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .accessibilityLabel("Ajouter une facture mensuelle")
+                .accessibilityLabel("Ajouter une transaction mensuelle")
             }
         }
         .sheet(isPresented: $isPresentingNew) {
@@ -166,7 +166,7 @@ struct RecurringListView: View {
         GlassCard {
             EmptyState(
                 symbol: "calendar.badge.plus",
-                title: "Ajoutez vos factures mensuelles",
+                title: "Ajoutez vos transactions mensuelles",
                 message: "Loyer, caisse maladie, téléphone, abonnements : ajoutez-les une seule fois. Elles reviendront ensuite automatiquement chaque mois.",
                 actionTitle: "Ajouter ma première facture",
                 action: { isPresentingNew = true }
@@ -233,7 +233,7 @@ struct RecurringRow: View {
     }
 }
 
-#Preview("Factures mensuelles") {
+#Preview("Transactions mensuelles") {
     let preview = DemoDataFactory.previewAppContainer()
     return NavigationStack {
         RecurringListView()

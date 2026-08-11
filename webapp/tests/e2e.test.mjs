@@ -177,12 +177,12 @@ const monthlyRecurring = await page.evaluate(() => {
     perMonth,
   };
 });
-check(/factures mensuelles/i.test(monthlyRecurring.firstText)
+check(/transactions mensuelles/i.test(monthlyRecurring.firstText)
     && monthlyRecurring.firstText.includes("Loyer mensuel ADR026"),
   "la facture mensuelle doit être visible sur le mois précédent");
 check(/En retard/i.test(monthlyRecurring.firstText),
   "une échéance mensuelle dépassée doit être signalée explicitement « En retard »");
-check(/factures mensuelles/i.test(monthlyRecurring.secondText)
+check(/transactions mensuelles/i.test(monthlyRecurring.secondText)
     && monthlyRecurring.secondText.includes("Loyer mensuel ADR026"),
   "la même facture récurrente doit revenir le mois suivant");
 check(monthlyRecurring.created.join(",") === "true,false,true,false"
@@ -714,7 +714,7 @@ check(homeEssentials.hero, "le montant disponible doit rester le héros de l'acc
 check(homeEssentials.stats.join(",") === "Entré,Dépensé,À payer,Mis de côté",
   `les quatre montants essentiels sont attendus (${homeEssentials.stats.join(",")})`);
 check(homeEssentials.addActions === 1, "une seule action « Ajouter un mouvement » sur l'accueil");
-check(/factures mensuelles/i.test(homeEssentials.text), "la section Factures mensuelles doit être visible");
+check(/transactions mensuelles/i.test(homeEssentials.text), "la section Transactions mensuelles doit être visible");
 check(homeEssentials.quickActions === 0 && !homeEssentials.customization && !homeEssentials.foldedWealth,
   "l'accueil ne doit plus afficher actions rapides, personnalisation ou patrimoine replié");
 
@@ -866,7 +866,7 @@ await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Disponible"), "le montant disponible doit dominer l'écran Mois");
-check(screenHTML.includes("Factures mensuelles"), "les factures mensuelles doivent suivre les quatre montants");
+check(screenHTML.includes("Transactions mensuelles"), "les transactions mensuelles doivent suivre les quatre montants");
 // ADR-026 : l'accueil ne CHARGE aucune analyse. Un raccourci de navigation
 // vers une destination dédiée n'est pas une analyse — un widget de
 // progression, une courbe ou une jauge en est une. L'assertion distingue
@@ -1104,12 +1104,12 @@ const orderIdx = {
   hello: screenHTML.indexOf("Bonjour"),
   hero: screenHTML.indexOf("Disponible"),
   metrics: screenHTML.indexOf('class="stat-grid'),
-  bills: screenHTML.indexOf("Factures mensuelles"),
+  bills: screenHTML.indexOf("Transactions mensuelles"),
 };
 check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
 check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
 check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
-check(orderIdx.metrics < orderIdx.bills, "métriques avant les factures mensuelles");
+check(orderIdx.metrics < orderIdx.bills, "métriques avant les transactions mensuelles");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
 // Exactement 4 métriques, avec les mots du contrat.
 const statLabels = await page.$$eval(".stat-grid .stat .card-label", els => els.map(e => e.textContent.trim()));
@@ -1190,7 +1190,7 @@ await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Factures mensuelles"), "état vide guidé : section factures mensuelles");
+check(screenHTML.includes("Transactions mensuelles"), "état vide guidé : section transactions mensuelles");
 check(screenHTML.includes("Disponible"), "le héros existe même sans mouvement");
 const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(demoHidden, "pas de bannière démo pour un vrai départ");
@@ -3976,7 +3976,7 @@ await goHome();
   // formulaire — il est vérifié séparément plus bas.
   const SHEETS = [
     ["txForm", "openTxSheet(null)", "Nouveau mouvement", true],
-    ["recForm", "openRecSheet(null)", "Facture mensuelle", true],
+    ["recForm", "openRecSheet(null)", "Transaction mensuelle", true],
     ["lineForm", "openLineSheet(null)", "Ligne budgétaire", false],
     ["accForm", "openAccSheet(null)", "Compte", false],
     ["billForm", "openBillSheet(null)", "Facture ponctuelle", false],
@@ -5931,6 +5931,93 @@ currentTest = "mettre de côté au premier plan de la facture";
   await goHome();
 }
 
+// ---------- Test 116 : la poche d'arrivée montre les VRAIS comptes ---------
+currentTest = "choisir où va l'argent mis de côté";
+// Demande du propriétaire (10.08.2026) : « affiche-moi les comptes que j'ai
+// ouverts, que je puisse choisir quel est le compte où va l'argent mis de
+// côté ». Un nom nu ne suffit pas — « Épargne » et « Épargne 3a » se
+// ressemblent. On vérifie donc que chaque option porte le nom RÉEL du
+// compte, sa nature et son solde, et que la liste couvre tous les comptes
+// sauf celui d'où part l'argent.
+{
+  await page.evaluate(() => openRecSheet(null));
+  await page.waitForSelector("#recForm", { state: "visible" });
+  await page.click('#rKindGrid button[data-rkind="reserve"]');
+  await page.waitForTimeout(250);
+  const poches = await page.evaluate(() => {
+    const source = document.getElementById("rAccount").value;
+    const options = [...document.getElementById("rDest").options];
+    return {
+      source,
+      attendus: ACCOUNTS.filter(a => a.id !== source).map(a => a.id).sort(),
+      proposes: options.map(o => o.value).sort(),
+      textes: options.map(o => o.textContent),
+      sourceProposee: options.some(o => o.value === source),
+      // Le nom réel de chaque compte doit apparaître tel qu'il est saisi.
+      nomsPresents: ACCOUNTS.filter(a => a.id !== source)
+        .every(a => options.some(o => o.textContent.includes(a.name))),
+      // Et la première proposition est la poche la plus probable.
+      premiereEstEpargne: (ACCOUNTS.find(a => a.id === options[0].value) || {}).kind === "savings",
+    };
+  });
+  check(poches.proposes.join(",") === poches.attendus.join(","),
+    `tous les autres comptes sont proposés (${poches.proposes.length} sur ${poches.attendus.length})`);
+  check(!poches.sourceProposee, "le compte de départ n'est jamais une destination");
+  check(poches.nomsPresents, "chaque option porte le nom réel du compte");
+  check(poches.textes.every(t => /·/.test(t)),
+    `chaque option dit aussi le solde du compte (obtenu ${JSON.stringify(poches.textes)})`);
+  check(poches.premiereEstEpargne, "l'épargne est proposée en premier");
+
+  // L'exemple d'intitulé suit le choix : plus de « Loyer » sous une réserve.
+  const exemples = await page.evaluate(async () => {
+    const lus = {};
+    for (const kind of ["facture", "abonnement", "reserve", "revenu"]) {
+      document.querySelector(`#rKindGrid button[data-rkind="${kind}"]`).click();
+      lus[kind] = document.getElementById("rTitle").placeholder;
+    }
+    return lus;
+  });
+  check(new Set(Object.values(exemples)).size === 4,
+    `chaque nature propose son propre exemple (obtenu ${JSON.stringify(exemples)})`);
+  check(exemples.reserve !== "Loyer" && exemples.facture === "Loyer",
+    "une mise de côté ne propose plus « Loyer » comme exemple");
+  await page.click("#rCancel");
+  await page.waitForTimeout(150);
+  await goHome();
+}
+
+// ---------- Test 117 : un seul mot pour la ligne mensuelle ------------------
+currentTest = "transaction mensuelle, partout le même mot";
+// « J'aimerais que tu changes facture mensuelle en transaction mensuelle. »
+// Le mot était devenu faux : l'écran accueille aussi des abonnements, des
+// mises de côté et des revenus. On vérifie qu'aucun « facture mensuelle »
+// visible ne subsiste — ni sur l'écran, ni dans le menu, ni dans la feuille.
+{
+  const restes = await page.evaluate(async () => {
+    const trouves = [];
+    const lire = (ou) => {
+      const t = document.getElementById("screen").innerText;
+      if (/factures? mensuelles?/i.test(t)) trouves.push(ou);
+    };
+    activeTab = "home"; render(); lire("accueil");
+    activeTab = "more"; moreView = null; render(); lire("menu Gérer");
+    moreView = "recurring"; render(); lire("écran des transactions mensuelles");
+    moreView = "subs"; render(); lire("abonnements");
+    openRecSheet(null);
+    const feuille = document.getElementById("recForm").innerText;
+    if (/factures? mensuelles?/i.test(feuille)) trouves.push("feuille de saisie");
+    const titre = document.getElementById("recSheetTitle").textContent;
+    document.getElementById("sheetBackdrop").classList.remove("open");
+    activeTab = "home"; moreView = null; render();
+    return { trouves, titre };
+  });
+  check(restes.trouves.length === 0,
+    `plus aucun « facture mensuelle » visible (restes : ${JSON.stringify(restes.trouves)})`);
+  check(/transaction mensuelle/i.test(restes.titre),
+    `la feuille s'appelle « Nouvelle transaction mensuelle » (obtenu « ${restes.titre} »)`);
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -5940,4 +6027,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 115 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 117 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle), zéro erreur console ✓");

@@ -339,7 +339,7 @@ struct HomeTab: View {
                         NavigationLink {
                             RecurringListView()
                         } label: {
-                            Label("Ajouter une facture mensuelle", systemImage: "plus")
+                            Label("Ajouter une transaction mensuelle", systemImage: "plus")
                                 .font(NeonUltraTypography.label)
                                 .foregroundStyle(NeonUltraColor.textOnCta)
                                 .frame(maxWidth: .infinity, minHeight: 44)
