@@ -74,14 +74,52 @@ côté est neutre pour le patrimoine. Le défaut date du lot C1 (07.08).
 - 115 e2e · 5 parités · design system · audit-total 320/390/430 · audit-final
   (14 contrôles) — verts. Captures 390 et 320 px inspectées.
 
-### Dette reconnue
+### Le natif audité et aligné (même journée)
 
-L'app native iOS n'a **pas** été relue sur ce point. Si `RecurringService`
-matérialise de la même façon, le même défaut y est probable — à auditer.
+Résultat de l'audit annoncé : `RecurringScheduleService.makeTransaction`
+propageait déjà `recurring.destinationAccount`. Le natif n'avait donc **pas**
+le trou de la matérialisation. Mais il l'avait par une autre porte —
+`TransactionValidationService` déclarait la destination **facultative** pour
+`.saving` et `.investment` (commentaire « Destination optional »), et le
+formulaire annonçait même « (facultatif) » dans le libellé. Un utilisateur
+pouvait donc créer nativement la même ligne qui évapore l'argent.
+
+Corrigé :
+
+- destination **obligatoire** pour `.saving` et `.investment`, nouvelle
+  erreur typée `missingContributionDestination` avec son message français ;
+- `.debtPayment` garde la destination facultative — elle désigne la dette
+  remboursée, et rembourser une dette non suivie par l'app reste un cas
+  réel. Ce périmètre est tenu par un test dédié, pour que le durcissement ne
+  déborde pas ;
+- la feuille des lignes mensuelles refuse la destination vide ou égale au
+  compte de départ ;
+- les libellés cessent de promettre « facultatif » là où la règle l'exige.
+
+Tests natifs : `testSavingRequiresADestinationSoMoneyNeverVanishes`
+(**inversion assumée** de `testSavingWithOptionalDestinationIsValid` — la
+raison est écrite dans le test, l'ancien n'a pas été supprimé mais retourné),
+`testDebtPaymentStillAcceptsNoDestination`,
+`testMaterializedContributionCarriesItsDestination`,
+`testContributionWithoutDestinationIsRejectedAtEntry`.
+Décision consignée en **ADR-029**.
+
+**Non vérifié ici, et c'est une vraie limite** : cet environnement n'a aucun
+compilateur Swift. Le natif est validé par la CI macOS, pas par une
+exécution locale — le résultat de la CI fait foi.
+
+### Incident d'environnement (10.08.2026)
+
+Le conteneur a été recyclé en cours de session : le clone local est revenu à
+`102cbd0`, deux commits en arrière. Les commits `e7c7e6a` et `c203f2f`
+étaient déjà sur GitHub et intacts ; le travail natif en cours a été mis de
+côté, la branche remise sur `origin`, puis le travail réappliqué. Aucune
+perte. Noté ici parce qu'un rapport qui tait un incident n'est pas un
+rapport.
 
 ### Prochaine action exacte
 
-Audit du même défaut côté natif, puis retour du propriétaire sur l'app.
+Retour du propriétaire sur l'app installée.
 
 ## Le retour ressemble enfin à un retour (10.08.2026) — VERIFYING
 

@@ -60,6 +60,7 @@ enum TransactionValidationError: LocalizedError, Equatable {
     case inactiveAccount
     case missingCategory
     case missingTransferDestination
+    case missingContributionDestination
     case transferDestinationEqualsSource
     case inactiveDestination
     case destinationNotSupported
@@ -84,6 +85,8 @@ enum TransactionValidationError: LocalizedError, Equatable {
             "Choisissez une catégorie."
         case .missingTransferDestination:
             "Choisissez le compte de destination du virement."
+        case .missingContributionDestination:
+            "Choisissez le compte qui reçoit cet argent. Mis de côté, il reste à vous."
         case .transferDestinationEqualsSource:
             "Le compte de destination doit être différent du compte source."
         case .inactiveDestination:
@@ -154,9 +157,26 @@ struct TransactionValidationService {
             } else {
                 errors.append(.missingTransferDestination)
             }
-        case .saving, .investment, .debtPayment:
-            // Destination optional: internal contribution when set — for
-            // .debtPayment it is the debt account being paid down.
+        case .saving, .investment:
+            // La destination est OBLIGATOIRE, et c'est un changement assumé
+            // du 10.08.2026. « Mettre de côté » promet à l'utilisateur que
+            // l'argent reste à lui ; sans compte d'arrivée, il sort du
+            // compte source et n'atterrit nulle part, donc le patrimoine
+            // baisse du montant réservé — l'exact contraire de la promesse.
+            // Le web applique déjà cette règle ; les deux plateformes disent
+            // désormais la même chose.
+            if let destination = draft.destinationAccount {
+                if destination.id == draft.account?.id {
+                    errors.append(.transferDestinationEqualsSource)
+                } else if !destination.isActive && !allowInactiveAccounts {
+                    errors.append(.inactiveDestination)
+                }
+            } else {
+                errors.append(.missingContributionDestination)
+            }
+        case .debtPayment:
+            // Reste facultative : la destination est ici la dette remboursée,
+            // et un remboursement sans dette suivie reste un cas réel.
             if let destination = draft.destinationAccount {
                 if destination.id == draft.account?.id {
                     errors.append(.transferDestinationEqualsSource)

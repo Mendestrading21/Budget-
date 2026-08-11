@@ -293,7 +293,16 @@ final class TransactionValidationTests: XCTestCase {
         XCTAssertTrue(service.validate(draft, now: now).contains(.destinationNotSupported))
     }
 
-    func testSavingWithOptionalDestinationIsValid() {
+    /// Renommé et INVERSÉ le 10.08.2026 (auparavant
+    /// `testSavingWithOptionalDestinationIsValid`, qui exigeait l'inverse).
+    ///
+    /// La destination était facultative pour une mise de côté. Conséquence
+    /// mesurée côté web sur le même modèle : l'argent quitte le compte
+    /// source, n'arrive sur aucun compte, et le patrimoine baisse du montant
+    /// réservé — alors que l'écran promet « il reste à vous ». Un écran qui
+    /// promet une chose et fait le contraire est un défaut, pas une option.
+    /// La règle est désormais la même sur les deux plateformes.
+    func testSavingRequiresADestinationSoMoneyNeverVanishes() {
         var draft = validDraft()
         draft.type = .saving
         draft.category = BudgetCategory(name: "Épargne", kind: .saving)
@@ -301,14 +310,35 @@ final class TransactionValidationTests: XCTestCase {
         XCTAssertTrue(service.validate(draft, now: now).isEmpty)
 
         draft.destinationAccount = nil
+        XCTAssertTrue(service.validate(draft, now: now).contains(.missingContributionDestination))
+
+        // Même exigence pour un investissement : 3e pilier, bourse, retraite.
+        draft.type = .investment
+        draft.category = BudgetCategory(name: "Pilier 3a", kind: .investment)
+        XCTAssertTrue(service.validate(draft, now: now).contains(.missingContributionDestination))
+        draft.destinationAccount = otherAccount
         XCTAssertTrue(service.validate(draft, now: now).isEmpty)
+    }
+
+    /// Le remboursement de dette garde une destination FACULTATIVE : elle
+    /// désigne la dette remboursée, et rembourser une dette non suivie par
+    /// l'app reste un cas réel. Ce test borne le changement ci-dessus.
+    func testDebtPaymentStillAcceptsNoDestination() {
+        var draft = validDraft()
+        draft.type = .debtPayment
+        // Un remboursement de dette se catégorise comme une dépense
+        // (`relevantCategories` : `.expense, .debtPayment: [.expense]`).
+        draft.category = BudgetCategory(name: "Crédit", kind: .expense)
+        draft.destinationAccount = nil
+        XCTAssertFalse(service.validate(draft, now: now).contains(.missingContributionDestination))
     }
 
     func testEveryErrorHasAFrenchMessage() {
         let allErrors: [TransactionValidationError] = [
             .missingDate, .postedDateInFuture, .missingAmount, .nonPositiveAmount,
             .missingTitle, .missingAccount, .inactiveAccount, .missingCategory,
-            .missingTransferDestination, .transferDestinationEqualsSource,
+            .missingTransferDestination, .missingContributionDestination,
+            .transferDestinationEqualsSource,
             .inactiveDestination, .destinationNotSupported,
         ]
         for error in allErrors {

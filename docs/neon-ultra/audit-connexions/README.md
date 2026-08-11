@@ -1,5 +1,31 @@
 # Audit des connexions — une donnée saisie une fois (07.08.2026)
 
+> **Suivi au 10.08.2026 — les six lots sont livrés, et l'un d'eux avait un
+> défaut.** C1 à C6 sont exécutés (détail et preuves dans
+> `NEON_ULTRA_STATUS.md`). Le lot **C1 a introduit un défaut d'argent** :
+> une ligne mensuelle de nature « réserve » créait un mouvement sans compte
+> d'arrivée, donc le patrimoine baissait du montant réservé chaque mois
+> (mesuré : 3'400 → 2'900 pour 500 CHF). Corrigé le 10.08 sur les deux
+> plateformes, avec réparation bornée des mouvements déjà créés — voir
+> **ADR-029**. La section 3 ci-dessous décrivait l'intention ; elle est
+> conservée telle quelle, et ce qui a réellement été construit est décrit
+> dans l'ADR.
+>
+> | Lot | État |
+> |---|---|
+> | C1 — axe facture / abonnement / réserve | livré, puis **corrigé** (ADR-029) |
+> | C2 — provision d'impôts réelle | livré |
+> | C3 — prévoyance sans double compte | livré |
+> | C4 — accueil sans double compte | livré |
+> | C5 — objectifs reliés par défaut | livré |
+> | C6 — allègement des textes | livré |
+>
+> Le point 6 (« ce que cet audit ne dit pas encore ») est lui aussi à jour :
+> **l'app native a été auditée** sur ce point le 10.08. Elle propageait bien
+> la destination, mais sa validation la déclarait facultative — même défaut,
+> autre porte. Corrigé.
+
+
 Demande du propriétaire : « je veux une application qui fonctionne comme un
 seul système financier cohérent, et non comme plusieurs pages indépendantes ».
 

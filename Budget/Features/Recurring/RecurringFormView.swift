@@ -75,6 +75,16 @@ struct RecurringFormView: View {
         allAccounts.filter { $0.isActive && $0.id != account?.id }
     }
 
+    /// Mise de côté et investissement doivent arriver quelque part ; le
+    /// remboursement de dette garde une destination facultative.
+    private var destinationRequired: Bool {
+        type == .saving || type == .investment
+    }
+
+    private var destinationPickerLabel: String {
+        destinationRequired ? "Vers quel compte" : "Dette remboursée (facultatif)"
+    }
+
     private var relevantCategories: [BudgetCategory] {
         let kinds: [CategoryKind] = switch type {
         case .income: [.income]
@@ -134,8 +144,8 @@ struct RecurringFormView: View {
                     }
 
                     if type.supportsDestinationAccount {
-                        Picker("Compte de destination", selection: $destinationAccount) {
-                            Text("Aucun").tag(Account?.none)
+                        Picker(destinationPickerLabel, selection: $destinationAccount) {
+                            Text(destinationRequired ? "Choisir…" : "Aucun").tag(Account?.none)
                             ForEach(selectableDestinations) { account in
                                 Text(account.name).tag(Account?.some(account))
                             }
@@ -262,6 +272,19 @@ struct RecurringFormView: View {
         if validationService.categoryRequired(for: type) && category == nil {
             errorMessage = "Choisissez une catégorie."
             return
+        }
+        // Une ligne mensuelle « mise de côté » DOIT arriver quelque part :
+        // sinon chaque mois l'argent quitte le compte sans atterrir, et le
+        // patrimoine baisse du montant réservé. Même règle que le web.
+        if type == .saving || type == .investment {
+            guard let destination = destinationAccount else {
+                errorMessage = "Choisissez le compte qui reçoit cet argent. Mis de côté, il reste à vous."
+                return
+            }
+            guard destination.id != account?.id else {
+                errorMessage = "Le compte qui reçoit doit être différent du compte de départ."
+                return
+            }
         }
         if hasEndDate && endDate <= firstOccurrence {
             errorMessage = "La date de fin doit être après la prochaine date."

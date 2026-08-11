@@ -80,12 +80,20 @@ struct TransactionFormView: View {
         allAccounts.filter { ($0.isActive || $0.id == editedTransaction?.destinationAccount?.id) && $0.id != account?.id }
     }
 
+    /// Le libellé dit la vérité de la règle : obligatoire pour une mise de
+    /// côté et un investissement (l'argent doit arriver quelque part),
+    /// facultatif pour un remboursement de dette non suivie.
     private var destinationPickerLabel: String {
         switch type {
         case .transfer: "Vers le compte"
         case .debtPayment: "Dette remboursée (facultatif)"
+        case .saving, .investment: "Vers quel compte"
         default: "Vers le compte (facultatif)"
         }
+    }
+
+    private var destinationRequired: Bool {
+        type == .transfer || type == .saving || type == .investment
     }
 
     private var relevantCategories: [BudgetCategory] {
@@ -171,7 +179,7 @@ struct TransactionFormView: View {
                     }
                     if type.supportsDestinationAccount {
                         Picker(destinationPickerLabel, selection: $destinationAccount) {
-                            Text(type == .transfer ? "Choisir…" : "Aucun").tag(Account?.none)
+                            Text(destinationRequired ? "Choisir…" : "Aucun").tag(Account?.none)
                             ForEach(selectableDestinations) { account in
                                 Text(account.name).tag(Account?.some(account))
                             }

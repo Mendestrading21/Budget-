@@ -340,6 +340,45 @@ final class RecurringScheduleServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.available.recurringCharges, .zero)
     }
 
+    /// Une mise de côté mensuelle doit ARRIVER quelque part.
+    ///
+    /// Ajouté le 10.08.2026 après avoir mesuré le défaut équivalent côté web :
+    /// un mouvement `saving` matérialisé sans compte d'arrivée fait sortir
+    /// l'argent du compte source sans l'y faire atterrir, donc le patrimoine
+    /// baisse du montant réservé, chaque mois. Le natif propageait déjà la
+    /// destination ; ce test l'empêche de régresser en silence.
+    func testMaterializedContributionCarriesItsDestination() {
+        let destination = Account(name: "Épargne", type: .savings)
+        context.insert(destination)
+        let contribution = RecurringTransaction(
+            title: "Épargne mensuelle", amount: Decimal("500.00"), type: .saving,
+            firstOccurrence: date(5, 1),
+            account: account, destinationAccount: destination
+        )
+        context.insert(contribution)
+
+        let created = service.makeTransaction(from: contribution, on: date(5, 1), now: now)
+        XCTAssertEqual(created.destinationAccount?.id, destination.id,
+                       "sans destination, les 500 quittent le compte et n'arrivent nulle part")
+        XCTAssertEqual(created.account?.id, account.id)
+        XCTAssertEqual(created.amount, Decimal("500.00"))
+    }
+
+    /// Et le formulaire refuse d'en créer une sans destination : la règle
+    /// vaut à la saisie, pas seulement à la matérialisation.
+    func testContributionWithoutDestinationIsRejectedAtEntry() {
+        var draft = TransactionDraft()
+        draft.date = now
+        draft.amount = Decimal("500.00")
+        draft.title = "Épargne mensuelle"
+        draft.type = .saving
+        draft.account = account
+        draft.category = BudgetCategory(name: "Épargne", kind: .saving)
+        draft.destinationAccount = nil
+        let errors = TransactionValidationService(calendar: calendar).validate(draft, now: now)
+        XCTAssertTrue(errors.contains(.missingContributionDestination))
+    }
+
     // MARK: - Persistence
 
     func testRecurringPersistsAcrossContexts() throws {

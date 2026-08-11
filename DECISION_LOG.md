@@ -1,5 +1,79 @@
 # Budget decision log
 
+## ADR-029 — Mettre de côté exige une poche d'arrivée, sur les deux plateformes
+
+Date: 2026-08-10
+Status: accepted
+
+### Contexte
+
+Le propriétaire demande que « Mettre de côté » soit une nature de **ligne
+mensuelle** à part entière, au même rang qu'une facture : « pour moi, mettre
+de côté, ça part de mes factures mensuelles… sans le virement : ce qui sort de
+mon compte chaque mois ».
+
+En allant remonter ce choix dans la feuille, un défaut d'argent est mesuré.
+Sonde reproductible, données fictives, PWA :
+
+```
+patrimoine avant   3'400.00
+patrimoine après   2'900.00
+solde d'épargne        0.00
+mouvement créé     type saving, dest: null
+```
+
+Une ligne mensuelle de nature « réserve » créait un mouvement
+`saving` / `investment` **sans compte d'arrivée** : l'argent quittait le compte
+source et n'atterrissait nulle part. Le patrimoine baissait du montant
+réservé, **chaque mois**. Défaut introduit par le lot C1 (07.08.2026).
+
+L'audit du natif montre une variante du même problème par une autre porte :
+`RecurringScheduleService.makeTransaction` propageait bien la destination,
+mais `TransactionValidationService` la déclarait **facultative** pour
+`.saving` et `.investment` (commentaire « Destination optional »). Un
+utilisateur pouvait donc créer nativement la même ligne qui évapore l'argent.
+
+### Décision
+
+Une mise de côté et un investissement ont **toujours** une poche d'arrivée.
+
+1. **Web** : la nature devient un choix unique et visible dans la feuille
+   d'une ligne mensuelle — `Facture · Abonnement · Mettre de côté · Revenu`,
+   sans virement (une ligne mensuelle est ce qui *sort* du compte). La
+   destination est un champ obligatoire, avec un défaut déduit de la
+   catégorie (3e pilier → prévoyance, sinon épargne), jamais le compte de
+   départ. `materializeRecurring` pose la destination et **refuse** de créer
+   le mouvement quand aucune poche n'existe.
+2. **Natif** : `TransactionValidationService` exige la destination pour
+   `.saving` et `.investment` (nouvelle erreur
+   `missingContributionDestination`). `.debtPayment` la garde facultative :
+   elle désigne la dette remboursée, et rembourser une dette non suivie par
+   l'app reste un cas réel. Les libellés des sélecteurs cessent d'annoncer
+   « facultatif » pour ces deux types.
+3. **Réparation bornée** des mouvements déjà créés : un mouvement
+   `saving` / `investment` sans destination **et lié à une ligne mensuelle**
+   retrouve la poche de sa ligne, valeur déduite jamais inventée. Un
+   mouvement saisi à la main n'est jamais touché ; si aucune poche ne se
+   déduit, rien n'est modifié.
+
+### Conséquences
+
+- L'invariant « une mise de côté est neutre pour le patrimoine » redevient
+  vrai, et il est tenu par des tests des deux côtés.
+- Un utilisateur sans second compte ne peut plus enregistrer une mise de
+  côté : il reçoit un refus qui dit quoi faire, au lieu d'un patrimoine faux.
+- Le natif perd une souplesse assumée (« réserve non suivie »). C'est
+  volontaire : l'écran promet « il reste à vous », il doit tenir sa promesse.
+  Le remboursement de dette conserve l'échappatoire.
+
+### Preuves
+
+Web : parcours e2e 114 et 115, contrôle négatif (4 assertions tombent, dont
+`patrimoine 44963.95 → 44463.95`). Natif : `TransactionValidationTests`
+(test inversé et renommé, avec la raison écrite) et
+`RecurringScheduleServiceTests` (destination portée à la matérialisation,
+refus à la saisie).
+
 ## ADR-028 — Rythme des charges régulières, page Année et tuiles d'accès
 
 Date: 2026-07-29
