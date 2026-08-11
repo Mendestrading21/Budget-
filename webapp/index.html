@@ -3923,6 +3923,60 @@ function renderAccounts() {
     <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
 }
 
+/* CE QUE LE GESTE VIENT DE FAIRE AVANCER.
+   Mettre 200 CHF de côté, ce n'est pas « Mouvement ajouté ». C'est un
+   objectif qui bouge. L'app le sait — les objectifs sont reliés à un compte
+   — mais elle ne le disait pas. Elle le dit maintenant, au moment exact du
+   geste, et une seule fois.
+
+   Règles tenues :
+   · un CONSTAT, jamais une félicitation creuse : le pourcentage vient de
+     `goalCurrent`, la même source que l'écran Objectifs ;
+   · un seul emoji, et seulement sur un vrai palier — pas de confettis à
+     chaque franc (la constitution interdit l'esthétique de casino) ;
+   · rien si l'objectif n'avance pas, rien si aucun objectif n'est relié. */
+const PALIERS = [
+  [1, "C'est fait — objectif atteint 🎉"],
+  [0.75, "Les trois quarts sont là"],
+  [0.5, "La moitié est atteinte"],
+  [0.25, "Le premier quart est là"],
+];
+function progresObjectif(destId, avantParGoal) {
+  if (!destId) return null;
+  // PLUSIEURS objectifs peuvent partager un compte : le solde monte pour
+  // tous. Annoncer « le premier de la liste » serait arbitraire. On classe :
+  // un palier franchi passe devant, puis l'objectif prioritaire, puis le
+  // plus avancé. Un seul message, jamais trois d'affilée.
+  const candidats = GOALS
+    .filter(g => g.linked === destId && !g.achieved && g.target > 0)
+    .map(g => {
+      const avant = avantParGoal.get(g.id);
+      if (avant == null) return null;
+      const apres = goalCurrent(g);
+      if (!(apres > avant)) return null;
+      const pctAvant = Math.min(1, avant / g.target);
+      const pctApres = Math.min(1, apres / g.target);
+      const palier = PALIERS.find(([seuil]) => pctApres >= seuil && pctAvant < seuil);
+      return { g, pctAvant, pctApres, palier };
+    })
+    .filter(Boolean);
+  if (!candidats.length) return null;
+  candidats.sort((a, b) =>
+    (b.palier ? 1 : 0) - (a.palier ? 1 : 0)
+    || (b.g.priority ? 1 : 0) - (a.g.priority ? 1 : 0)
+    || b.pctApres - a.pctApres);
+  const { g, pctAvant, pctApres, palier } = candidats[0];
+  const nom = g.emoji ? `${g.emoji} ${g.name}` : g.name;
+  return palier
+    ? `${nom} — ${palier[1]}`
+    : `${nom} : ${Math.round(pctAvant * 100)} % → ${Math.round(pctApres * 100)} %`;
+}
+/* Photo des objectifs reliés AVANT l'écriture : sans elle, on ne peut pas
+   dire de combien ça a bougé. */
+function photoObjectifs() {
+  return new Map(GOALS.filter(g => g.linked && !g.achieved).map(g => [g.id, goalCurrent(g)]));
+}
+
 function goalCurrent(g) {
   return g.linked ? toCHF(balance(g.linked), accountCurrency(g.linked)) : (g.manualCurrent || 0);
 }
@@ -6665,6 +6719,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   const status = statusForDate(y, m, d);
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   try {
+    const photoAvant = photoObjectifs();
     if (existing) {
       // Valider et estampiller une copie AVANT de remplacer l'objet vivant :
       // un taux manquant ne laisse jamais une édition partielle en mémoire.
@@ -6682,7 +6737,8 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
         title, amount: Math.round(amount * 100) / 100,
         type, cat, acc: sourceId, dest, status,
       });
-      toast(status === "planned" ? "Mouvement planifié" : "Mouvement ajouté");
+      const avance = status === "planned" ? null : progresObjectif(dest, photoAvant);
+      toast(avance || (status === "planned" ? "Mouvement planifié" : "Mouvement ajouté"));
     }
   } catch (error) {
     fieldError("fAccount", error && error.message ? error.message : "Taux de change manquant pour ce compte.");
@@ -7697,19 +7753,23 @@ document.getElementById("rPost").addEventListener("click", () => {
     return;
   }
   pushUndo();
+  const photoRec = photoObjectifs();
+  let resultat;
   try {
-    const result = materializeRecurring(rec, NOW.y, NOW.m);
-    if (!result.created) return;
+    resultat = materializeRecurring(rec, NOW.y, NOW.m);
+    if (!resultat.created) return;
   } catch (error) {
     document.getElementById("rError").textContent = error.message || "Taux de change manquant.";
     return;
   }
   saveState();
   backdrop.classList.remove("open");
-  toast(rec.type === "income" ? "Revenu mensuel enregistré"
+  const avanceRec = resultat && resultat.transaction && resultat.transaction.status === "posted"
+    ? progresObjectif(resultat.transaction.dest, photoRec) : null;
+  toast(avanceRec || (rec.type === "income" ? "Revenu mensuel enregistré"
     : recurringIsReserve(rec)
       ? "Mis de côté ce mois — l'argent est arrivé sur l'autre compte"
-      : "Transaction mensuelle enregistrée — retirée des prévisions");
+      : "Transaction mensuelle enregistrée — retirée des prévisions"));
   render();
 });
 document.getElementById("rDelete").addEventListener("click", () => {

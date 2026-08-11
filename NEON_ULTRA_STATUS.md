@@ -121,6 +121,64 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## Le geste dit ce qu'il fait avancer (10.08.2026) — VERIFYING
+
+Mettre 250 CHF de côté et lire « Mouvement ajouté », c'est perdre le seul
+moment où l'app peut donner envie de recommencer.
+
+### Ce qui change
+
+Quand un mouvement alimente un compte relié à un objectif, le message dit ce
+qui vient de bouger :
+
+```
+🛟 Fonds d'urgence : 68 % → 71 %
+✈️ Voyage — La moitié est atteinte
+🎯 Permis — C'est fait, objectif atteint 🎉
+```
+
+Les deux portes le disent : la feuille de saisie **et** « Marquer mis de côté
+ce mois » sur une transaction mensuelle.
+
+Trois règles tenues :
+
+- **un constat, jamais une félicitation creuse** — les pourcentages viennent
+  de `goalCurrent`, la même source que l'écran Objectifs ;
+- **un seul emoji, et seulement sur un vrai palier** (25 / 50 / 75 / 100 %) :
+  la constitution interdit l'esthétique de casino, donc pas de confettis à
+  chaque franc ;
+- **rien du tout** si rien n'avance, si le mouvement est seulement prévu, ou
+  si aucun objectif n'est relié.
+
+### Une vraie question posée par le test
+
+Plusieurs objectifs peuvent être reliés au **même compte** : le solde monte
+pour tous. Annoncer « le premier de la liste » aurait été arbitraire. L'ordre
+est explicite et testé : un **palier franchi** passe devant, puis l'objectif
+**prioritaire**, puis le **plus avancé**. Un seul message, jamais trois.
+
+### Un trou dans mon propre test, trouvé par le contrôle négatif
+
+Débrancher l'annonce du message ne faisait tomber **aucune** assertion : mes
+contrôles appelaient la fonction, jamais le geste. Un parcours passant par la
+feuille de saisie a été ajouté ; le contrôle négatif le fait maintenant
+tomber avec « obtenu : Mouvement ajouté ».
+
+### Preuves
+
+- **Parcours 119 « un objectif qui avance se voit »** : progrès annoncé et
+  vrai, pourcentages identiques à l'écran Objectifs, rien sur une dépense
+  ordinaire, rien sans mouvement, palier dit en mots, au plus deux emojis,
+  départage sur compte partagé, et le geste réel par la feuille.
+- **Contrôles négatifs exécutés** : annonce débranchée → 1 assertion tombe ;
+  départage retiré → 1 assertion tombe.
+- 119 e2e · 5 parités · design system · audit-total 320/390/430 · audit-final
+  · audit-coherence — verts.
+
+### Prochaine action exacte
+
+Retour du propriétaire sur l'app installée.
+
 ## Le rythme du mois : répondre à la vraie question (10.08.2026) — VERIFYING
 
 « Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un solde.

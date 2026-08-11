@@ -6105,6 +6105,129 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 119 : le geste dit ce qu'il fait avancer ------------------
+currentTest = "un objectif qui avance se voit";
+// Mettre 200 de côté n'est pas « Mouvement ajouté » : c'est un objectif qui
+// bouge. L'app le savait — les objectifs sont reliés à un compte — et ne le
+// disait pas. Ce test tient les deux bouts : le progrès est ANNONCÉ, et il
+// est vrai (mêmes chiffres que l'écran Objectifs). Et il n'est jamais
+// annoncé quand rien n'avance.
+await goHome();
+{
+  const cas = await page.evaluate(() => {
+    const courant = defaultCashAccount();
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    // L'objectif RELIÉ du jeu de démo, loin d'un palier.
+    const g = GOALS.find(x => x.linked === epargne.id && !x.achieved);
+    g.target = round2(goalCurrent(g) * 4 + 4000);
+    const photo = photoObjectifs();
+    const avant = goalCurrent(g);
+    addTx({ id: 97001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Mise de côté 119",
+      amount: 300, type: "saving", cat: "Épargne",
+      acc: courant, dest: epargne.id, status: "posted" });
+    const message = progresObjectif(epargne.id, photo);
+    const apres = goalCurrent(g);
+    // Rien ne doit être annoncé quand l'argent ne va pas vers l'objectif.
+    const photo2 = photoObjectifs();
+    addTx({ id: 97002, y: NOW.y, m: NOW.m, d: NOW.d, title: "Course 119",
+      amount: 40, type: "expense", cat: "Autre", acc: courant, dest: null, status: "posted" });
+    const messageDepense = progresObjectif(null, photo2);
+    // Ni quand le mouvement est seulement PRÉVU (aucun solde ne bouge).
+    const photo3 = photoObjectifs();
+    const messageSansMouvement = progresObjectif(epargne.id, photo3);
+    return {
+      message, messageDepense, messageSansMouvement,
+      pctAvant: Math.round(avant / g.target * 100),
+      pctApres: Math.round(apres / g.target * 100),
+      nom: g.name,
+    };
+  });
+  check(cas.message !== null, `le geste annonce ce qu'il fait avancer (« ${cas.message} »)`);
+  if (cas.message) {
+    check(cas.message.includes(cas.nom),
+      `le message nomme l'objectif (obtenu « ${cas.message} »)`);
+    check(cas.message.includes(`${cas.pctAvant} %`) && cas.message.includes(`${cas.pctApres} %`),
+      `les deux pourcentages sont ceux de l'écran Objectifs (${cas.pctAvant} → ${cas.pctApres})`);
+  }
+  check(cas.messageDepense === null, "une dépense ordinaire n'annonce aucun progrès");
+  check(cas.messageSansMouvement === null, "sans mouvement, rien n'est annoncé");
+
+  // Un PALIER franchi porte un mot, et un seul emoji.
+  const palier = await page.evaluate(() => {
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const g = GOALS.find(x => x.linked === epargne.id && !x.achieved);
+    // On place la cible juste au-dessus du solde : le prochain envoi passe
+    // les 100 %.
+    g.target = round2(goalCurrent(g) + 100);
+    const photo = photoObjectifs();
+    addTx({ id: 97003, y: NOW.y, m: NOW.m, d: NOW.d, title: "Dernier effort 119",
+      amount: 150, type: "saving", cat: "Épargne",
+      acc: defaultCashAccount(), dest: epargne.id, status: "posted" });
+    const message = progresObjectif(epargne.id, photo);
+    // Nettoyage complet.
+    for (const id of [97001, 97002, 97003]) {
+      const i = transactions.findIndex(t => t.id === id);
+      if (i >= 0) transactions.splice(i, 1);
+    }
+    saveState(); render();
+    return message;
+  });
+  // Deux objectifs sur le MÊME compte : un seul message, et c'est celui qui
+  // franchit un palier qui parle.
+  const partage = await page.evaluate(() => {
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const solde = toCHF(balance(epargne.id), accountCurrency(epargne.id));
+    GOALS.push({ id: "g-e2e-119b", name: "Presque fini E2E", emoji: "🎯",
+      target: round2(solde + 50), manualCurrent: 0, linked: epargne.id, monthly: 0,
+      dueY: NOW.y + 2, dueM: NOW.m, priority: false, achieved: false });
+    GOALS.push({ id: "g-e2e-119c", name: "Très loin E2E", emoji: "🏔️",
+      target: round2(solde * 10), manualCurrent: 0, linked: epargne.id, monthly: 0,
+      dueY: NOW.y + 5, dueM: NOW.m, priority: true, achieved: false });
+    const photo = photoObjectifs();
+    addTx({ id: 97004, y: NOW.y, m: NOW.m, d: NOW.d, title: "Partage 119",
+      amount: 100, type: "saving", cat: "Épargne",
+      acc: defaultCashAccount(), dest: epargne.id, status: "posted" });
+    const message = progresObjectif(epargne.id, photo);
+    const i = transactions.findIndex(t => t.id === 97004);
+    if (i >= 0) transactions.splice(i, 1);
+    for (const id of ["g-e2e-119b", "g-e2e-119c"]) {
+      const k = GOALS.findIndex(x => x.id === id);
+      if (k >= 0) GOALS.splice(k, 1);
+    }
+    saveState(); render();
+    return message;
+  });
+  check(typeof partage === "string" && partage.includes("Presque fini E2E"),
+    `sur un compte partagé, c'est le palier franchi qui parle (obtenu « ${partage} »)`);
+
+  // LE PARCOURS RÉEL : le contrôle négatif a montré que débrancher l'annonce
+  // du toast ne faisait tomber aucune assertion — mes contrôles appelaient la
+  // fonction, jamais le geste. On passe donc par la feuille de saisie.
+  const parToast = await page.evaluate(async () => {
+    const epargne = ACCOUNTS.find(a => a.kind === "savings");
+    const g = GOALS.find(x => x.linked === epargne.id && !x.achieved);
+    g.target = round2(goalCurrent(g) * 3 + 2000);
+    saveState();
+    openTxSheet(null, "saving");
+    document.getElementById("fAmount").value = "250";
+    document.getElementById("fTitle").value = "Mise de côté par la feuille";
+    refreshDestOptions(epargne.id);
+    document.getElementById("fDest").value = epargne.id;
+    document.getElementById("txForm").dispatchEvent(new Event("submit", { cancelable: true }));
+    await new Promise(r => setTimeout(r, 250));
+    return document.getElementById("toast").textContent;
+  });
+  check(/%\s*→\s*\d+\s*%/.test(parToast || ""),
+    `enregistrer une mise de côté ANNONCE le progrès (obtenu « ${parToast} »)`);
+
+  check(palier !== null && /objectif atteint/i.test(palier),
+    `franchir 100 % se dit en mots (obtenu « ${palier} »)`);
+  const emojis = (palier || "").match(/\p{Extended_Pictographic}/gu) || [];
+  check(emojis.length <= 2,
+    `pas de confettis : au plus deux emojis, dont celui de l'objectif (obtenu ${emojis.length})`);
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -6114,4 +6237,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 118 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle + 1 rythme du mois), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 119 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle + 1 rythme du mois + 1 objectif qui avance), zéro erreur console ✓");
