@@ -5243,8 +5243,13 @@ await goHome();
   check(apres.actif === 2, `le point touché devient le point actif (obtenu ${apres.actif})`);
   // Et la tuile « Mis de côté » ne peut plus être confondue avec le reste.
   const explication = await page.evaluate(() => document.getElementById("screen").innerText);
-  check(/Où va votre argent mis de côté/.test(explication)
-      || /Mis de côté.*argent envoyé vers vos comptes/s.test(explication),
+  // Adapté le 10.08.2026 : l'explication a quitté la légende flottante sous
+  // les métriques pour la carte du héros qui PORTE le chiffre — meilleur
+  // endroit, et un mot de moins. Le titre y est en capitales par CSS, et
+  // `innerText` en tient compte : la garantie porte sur la présence de
+  // l'explication, pas sur sa casse.
+  check(/Où va votre argent mis de côté/i.test(explication)
+      || /Mis de côté.*argent envoyé vers vos comptes/is.test(explication),
     "« Mis de côté » ne se devine pas : soit la phrase, soit la répartition poche par poche");
   await goHome();
 }
@@ -6020,6 +6025,86 @@ currentTest = "transaction mensuelle, partout le même mot";
   await goHome();
 }
 
+// ---------- Test 118 : le rythme du mois dit la vérité ---------------------
+currentTest = "le rythme du mois";
+// « Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un solde.
+// L'app calculait `daily` et `daysRemaining` depuis des mois… dans
+// `renderHome`, l'écran détaillé qui n'est plus rendu depuis ADR-026 :
+// personne ne les voyait. Ils remontent sur l'accueil, avec un repère de
+// temps. Ce test vérifie que les DEUX repères sont recalculés depuis l'état,
+// et que le cas « à découvert » ne fait jamais la morale avec une barre.
+await goHome();
+{
+  const vu = await page.evaluate(() => {
+    const carte = document.querySelector("#screen .rythme");
+    if (!carte) return null;
+    const s = snapshot(NOW.y, NOW.m);
+    const joursDuMois = new Date(NOW.y, NOW.m, 0).getDate();
+    const fill = carte.querySelector(".rythme-fill");
+    const jalon = carte.querySelector(".rythme-jalon");
+    const enveloppe = toCents(s.living) + toCents(s.available);
+    return {
+      texte: carte.innerText,
+      attenduJour: chf(s.daily), attenduJours: s.daysRemaining,
+      largeurFill: fill ? Math.round(parseFloat(fill.style.width)) : null,
+      posJalon: jalon ? Math.round(parseFloat(jalon.style.left)) : null,
+      attenduArgent: Math.round(Math.min(1, toCents(s.living) / enveloppe) * 100),
+      attenduTemps: Math.round(Math.min(1, NOW.d / joursDuMois) * 100),
+      nomAccessible: carte.querySelector(".rythme-bar").getAttribute("aria-label") || "",
+      // Un repère juste mais transparent ne repère rien : on lit la couleur
+      // RÉELLEMENT peinte, pas seulement la position calculée.
+      jalonPeint: jalon ? getComputedStyle(jalon).backgroundColor : "",
+      jalonLarge: jalon ? Math.round(jalon.getBoundingClientRect().width) : 0,
+      avance: !!(fill && fill.classList.contains("avance")),
+      verdictAvance: /du mois seulement/.test(carte.innerText),
+    };
+  });
+  check(vu !== null, "l'accueil montre où on en est dans le mois");
+  if (vu) {
+    check(vu.texte.includes(vu.attenduJour),
+      `le montant par jour est celui du moteur (${vu.attenduJour})`);
+    check(new RegExp(`${vu.attenduJours} jour`).test(vu.texte),
+      `le nombre de jours restants est celui du moteur (${vu.attenduJours})`);
+    check(Math.abs(vu.largeurFill - vu.attenduArgent) <= 1,
+      `la barre dessine la part d'argent dépensée (${vu.largeurFill} % vs ${vu.attenduArgent} %)`);
+    check(Math.abs(vu.posJalon - vu.attenduTemps) <= 1,
+      `le jalon marque la part du mois écoulée (${vu.posJalon} % vs ${vu.attenduTemps} %)`);
+    check(/%/.test(vu.nomAccessible) && vu.nomAccessible.length > 20,
+      "la barre a un équivalent texte pour VoiceOver");
+    check(!/rgba\(0, 0, 0, 0\)|transparent/.test(vu.jalonPeint) && vu.jalonLarge >= 2,
+      `le repère du temps est réellement visible (${vu.jalonPeint}, ${vu.jalonLarge} px)`);
+    // La couleur ne décide jamais seule : le verdict écrit et la teinte
+    // disent la MÊME chose, ou l'un des deux ment.
+    check(vu.avance === vu.verdictAvance,
+      `la couleur et la phrase disent la même chose (barre ${vu.avance ? "ambre" : "verte"}, phrase ${vu.verdictAvance ? "en avance" : "dans le rythme"})`);
+  }
+
+  // À découvert : pas de barre, pas de « par jour », un fait et une action.
+  const decouvert = await page.evaluate(() => {
+    const courant = defaultCashAccount();
+    const enorme = snapshot(NOW.y, NOW.m).available + 500;
+    addTx({ id: 96001, y: NOW.y, m: NOW.m, d: NOW.d, title: "Découvert E2E",
+      amount: round2(enorme), type: "expense", cat: "Autre",
+      acc: courant, dest: null, status: "posted" });
+    render();
+    const carte = document.querySelector("#screen .rythme");
+    const res = {
+      dispo: snapshot(NOW.y, NOW.m).available,
+      texte: carte ? carte.innerText : "",
+      barre: !!(carte && carte.querySelector(".rythme-bar")),
+    };
+    const i = transactions.findIndex(t => t.id === 96001);
+    if (i >= 0) transactions.splice(i, 1);
+    saveState(); render();
+    return res;
+  });
+  check(decouvert.dispo < 0, `le scénario met bien à découvert (${decouvert.dispo})`);
+  check(!decouvert.barre, "à découvert, aucune barre ne vient faire la morale");
+  check(/Il manque/.test(decouvert.texte),
+    `le manque est dit en clair (obtenu « ${decouvert.texte.split("\n")[1] || ""} »)`);
+  await goHome();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -6029,4 +6114,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 117 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 118 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle + 1 rythme du mois), zéro erreur console ✓");

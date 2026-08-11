@@ -999,6 +999,39 @@
 
   .type-grid-3 { grid-template-columns: repeat(3, 1fr); }
   .type-grid-3 button { padding-left: 6px; padding-right: 6px; font-size: 13px; }
+  /* LE RYTHME DU MOIS — deux repères, aucune décoration.
+     La barre n'est pas une jauge de jeu : c'est une règle graduée où le
+     jalon marque le temps écoulé et le remplissage l'argent parti. */
+  .rythme { margin-bottom: 12px; }
+  .rythme-phrase {
+    font-size: 20px; font-weight: 800; margin: 4px 0 10px;
+    color: var(--text-primary); letter-spacing: -0.01em;
+  }
+  .rythme-phrase.warn { color: var(--warning); font-size: 18px; }
+  .rythme-jours { font-size: 14px; font-weight: 600; color: var(--coolgray); }
+  .rythme-bar {
+    position: relative; height: 10px; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08); overflow: hidden;
+  }
+  .rythme-fill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 6px;
+    background: var(--positive);
+  }
+  .rythme-fill.avance { background: var(--warning); }
+  .rythme-jalon {
+    position: absolute; top: 0; bottom: 0; width: 3px;
+    background: var(--text-primary); border-radius: 2px;
+    transform: translateX(-1.5px);
+    /* Un liseré sombre le détache aussi bien du vert que de l'ambre. */
+    box-shadow: 0 0 0 1px rgba(5, 6, 10, 0.85);
+  }
+  .rythme-verdict { margin: 8px 0 0; }
+  .rythme-verdict.pos { color: var(--positive); }
+  .rythme-verdict.warn { color: var(--warning); }
+  @media (prefers-reduced-transparency: reduce) {
+    .rythme-bar { background: #151923; }
+  }
+
   /* FILTRES DE L'ÉCRAN MENSUEL — une seule liste, cinq lectures.
      Défilement horizontal contenu par la piste, jamais par la page. */
   .rec-filters {
@@ -1011,7 +1044,7 @@
     flex: 0 0 auto; min-height: 44px; padding: 0 14px;
     display: inline-flex; align-items: center; gap: 6px;
     background: var(--glass); border: 1px solid var(--line);
-    border-radius: 14px; color: var(--text);
+    border-radius: 14px; color: var(--text-primary);
     font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
     transition: transform 0.16s ease, background-color 0.16s ease;
   }
@@ -1026,7 +1059,7 @@
     font-size: 12px; font-weight: 700; color: var(--coolgray);
     background: rgba(255, 255, 255, 0.07); border-radius: 8px; padding: 1px 6px;
   }
-  .rec-chip[aria-pressed="true"] .rec-chip-n { color: var(--text); }
+  .rec-chip[aria-pressed="true"] .rec-chip-n { color: var(--text-primary); }
 
   .type-grid {
     display: grid;
@@ -3186,6 +3219,59 @@ function renderHome() {
 /* ADR-026 — Accueil de lecture immédiate. Toute la richesse reste dans les
    cinq destinations ; Mois ne montre que les montants utiles et les
    factures du mois, avec une seule action principale. */
+/* LE RYTHME DU MOIS — la question qu'on se pose vraiment tous les jours.
+   « Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un
+   solde : elle se répond avec un rythme. L'app calculait déjà `daily` et
+   `daysRemaining` depuis des mois… dans `renderHome`, l'écran détaillé qui
+   n'est plus affiché depuis ADR-026. Personne ne les voyait.
+
+   Deux repères, et rien d'autre :
+     · le TEMPS écoulé du mois ;
+     · la part de l'enveloppe libre déjà dépensée.
+   Si l'argent va plus vite que le temps, on le dit. C'est un CONSTAT
+   arithmétique sur ses propres données, pas un conseil : l'app ne dit
+   jamais quoi faire, elle dit où on en est.
+
+   L'enveloppe libre = ce qui est déjà dépensé + ce qui reste disponible.
+   `available` a DÉJÀ déduit ce qui doit encore sortir, donc les deux ne se
+   chevauchent pas et rien n'est compté deux fois. */
+function rythmeDuMois(s) {
+  if (!s.isCurrent) return "";
+  const joursDuMois = new Date(NOW.y, NOW.m, 0).getDate();
+  const partTemps = Math.min(1, NOW.d / joursDuMois);
+
+  if (s.available < 0) {
+    // À découvert : un rythme par jour n'aurait aucun sens, et une barre
+    // pleine ferait la morale. On dit le fait, et l'action utile.
+    return `<div class="card rythme">
+      <p class="card-label">Où vous en êtes</p>
+      <p class="rythme-phrase warn">Il manque ${chf(Math.abs(s.available))} pour finir le mois.</p>
+      <p class="caption" style="margin:6px 0 0">Il reste ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}. Repoussez une dépense, ou reprenez sur ce qui est mis de côté.</p>
+    </div>`;
+  }
+
+  const enveloppeC = toCents(s.living) + toCents(s.available);
+  if (enveloppeC <= 0) return "";
+  const partArgent = Math.min(1, toCents(s.living) / enveloppeC);
+  // Marge de trois points : un écart d'un franc ne doit pas faire clignoter
+  // un avertissement le 2 du mois.
+  const enAvance = partArgent > partTemps + 0.03;
+  const pct = v => Math.round(v * 100);
+
+  return `<div class="card rythme">
+    <p class="card-label">Où vous en êtes</p>
+    <p class="rythme-phrase">${chf(s.daily)} par jour <span class="rythme-jours">pendant ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}</span></p>
+    <div class="rythme-bar" role="img"
+         aria-label="${pct(partArgent)} % de votre argent du mois dépensé, ${pct(partTemps)} % du mois écoulé">
+      <span class="rythme-fill${enAvance ? " avance" : ""}" style="width:${Math.max(1, pct(partArgent))}%"></span>
+      <span class="rythme-jalon" style="left:${pct(partTemps)}%"></span>
+    </div>
+    <p class="caption rythme-verdict${enAvance ? " warn" : " pos"}">${enAvance
+      ? `${pct(partArgent)} % dépensé, mais ${pct(partTemps)} % du mois seulement.`
+      : `${pct(partArgent)} % dépensé pour ${pct(partTemps)} % du mois. Vous êtes dans le rythme.`}</p>
+  </div>`;
+}
+
 function renderSimpleHome() {
   const { y, m } = cursor;
   const s = snapshot(y, m);
@@ -3220,7 +3306,7 @@ function renderSimpleHome() {
           cls: s.cashFlow < 0 ? "neg" : "pos", signe: true,
           note: "Entré moins sorti, sur ce mois-là." },
     { cle: "misdecote", label: "Mis de côté ce mois", valeur: s.savings + s.invest, cls: "info",
-      note: "Envoyé vers vos comptes ce mois. Ce n'est pas dépensé." },
+      note: "L'argent envoyé vers vos comptes. Ce n'est pas dépensé." },
     { cle: "placements", label: "Épargne et placements", valeur: placements, cls: "info",
       note: "Vos comptes d'épargne et de titres, aujourd'hui." },
     { cle: "prevoyance", label: L("pensionKind"), valeur: prevoyance, cls: "info",
@@ -3247,6 +3333,7 @@ function renderSimpleHome() {
   </div>`;
 
   const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
+  const rythme = rythmeDuMois(s);
   const metricCurrency = (CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `).trim();
   const metricAmount = (value, cls) => {
     const compact = chf(value).replace(CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `, "");
@@ -3265,7 +3352,7 @@ function renderSimpleHome() {
     // phrase d'explication : on voit où va l'argent, poche par poche.
     const d = misDeCoteParDestination(y, m);
     if (!(d.total > 0)) {
-      return `<p class="caption" style="margin:-4px 0 10px;padding:0 4px">« Mis de côté » = l'argent envoyé vers vos comptes. Ce n'est pas ce qui vous reste : ça, c'est « Disponible ».</p>`;
+      return "";
     }
     const lignes = [
       ["Impôts", d.impots], [L("pensionKind"), d.prevoyance],
@@ -3469,6 +3556,7 @@ function renderSimpleHome() {
     ${monthNav()}
     ${fxWarningHTML()}
     ${hero}
+    ${rythme}
     ${metrics}
     ${incomeCard}
     ${bills}

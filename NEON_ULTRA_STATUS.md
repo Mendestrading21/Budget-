@@ -121,6 +121,74 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## Le rythme du mois : répondre à la vraie question (10.08.2026) — VERIFYING
+
+« Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un solde.
+Elle se répond avec un **rythme**.
+
+### Ce que j'ai trouvé
+
+L'app calculait `daily` et `daysRemaining` **depuis des mois**… dans
+`renderHome`, l'écran détaillé qui n'est plus rendu depuis ADR-026. Le calcul
+le plus utile de l'application était juste, testé, et **invisible**.
+
+### Ce qui change
+
+Une carte « Où vous en êtes », sous le héros du mois en cours :
+
+- **`CHF 544.97 par jour pendant 21 jours`** — le disponible réparti sur les
+  jours qui restent.
+- **Une règle graduée à deux repères** : le remplissage marque la part de
+  l'enveloppe libre déjà dépensée, un jalon blanc marque la part du mois
+  écoulée. Si l'argent va plus vite que le temps, le remplissage passe en
+  ambre et la phrase le dit.
+- **À découvert, aucune barre** : « Il manque CHF 800.00 pour finir le mois »,
+  et l'action utile. Une jauge pleine ferait la morale ; ce n'est pas le rôle
+  de l'app.
+
+C'est un **constat arithmétique** sur ses propres données, jamais un conseil.
+L'enveloppe libre = déjà dépensé + disponible ; `available` ayant déjà déduit
+ce qui doit encore sortir, rien n'est compté deux fois.
+
+### Trois défauts trouvés en chemin, dont deux à moi
+
+1. **Le repère du temps était invisible.** Peint en `var(--text)`, un jeton
+   qui n'existe pas : pour une propriété non héritée, une variable inconnue
+   tombe en **transparent**. La position était juste, le test de position
+   passait, et on ne voyait rien. Les pastilles de filtre du lot précédent
+   avaient le même défaut.
+2. **Mon test était trop faible** : il vérifiait la position du jalon, pas sa
+   visibilité. Il mesure désormais la couleur réellement peinte.
+3. **Mon garde-fou anti-jeton-fantôme criait au loup** : il ne lisait que
+   `index.html` et signalait neuf jetons Neon Ultra définis dans la feuille
+   liée. Corrigé : il lit maintenant toutes les feuilles référencées.
+
+### Un texte retiré, puis remis ailleurs
+
+La carte a fait passer l'accueil de 220 à 249 mots — mon propre audit de
+cohérence a attrapé ma régression. J'ai retiré une légende de 24 mots qui
+**répétait** la note de la carte « Mis de côté ce mois », et déplacé
+l'explication sur la carte qui porte le chiffre. Le parcours 88 a refusé la
+première version (l'explication avait disparu sans remplaçante) : il avait
+raison. Accueil de retour à 220 mots, rythme compris.
+
+### Preuves
+
+- **Parcours 118 « le rythme du mois »** : montant par jour et jours restants
+  recalculés depuis le moteur, barre et jalon comparés au centième, équivalent
+  texte pour VoiceOver, couleur et phrase qui disent la même chose, et le cas
+  à découvert sans barre.
+- **Garde-fou permanent** : « aucun jeton CSS fantôme » — chaque `var(--x)`
+  employé doit être défini. Contrôle négatif exécuté.
+- **Contrôle négatif du rythme** : jalon et remplissage échangés → 2
+  assertions tombent.
+- 118 e2e · 5 parités · design system · audit-total 320/390/430 · audit-final
+  · audit-coherence — verts. Captures 390 et 320 px, plus le cas à découvert.
+
+### Prochaine action exacte
+
+Retour du propriétaire sur l'app installée.
+
 ## Choisir où va l'argent, et un seul mot pour la ligne mensuelle (10.08.2026) — VERIFYING
 
 Deux demandes du propriétaire sur la feuille d'une ligne mensuelle.

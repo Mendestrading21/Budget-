@@ -1090,6 +1090,39 @@ await browser.close();
 if (consoleErrors.length) {
   failures.push(...consoleErrors.map(e => `console: ${e}`));
 }
+/* ---------- Aucun jeton CSS fantôme ----------
+   Ajouté le 10.08.2026 après un défaut réel : `.rythme-jalon` était peint
+   en `var(--text)`, un jeton qui N'EXISTE PAS. Pour une propriété non
+   héritée comme `background`, une variable inconnue tombe en transparent :
+   le repère du temps était donc totalement INVISIBLE, alors que sa position
+   était juste et que le test de position passait.
+   Ce contrôle est statique et vaut pour TOUTE l'app : chaque `var(--x)`
+   employé doit être défini quelque part dans la feuille. */
+{
+  currentTest = "aucun jeton CSS fantôme";
+  // Les jetons vivent dans DEUX fichiers : l'inline d'index.html et la
+  // feuille Neon Ultra liée. Ne lire que le premier produisait neuf faux
+  // positifs — un outil qui crie au loup est pire qu'aucun outil.
+  const feuilles = [indexSrc];
+  for (const m of indexSrc.matchAll(/<link[^>]+href="([^"]+\.css)"/gi)) {
+    const chemin = path.resolve(HERE, "..", m[1]);
+    if (fs.existsSync(chemin)) feuilles.push(fs.readFileSync(chemin, "utf8"));
+  }
+  const definis = new Set();
+  for (const source of feuilles) {
+    for (const m of source.matchAll(/(--[a-z0-9-]+)\s*:/gi)) definis.add(m[1]);
+  }
+  const employes = new Map();
+  indexSrc.split("\n").forEach((ligne, i) => {
+    for (const m of ligne.matchAll(/var\((--[a-z0-9-]+)/gi)) {
+      if (!definis.has(m[1]) && !employes.has(m[1])) employes.set(m[1], i + 1);
+    }
+  });
+  const fantomes = [...employes].map(([nom, ligne]) => `${nom} (ligne ${ligne})`);
+  check(fantomes.length === 0,
+    `chaque var(--x) employé est défini (fantômes : ${fantomes.join(", ") || "aucun"})`);
+}
+
 console.log("Contrastes mesurés :");
 for (const line of measured) console.log("  " + line);
 console.log("Contrastes Neon Ultra mesurés :");
