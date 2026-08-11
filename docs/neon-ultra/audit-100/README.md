@@ -122,6 +122,37 @@ Trois écrans frôlent le seuil sans le dépasser — Mois (220), Historique
    « Assurances & prévoyance » ; « Objectifs » parle de projets d'épargne.
 3. **Patrimoine allégé** sous le seuil de lecture.
 4. **« Métadonnée » remplacé** par un mot que tout le monde comprend.
+5. **Un filtre vide n'est plus grisé, il n'est plus là.** Un bouton désactivé
+   est un bouton mort ; l'app n'en montre jamais.
+6. **Le même écran ne porte plus deux peaux.** « Abonnements » était une
+   surface Neon Ultra et « Transactions mensuelles » une surface Obsidian :
+   après fusion, le même écran changeait d'apparence selon la porte d'entrée.
+   Il est désormais Neon Ultra par les cinq filtres.
+
+## 7. Résultat après correction
+
+```
+audit-coherence : Aucun défaut de cohérence
+audit-total     : Aucun écran en défaut (320, 390, 430 px)
+audit-final     : Aucun défaut — 14 contrôles
+117 parcours e2e · 5 fixtures de parité · design system — verts
+```
+
+| Avant | Après |
+|---|---|
+| 16 destinations | **15** |
+| 2 écrans partageant 2 lignes sur 3 | **0 recouvrement sur 10 destinations** |
+| « 3e pilier » promis 2 fois | **chaque entrée promet une chose** |
+| Patrimoine 221 mots | **214** |
+| 1 terme de jargon | **0** |
+
+## 8. Une correction refusée par un test, et pourquoi j'ai reculé
+
+En allégeant Patrimoine, j'avais rendu conditionnelle la phrase « les autres
+monnaies sont converties en CHF » — inutile pour quelqu'un qui n'a que des
+francs. Le parcours 54 l'a refusée : expliquer la conversion est une
+**garantie financière du projet**, pas une décoration. J'ai remis la phrase
+et trouvé les mots ailleurs. Le test avait raison, pas moi.
 
 ---
 

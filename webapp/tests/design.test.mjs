@@ -213,7 +213,8 @@ const PILOT_RENDERERS = new Set([
   "renderBudget",      // Budget
   "renderYearReview",  // Année (née dans l'identité Neon Ultra)
   "yearMonthRow",      // ligne de la page Année
-  "renderSubs",        // Abonnements (née dans l'identité Neon Ultra)
+  "subsBody",          // Abonnements — devenue un FILTRE de l'écran mensuel
+  "renderRecurring",   // Transactions mensuelles (écran unique depuis le 10.08)
 ]);
 {
   const lines = indexSrc.split("\n");

@@ -3674,7 +3674,9 @@ currentTest = "écran Abonnements";
   });
   await page.click(`#tabbar button[aria-label="Gérer"]`);
   await page.waitForTimeout(150);
-  await page.click('#screen [data-more="subs"]');
+  await page.click('#screen [data-more="recurring"]');
+  await page.waitForTimeout(200);
+  await page.click('#screen [data-recfilter="abonnement"]');
   await page.waitForTimeout(300);
   const subs90 = await page.evaluate(() => {
     const s = document.getElementById("screen");

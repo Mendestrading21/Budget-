@@ -238,7 +238,11 @@ async function main() {
      Deux chemins vers le même écran, c'est utile. Deux ÉCRANS qui montrent
      la même chose, c'est un doublon qui perd l'utilisateur. */
   const empreintes = new Map();
-  for (const vue of VUES) {
+  const destinations = await page.evaluate(() => {
+    activeTab = "more"; moreView = null; render();
+    return [...document.querySelectorAll("#screen [data-more]")].map(e => e.dataset.more);
+  });
+  for (const vue of destinations) {
     await page.evaluate(v => { activeTab = "more"; moreView = v; render(); }, vue);
     await page.waitForTimeout(240);
     const e = await page.evaluate(() => {
@@ -254,7 +258,7 @@ async function main() {
   }
   const doublons = incoherences.filter(x => x.includes("mêmes lignes"));
   if (doublons.length) signaler("Deux écrans montrent la même liste", doublons);
-  else ok(`Aucun écran doublon sur ${VUES.length} vues`);
+  else ok(`Aucun écran doublon sur ${destinations.length} destinations du menu`);
 
   /* --------------------------------------------- 6bis. DOUBLONS DE MENU
      Deux entrées de menu qui promettent la même chose obligent l'utilisateur
@@ -282,22 +286,27 @@ async function main() {
 
   console.log(`  → ${menu.length} destinations dans Gérer, plus 5 onglets = ${menu.length + 5} au total`);
 
-  /* Recouvrement réel entre écrans de liste : combien de lignes en commun. */
+  /* Recouvrement réel entre écrans de liste : deux destinations qui
+     montrent la même ligne obligent l'utilisateur à comprendre pourquoi. */
   const listeDe = async (vue) => page.evaluate(v => {
     activeTab = "more"; moreView = v; render();
     return [...document.querySelectorAll("#screen [data-recid]")].map(e => e.dataset.recid);
   }, vue);
-  const listeRec = await listeDe("recurring");
-  const listeSubs = await listeDe("subs");
-  const communs = listeRec.filter(id => listeSubs.includes(id));
-  if (communs.length) {
-    signaler("Deux écrans montrent les mêmes lignes", [
-      `« Transactions mensuelles » (${listeRec.length}) et « Abonnements » (${listeSubs.length}) partagent ${communs.length} ligne(s)`,
-      "l'utilisateur voit deux fois le même engagement, sous deux noms",
-    ]);
-  } else {
-    ok(`Aucun recouvrement entre « Transactions mensuelles » (${listeRec.length}) et « Abonnements » (${listeSubs.length})`);
+  const listes = new Map();
+  for (const vue of destinations) listes.set(vue, await listeDe(vue));
+  const recouvrements = [];
+  const noms = [...listes.keys()];
+  for (let i = 0; i < noms.length; i++) {
+    for (let j = i + 1; j < noms.length; j++) {
+      const a2 = listes.get(noms[i]), b2 = listes.get(noms[j]);
+      const communs2 = a2.filter(id => b2.includes(id));
+      if (communs2.length) {
+        recouvrements.push(`« ${noms[i]} » (${a2.length}) et « ${noms[j]} » (${b2.length}) partagent ${communs2.length} ligne(s)`);
+      }
+    }
   }
+  if (recouvrements.length) signaler("Deux destinations montrent les mêmes lignes", recouvrements);
+  else ok(`Aucun recouvrement entre les ${noms.length} destinations du menu`);
 
   /* --------------------------------------------- 7. CONSOLE */
   if (erreurs.length) signaler("Erreurs console", erreurs.slice(0, 8));

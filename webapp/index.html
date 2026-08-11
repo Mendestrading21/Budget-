@@ -999,6 +999,35 @@
 
   .type-grid-3 { grid-template-columns: repeat(3, 1fr); }
   .type-grid-3 button { padding-left: 6px; padding-right: 6px; font-size: 13px; }
+  /* FILTRES DE L'ÉCRAN MENSUEL — une seule liste, cinq lectures.
+     Défilement horizontal contenu par la piste, jamais par la page. */
+  .rec-filters {
+    display: flex; gap: 8px; margin: 0 0 12px;
+    overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; padding: 2px 0;
+  }
+  .rec-filters::-webkit-scrollbar { display: none; }
+  .rec-chip {
+    flex: 0 0 auto; min-height: 44px; padding: 0 14px;
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--glass); border: 1px solid var(--line);
+    border-radius: 14px; color: var(--text);
+    font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer;
+    transition: transform 0.16s ease, background-color 0.16s ease;
+  }
+  .rec-chip[aria-pressed="true"] {
+    border-color: var(--brand);
+    background: color-mix(in srgb, var(--brand) 18%, transparent);
+  }
+  .rec-chip:disabled { opacity: 0.45; cursor: default; }
+  .rec-chip:active:not(:disabled) { transform: scale(0.96); }
+  .rec-chip:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  .rec-chip-n {
+    font-size: 12px; font-weight: 700; color: var(--coolgray);
+    background: rgba(255, 255, 255, 0.07); border-radius: 8px; padding: 1px 6px;
+  }
+  .rec-chip[aria-pressed="true"] .rec-chip-n { color: var(--text); }
+
   .type-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2698,6 +2727,12 @@ let moreSearch = "";
 let yearCursor = NOW.y;       // année affichée par la page « Année »
 let lastNavKey = null; // dernière destination rendue (animation d'entrée)
 let moreFilter = "all"; // all | expense | income | saving | transfer
+/* UN SEUL ÉCRAN POUR CE QUI REVIENT CHAQUE MOIS (audit du 10.08.2026).
+   « Abonnements » était une DESTINATION séparée alors que ce n'est qu'une
+   nature de ligne mensuelle : mesure faite, les deux écrans partageaient
+   2 lignes sur 3. Le même Netflix apparaissait deux fois dans le menu, sous
+   deux noms, dans le même groupe. Il devient un FILTRE. */
+let recFilter = "tout"; // tout | facture | abonnement | reserve | revenu
 function fold(value) {
   return String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -4299,7 +4334,7 @@ function renderNetWorth() {
       <span class="amount ${l.include === false ? "" : bal <= 0 ? "pos" : "neg"}">${bal <= 0 ? chf(0) : "−" + chf(bal)}</span></div>`;
     }).join("")}
     <button class="btn secondary" data-additem style="margin-top:8px">＋ Ajouter un actif ou une dette</button>
-    <p class="caption" style="padding:0 4px">Les virements internes ne changent jamais la fortune : déplacer CHF 600.00 vers l'épargne laisse ce total intact.</p>`;
+    <p class="caption" style="padding:0 4px">Déplacer de l'argent entre vos comptes ne change jamais ce total.</p>`;
 }
 
 /* ---------- Assurances & prévoyance (Phase 9) ---------- */
@@ -4393,25 +4428,48 @@ function renderRecurring() {
         <div class="s">${rhythm}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
   };
-  // Cet écran s'appelle « Transactions mensuelles » : il ne montre donc que ce
-  // qui revient CHAQUE mois et n'est pas résilié. Les charges annuelles et
-  // les résiliations vivent dans l'écran Abonnements, qui porte le rythme.
-  const monthly = r => recurringEvery(r) === "month" && recurringIsActive(r);
-  const expenses = RECURRINGS.filter(r => r.type === "expense" && monthly(r));
-  const incomes = RECURRINGS.filter(r => r.type === "income" && monthly(r));
-  const annualCount = RECURRINGS.filter(r => recurringEvery(r) === "year" && recurringIsActive(r)).length;
-  return backBar("Transactions mensuelles") + `
+  // UN écran, quatre filtres. Avant, « Abonnements » était une destination
+  // du menu qui montrait 2 des 3 mêmes lignes : le même engagement
+  // apparaissait deux fois, sous deux noms. C'est maintenant une lecture de
+  // la MÊME liste, comme « Factures » ou « Mis de côté ».
+  const actif = r => recurringIsActive(r);
+  const nature = r => (r.type === "income" ? "revenu" : recurringNature(r));
+  const tous = RECURRINGS.filter(actif);
+  const compte = (f) => f === "tout" ? tous.length : tous.filter(r => nature(r) === f).length;
+  // Un filtre vide n'est pas grisé, il n'est pas là. L'app ne montre jamais
+  // un bouton sans destination — un filtre à zéro en est un.
+  const chips = REC_FILTRES
+    .filter(([id]) => id === "tout" || compte(id) > 0)
+    .map(([id, label]) => `<button type="button" class="rec-chip" data-recfilter="${id}"
+      aria-pressed="${recFilter === id}">${label} <span class="rec-chip-n">${compte(id)}</span></button>`)
+    .join("");
+  const barre = `<div class="rec-filters" role="group" aria-label="Filtrer les transactions mensuelles">${chips}</div>`;
+
+  // Le filtre « Abonnements » garde son récapitulatif de coût annuel et ses
+  // résiliés : c'est la valeur propre de cette lecture, elle n'est pas perdue.
+  if (recFilter === "abonnement") return backBar("Transactions mensuelles") + barre + subsBody();
+
+  const visibles = recFilter === "tout" ? tous : tous.filter(r => nature(r) === recFilter);
+  const expenses = visibles.filter(r => r.type === "expense");
+  const incomes = visibles.filter(r => r.type === "income");
+  const vide = recFilter === "tout"
+    ? "Aucune transaction mensuelle. Ajoutez par exemple le loyer, une prime, un abonnement ou une mise de côté."
+    : `Rien dans « ${REC_FILTRES.find(f => f[0] === recFilter)[1]} » pour l'instant.`;
+  return backBar("Transactions mensuelles") + barre + `
     <p class="caption" style="margin:0 0 12px">Ajoutez une ligne une seule fois : elle revient toute seule chaque mois, sur le bon compte. Facture, abonnement, mise de côté ou revenu.</p>
-    ${expenses.length ? expenses.map(row).join("") : `<div class="card row"><span class="caption">Aucune transaction mensuelle. Ajoutez par exemple le loyer, une prime, un abonnement ou une mise de côté.</span></div>`}
-    ${incomes.length ? `<p class="section-title">Revenus mensuels</p>${incomes.map(row).join("")}` : ""}
-    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une facture ou un revenu mensuel</button>
-    ${annualCount ? `<div class="card row tx read-row" data-more="subs" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
-      <div class="ico" aria-hidden="true">🎬</div>
-      <div class="meta"><div class="t">${annualCount} charge${annualCount > 1 ? "s" : ""} annuelle${annualCount > 1 ? "s" : ""}</div>
-        <div class="s">Elles ne reviennent pas chaque mois — voir Abonnements</div></div>
-      <span style="color:var(--coolgray)">›</span></div>` : ""}
+    ${expenses.length ? expenses.map(row).join("") : (incomes.length ? "" : `<div class="card row"><span class="caption">${vide}</span></div>`)}
+    ${incomes.length ? `${expenses.length ? `<p class="section-title">Revenus mensuels</p>` : ""}${incomes.map(row).join("")}` : ""}
+    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter une transaction mensuelle</button>
     <p class="caption" style="padding:6px 4px 0">Une facture reste à payer tant qu'aucune dépense ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
+/* Les cinq lectures de la même liste. L'ordre suit la fréquence d'usage. */
+const REC_FILTRES = [
+  ["tout", "Tout"],
+  ["facture", "🧾 Factures"],
+  ["abonnement", "🔁 Abonnements"],
+  ["reserve", "🏦 Mis de côté"],
+  ["revenu", "💰 Revenus"],
+];
 
 /* ---------- Abonnements ----------
    Même donnée que les charges régulières, lue par le rythme : ce que je
@@ -4482,7 +4540,7 @@ function recurringDestAccountId(r) {
   return reserveDefaultDest(r && r.cat, source);
 }
 function isSubscription(r) { return recurringNature(r) === "abonnement"; }
-function renderSubs() {
+function subsBody() {
   const all = RECURRINGS.filter(r => r.type === "expense" && isSubscription(r));
   const active = all.filter(recurringIsActive);
   const ended = all.filter(r => !recurringIsActive(r));
@@ -4546,7 +4604,7 @@ function renderSubs() {
       </div>
     </div>`;
 
-  return backBar("Abonnements") + hero + `
+  return hero + `
     ${active.length ? `<p class="section-title">Vos abonnements, du plus cher au moins cher</p>
       ${active.sort(byAmount).map(row).join("")}` : ""}
     ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un abonnement</button>` : ""}
@@ -4795,11 +4853,11 @@ function renderImport() {
       <div style="font-size:12.5px"><span class="neg">Ligne ${inv.line} — ${esc(inv.reason)}</span><br>
         <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
     </div>`).join("")}` : ""}` : ""}
-    <p class="section-title">Documents (métadonnées)</p>
+    <p class="section-title">Documents (juste le nom)</p>
     ${S.documents.length === 0 ? `<div class="card row"><span class="caption">Aucun document. Certificats, polices, décomptes — les fichiers eux-mêmes restent dans l'app native.</span></div>` : ""}
     ${S.documents.map(doc => `<div class="card row tx" data-editdoc="${esc(doc.id)}" role="button" tabindex="0" style="cursor:pointer" aria-label="Modifier ${esc(doc.name)}">
       <div class="ico" aria-hidden="true">📄</div>
-      <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · métadonnées seulement</div></div>
+      <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · nom et type seulement</div></div>
       <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;min-height:44px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
@@ -4882,7 +4940,7 @@ const PRIVACY = [
   "Vos données restent dans CE navigateur (localStorage de l'appareil). Cette version web n'a pas de serveur et n'établit aucune connexion réseau.",
   "Aucune connexion bancaire : vous saisissez ou importez vos données vous-même.",
   "Le code cache vos montants sur cet appareil. Ce n'est pas un coffre-fort. L'app iPhone, elle, utilise Face ID et la protection d'iOS.",
-  "Les documents sont des métadonnées uniquement (nom et type) : aucun fichier n'est stocké dans la version web.",
+  "Des documents, l'app ne garde que le nom et le type : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
   "« Effacer les opérations » efface vos mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
   "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, mouvements, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
@@ -5058,13 +5116,12 @@ function renderAssistant() {
 // Hub « Gérer » par intentions (ADR-026).
 const MORE_GROUPS = [
   ["À organiser", [
-    ["recurring", "🔁", "Transactions mensuelles", "Loyer, abonnements, mises de côté et revenus"],
-    ["subs", "🎬", "Abonnements", () => {
-      const active = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
-      if (!active.length) return "Streaming, logiciels, assurances";
-      const perMonth = fromCents(Math.round(
-        active.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
-      return `${active.length} actif${active.length > 1 ? "s" : ""} · ${chf(perMonth)} par mois`;
+    ["recurring", "🔁", "Transactions mensuelles", () => {
+      const actives = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
+      if (!actives.length) return "Loyer, abonnements, mises de côté et revenus";
+      const parMois = fromCents(Math.round(
+        actives.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
+      return `${actives.length} ligne${actives.length > 1 ? "s" : ""} · ${chf(parMois)} par mois`;
     }],
     ["bills", "🧾", "Factures ponctuelles", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
@@ -5074,11 +5131,11 @@ const MORE_GROUPS = [
   ]],
   ["À prévoir", [
     ["taxes", "📮", "Impôts", "Ce qu'il reste à payer, et ce que vous avez mis de côté"],
-    ["insurance", "🛡️", "Assurances & prévoyance", "Primes, LPP, 3e pilier"],
+    ["insurance", "🛡️", "Assurances & prévoyance", "Primes, LPP et 3e pilier"],
   ]],
   ["À construire", [
     ["networth", "🏛️", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
-    ["goals", "🎯", "Objectifs", "Épargne, projets, 3e pilier"],
+    ["goals", "🎯", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
     ["year", "📅", "Année", () => {
       const done = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
       return `Les douze mois de ${NOW.y} · ${done} bouclé${done > 1 ? "s" : ""}`;
@@ -5094,7 +5151,8 @@ const MORE_GROUPS = [
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
-                         year: renderYearReview, subs: renderSubs,
+                         year: renderYearReview,
+                         subs: () => { recFilter = "abonnement"; return renderRecurring(); },
                          movements: () => backBar("Mouvements") + renderMovements().replace('<h2 class="screen-title">Mouvements</h2>', "") };
 
 function renderMore() {
@@ -5640,7 +5698,11 @@ function render() {
   // un écran neuf ne naît pas dans l'ancienne peau. Tout autre écran
   // retire réellement la classe et conserve son rendu Obsidian (le shell
   // appartient à NU4).
-  const pilotedMoreViews = new Set(["year", "subs"]);
+  // « recurring » rejoint la liste le 10.08.2026 : l'écran des transactions
+  // mensuelles a absorbé Abonnements, née dans l'identité Neon Ultra. Sans
+  // cela, le MÊME écran portait deux peaux selon la porte d'entrée — le
+  // filtre Abonnements en Neon Ultra, les autres filtres en Obsidian.
+  const pilotedMoreViews = new Set(["year", "subs", "recurring"]);
   screen.classList.toggle(
     "nu-pilot-screen",
     !locked && (activeTab === "home" || activeTab === "budget"
@@ -5784,7 +5846,9 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   const entry = e.target.closest("[data-more]");
   if (entry) { activeTab = "more"; moreView = entry.dataset.more; assistantQ = null; render(); scrollTop(); pushNav(); return; }
-  if (e.target.closest("[data-back]")) { moreView = null; assistantQ = null; render(); scrollTop(); return; }
+  if (e.target.closest("[data-back]")) { moreView = null; assistantQ = null; recFilter = "tout"; render(); scrollTop(); return; }
+  const recChip = e.target.closest("[data-recfilter]");
+  if (recChip) { recFilter = recChip.dataset.recfilter; moreView = "recurring"; render(); scrollTop(); return; }
   if (e.target.closest("[data-togglelock]")) {
     // Activer = définir un code ; désactiver = saisir le code (règle Phase 12).
     openCodeSheet(S.faceIDEnabled ? "disable" : "set");
