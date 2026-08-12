@@ -121,6 +121,42 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## La bannière est prouvée à l'écran, plus seulement en calcul (12.08.2026) — VERIFYING
+
+La limite consignée au lot précédent — « le branchement feuille → coquille
+n'a pas de test automatique » — se referme aux deux tiers.
+
+### Ce qui change
+
+- **Crochet de lancement `-uiTestGoalBanner`** (même famille que
+  `-uiTestImportCSV` et `-uiTestRestorePrompt`) : pose une annonce fictive
+  dès le démarrage du mode démo.
+- **`testGoalProgressBannerShowsAndDismisses`** dans le tour UI : la
+  coquille AFFICHE la bannière (capture `17-bandeau-objectif` à l'appui) et
+  la FERME — au toucher ou par l'effacement automatique, les deux chemins
+  sont valides et l'un des deux doit survenir.
+
+### Pourquoi un crochet, et pas un vrai versement
+
+Le mode démo vit à la date RÉELLE. Un parcours « marquer la mise de côté
+payée » serait vert avant le 15 du mois et rouge après — un test flaky par
+calendrier ne prouve rien. Le crochet rend le test déterministe ; ce qu'il
+ne couvre pas est dit ci-dessous.
+
+### Ce qui reste non couvert, précisément
+
+La ligne d'assignation dans `TransactionFormView.save()` et dans
+`HomeTab.post()` (« un enregistrement réussi pose le message ») n'a
+toujours pas de test automatique. C'est une affectation gardée par
+`status == .posted`, dont le calcul amont et l'affichage aval sont
+désormais couverts chacun. Le maillon du milieu se vérifie sur appareil :
+mettre 50 CHF de côté et voir la bannière.
+
+### Prochaine action exacte
+
+CI verte, workflow Demo relancé, captures inspectées — puis retour du
+propriétaire sur l'app installée.
+
 ## L'iPhone fête aussi les progrès — la dette du lot précédent est soldée (10.08.2026) — VERIFYING
 
 Le lot précédent avait consigné une dette : l'annonce de progrès d'objectif

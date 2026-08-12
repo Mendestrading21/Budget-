@@ -78,6 +78,14 @@ struct BudgetApp: App {
                             if ProcessInfo.processInfo.arguments.contains("-demoTour") {
                                 container.isDemoMode = true
                             }
+                            // Crochet UI-test (même famille que -uiTestImportCSV) :
+                            // pose une annonce de progrès dès le lancement, pour
+                            // prouver que la coquille l'affiche et la ferme sans
+                            // dépendre du jour du mois ni d'un picker fragile.
+                            // Montant-free et données fictives, comme tout le tour.
+                            if ProcessInfo.processInfo.arguments.contains("-uiTestGoalBanner") {
+                                container.goalProgressMessage = "☔️ Fonds d'urgence : 68 % → 71 %"
+                            }
                         }
                         container.postDuePlannedTransactions()
                         appContainer = container

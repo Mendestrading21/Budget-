@@ -574,6 +574,34 @@ final class DemoTourUITests: XCTestCase {
     }
 
     @MainActor
+    /// La bannière de progrès d'objectif : la COQUILLE l'affiche et la
+    /// ferme. C'était la limite consignée du lot natif — le calcul est
+    /// couvert par GoalProgressServiceTests, mais l'affichage ne l'était
+    /// pas. Le message est posé par un crochet de lancement plutôt que par
+    /// un vrai versement : le jeu de démo vit à la date RÉELLE, donc un
+    /// parcours « marquer payée » serait vert ou rouge selon le jour du
+    /// mois. Un test flaky par calendrier ne prouve rien.
+    @MainActor
+    func testGoalProgressBannerShowsAndDismisses() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-demoTour", "-uiTestGoalBanner"]
+        app.launch()
+
+        let banner = app.buttons["☔️ Fonds d'urgence : 68 % → 71 %"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 60),
+                      "La coquille doit afficher l'annonce de progrès posée au lancement")
+        snap(app, "17-bandeau-objectif")
+
+        // Fermeture : au toucher si la bannière est encore là, sinon par
+        // l'effacement automatique (4 s) — les deux chemins sont valides,
+        // et l'un des deux DOIT survenir.
+        if banner.exists { banner.tap() }
+        let disparue = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"), object: banner)
+        XCTAssertEqual(XCTWaiter().wait(for: [disparue], timeout: 8), .completed,
+                       "La bannière doit se fermer (toucher ou effacement automatique)")
+    }
+
     private func snap(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
