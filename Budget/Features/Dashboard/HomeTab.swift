@@ -90,6 +90,7 @@ struct HomeTab: View {
                     VStack(spacing: BudgetSpacing.medium) {
                         monthSelector
                         availableCard(snapshot)
+                        rhythmCard(snapshot)
                         essentialAmounts(snapshot)
                         monthlyBills(forecast: forecast, interval: snapshot.interval)
                     }
@@ -182,18 +183,105 @@ struct HomeTab: View {
                 // Montant héros SANS glow : la constitution l'interdit.
                 // Un mois passé garde son SIGNE explicite (+/−) : le sens
                 // ne repose jamais sur la seule couleur.
+                // La ligne « CHF X par jour » a quitté cette carte le
+                // 10.08.2026 : la carte du rythme, juste dessous, porte le
+                // même chiffre en grand. Le garder ici serait un doublon —
+                // le défaut que l'audit de cohérence traque côté web.
                 NeonUltraAmountText(amount: amount, hero: true, signed: !isCurrentMonth)
-
-                if isCurrentMonth, snapshot.daysRemaining > 0 {
-                    Text("\(FinanceFormatting.chf(snapshot.dailyAvailableBudget)) par jour")
-                        .font(NeonUltraTypography.meta)
-                        .foregroundStyle(NeonUltraColor.textSecondary)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
         }
+    }
+
+    // MARK: - Rythme du mois
+
+    /// « Est-ce que je peux sortir ce week-end ? » se répond avec un
+    /// rythme, pas un solde. Même carte que le web (10.08.2026) : le
+    /// budget du jour, une règle graduée où le remplissage marque l'argent
+    /// parti et un jalon clair marque le temps écoulé. À découvert, pas de
+    /// barre — une jauge pleine ferait la morale.
+    @ViewBuilder
+    private func rhythmCard(_ snapshot: MonthSnapshot) -> some View {
+        let rhythm = MonthRhythm.compute(
+            snapshot: snapshot,
+            now: appContainer.dateProvider.now,
+            calendar: appContainer.calendar
+        )
+        if let rhythm {
+            NeonUltraCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    Text("Où vous en êtes")
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+
+                    switch rhythm {
+                    case .overdrawn(let missing, let daysRemaining):
+                        Text("Il manque \(FinanceFormatting.chf(missing)) pour finir le mois.")
+                            .font(NeonUltraTypography.title)
+                            .foregroundStyle(NeonUltraColor.warning)
+                        Text("Il reste \(daysRemaining) jour\(daysRemaining > 1 ? "s" : ""). Repoussez une dépense, ou reprenez sur ce qui est mis de côté.")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
+
+                    case .pace(let spentShare, let timeShare, let daily, let daysRemaining, let isAhead):
+                        let spentPct = Int((spentShare * 100).rounded())
+                        let timePct = Int((timeShare * 100).rounded())
+
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("\(FinanceFormatting.chf(daily)) par jour")
+                                .font(NeonUltraTypography.title)
+                                .foregroundStyle(NeonUltraColor.textPrimary)
+                            Text("pendant \(daysRemaining) jour\(daysRemaining > 1 ? "s" : "")")
+                                .font(NeonUltraTypography.meta)
+                                .foregroundStyle(NeonUltraColor.textSecondary)
+                        }
+
+                        rhythmBar(spentShare: spentShare, timeShare: timeShare, isAhead: isAhead)
+                            // La barre est décorative : le verdict écrit
+                            // juste dessous dit les mêmes pourcentages.
+                            .accessibilityHidden(true)
+
+                        // La couleur ne décide jamais seule : la teinte et
+                        // la phrase disent la MÊME chose.
+                        Text(isAhead
+                            ? "\(spentPct) % dépensé, mais \(timePct) % du mois seulement."
+                            : "\(spentPct) % dépensé pour \(timePct) % du mois. Vous êtes dans le rythme.")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(isAhead ? NeonUltraColor.warning : NeonUltraColor.positive)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// Règle graduée, pas jauge de jeu : le remplissage = l'argent parti,
+    /// le jalon clair = le temps écoulé. Le jalon porte un liseré sombre
+    /// pour se détacher aussi bien du vert que de l'ambre — leçon du web,
+    /// où il a d'abord été peint invisible.
+    private func rhythmBar(spentShare: Double, timeShare: Double, isAhead: Bool) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(NeonUltraColor.tintNeutral)
+                Capsule()
+                    .fill(isAhead ? NeonUltraColor.warning : NeonUltraColor.positive)
+                    .frame(width: max(4, geo.size.width * spentShare))
+                ZStack {
+                    RoundedRectangle(cornerRadius: 2.5)
+                        .fill(NeonUltraColor.canvas.opacity(0.85))
+                        .frame(width: 5)
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(NeonUltraColor.textPrimary)
+                        .frame(width: 3)
+                }
+                .offset(x: geo.size.width * timeShare - 2.5)
+            }
+        }
+        .frame(height: 10)
     }
 
     private func essentialAmounts(_ snapshot: MonthSnapshot) -> some View {

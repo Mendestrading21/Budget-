@@ -121,6 +121,56 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## L'iPhone dit le même rythme que le web (10.08.2026) — VERIFYING
+
+Le rythme du mois n'existait que côté web. Le natif avait le même trou que
+le web avant lui : `MonthSnapshot` calcule `dailyAvailableBudget` et
+`daysRemaining` depuis des mois, et l'accueil n'en montrait qu'une ligne
+discrète « CHF X par jour » sous le héros.
+
+### Ce qui change
+
+- **`MonthRhythm`** (`Budget/Domain/Snapshots/MonthRhythm.swift`) : le
+  calcul PUR, séparé de la vue. Deux cas — `pace` (parts d'argent et de
+  temps, budget du jour, marge de trois points avant « en avance ») et
+  `overdrawn` (le manque, dit en positif). Il lit les MÊMES grandeurs du
+  snapshot que le web lit du sien : jamais une seconde formule. Les parts
+  sont des `Double` car ce sont des géométries d'affichage ; l'argent reste
+  en `Decimal`, conformément à l'invariant.
+- **La carte « Où vous en êtes »** dans `HomeTab`, entre le héros et les
+  quatre montants : budget du jour en grand, règle graduée (remplissage =
+  argent parti, jalon clair = temps écoulé, liseré sombre pour que le jalon
+  se détache du vert comme de l'ambre — leçon du web, où il a d'abord été
+  peint invisible), verdict écrit qui dit la même chose que la teinte. À
+  découvert : pas de barre, le fait et le temps restant.
+- **La ligne « CHF X par jour » quitte le héros** : la carte du rythme
+  porte le même chiffre en grand. La garder aurait été un doublon — le
+  défaut que l'audit de cohérence traque côté web.
+- La barre est `accessibilityHidden` : décorative, le verdict écrit porte
+  les pourcentages pour VoiceOver.
+
+### Preuves
+
+- **`MonthRhythmTests`** (8 tests) : mois passé silencieux, dans le rythme,
+  en avance, la marge de trois points testée à ses DEUX bords (52 % pour
+  50 % du temps reste calme, 54 % avertit), découvert dit en positif,
+  enveloppe vide silencieuse, part bornée à 100 %, et un test qui prouve
+  que le raccourci snapshot lit les mêmes grandeurs que le cœur primitif.
+- **Non vérifié localement** : aucun compilateur Swift dans cet
+  environnement — la CI macOS (build + tests + captures Demo) fait foi.
+
+### Dette assumée, à décider
+
+L'annonce de progrès d'objectif (« 🛟 Fonds d'urgence : 68 % → 71 % ») n'a
+PAS été portée au natif dans ce lot : l'app iOS n'a aucune infrastructure de
+message éphémère (toast), et en créer une est une décision de design à part
+entière (placement, durée, VoiceOver). Plutôt qu'un à-peu-près, c'est noté
+ici comme prochaine décision produit.
+
+### Prochaine action exacte
+
+CI macOS verte, puis retour du propriétaire sur l'app installée.
+
 ## Le geste dit ce qu'il fait avancer (10.08.2026) — VERIFYING
 
 Mettre 250 CHF de côté et lire « Mouvement ajouté », c'est perdre le seul
