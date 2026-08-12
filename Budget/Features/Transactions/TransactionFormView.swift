@@ -20,6 +20,8 @@ struct TransactionFormView: View {
 
     @Query(sort: \Account.createdAt) private var allAccounts: [Account]
     @Query(sort: \BudgetCategory.sortOrder) private var allCategories: [BudgetCategory]
+    /// Pour l'annonce de progrès : les objectifs reliés au compte qui reçoit.
+    @Query private var allGoals: [FinancialGoal]
 
     @State private var type: TransactionType = .expense
     @State private var title: String = ""
@@ -384,6 +386,12 @@ struct TransactionFormView: View {
         let trimmedNote = note.trimmingCharacters(in: .whitespaces)
         let trimmedMerchant = merchant.trimmingCharacters(in: .whitespaces)
 
+        // Photo des objectifs AVANT l'écriture : sans elle, impossible de
+        // dire de combien le geste les fait avancer. Même mécanique que le
+        // web (10.08.2026).
+        let goalService = GoalProgressService(balanceService: appContainer.balanceService)
+        let goalsBefore = goalService.snapshotCurrents(goals: allGoals)
+
         if let transaction = editedTransaction {
             transaction.date = date
             transaction.amount = roundedAmount
@@ -420,6 +428,17 @@ struct TransactionFormView: View {
         }) {
             if Self.hapticTriggerAdvances(validationErrors: errors, saveSucceeded: true) {
                 saveSuccessCount += 1
+            }
+            // Le geste dit ce qu'il fait avancer — seulement quand l'argent
+            // est réellement ARRIVÉ (comptabilisé, jamais prévu). La feuille
+            // se ferme : le message vit dans la coquille, qui lui survit.
+            if effectiveStatus == .posted,
+               let progress = goalService.progressMessage(
+                   destination: draft.destinationAccount,
+                   goals: allGoals,
+                   before: goalsBefore
+               ) {
+                appContainer.goalProgressMessage = progress
             }
             dismiss()
         }

@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Routes between onboarding (no household yet) and the main experience.
 struct RootView: View {
@@ -65,6 +66,60 @@ struct MainTabView: View {
             .toolbarBackground(.visible, for: .tabBar)
         }
         .background(NeonUltraColor.canvas)
+        // L'annonce de progrès vit dans la COQUILLE : l'écriture part d'une
+        // feuille qui se ferme aussitôt, et un message posé dans la feuille
+        // mourrait avec elle. Parité avec le toast du web (10.08.2026).
+        .overlay(alignment: .top) {
+            if let message = appContainer.goalProgressMessage {
+                GoalProgressBanner(message: message) {
+                    appContainer.goalProgressMessage = nil
+                }
+                .transition(.opacity)
+            }
+        }
+        // Un fondu simple : lisible, et déjà correct en mouvement réduit.
+        .animation(.easeInOut(duration: 0.2), value: appContainer.goalProgressMessage)
+    }
+}
+
+/// Bannière éphémère de progrès d'objectif — l'équivalent natif du toast
+/// web. Un CONSTAT qui se lit en une seconde, jamais un panneau : surface
+/// élevée mate, un liseré, aucun glow (constitution Neon Ultra).
+struct GoalProgressBanner: View {
+    let message: String
+    let dismiss: () -> Void
+
+    var body: some View {
+        // Toute la bannière est le bouton de fermeture : cible ≥ 44 pt,
+        // aucun geste à découvrir.
+        Button(action: dismiss) {
+            Text(message)
+                .font(NeonUltraTypography.label)
+                .foregroundStyle(NeonUltraColor.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, BudgetSpacing.medium)
+                .frame(minHeight: 44)
+                .frame(maxWidth: .infinity)
+                .background(NeonUltraColor.surfaceElevated)
+                .clipShape(RoundedRectangle(cornerRadius: NeonUltraRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: NeonUltraRadius.control, style: .continuous)
+                        .stroke(NeonUltraColor.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, BudgetSpacing.screenMargin)
+        .padding(.top, BudgetSpacing.small)
+        .accessibilityLabel(message)
+        .accessibilityHint("Toucher pour fermer")
+        .task {
+            // Le temps d'une lecture, puis la bannière s'efface seule.
+            // VoiceOver reçoit l'annonce immédiatement, sans dépendre de la
+            // durée d'affichage.
+            UIAccessibility.post(notification: .announcement, argument: message)
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            dismiss()
+        }
     }
 }
 

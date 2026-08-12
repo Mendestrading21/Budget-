@@ -32,6 +32,9 @@ struct HomeTab: View {
     @Query private var recurrings: [RecurringTransaction]
     @Query private var taxProfiles: [TaxProfile]
     @Query private var taxProvisions: [TaxProvision]
+    /// Pour l'annonce de progrès quand « Marquer payée » alimente un
+    /// compte relié à un objectif (mise de côté mensuelle).
+    @Query private var goals: [FinancialGoal]
 
     @State private var monthAnchor: Date?
     @State private var saveErrorMessage: String?
@@ -532,7 +535,20 @@ struct HomeTab: View {
             existingTransactions: persistedTransactions,
             now: now
         ) else { return }
+        // Photo AVANT l'écriture : marquer une mise de côté mensuelle
+        // « payée » fait avancer le même objectif que la saisie manuelle,
+        // et doit le dire pareil (parité web, 10.08.2026).
+        let goalService = GoalProgressService(balanceService: appContainer.balanceService)
+        let goalsBefore = goalService.snapshotCurrents(goals: goals)
         modelContext.insert(transaction)
-        modelContext.saveOrRollback { saveErrorMessage = $0 }
+        if modelContext.saveOrRollback(onError: { saveErrorMessage = $0 }),
+           transaction.status == .posted,
+           let progress = goalService.progressMessage(
+               destination: transaction.destinationAccount,
+               goals: goals,
+               before: goalsBefore
+           ) {
+            appContainer.goalProgressMessage = progress
+        }
     }
 }

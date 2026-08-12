@@ -121,6 +121,57 @@ rapport.
 
 Retour du propriétaire sur l'app installée.
 
+## L'iPhone fête aussi les progrès — la dette du lot précédent est soldée (10.08.2026) — VERIFYING
+
+Le lot précédent avait consigné une dette : l'annonce de progrès d'objectif
+n'existait que côté web, faute d'infrastructure de message éphémère sur iOS.
+Elle est construite, et la dette est fermée.
+
+### Ce qui change
+
+- **`GoalProgressService`** (`Budget/Domain/Services/`) : le calcul PUR du
+  message, miroir du web — photo des valeurs AVANT l'écriture, candidats
+  reliés au compte qui reçoit, paliers 25 / 50 / 75 / 100 %, départage
+  palier → priorité → le plus avancé, UN seul message. La valeur courante
+  vient de la même règle que l'écran Objectifs (solde du compte relié).
+  Seuls les objectifs ACTIFS parlent : un objectif en pause l'a été exprès,
+  un objectif atteint a déjà eu son message.
+- **`GoalProgressBanner`** dans la coquille (`MainTabView`) : bannière
+  éphémère en haut, surface mate + liseré (aucun glow), fondu simple déjà
+  correct en mouvement réduit, toute la bannière est le bouton de fermeture
+  (≥ 44 pt), disparition seule après 4 s. VoiceOver reçoit l'annonce
+  immédiatement via `UIAccessibility.post`, sans dépendre de la durée.
+- **L'état vit sur `AppContainer`** (`goalProgressMessage`) : l'écriture
+  part d'une feuille qui se ferme aussitôt — un message posé dans la
+  feuille mourrait avec elle. Même précédent que `duePostingErrorMessage`.
+- **Deux portes branchées**, comme le web : la feuille de saisie
+  (`TransactionFormView`, seulement quand le mouvement est COMPTABILISÉ)
+  et « Marquer payée » sur l'accueil (`HomeTab.post`).
+
+### Preuves
+
+- **`GoalProgressServiceTests`** (8 tests) : pourcentages identiques à
+  l'écran Objectifs (68 % → 78 % recalculés), palier dit en mots, silence
+  sur une dépense ordinaire, silence sur un mouvement PRÉVU (aucun solde ne
+  bouge), seuls les objectifs actifs parlent, compte partagé = un seul
+  message et le palier l'emporte sur la priorité, la priorité l'emporte sur
+  le plus avancé, et un objectif absent de la photo reste muet.
+- Le tour de démo (captures CI) ne marque jamais de facture payée : aucune
+  interférence de la bannière avec les captures existantes.
+- **Non vérifié ici** : pas de toolchain Swift local — la CI macOS fait foi.
+
+### Limite honnête
+
+Le branchement de la bannière (feuille → coquille) n'a pas de test
+automatique : c'est de la plomberie SwiftUI que seule une UI-test
+dédiée couvrirait. Le calcul, lui, est entièrement testé ; côté web le
+contrôle négatif avait précisément montré qu'un branchement peut casser
+sans qu'un test de fonction le voie — c'est documenté ici plutôt que caché.
+
+### Prochaine action exacte
+
+CI macOS verte, puis retour du propriétaire sur l'app installée.
+
 ## L'iPhone dit le même rythme que le web (10.08.2026) — VERIFYING
 
 Le rythme du mois n'existait que côté web. Le natif avait le même trou que

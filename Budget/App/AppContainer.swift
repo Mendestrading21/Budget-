@@ -18,6 +18,14 @@ final class AppContainer {
     /// is retried on the next activation and can also be retried manually.
     private(set) var duePostingErrorMessage: String?
 
+    /// Annonce ÉPHÉMÈRE de progrès d'objectif (« ☔️ Fonds d'urgence :
+    /// 68 % → 71 % »), posée par un enregistrement réussi et affichée par
+    /// la coquille (`MainTabView`) le temps d'une lecture. Vit ici — et pas
+    /// dans un routeur — parce que l'écriture peut partir de n'importe
+    /// quelle feuille et que la coquille est le seul endroit qui survit à
+    /// leur fermeture. Même précédent que `duePostingErrorMessage`.
+    var goalProgressMessage: String?
+
     /// Demo mode runs the whole app on an isolated in-memory store filled
     /// with fictional data. It never touches the production store.
     var isDemoMode: Bool {
