@@ -152,10 +152,29 @@ toujours pas de test automatique. C'est une affectation gardée par
 désormais couverts chacun. Le maillon du milieu se vérifie sur appareil :
 mettre 50 CHF de côté et voir la bannière.
 
+### Résultat (12.08.2026, run Demo 31640534718)
+
+- CI verte sur `a55638b`, et **workflow Demo vert** — déclenché depuis la
+  session (le refus `workflow_dispatch` constaté le 08.08 ne s'applique pas
+  à la voie GitHub App).
+- `testGoalProgressBannerShowsAndDismisses` **passé sur simulateur**
+  (13,1 s) : la coquille affiche la bannière et la ferme. Sa capture
+  `17-bandeau-objectif` est exportée dans l'artefact.
+- Le tour complet est passé (527 s, 25 captures) : `01-accueil` montre
+  désormais la carte du rythme.
+- Deux allers-retours avant le vert, dits ici : (1) le point d'insertion du
+  nouveau test avait volé le `@MainActor` de `snap()` — cible UITests
+  incompilable, CI et Demo rouges une fois ; (2) réparé, relancé, tout vert.
+- **Limite d'environnement** : l'artefact (200 Mo) est servi par un blob
+  Azure que le proxy de cette session bloque — les captures n'ont PAS été
+  ouvertes ici. Elles sont téléchargeables par le propriétaire :
+  <https://github.com/Mendestrading21/Budget-/actions/runs/31640534718>
+  (artefact `budget-demo`, expire le 10.11.2026).
+
 ### Prochaine action exacte
 
-CI verte, workflow Demo relancé, captures inspectées — puis retour du
-propriétaire sur l'app installée.
+Retour du propriétaire : ouvrir l'artefact `budget-demo` (captures
+`01-accueil` et `17-bandeau-objectif`), puis tester sur l'app installée.
 
 ## L'iPhone fête aussi les progrès — la dette du lot précédent est soldée (10.08.2026) — VERIFYING
 
