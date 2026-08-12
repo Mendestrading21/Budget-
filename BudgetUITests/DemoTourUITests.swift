@@ -573,7 +573,6 @@ final class DemoTourUITests: XCTestCase {
         }
     }
 
-    @MainActor
     /// La bannière de progrès d'objectif : la COQUILLE l'affiche et la
     /// ferme. C'était la limite consignée du lot natif — le calcul est
     /// couvert par GoalProgressServiceTests, mais l'affichage ne l'était
@@ -602,6 +601,7 @@ final class DemoTourUITests: XCTestCase {
                        "La bannière doit se fermer (toucher ou effacement automatique)")
     }
 
+    @MainActor
     private func snap(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = name
