@@ -68,11 +68,15 @@ final class GoalProgressServiceTests: XCTestCase {
     func testProgressIsAnnouncedWithTheGoalsOwnNumbers() throws {
         let goal = makeGoal()
         let before = service.snapshotCurrents(goals: [goal])
-        try contribute(Decimal("100.00"))
+        try contribute(Decimal("50.00"))
 
         let message = service.progressMessage(destination: savings, goals: [goal], before: before)
-        // 680 → 780 sur 1000 : 68 % → 78 %, aucun palier franchi.
-        XCTAssertEqual(message, "🏖️ Voyage : 68 % → 78 %")
+        // 680 → 730 sur 1000 : 68 % → 73 %, aucun palier entre les deux.
+        // Première version : +100, donc 68 % → 78 % — et la CI a répondu
+        // « Les trois quarts sont là ». Le service avait raison : 78 %
+        // FRANCHIT le palier des 75 % que l'arithmétique du test avait
+        // oublié. C'est le test qui a été corrigé, jamais le service.
+        XCTAssertEqual(message, "🏖️ Voyage : 68 % → 73 %")
     }
 
     func testCrossingAMilestoneSpeaksInWords() throws {
