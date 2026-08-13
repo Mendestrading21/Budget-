@@ -148,6 +148,37 @@ branches, aux PRs et à la branche par défaut.
 - **Workflows** : Pages déploie depuis `main` ; la CI couvrait déjà `main` ;
   Demo reste manuel.
 
+### Résultat de la chirurgie distante (13.08.2026)
+
+Fait depuis la session :
+
+- **`main` créée** sur l'état v1 (`ff69d0a`), CI verte dessus (web + iOS).
+- **Sept branches d'archive** créées — une par ancienne tête :
+  `archive/obsidian-glass-v1`, `archive/execute-tbkhsd`,
+  `archive/budget-project-connection-link`,
+  `archive/codex-audit-simplicite-budget`,
+  `archive/codex-budget-leader-refonte`,
+  `archive/codex-budget-pwa-simplification-v2`,
+  `archive/v0.5.0-phases-0-5`. (Le proxy de la session bloque la création
+  de TAGS — git et API — les archives sont donc des branches ; elles se
+  convertissent en tags en une minute depuis une machine normale.)
+- **Les deux PRs ouvertes fermées** (#1, #2) avec un mot d'explication et
+  le nom de leur archive.
+- **La v1 est déployée sur Pages** (run dispatch vert sur `ff69d0a`).
+
+Bloqué par le proxy de la session — trois clics du propriétaire :
+
+1. **Branche par défaut → `main`** (Settings → General) : refus
+   « Repository settings writes are not permitted ».
+2. **Environnement `github-pages` : autoriser `main`** (Settings →
+   Environments) : le premier déploiement depuis `main` a échoué avant sa
+   première étape — règle de branches de l'environnement. Le déploiement
+   v1 est passé par un dispatch sur l'ancienne branche, encore autorisée.
+3. **Supprimer les sept anciennes branches** (la suppression est ignorée
+   par le proxy en git et refusée en API). À faire APRÈS le clic 1 pour
+   `claude/execute-tbkhsd`, encore branche par défaut.
+4. Facultatif : Releases → « v1.0.0 » sur `main`.
+
 ### Vérifié avant de toucher au distant
 
 Aucun outil ni workflow ne référence les fichiers déplacés (grep sur
