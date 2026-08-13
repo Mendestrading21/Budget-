@@ -9,7 +9,7 @@ name: Pages
 on:
   push:
     branches:
-      - refonte/budget-neon-ultra-v1
+      - main
     paths:
       - "webapp/**"
       - ".github/workflows/pages.yml"
@@ -67,7 +67,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
           EVENT_NAME: ${{ github.event_name }}
-          DEPLOY_BRANCH: refonte/budget-neon-ultra-v1
+          DEPLOY_BRANCH: main
         run: |
           set -euo pipefail
 

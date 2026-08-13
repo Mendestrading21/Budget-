@@ -24,8 +24,8 @@ confidentialité, de sauvegarde, d'accessibilité ou de publication.
 ## Dépôt et branche
 
 - Dépôt exclusif : `Mendestrading21/Budget-`
-- Branche de travail obligatoire : `refonte/budget-neon-ultra-v1`
-- Branche source (figée, ne jamais modifier) : `refonte/budget-obsidian-glass-v1`
+- Branche de travail obligatoire : `main` (v1 unifiée le 13.08.2026)
+- Historique source (figé, ne jamais réécrire) : tag `archive/obsidian-glass-v1` et dossier `archives/`
 - HEAD source prouvé CI verte : `26d186e8e31bbdf1bc41651afcaf7a1699988644`
 
 ## Charger le contexte obligatoire
@@ -82,7 +82,7 @@ est actif, le terminer avant d'en ouvrir un autre.
 Avant chaque modification :
 
 1. `pwd` et `git status --short --branch` ;
-2. confirmer la branche `refonte/budget-neon-ultra-v1` ;
+2. confirmer la branche `main` ;
 3. worktree propre, diff inspecté, travail non lié préservé ;
 4. lire le code, les tests et les décisions réelles ;
 5. reprendre les commandes de build/test depuis les workflows CI existants ;
@@ -90,7 +90,7 @@ Avant chaque modification :
 
 Jamais de commande Git destructive. Jamais de merge, déploiement, publication,
 tag, TestFlight ou App Store Connect sans autorisation explicite du
-propriétaire. Ne jamais modifier `refonte/budget-obsidian-glass-v1` ni la
+propriétaire. Ne jamais réécrire l'historique archivé (`archives/`, tags `archive/…`) ni la
 branche par défaut.
 
 ## Contrat financier non négociable (inchangé)

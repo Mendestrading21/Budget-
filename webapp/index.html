@@ -5000,7 +5000,7 @@ function renderImport() {
     ${S.documents.map(doc => `<div class="card row tx" data-editdoc="${esc(doc.id)}" role="button" tabindex="0" style="cursor:pointer" aria-label="Modifier ${esc(doc.name)}">
       <div class="ico" aria-hidden="true">📄</div>
       <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · nom et type seulement</div></div>
-      <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;min-height:44px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
+      <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
     <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
     <p class="caption" style="padding:6px 4px 0">Réimporter le même fichier sur le même compte ne crée jamais de doublon : chaque ligne est reconnue à sa date, son compte, son intitulé et son montant.</p>`;

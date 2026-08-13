@@ -4,28 +4,27 @@ Use only the project skill `/budget-neon-ultra` for substantial work on Budget.
 
 ## Active programme
 
-- Programme: **Budget — Neon Ultra** (ADR-024)
-- Required branch: `refonte/budget-neon-ultra-v1`
-- Source branch (frozen, never modify): `refonte/budget-obsidian-glass-v1`
+- Programme: **Budget v1 — Neon Ultra** (ADR-024, unifié en v1 le 13.08.2026)
+- Required branch: **`main`** (la seule branche ; l'historique des anciennes
+  branches vit dans les tags `archive/…`)
 - Progress source: `NEON_ULTRA_STATUS.md`
 - Visual constitution: `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_CONSTITUTION.md`
 - Delivery plan: `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_DELIVERY.md`
 - Screen contract: `.claude/skills/budget-neon-ultra/references/NEON_ULTRA_SCREEN_MATRIX.md`
 - Repository contract: `.claude/skills/budget-neon-ultra/references/REPOSITORY_CONTRACT.md`
 
-All other Budget skills (`/budget-v1` included) are legacy references. Do not
-invoke them, combine their roadmaps, or let them override `/budget-neon-ultra`.
-Preserve useful existing code and domain decisions, but treat this file and
-`/budget-neon-ultra` as the only operational authority. The Obsidian Glass
-history (L0–L9 reports, `OBSIDIAN_GLASS_STATUS.md`) is preserved as-is and is
-never rewritten.
+The previous programmes (Obsidian Glass, Horizon, Master Evolution) and
+their six skills live under `archives/` — historical record only. Do not
+invoke them, combine their roadmaps, or let them override
+`/budget-neon-ultra`. Their reports (L0–L9 included) are preserved as-is
+and are never rewritten.
 
 ## Working protocol
 
-1. Confirm the active branch and inspect `git status`.
+1. Confirm the active branch (`main`) and inspect `git status`.
 2. Read this file, `/budget-neon-ultra`, `NEON_ULTRA_STATUS.md`,
    `PROJECT_STATUS.md`, and `DECISION_LOG.md`.
-3. Execute exactly one Neon Ultra lot per session.
+3. Execute exactly one lot per session.
 4. State acceptance criteria before editing.
 5. Preserve all existing functionality and financial history.
 6. Add or update tests before declaring a risky financial or persistence change complete.
@@ -33,8 +32,10 @@ never rewritten.
 8. Update `NEON_ULTRA_STATUS.md` with evidence and the next exact action.
 9. Make one focused commit for the lot, then stop for review.
 
-Do not merge, deploy, publish, alter the default branch, close existing PRs, or
-start the next lot without explicit approval.
+Do not merge, deploy, publish, close existing PRs, or start the next lot
+without explicit approval. Pushing `webapp/**` to `main` deploys the PWA
+to GitHub Pages — a push to `main` IS a publish; treat it with that level
+of care (full local validation first, CI must be green).
 
 ## Product invariants
 
@@ -45,6 +46,7 @@ start the next lot without explicit approval.
 - Planned and actual money remain separate.
 - Savings and investments are not living expenses.
 - Internal transfers are neutral for household metrics and net worth.
+- A set-aside always has a destination account — money never evaporates (ADR-029).
 - Historical amounts never change because a current exchange rate changed.
 - No fake bank connection, no fake live data, and no personalized regulated advice.
 - Preserve stable identifiers, migrations, backups, privacy behavior, and user history.

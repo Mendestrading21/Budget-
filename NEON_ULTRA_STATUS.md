@@ -1,6 +1,7 @@
 # Budget — Neon Ultra : état d'avancement
 
-Programme actif (ADR-024) · branche `refonte/budget-neon-ultra-v1` · créée
+Programme actif (ADR-024) · branche `main` (v1 unifiée le 13.08.2026 ;
+historique : tags `archive/…`) · créée
 depuis `26d186e8e31bbdf1bc41651afcaf7a1699988644` (dernier HEAD Obsidian à CI
 verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 
@@ -120,6 +121,40 @@ rapport.
 ### Prochaine action exacte
 
 Retour du propriétaire sur l'app installée.
+
+## Version 1 — le dépôt devient une seule vraie version (13.08.2026) — VERIFYING
+
+Demande du propriétaire : « trie tout ce qu'il y a sur GitHub, un seul
+dossier avec la seule vraie version, efface les anciennes versions, que ce
+soit la version une ». Autorisation explicite donnée pour toucher aux
+branches, aux PRs et à la branche par défaut.
+
+### Règle appliquée : rien n'est perdu, tout est rangé
+
+- **`main` devient la seule branche**, créée depuis l'état Neon Ultra
+  complet. La branche par défaut du dépôt (qui était `claude/execute-tbkhsd`,
+  un reste) bascule sur `main`. Tag **`v1.0.0`** posé.
+- **Chaque ancienne branche reçoit un tag `archive/…` avant suppression** :
+  son contenu reste accessible à jamais, seule la liste des branches est
+  nettoyée. Les deux PRs ouvertes (vers l'ancienne branche par défaut) sont
+  fermées avec un mot d'explication.
+- **La racine du dépôt est rangée** : `archives/` reçoit les journaux des
+  programmes précédents (Obsidian Glass, Horizon, Master Evolution), les
+  six skills historiques et `docs/obsidian-glass` (préservés à l'identique,
+  ADR-024 : jamais réécrits). La racine ne garde que la version vivante :
+  code, autorités, journal, décisions, préparation App Store.
+- **Nouveau `README.md`** : ce qu'est l'app, où l'installer, ce qui ne
+  bouge jamais, comment développer.
+- **Workflows** : Pages déploie depuis `main` ; la CI couvrait déjà `main` ;
+  Demo reste manuel.
+
+### Vérifié avant de toucher au distant
+
+Aucun outil ni workflow ne référence les fichiers déplacés (grep sur
+`.github`, `webapp`, `Budget*`, outils du skill). La seule occurrence de
+« budget-web » dans les tests est l'identifiant du FORMAT d'export — une
+constante de données, pas un chemin. Suites complètes relancées après le
+rangement.
 
 ## La bannière est prouvée à l'écran, plus seulement en calcul (12.08.2026) — VERIFYING
 
