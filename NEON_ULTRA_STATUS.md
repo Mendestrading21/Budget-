@@ -18,11 +18,44 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
-## Mon mois en 10 secondes (14.08.2026) — VERIFYING
+## Les données restaurées restent du texte inerte (14.08.2026) — VERIFYING
 
-Le lot vertical ADR-030 est implémenté sur la branche
-`agent/budget-mois-simple`, sans migration ni modification des moteurs
-financiers.
+Lot correctif isolé sur `agent/budget-securite-donnees`. Il ne modifie ni
+calcul financier, ni modèle, ni sauvegarde : il ferme les points de rendu HTML
+qui acceptaient encore des valeurs historiques restaurées sans échappement.
+
+### Invariant tenu
+
+- Un identifiant historique reste exactement le même en mémoire et dans
+  `localStorage` : il peut toujours ouvrir, modifier et supprimer son
+  mouvement.
+- Cet identifiant ne peut plus sortir de `data-txid` ou `data-confirmtx` pour
+  créer un attribut ou un gestionnaire d'évènement.
+- Les icônes restaurées des récurrents, abonnements, biens, dettes, assurances
+  et prévoyance sont affichées comme texte, jamais interprétées comme HTML.
+- La migration de la toute première clé locale échappe aussi ses anciennes
+  dates dans l'Historique et dans la fraîcheur des comptes.
+- La validation et la restauration atomique existantes restent inchangées :
+  aucune migration destructive n'est introduite pour masquer le défaut.
+
+### Preuves
+
+- Nouveau parcours navigateur 120 dans un contexte isolé : état hostile
+  restauré, absence d'élément/attribut/script injecté, identifiant textuel
+  intact, puis vraie modification et vraie suppression vérifiées en mémoire
+  et sur disque.
+- Le même parcours ouvre Patrimoine, Assurances, Récurrents et Abonnements,
+  puis rejoue la migration `budget-proto-mouvements` sur Historique et Comptes.
+- `node --check` sur les trois suites `.mjs`, syntaxe des deux scripts inline et
+  `git diff --check` : propres.
+- Chromium n'est pas présent dans ce conteneur : le navigateur réel doit être
+  confirmé par la CI GitHub avant toute fusion.
+
+## Mon mois en 10 secondes (14.08.2026) — DONE, SOURCE PUBLIÉE
+
+Le lot vertical ADR-030 a été fusionné dans `main` par la PR #5, commit
+`68f28790ffb88ea44a0adf44de5ba17b58a54285`, sans migration ni modification
+des moteurs financiers.
 
 ### Résultat visible
 
@@ -53,12 +86,17 @@ financiers.
 - Tests Swift ajoutés : intentions rapides, natures récurrentes, verbes,
   échéance future et conservation du mois sélectionné ; tours UI adaptés.
 
-### Limite de l'environnement
+### Validation et publication
 
-Chromium et Xcode/Swift ne sont pas installés localement. Le téléchargement de
-Chromium est refusé par le proxy/certificat. Les suites navigateur, la
-compilation Swift, les tests iOS et les captures simulateur doivent donc être
-confirmés par GitHub Actions avant fusion.
+- CI `31801855513` entièrement verte sur le SHA fusionné : Web (119 parcours
+  navigateur, parité, design/accessibilité) et iOS (build, tests unitaires,
+  Release, PrivacyInfo, iPhone-only).
+- Le code source est bien publié sur `main`.
+- La PWA en ligne n'a pas encore reçu ce SHA : le run Pages `31801855597` est
+  rejeté avant toute étape parce que l'environnement `github-pages` n'autorise
+  pas la branche `main`. Action propriétaire : Settings → Environments →
+  `github-pages` → Deployment branches and tags → autoriser `main`, puis
+  relancer le workflow Pages.
 
 ## Mettre de côté est une ligne mensuelle — et l'argent arrive quelque part (10.08.2026) — VERIFYING
 

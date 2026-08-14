@@ -6262,6 +6262,218 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 120 : les données locales ne peuvent injecter du HTML ----
+currentTest = "sécurité des données restaurées";
+// Les identifiants textuels historiques restent acceptés : la sécurité se
+// fait au point de rendu, sans réécrire l'identité d'un mouvement. Les six
+// familles d'icônes restaurables sont exercées sur leurs vrais écrans.
+const context120 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const page120 = await context120.newPage();
+const errors120 = [];
+page120.on("console", msg => { if (msg.type() === "error") errors120.push(msg.text()); });
+page120.on("pageerror", error => errors120.push(`pageerror: ${error.message}`));
+page120.on("dialog", dialog => dialog.accept());
+await page120.goto(APP_URL);
+const attack120 = await page120.evaluate(() => {
+  const state = seedState();
+  const id = 'legacy-" data-xss-id="injected" autofocus onfocus="window.__budgetXss=(window.__budgetXss||0)+1';
+  const icon = name => `<img data-xss-icon="${name}" src=x onerror="window.__budgetXss=(window.__budgetXss||0)+1">`;
+  const transaction = state.transactions.find(t => t.recurringId === "r-salaire"
+    && t.y === NOW.y && t.m === NOW.m) || state.transactions[0];
+  transaction.id = id;
+  transaction.title = "Identifiant restauré sûr";
+  state.recurrings[0].icon = icon("recurring");
+  const subscription = state.recurrings.find(r => r.id === "r-streaming") || state.recurrings[1];
+  subscription.icon = icon("subscription");
+  state.assets[0].icon = icon("asset");
+  state.liabilities[0].icon = icon("liability");
+  state.pensions[0].icon = icon("pension");
+  state.insurances[0].icon = icon("insurance");
+  localStorage.setItem("budget-app-state-v1", JSON.stringify(state));
+  localStorage.removeItem("budget-app-state-rescue");
+  return { id };
+});
+await page120.reload();
+await page120.waitForSelector("#tabbar button", { timeout: 10000 });
+await page120.waitForTimeout(100);
+
+// L'occurrence du salaire tombe le 25 dans la démo. On la remet en attente
+// et on place les deux sources de date de ce contexte isolé au 1er afin que
+// ce contrôle reste déterministe même si la CI s'exécute après le 25.
+await page120.evaluate(id => {
+  const transaction = transactions.find(t => String(t.id) === id);
+  if (transaction) transaction.status = "planned";
+  NOW.d = 1;
+  todayParts = () => ({ y: NOW.y, m: NOW.m, d: 1 });
+  render();
+}, attack120.id);
+
+// Le même identifiant passe par les deux attributs sensibles : la ligne de
+// l'historique et le bouton qui confirme une occurrence planifiée.
+const homeSafety120 = await page120.evaluate(id => {
+  const confirmation = [...document.querySelectorAll("[data-confirmtx]")]
+    .find(el => el.dataset.confirmtx === id);
+  return {
+    confirmationFound: !!confirmation,
+    injectedAttribute: !!document.querySelector("[data-xss-id]"),
+    injectedIcon: !!document.querySelector("[data-xss-icon]"),
+    executed: window.__budgetXss || 0,
+  };
+}, attack120.id);
+check(homeSafety120.confirmationFound,
+  "l'identifiant textuel restauré reste intact dans l'action mensuelle");
+check(!homeSafety120.injectedAttribute && !homeSafety120.injectedIcon && homeSafety120.executed === 0,
+  `aucun attribut, élément ou script injecté sur Mois (${JSON.stringify(homeSafety120)})`);
+
+await page120.click('#tabbar button[aria-label="Historique"]');
+await page120.waitForTimeout(100);
+const historySafety120 = await page120.evaluate(id => {
+  const row = [...document.querySelectorAll("[data-txid]")]
+    .find(el => el.dataset.txid === id);
+  const result = {
+    found: !!row,
+    exact: row ? row.dataset.txid === id : false,
+    injectedAttribute: row ? row.hasAttribute("data-xss-id") : true,
+  };
+  if (row) row.click();
+  return result;
+}, attack120.id);
+await page120.waitForSelector("#txForm", { state: "visible", timeout: 5000 });
+const editSafety120 = await page120.evaluate(id => ({
+  exactEditingID: editingTxId === id,
+  title: document.getElementById("fTitle").value,
+  executed: window.__budgetXss || 0,
+}), attack120.id);
+check(historySafety120.found && historySafety120.exact && !historySafety120.injectedAttribute,
+  `l'identifiant est échappé sans être modifié (${JSON.stringify(historySafety120)})`);
+check(editSafety120.exactEditingID && editSafety120.title === "Identifiant restauré sûr",
+  "un identifiant textuel restauré reste ouvrable et modifiable");
+check(editSafety120.executed === 0, "ouvrir le mouvement n'exécute aucun attribut restauré");
+
+await page120.evaluate(() => {
+  document.getElementById("fTitle").value = "Identifiant restauré modifié";
+  document.getElementById("txForm").dispatchEvent(
+    new Event("submit", { bubbles: true, cancelable: true })
+  );
+});
+await page120.waitForTimeout(150);
+const edited120 = await page120.evaluate(id => {
+  const memory = transactions.find(t => t.id === id);
+  const stored = JSON.parse(localStorage.getItem("budget-app-state-v1"))
+    .transactions.find(t => t.id === id);
+  return {
+    memoryTitle: memory && memory.title,
+    storedTitle: stored && stored.title,
+    exactMemoryID: !!memory && memory.id === id,
+    exactStoredID: !!stored && stored.id === id,
+  };
+}, attack120.id);
+check(edited120.exactMemoryID && edited120.exactStoredID
+    && edited120.memoryTitle === "Identifiant restauré modifié"
+    && edited120.storedTitle === "Identifiant restauré modifié",
+  `modifier garde l'identifiant exact en mémoire et sur disque (${JSON.stringify(edited120)})`);
+
+await page120.evaluate(id => {
+  const row = [...document.querySelectorAll("[data-txid]")]
+    .find(el => el.dataset.txid === id);
+  if (row) row.click();
+}, attack120.id);
+await page120.waitForSelector("#txForm", { state: "visible", timeout: 5000 });
+await page120.click("#fDelete");
+await page120.waitForSelector("#txForm", { state: "hidden", timeout: 5000 });
+const deleted120 = await page120.evaluate(id => {
+  const stored = JSON.parse(localStorage.getItem("budget-app-state-v1"));
+  return {
+    inMemory: transactions.some(t => t.id === id),
+    onDisk: stored.transactions.some(t => t.id === id),
+  };
+}, attack120.id);
+check(!deleted120.inMemory && !deleted120.onDisk,
+  `supprimer retire le bon identifiant en mémoire et sur disque (${JSON.stringify(deleted120)})`);
+
+const iconViews120 = [];
+for (const view of ["networth", "insurance", "recurring", "subs"]) {
+  await page120.evaluate(nextView => {
+    closeSheet();
+    activeTab = "more";
+    moreView = nextView;
+    render();
+  }, view);
+  await page120.waitForTimeout(100);
+  iconViews120.push(await page120.evaluate(nextView => ({
+    view: nextView,
+    injectedIcons: document.querySelectorAll("[data-xss-icon]").length,
+    literalIcons: (document.getElementById("screen").textContent.match(/<img data-xss-icon=/g) || []).length,
+    executed: window.__budgetXss || 0,
+  }), view));
+}
+check(iconViews120.every(result => result.injectedIcons === 0 && result.executed === 0),
+  `les icônes restaurées restent du texte inerte (${JSON.stringify(iconViews120)})`);
+const minimumLiteralIcons120 = { networth: 2, insurance: 2, recurring: 2, subs: 1 };
+check(iconViews120.every(result => result.literalIcons >= minimumLiteralIcons120[result.view]),
+  `chaque vue prouve ses propres icônes inertes (${JSON.stringify(iconViews120)})`);
+check(errors120.length === 0,
+  `zéro erreur console pendant le scénario hostile (${errors120.join(" | ") || "aucune"})`);
+await context120.close();
+
+// La toute première version utilisait une clé séparée, migrée avant la
+// validation v1. Ses champs de date doivent donc être inertes eux aussi,
+// aussi bien dans l'Historique que dans la fraîcheur des Comptes.
+const legacyContext120 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const legacyPage120 = await legacyContext120.newPage();
+const legacyErrors120 = [];
+legacyPage120.on("console", msg => { if (msg.type() === "error") legacyErrors120.push(msg.text()); });
+legacyPage120.on("pageerror", error => legacyErrors120.push(`pageerror: ${error.message}`));
+await legacyPage120.goto(APP_URL);
+const legacyAttack120 = await legacyPage120.evaluate(() => {
+  const y = NOW.y + 1;
+  const d = '<img data-xss-legacy="date" src=x onerror="window.__budgetLegacyXss=(window.__budgetLegacyXss||0)+1">';
+  localStorage.removeItem("budget-app-state-v1");
+  localStorage.removeItem("budget-app-state-rescue");
+  localStorage.setItem("budget-proto-mouvements", JSON.stringify([{
+    id: "legacy-date-safe", y, m: 1, d,
+    title: "Ancien mouvement sûr", amount: 12.50,
+    type: "expense", cat: "Alimentation", acc: "cur", dest: null,
+  }]));
+  return { y };
+});
+await legacyPage120.reload();
+await legacyPage120.waitForSelector("#tabbar button", { timeout: 10000 });
+await legacyPage120.evaluate(y => {
+  cursor = { y, m: 1 };
+  activeTab = "movements";
+  render();
+}, legacyAttack120.y);
+await legacyPage120.waitForTimeout(100);
+const legacyHistory120 = await legacyPage120.evaluate(() => ({
+  injected: !!document.querySelector("[data-xss-legacy]"),
+  literal: document.getElementById("screen").textContent.includes("<img data-xss-legacy="),
+  executed: window.__budgetLegacyXss || 0,
+}));
+check(!legacyHistory120.injected && legacyHistory120.literal && legacyHistory120.executed === 0,
+  `la date historique reste du texte inerte dans l'Historique (${JSON.stringify(legacyHistory120)})`);
+
+const legacyAccountViews120 = [];
+for (const accountViewID of [null, "cur"]) {
+  await legacyPage120.evaluate(nextAccount => {
+    activeTab = "accounts";
+    accountView = nextAccount;
+    render();
+  }, accountViewID);
+  await legacyPage120.waitForTimeout(100);
+  legacyAccountViews120.push(await legacyPage120.evaluate(nextAccount => ({
+    view: nextAccount || "liste",
+    injected: !!document.querySelector("[data-xss-legacy]"),
+    literal: document.getElementById("screen").textContent.includes("<img data-xss-legacy="),
+    executed: window.__budgetLegacyXss || 0,
+  }), accountViewID));
+}
+check(legacyAccountViews120.every(result => !result.injected && result.literal && result.executed === 0),
+  `la fraîcheur des comptes échappe aussi la date historique (${JSON.stringify(legacyAccountViews120)})`);
+check(legacyErrors120.length === 0,
+  `zéro erreur console pendant la migration historique (${legacyErrors120.join(" | ") || "aucune"})`);
+await legacyContext120.close();
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -6271,4 +6483,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 119 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 120 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
