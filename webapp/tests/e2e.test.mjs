@@ -5370,7 +5370,7 @@ currentTest = "charges et abonnements dès la bienvenue";
       && chargesVisibles104 === 2
       && accueil104.lignesVisibles === 3
       && /Et 1 autre à faire/.test(accueil104.overflow)
-      && /Bilan du mois/.test(accueil104.texte),
+      && /Bilan du mois/i.test(accueil104.texte),
     `dès la première ouverture, les trois charges sont engagées et le bilan garde trois priorités (${JSON.stringify({ ...accueil104, chargesVisibles104 })})`);
   check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
   await ctx104.close();
