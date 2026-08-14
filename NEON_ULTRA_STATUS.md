@@ -18,6 +18,57 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Fluidité Apple : les feuilles repartent par où elles arrivent (14.08.2026) — VERIFYING
+
+Premier lot exécutant le skill compagnon `/apple-design` (installé et
+déclaré dans `CLAUDE.md` ce même jour). Périmètre : sensations d'interface
+uniquement — aucun modèle, calcul, format de sauvegarde ni texte financier.
+
+### Résultat visible
+
+- Une feuille qui monte depuis le bas **redescend par le même chemin** en se
+  fermant (`sink` 220 ms), le voile s'estompe en symétrie (`veil-in`/`veil-out`).
+  Avant : disparition sèche en une frame.
+- **Interruptible** : rouvrir pendant la descente ramène la feuille
+  immédiatement — `openSheet` annule la fermeture en vol, et la couche en
+  train de se fermer n'intercepte plus les gestes (`pointer-events: none`).
+- **Réponse au doigt posé** : les icônes de la barre d'onglets et les puces
+  de filtre cèdent sous la pression (`:active`, 1 frame), comme le faisaient
+  déjà boutons, lignes, chips et intentions.
+- Typo des grands montants : déjà conforme (`-0.02em`, chiffres tabulaires) —
+  constaté, rien modifié.
+- Mouvement réduit : fermeture instantanée sans descente, aucun retour de
+  pression animé — chaque nouveauté a son débrayage.
+
+### Preuves
+
+- e2e passe de 120 à **121 parcours** : le nouveau parcours lit les styles
+  **calculés** (display, animationName, pointerEvents) pour mordre aussi si
+  le CSS disparaît ; il couvre fermeture, interruption + minuteur parasite,
+  et mouvement réduit (`emulateMedia`).
+- Contrôle négatif : règle `.closing` retirée + annulation `openSheet`
+  retirée → 3 échecs ciblés, puis restauration → 121 verts.
+- Suites : 121 e2e + 5 parités + design (Obsidian, NU1, NU2) verts ;
+  audit-total 320/390/430 « Aucun écran en défaut » ; audit-visuel propre ;
+  audit-coherence « Aucun défaut ».
+- Instrument réparé en chemin : `audit-final` mesurait encore l'ancien héros
+  tournant (6 « affiché null » **préexistants au lot**, prouvé par stash).
+  Il vérifie désormais le vrai accueil ADR-031 (réponse principale + trio
+  contre `snapshot()`) et le Patrimoine « Tout ce qui est à vous » contre son
+  recalcul indépendant → **13 contrôles passés, aucun défaut**.
+- Captures 390/320 inspectées : feuille ouverte, frame de descente
+  (mi-fermeture), état final propre.
+- Piège consigné : depuis le nesting CSS, `rule.cssRules` existe (vide) sur
+  toute règle — un scanner qui teste `cssRules` avant `selectorText` saute
+  tout ; le parcours 121 classe par `selectorText` d'abord.
+
+### Prochaine action exacte
+
+Validation du propriétaire, puis candidats suivants du skill apple-design :
+projection d'élan sur les carrousels, geste de fermeture des feuilles au
+doigt (drag-to-dismiss avec vélocité), effet de bord de défilement sous les
+en-têtes collants.
+
 ## Bilan du mois : à faire et déjà fait (14.08.2026) — VERIFYING
 
 Lot vertical ADR-031 sur `agent/budget-bilan-mensuel-clair`, empilé sur le

@@ -305,6 +305,10 @@
     .card.row:active { transform: none; }
     .btn { transition: none; }
     .btn:active { transform: none; filter: none; }
+    .tabbar button svg { transition: none; }
+    .tabbar button:active svg { transform: none; }
+    .filter-chip { transition: none; }
+    .filter-chip:active { transform: none; }
   }
 
   .card-label {
@@ -605,7 +609,10 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .tabbar button svg { width: 22px; height: 22px; }
+  .tabbar button svg { width: 22px; height: 22px; transition: transform 0.12s ease; }
+  /* Réponse au doigt posé (apple-design §1) : l'icône cède sous la
+     pression, le libellé reste stable. */
+  .tabbar button:active svg { transform: scale(0.86); }
   .tabbar button.active { color: var(--indigo-text); }
   .tabbar button:focus-visible { outline: 2px solid var(--electric); border-radius: 8px; }
 
@@ -645,7 +652,14 @@
     align-items: flex-end;
     z-index: 10;
   }
-  .sheet-backdrop.open { display: flex; }
+  .sheet-backdrop.open { display: flex; animation: veil-in 0.22s ease; }
+  /* Fermeture symétrique (apple-design §7) : la feuille repart par le
+     chemin de son arrivée, le voile s'éteint en même temps. Pendant ce
+     court trajet la couche n'intercepte plus rien (pointer-events), et
+     rouvrir pendant la descente la ramène sans attendre (§3 :
+     interruptible — openSheet retire .closing immédiatement). */
+  .sheet-backdrop.closing { display: flex; pointer-events: none; animation: veil-out 0.22s ease forwards; }
+  .sheet-backdrop.closing .sheet { animation: sink 0.22s ease forwards; }
   .sheet {
     width: 100%;
     background: var(--glass-strong);
@@ -657,6 +671,9 @@
     animation: rise 0.28s ease;
   }
   @keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @keyframes sink { to { transform: translateY(40px); opacity: 0; } }
+  @keyframes veil-in { from { opacity: 0; } }
+  @keyframes veil-out { to { opacity: 0; } }
   /* Entrée d'écran Horizon : les premières cartes se posent en douceur. */
   @keyframes settle { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
   .screen-enter > .card { animation: settle 0.26s ease backwards; }
@@ -669,6 +686,12 @@
   @media (prefers-reduced-motion: reduce) {
     .sheet { animation: none; }
     .fill { transition: none; }
+    /* Sans mouvement : apparition et disparition instantanées. closeSheet
+       n'ajoute pas .closing quand le réglage est actif ; display:none ici
+       est la ceinture de sécurité si la classe arrivait quand même. */
+    .sheet-backdrop.open { animation: none; }
+    .sheet-backdrop.closing { display: none; animation: none; }
+    .sheet-backdrop.closing .sheet { animation: none; }
   }
   .sheet h3 { margin: 0 0 14px; font-size: 17px; }
   .sheet label { display: block; font-size: 11px; font-weight: 600; color: var(--coolgray); margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -882,7 +905,9 @@
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
+    transition: transform 0.12s ease;
   }
+  .filter-chip:active { transform: scale(0.96); }
   .filter-chip[aria-pressed="true"] {
     border-color: var(--stroke-active);
     background: var(--brand-tint);
@@ -6011,6 +6036,18 @@ const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "item
 let openSheetId = null;
 let openSheetSnapshot = "";
 let sheetOpener = null;
+// Fermeture symétrique (apple-design §7) : .closing garde la couche visible
+// le temps que la feuille redescende, puis on masque vraiment. Rouvrir
+// pendant la descente annule tout, sans attente (§3 : interruptible).
+let sheetCloseTimer = 0;
+const SHEET_REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
+function settleSheetClose() {
+  if (sheetCloseTimer) { clearTimeout(sheetCloseTimer); sheetCloseTimer = 0; }
+  backdrop.classList.remove("closing");
+}
+backdrop.addEventListener("animationend", e => {
+  if (e.target === backdrop && backdrop.classList.contains("closing")) settleSheetClose();
+});
 // Empreinte des champs d'une feuille : sert à détecter une saisie en cours.
 function serializeSheet(id) {
   const el = document.getElementById(id);
@@ -6020,6 +6057,7 @@ function serializeSheet(id) {
     .join("␟");
 }
 function openSheet(id) {
+  settleSheetClose();
   if (!backdrop.classList.contains("open")) sheetOpener = document.activeElement;
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
@@ -6042,7 +6080,14 @@ function openSheet(id) {
   }
 }
 function closeSheet() {
+  const wasOpen = backdrop.classList.contains("open");
   backdrop.classList.remove("open");
+  // Sans mouvement réduit, la feuille repart par où elle est arrivée ;
+  // le minuteur est la ceinture si animationend ne venait pas.
+  if (wasOpen && !SHEET_REDUCED_MOTION.matches) {
+    backdrop.classList.add("closing");
+    sheetCloseTimer = setTimeout(settleSheetClose, 300);
+  }
   openSheetId = null;
   const target = sheetOpener;
   const targetId = target && target.id;

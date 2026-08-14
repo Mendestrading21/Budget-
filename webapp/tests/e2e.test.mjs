@@ -6766,6 +6766,120 @@ check(legacyErrors120.length === 0,
   `zéro erreur console pendant la migration historique (${legacyErrors120.join(" | ") || "aucune"})`);
 await legacyContext120.close();
 
+// ---------- Test 121 : fluidité Apple — la feuille repart par où elle est arrivée ----------
+// apple-design §7 (cohérence spatiale) et §3 (interruptibilité). Les
+// assertions lisent les styles CALCULÉS : si la règle CSS .closing ou le
+// keyframe sink disparaît, le test échoue même si le JS pose la classe.
+currentTest = "fluidité feuilles";
+await goHome();
+await page.click("[data-addtx]");
+await page.waitForSelector("#quickMenu", { state: "visible" });
+const fluid121open = await page.evaluate(() => ({
+  open: document.getElementById("sheetBackdrop").classList.contains("open"),
+  display: getComputedStyle(document.getElementById("sheetBackdrop")).display,
+}));
+check(fluid121open.open && fluid121open.display === "flex",
+  `la feuille s'ouvre (${JSON.stringify(fluid121open)})`);
+
+// Fermeture : la classe .open part tout de suite (contrat des autres tests),
+// mais la couche reste affichée le temps que la feuille redescende (sink).
+await page.click("#quickCancel");
+const fluid121closing = await page.evaluate(() => {
+  const bd = document.getElementById("sheetBackdrop");
+  const sheet = document.getElementById("quickMenu");
+  return {
+    open: bd.classList.contains("open"),
+    closing: bd.classList.contains("closing"),
+    display: getComputedStyle(bd).display,
+    pointer: getComputedStyle(bd).pointerEvents,
+    sheetAnim: getComputedStyle(sheet).animationName,
+  };
+});
+check(!fluid121closing.open && fluid121closing.closing && fluid121closing.display === "flex",
+  `pendant la fermeture, la couche reste affichée sans être « ouverte » (${JSON.stringify(fluid121closing)})`);
+check(fluid121closing.sheetAnim === "sink",
+  `la feuille redescend par le chemin de son arrivée (animation « ${fluid121closing.sheetAnim} »)`);
+check(fluid121closing.pointer === "none",
+  "la couche en train de se fermer n'intercepte plus les gestes");
+await page.waitForFunction(() => {
+  const bd = document.getElementById("sheetBackdrop");
+  return !bd.classList.contains("closing") && getComputedStyle(bd).display === "none";
+}, { timeout: 2000 });
+check(true, "la couche disparaît réellement après la descente");
+
+// Interruption : rouvrir PENDANT la descente ramène la feuille sans attendre,
+// et l'ancien minuteur de fermeture ne doit pas la masquer ensuite.
+await page.click("[data-addtx]");
+await page.waitForSelector("#quickMenu", { state: "visible" });
+await page.click("#quickCancel");
+await page.click("[data-addtx]");
+const fluid121interrupt = await page.evaluate(() => {
+  const bd = document.getElementById("sheetBackdrop");
+  return { open: bd.classList.contains("open"), closing: bd.classList.contains("closing") };
+});
+check(fluid121interrupt.open && !fluid121interrupt.closing,
+  `rouvrir pendant la fermeture ramène la feuille immédiatement (${JSON.stringify(fluid121interrupt)})`);
+await page.waitForTimeout(400); // laisse expirer un éventuel minuteur parasite
+const fluid121still = await page.evaluate(() => ({
+  open: document.getElementById("sheetBackdrop").classList.contains("open"),
+  display: getComputedStyle(document.getElementById("sheetBackdrop")).display,
+}));
+check(fluid121still.open && fluid121still.display === "flex",
+  `la feuille rouverte reste ouverte après l'expiration du minuteur (${JSON.stringify(fluid121still)})`);
+await page.click("#quickCancel");
+await page.waitForFunction(() => getComputedStyle(document.getElementById("sheetBackdrop")).display === "none",
+  { timeout: 2000 });
+
+// Mouvement réduit : fermeture instantanée, jamais de classe .closing.
+await page.emulateMedia({ reducedMotion: "reduce" });
+await page.click("[data-addtx]");
+await page.waitForSelector("#quickMenu", { state: "visible" });
+await page.click("#quickCancel");
+const fluid121reduced = await page.evaluate(() => {
+  const bd = document.getElementById("sheetBackdrop");
+  return {
+    open: bd.classList.contains("open"),
+    closing: bd.classList.contains("closing"),
+    display: getComputedStyle(bd).display,
+  };
+});
+check(!fluid121reduced.open && !fluid121reduced.closing && fluid121reduced.display === "none",
+  `mouvement réduit : fermeture instantanée sans descente (${JSON.stringify(fluid121reduced)})`);
+await page.emulateMedia({ reducedMotion: null });
+
+// Réponse au doigt posé (§1) : les règles de pression des onglets et des
+// puces de filtre existent réellement, avec leur débrayage mouvement réduit.
+const fluid121press = await page.evaluate(() => {
+  const rules = [];
+  for (const sheet of document.styleSheets) {
+    let list; try { list = sheet.cssRules; } catch { continue; }
+    const walk = group => {
+      for (const rule of group) {
+        // Chromium moderne (nesting CSS) : même une règle simple expose un
+        // cssRules vide — on classe donc par présence de selectorText.
+        if (rule.selectorText) rules.push({
+          sel: rule.selectorText,
+          reduced: !!(rule.parentRule && /prefers-reduced-motion/.test(rule.parentRule.conditionText || "")),
+          transform: rule.style ? rule.style.transform : "",
+        });
+        else if (rule.cssRules) walk(rule.cssRules);
+      }
+    };
+    walk(list);
+  }
+  const find = (sel, reduced) => rules.some(r => r.sel.includes(sel) && r.reduced === reduced);
+  return {
+    tab: find(".tabbar button:active svg", false),
+    tabReduced: find(".tabbar button:active svg", true),
+    chip: find(".filter-chip:active", false),
+    chipReduced: find(".filter-chip:active", true),
+  };
+});
+check(fluid121press.tab && fluid121press.chip,
+  `les onglets et puces de filtre répondent au doigt posé (${JSON.stringify(fluid121press)})`);
+check(fluid121press.tabReduced && fluid121press.chipReduced,
+  "chaque retour de pression a son débrayage mouvement réduit");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -6775,4 +6889,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 120 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 121 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité des feuilles, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

@@ -264,54 +264,56 @@ verifier(annee.nb === 12 && annee.faux.length === 0,
   `la page Année montre 12 mois, chacun avec son VRAI résultat (${annee.nb} cellules)`,
   annee.faux.map(f => `mois ${f.m} : attendu ${f.attendu}, écrit ${f.ecrit}`).join(" · "));
 
-// 4. Héros qui tourne : chaque carte doit valoir son recalcul indépendant.
+// 4. Accueil essentiel (ADR-031) : LA réponse principale et le trio
+//    Reçu / Dépensé / Mis de côté valent leur recalcul indépendant.
+//    (L'ancien héros tournant data-heroslide n'existe plus : placements,
+//    prévoyance et patrimoine se vérifient sur l'écran Patrimoine, point 5.)
 await aller('activeTab="home";moreView=null');
 const heros = await page.evaluate(() => {
-  const lire = cle => {
-    const c = document.querySelector(`[data-heroslide="${cle}"]`);
-    if (!c) return null;
-    const m = (c.querySelector(".hero-amount").textContent.match(/-?[\d'’]+\.\d\d/) || [])[0];
+  const montantDe = el => {
+    if (!el) return null;
+    const m = (el.textContent.match(/-?[\d'’]+\.\d\d/) || [])[0];
     return m ? Number(m.replace(/['’]/g, "")) : null;
   };
-  const cents = v => Math.round(v * 100);
-  const placements = ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))
-    .reduce((s, a) => s + cents(toCHF(balance(a.id), a.currency)), 0);
-  const prevoyance = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
-      .reduce((s, a) => s + cents(toCHF(balance(a.id), a.currency)), 0)
-    + PENSIONS.reduce((s, p) => s + cents(p.value), 0);
-  const liquide = ACCOUNTS.filter(a => a.cash)
-    .reduce((s, a) => s + cents(toCHF(balance(a.id), a.currency)), 0);
-  const biens = ASSETS.filter(x => x.include !== false).reduce((s, x) => s + cents(x.value), 0);
+  const stats = [...document.querySelectorAll(".home-metrics .stat")];
+  const statPar = label => montantDe(stats.find(x => x.textContent.includes(label)));
   const snap = snapshot(cursor.y, cursor.m);
+  const futur = cursor.y > NOW.y || (cursor.y === NOW.y && cursor.m > NOW.m);
+  const attenduHero = (snap.isCurrent || futur) ? snap.available : snap.cashFlow;
   return {
-    disponible: [lire("disponible"), Math.round(snap.available * 100) / 100],
-    misdecote: [lire("misdecote"), Math.round((snap.savings + snap.invest) * 100) / 100],
-    placements: [lire("placements"), placements / 100],
-    prevoyance: [lire("prevoyance"), prevoyance / 100],
-    patrimoine: [lire("patrimoine"),
-      (liquide + placements + prevoyance + biens - cents(liabilitiesTotal())) / 100],
+    "réponse principale": [montantDe(document.querySelector(".home-hero .hero-amount")),
+      Math.round(attenduHero * 100) / 100],
+    "Reçu": [statPar("Reçu"), Math.round(snap.income * 100) / 100],
+    "Dépensé": [statPar("Dépensé"), Math.round(snap.living * 100) / 100],
+    "Mis de côté": [statPar("Mis de côté"),
+      Math.round((snap.savings + snap.invest) * 100) / 100],
   };
 });
 for (const [cle, [ecrit, attendu]] of Object.entries(heros)) {
   verifier(ecrit !== null && Math.abs(ecrit - attendu) < 0.02,
-    `héros « ${cle} » : le montant affiché est le montant calculé`,
+    `accueil « ${cle} » : le montant affiché est le montant calculé`,
     `affiché ${ecrit}, recalculé ${attendu}`);
 }
 
-// 5. Tuile « À payer » = la somme de ce qui reste réellement dû.
-const aPayer = await page.evaluate(() => {
-  const tuiles = [...document.querySelectorAll(".home-metrics .stat")];
-  const t = tuiles.find(x => /À payer/i.test(x.textContent));
-  const m = t ? (t.textContent.match(/[\d'’]+\.\d\d/) || [])[0] : null;
-  const snap = snapshot(cursor.y, cursor.m);
+// 5. Patrimoine « Tout ce qui est à vous » = recalcul indépendant complet
+//    (comptes convertis + biens inclus + prévoyance manuelle − dettes).
+await aller('activeTab="more";moreView="networth"');
+const patrimoine = await page.evaluate(() => {
+  const c = document.querySelector("#screen .hero-amount");
+  const m = c ? (c.textContent.match(/-?[\d'’]+\.\d\d/) || [])[0] : null;
+  const cents = v => Math.round(v * 100);
+  const comptes = ACCOUNTS.reduce((s, a) => s + cents(toCHF(balance(a.id), a.currency)), 0);
+  const biens = ASSETS.filter(x => x.include !== false).reduce((s, x) => s + cents(x.value), 0);
+  const prevoyance = PENSIONS.reduce((s, p) => s + cents(p.value), 0);
   return {
     ecrit: m ? Number(m.replace(/['’]/g, "")) : null,
-    attendu: Math.round((snap.plannedOut + snap.recurringCharges + snap.taxGap) * 100) / 100,
+    attendu: (comptes + biens + prevoyance - cents(liabilitiesTotal())) / 100,
   };
 });
-verifier(aPayer.ecrit !== null && Math.abs(aPayer.ecrit - aPayer.attendu) < 0.02,
-  "tuile « À payer » : le montant affiché est le montant calculé",
-  `affiché ${aPayer.ecrit}, recalculé ${aPayer.attendu}`);
+verifier(patrimoine.ecrit !== null && Math.abs(patrimoine.ecrit - patrimoine.attendu) < 0.02,
+  "Patrimoine « Tout ce qui est à vous » : le montant affiché est le montant calculé",
+  `affiché ${patrimoine.ecrit}, recalculé ${patrimoine.attendu}`);
+await aller('activeTab="home";moreView=null');
 
 // 6. Répartition des Comptes : les parts doivent totaliser 100 % et
 //    correspondre aux soldes.
