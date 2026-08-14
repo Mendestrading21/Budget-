@@ -2800,7 +2800,7 @@ await goHome();
       submitColor: getComputedStyle(submit).color,
       ctaCount: form.querySelectorAll(".btn.nu-cta").length,
       chips: chips.map(c => c.dataset.ftype),
-      chipsVisible: chips.filter(c => c.offsetParent !== null).length,
+      chipsVisible: chips.filter(c => c.checkVisibility()).length,
       advancedClosed: !document.getElementById("fTypeMore").open,
       titleTag: (document.getElementById("fTitle").tagName || "").toLowerCase(),
       smallTargets: [...form.querySelectorAll("button, input:not(.sr-select), select:not(.sr-select), textarea, summary")]
@@ -5156,10 +5156,17 @@ currentTest = "charges et abonnements dès la bienvenue";
   check(cree.mouvements === 0,
     `rien n'est comptabilisé : ce sont des dépenses PRÉVUES (${cree.mouvements} mouvement(s))`);
 
-  // La preuve utile : le premier écran sait déjà ce qui doit sortir.
-  const accueil104 = await p104.evaluate(() => document.getElementById("screen").innerText);
-  check(/2'081\.90/.test(accueil104),
-    "dès la première ouverture, « à payer » vaut la somme réellement saisie");
+  // La preuve utile : le premier écran sait déjà ce qui doit sortir, sans
+  // réintroduire une carte de total dans l'accueil simplifié. Les trois
+  // lignes restent lisibles et leur somme nourrit bien le disponible.
+  const accueil104 = await p104.evaluate(() => ({
+    texte: document.getElementById("screen").innerText,
+    engage: snapshot(NOW.y, NOW.m).recurringCharges,
+  }));
+  check(Math.abs(accueil104.engage - 2081.90) < 0.01
+      && cree.charges.every(charge => accueil104.texte.includes(charge.t))
+      && /À faire ce mois/.test(accueil104.texte),
+    `dès la première ouverture, les trois charges sont engagées et lisibles (${JSON.stringify(accueil104)})`);
   check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
   await ctx104.close();
 }
@@ -5621,7 +5628,7 @@ await goHome();
              haut: b ? b.getBoundingClientRect().height : 0 };
   });
   check(geste.existe, "le geste « mettre de côté » est proposé à la saisie");
-  check(/mettre de côté/i.test(geste.texte || ""),
+  check(/mis de côté/i.test(geste.texte || ""),
     `il porte le mot de l'app, pas un nom de banque (obtenu « ${geste.texte} »)`);
   check(geste.haut >= 44, `et c'est une vraie cible tactile (${geste.haut} px)`);
   await page.click('#quickMenu [data-quick="save"]');
@@ -5660,10 +5667,13 @@ await goHome();
     // ne se vérifie pas seulement sur ce qui est à l'écran.
     const mots = [...document.querySelectorAll(
       '[data-quicksend], [data-quick="save"], [data-ftype="saving"]')]
-      .map(b => b.textContent.trim());
+      .map(b => (b.querySelector("strong") || b).textContent.trim());
     openSheet("quickMenu");
     await new Promise(r => setTimeout(r, 120));
-    const menu = (document.querySelector('[data-quick="save"]') || {}).textContent?.trim() || null;
+    const menuButton = document.querySelector('[data-quick="save"]');
+    const menu = menuButton
+      ? (menuButton.querySelector("strong") || menuButton).textContent.trim()
+      : null;
     document.querySelector('[data-quick="save"]').click();
     await new Promise(r => setTimeout(r, 200));
     const typeOuvert = document.getElementById("fType").value;
@@ -5672,9 +5682,9 @@ await goHome();
   });
   check(partout.mots.length >= 2,
     `le geste est proposé à plusieurs endroits (${partout.mots.length})`);
-  check(partout.mots.every(m => /mettre de côté/i.test(m)),
+  check(partout.mots.every(m => /m(?:ettre|is) de côté/i.test(m)),
     `et TOUS portent le même mot (obtenu ${JSON.stringify(partout.mots)})`);
-  check(/mettre de côté/i.test(partout.menu || ""),
+  check(/mis de côté/i.test(partout.menu || ""),
     `le menu ＋ le propose aussi (obtenu « ${partout.menu} »)`);
   check(partout.typeOuvert === "saving",
     `et il ouvre la feuille DÉJÀ réglée sur le bon geste (obtenu ${partout.typeOuvert})`);
@@ -6042,6 +6052,8 @@ currentTest = "choisir où va l'argent mis de côté";
   check(matrice.find(item => item.category === "Pilier 3a")?.destinationKind === "pension"
       || matrice.find(item => item.category === "Pilier 3a")?.destinationKind === "lifeinsurance",
     `le 3e pilier arrive dans une poche de prévoyance (${JSON.stringify(matrice)})`);
+  check(matrice.find(item => item.category === "Impôts")?.destinationKind === "savings",
+    `la réserve Impôts revient dans une poche d'épargne (${JSON.stringify(matrice)})`);
   check(Math.abs((matrice.find(item => item.category === "Impôts")?.reservedTaxDelta || 0) - 33) < 0.01,
     `la réserve Impôts augmente exactement de son montant (${JSON.stringify(matrice)})`);
   await page.waitForTimeout(150);

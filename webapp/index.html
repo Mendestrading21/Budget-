@@ -7021,7 +7021,7 @@ function openRecSheet(rec) {
   }
   // Destination : celle qui a été choisie, sinon la poche déduite. Elle est
   // recalculée APRÈS la catégorie, dont elle dépend (3e pilier → prévoyance).
-  refreshRecDest();
+  refreshRecDest(false);
   if (rec && rec.destAccountId && ACCOUNTS.some(a => a.id === rec.destAccountId)) {
     const destSel = document.getElementById("rDest");
     if ([...destSel.options].some(o => o.value === rec.destAccountId)) destSel.value = rec.destAccountId;
@@ -7086,13 +7086,13 @@ function applyRecKind() {
   // de côté, c'est suggérer le contraire de ce qu'on vient de choisir.
   document.getElementById("rTitle").placeholder = KIND_EXEMPLES[kind];
   refreshRecCatOptions();
-  refreshRecDest();
+  refreshRecDest(false);
 }
 document.getElementById("rKind").addEventListener("change", applyRecKind);
 
 /* La destination n'apparaît que pour une mise de côté, et n'y est jamais
    facultative : sans compte d'arrivée, l'argent disparaît du patrimoine. */
-function refreshRecDest() {
+function refreshRecDest(preserveCurrent = true) {
   const reserve = document.getElementById("rFamily").value === "reserve"
     && document.getElementById("rType").value !== "income";
   const wrap = document.getElementById("rDestWrap");
@@ -7116,13 +7116,18 @@ function refreshRecDest() {
     ? cibles.map(a => `<option value="${esc(a.id)}">${esc(a.name)} · ${esc(chf(toCHF(balance(a.id), a.currency)))}</option>`).join("")
     : `<option value="">— aucun autre compte —</option>`;
   const defaut = reserveDefaultDest(document.getElementById("rCat").value, source);
-  select.value = cibles.some(a => a.id === voulu) ? voulu : (defaut || "");
+  select.value = preserveCurrent && cibles.some(a => a.id === voulu)
+    ? voulu : (defaut || "");
   document.getElementById("rDestNote").textContent = cibles.length
     ? "Cet argent sort de votre compte chaque mois et arrive ici. Il reste à vous : ce n'est pas une dépense."
     : "Créez d'abord un deuxième compte (Comptes → ＋) : une mise de côté doit arriver quelque part.";
 }
-document.getElementById("rAccount").addEventListener("change", refreshRecDest);
-document.getElementById("rCat").addEventListener("change", refreshRecDest);
+document.getElementById("rAccount").addEventListener("change", () => refreshRecDest(true));
+// Changer de projet change aussi la poche proposée : 3a → prévoyance,
+// épargne/impôts → épargne. On ne conserve pas silencieusement une ancienne
+// destination qui reste techniquement valide mais ne correspond plus au
+// choix que la personne vient de faire.
+document.getElementById("rCat").addEventListener("change", () => refreshRecDest(false));
 /* Le bloc « mois d'échéance » suit le rythme choisi, et la note dit
    explicitement ce que l'app fera du montant — aucun lissage caché. */
 
