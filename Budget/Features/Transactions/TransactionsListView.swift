@@ -104,7 +104,7 @@ struct TransactionsListView: View {
                 content
             }
         }
-        .navigationTitle("Mouvements")
+        .navigationTitle("Historique")
         .alert(
             saveErrorMessage ?? "",
             isPresented: Binding(
@@ -129,7 +129,7 @@ struct TransactionsListView: View {
             }
         }
         .sheet(isPresented: $isPresentingNew) {
-            TransactionFormView(mode: .create(prefilledAccount: accountFilter))
+            QuickEntrySheet(prefilledDate: currentAnchor, prefilledAccount: accountFilter)
         }
         .sheet(item: $editedTransaction) { transaction in
             TransactionFormView(mode: .edit(transaction))
@@ -303,7 +303,7 @@ struct TransactionsListView: View {
                         symbol: "tray",
                         title: "Aucun mouvement ce mois",
                         message: "Ajoutez vos revenus, dépenses, épargne et virements pour suivre votre mois.",
-                        actionTitle: "Ajouter un mouvement",
+                        actionTitle: "Ajouter",
                         action: { isPresentingNew = true }
                     )
                 }

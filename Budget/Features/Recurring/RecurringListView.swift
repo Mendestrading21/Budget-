@@ -17,11 +17,17 @@ struct RecurringListView: View {
     }
 
     private var activeBills: [RecurringTransaction] {
-        recurrings.filter { $0.isActive && $0.type != .income }
+        recurrings.filter {
+            $0.isActive && ![.income, .refund, .saving, .investment].contains($0.type)
+        }
+    }
+
+    private var activeSetAside: [RecurringTransaction] {
+        recurrings.filter { $0.isActive && [.saving, .investment].contains($0.type) }
     }
 
     private var activeIncome: [RecurringTransaction] {
-        recurrings.filter { $0.isActive && $0.type == .income }
+        recurrings.filter { $0.isActive && [.income, .refund].contains($0.type) }
     }
 
     private var inactive: [RecurringTransaction] {
@@ -46,6 +52,7 @@ struct RecurringListView: View {
                         emptyState
                     } else {
                         billSection
+                        setAsideSection
                         incomeSection
                         inactiveSection
                     }
@@ -75,20 +82,20 @@ struct RecurringListView: View {
     private var summaryCard: some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("À prévoir chaque mois")
+                Text("Factures à prévoir chaque mois")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
 
                 AmountText(amount: monthlyBillsTotal, role: .hero)
 
-                Text("Vos factures reviennent automatiquement. Sur l’accueil, marquez-les comme payées en un geste.")
+                Text("Factures, abonnements, revenus et mises de côté reviennent automatiquement et gardent chacun leur vrai nom.")
                     .font(BudgetFont.caption)
                     .foregroundStyle(.secondary)
 
                 Button {
                     isPresentingNew = true
                 } label: {
-                    Label("Ajouter une facture", systemImage: "plus")
+                    Label("Ajouter ce qui revient", systemImage: "plus")
                 }
                 .buttonStyle(PrimaryActionButtonStyle())
             }
@@ -99,8 +106,18 @@ struct RecurringListView: View {
     @ViewBuilder
     private var billSection: some View {
         if !activeBills.isEmpty {
-            sectionTitle("Mes factures", count: activeBills.count)
+            sectionTitle("Mes factures et abonnements", count: activeBills.count)
             ForEach(activeBills) { recurring in
+                row(recurring)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var setAsideSection: some View {
+        if !activeSetAside.isEmpty {
+            sectionTitle("Mes mises de côté", count: activeSetAside.count)
+            ForEach(activeSetAside) { recurring in
                 row(recurring)
             }
         }
@@ -167,8 +184,8 @@ struct RecurringListView: View {
             EmptyState(
                 symbol: "calendar.badge.plus",
                 title: "Ajoutez vos transactions mensuelles",
-                message: "Loyer, caisse maladie, téléphone, abonnements : ajoutez-les une seule fois. Elles reviendront ensuite automatiquement chaque mois.",
-                actionTitle: "Ajouter ma première facture",
+                message: "Loyer, téléphone, salaire ou épargne : ajoutez-les une seule fois. Ils reviendront ensuite automatiquement.",
+                actionTitle: "Ajouter ce qui revient",
                 action: { isPresentingNew = true }
             )
         }
@@ -186,8 +203,8 @@ struct RecurringRow: View {
     var body: some View {
         GlassCard(style: .row) {
             HStack(alignment: .top, spacing: BudgetSpacing.medium) {
-                Image(systemName: recurring.type == .income ? "arrow.down.circle" : "calendar")
-                    .foregroundStyle(recurring.type == .income ? BudgetColor.positive : BudgetColor.warning)
+                Image(systemName: rowIcon)
+                    .foregroundStyle(rowColor)
                     .frame(width: 28)
                     .accessibilityHidden(true)
 
@@ -207,7 +224,7 @@ struct RecurringRow: View {
 
                 Text(FinanceFormatting.chf(recurring.amount))
                     .font(BudgetFont.amount)
-                    .foregroundStyle(recurring.type == .income ? BudgetColor.positive : .primary)
+                    .foregroundStyle(rowColor)
                     .lineLimit(1)
                     .minimumScaleFactor(0.65)
                     .layoutPriority(1)
@@ -230,6 +247,22 @@ struct RecurringRow: View {
             parts.append("désactivée")
         }
         return parts.joined(separator: " · ")
+    }
+
+    private var rowIcon: String {
+        switch recurring.type {
+        case .income, .refund: "arrow.down.circle"
+        case .saving, .investment: "building.columns"
+        default: "calendar"
+        }
+    }
+
+    private var rowColor: Color {
+        switch recurring.type {
+        case .income, .refund: BudgetColor.positive
+        case .saving, .investment: BudgetColor.brandBright
+        default: BudgetColor.warning
+        }
     }
 }
 

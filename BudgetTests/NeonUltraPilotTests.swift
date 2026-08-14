@@ -105,6 +105,14 @@ final class NeonUltraPilotTests: XCTestCase {
                 width: width
             )
             XCTAssertNotNil(form.view, "la feuille doit se construire à \(Int(width)) pt")
+
+            let quickEntry = host(
+                QuickEntrySheet(prefilledDate: preview.dateProvider.now)
+                    .environment(preview)
+                    .modelContainer(preview.modelContainer),
+                width: width
+            )
+            XCTAssertNotNil(quickEntry.view, "les quatre intentions doivent se construire à \(Int(width)) pt")
         }
     }
 
@@ -129,6 +137,15 @@ final class NeonUltraPilotTests: XCTestCase {
             width: 320
         )
         XCTAssertNotNil(form.view, "la feuille doit tenir en accessibility3 à 320 pt")
+
+        let quickEntry = host(
+            QuickEntrySheet(prefilledDate: preview.dateProvider.now)
+                .environment(preview)
+                .modelContainer(preview.modelContainer)
+                .environment(\.dynamicTypeSize, .accessibility3),
+            width: 320
+        )
+        XCTAssertNotNil(quickEntry.view, "les intentions doivent tenir en accessibility3 à 320 pt")
     }
 
     /// Transparence réduite : c'est la bascule NEON ULTRA qui doit agir

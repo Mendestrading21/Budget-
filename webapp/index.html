@@ -749,44 +749,7 @@
   .ob-back:active { transform: scale(0.94); }
   .ob-back:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 
-  /* HÉROS QUI TOURNE : une carte pleine largeur à la fois, aimantée. Le
-     défilement natif fait tout le travail — pas de gestionnaire de geste
-     maison, donc le clavier, la molette et VoiceOver fonctionnent seuls. */
-  .hero-swipe { margin-bottom: 12px; }
-  .hero-track {
-    display: flex; gap: 10px;
-    overflow-x: auto; scroll-snap-type: x mandatory;
-    scrollbar-width: none; -webkit-overflow-scrolling: touch;
-    /* Le débordement latéral est VOULU ici : il est contenu par la piste,
-       jamais par la page. */
-    padding: 2px 0;
-  }
-  .hero-track::-webkit-scrollbar { display: none; }
-  .hero-track:focus-visible { outline: 2px solid var(--indigo); outline-offset: 3px; border-radius: var(--hero-radius); }
-  .hero-slide {
-    flex: 0 0 100%; scroll-snap-align: center; margin: 0; box-sizing: border-box;
-  }
   .hero-note { margin: 6px 0 0; }
-  .hero-dots { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
-  /* 44 px de cible pour un point de 7 px : on montre un point, on touche un
-     carré. Un point de 30 px passait sous le seuil tactile — le test l'a dit. */
-  .hero-dots { gap: 0; }
-  .hero-dots button {
-    width: 44px; height: 44px; padding: 0; border: 0; background: none;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-  }
-  /* La cible tactile fait 30 px, le point 7 px : on montre un point, on
-     touche un carré. */
-  .hero-dots button::before {
-    content: ""; width: 7px; height: 7px; border-radius: 50%;
-    background: var(--line-strong); transition: width 0.2s ease, background-color 0.2s ease;
-  }
-  .hero-dots button[aria-selected="true"]::before { width: 20px; border-radius: 4px; background: var(--indigo); }
-  .hero-dots button:focus-visible { outline: 2px solid var(--indigo); outline-offset: 0; border-radius: 8px; }
-  @media (prefers-reduced-motion: reduce) {
-    .hero-track { scroll-behavior: auto; }
-    .hero-dots button::before { transition: none; }
-  }
   .ob-line {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 12px; margin-top: 8px;
@@ -1116,38 +1079,38 @@
   <div class="sheet-backdrop" id="sheetBackdrop">
     <form class="sheet nu-pilot-sheet" id="txForm">
       <h3 id="sheetTitle">Nouveau mouvement</h3>
-      <!-- 1. Type : chips tactiles (≥ 44 px), synchronisées sur le select
-           historique (masqué visuellement, toujours fonctionnel). -->
-      <label id="typeGridLabel">Type</label>
-      <div class="type-grid" id="typeGrid" role="group" aria-labelledby="typeGridLabel">
-        <button type="button" data-ftype="expense" aria-pressed="false">💸 Dépense</button>
-        <button type="button" data-ftype="income" aria-pressed="false">💰 Revenu</button>
-        <button type="button" data-ftype="saving" aria-pressed="false">🏦 Mettre de côté</button>
-        <button type="button" data-ftype="investment" aria-pressed="false">📈 Investir</button>
-        <button type="button" data-ftype="transfer" aria-pressed="false">⇄ Virement</button>
-        <button type="button" data-ftype="taxPayment" aria-pressed="false">🧾 Impôts</button>
-        <button type="button" data-ftype="refund" aria-pressed="false">↩ Remboursement</button>
-      </div>
-      <select id="fType" class="sr-select" aria-hidden="true" tabindex="-1">
-        <option value="expense">Dépense</option>
-        <option value="income">Revenu</option>
-        <option value="refund">Remboursement</option>
-        <option value="saving">Mettre de côté → vers un autre compte</option>
-        <option value="investment">Investissement (bourse, retraite)</option>
-        <option value="taxPayment">Paiement d'impôts</option>
-        <option value="transfer">Virement interne → Espèces</option>
-      </select>
-      <!-- 2. Montant, dans la devise du compte source. -->
+      <p class="quick-intent-note" id="fIntentNote">J'ai dépensé</p>
+      <!-- Les types comptables rares restent disponibles, mais ne sont plus
+           imposés avant une saisie courante. Le choix humain du menu Ajouter
+           préremplit cette valeur ; « Changer le type » est le filet de
+           sécurité, pas le parcours principal. -->
+      <details class="f-more" id="fTypeMore">
+        <summary>Changer le type</summary>
+        <label id="typeGridLabel">Type d'opération</label>
+        <div class="type-grid" id="typeGrid" role="group" aria-labelledby="typeGridLabel">
+          <button type="button" data-ftype="expense" aria-pressed="false">💸 Dépense</button>
+          <button type="button" data-ftype="income" aria-pressed="false">💰 Revenu</button>
+          <button type="button" data-ftype="saving" aria-pressed="false">🏦 Mettre de côté</button>
+          <button type="button" data-ftype="investment" aria-pressed="false">📈 Investir</button>
+          <button type="button" data-ftype="transfer" aria-pressed="false">⇄ Virement</button>
+          <button type="button" data-ftype="taxPayment" aria-pressed="false">🧾 Payer mes impôts</button>
+          <button type="button" data-ftype="refund" aria-pressed="false">↩ Remboursement</button>
+        </div>
+        <select id="fType" class="sr-select" aria-hidden="true" tabindex="-1">
+          <option value="expense">Dépense</option>
+          <option value="income">Revenu</option>
+          <option value="refund">Remboursement</option>
+          <option value="saving">Mettre de côté → vers un autre compte</option>
+          <option value="investment">Investissement (bourse, retraite)</option>
+          <option value="taxPayment">Paiement d'impôts</option>
+          <option value="transfer">Virement interne → Espèces</option>
+        </select>
+      </details>
+      <!-- Le montant vient en premier : c'est la seule donnée que tout
+           mouvement exige, quel que soit son type. -->
       <label for="fAmount">Montant (<span id="fCur">CHF</span>)</label>
-      <input id="fAmount" inputmode="decimal" placeholder="45.50" autocomplete="off" />
+      <input id="fAmount" data-primary-amount inputmode="decimal" placeholder="45.50" autocomplete="off" />
       <p class="caption" id="fCurNote" style="margin:4px 0 0;display:none"></p>
-      <!-- 3. Date — le statut Prévu/Comptabilisé en découle (logique inchangée). -->
-      <label for="fDate">Date</label>
-      <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
-      <p class="caption" id="fStatusNote" style="margin:4px 0 0"></p>
-      <!-- 4. Compte source, 5. catégorie ou destination. -->
-      <label for="fAccount">Compte</label>
-      <select id="fAccount"></select>
       <label for="fCat" id="fCatLabel">Catégorie</label>
       <select id="fCat"></select>
       <div id="destWrap" style="display:none">
@@ -1155,10 +1118,15 @@
         <select id="fDest"></select>
         <p class="caption" id="fTransferNote" style="margin:4px 0 0"></p>
       </div>
-      <!-- 7. Détails avancés repliés : l'intitulé est facultatif (défaut =
-           catégorie), le parcours fréquent reste en trois gestes. -->
+      <!-- Date, compte et texte sont préremplis ou facultatifs. Ils restent
+           disponibles sans charger le premier niveau du formulaire. -->
       <details class="f-more" id="fMore">
-        <summary>Détails (facultatif)</summary>
+        <summary>Plus d'options</summary>
+        <label for="fDate">Date</label>
+        <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
+        <p class="caption" id="fStatusNote" style="margin:4px 0 0"></p>
+        <label for="fAccount">Compte utilisé</label>
+        <select id="fAccount"></select>
         <label for="fTitle">Intitulé</label>
         <!-- Multiligne : la valeur complète reste visible à 320 px et à
              200 % de texte (identifiant et valeur inchangés). -->
@@ -1491,18 +1459,23 @@
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette facture</button>
     </form>
 
-    <div class="sheet nu-pilot-sheet" id="quickMenu" style="display:none">
-      <h3>Ajouter</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button type="button" class="btn secondary" data-quick="tx">💸 Mouvement</button>
-        <button type="button" class="btn secondary" data-quick="save">🏦 Mettre de côté</button>
-        <button type="button" class="btn secondary" data-quick="bill">🧾 Facture</button>
-        <button type="button" class="btn secondary" data-quick="acc">💳 Compte</button>
-        <button type="button" class="btn secondary" data-quick="goal">🎯 Objectif</button>
-        <button type="button" class="btn secondary" data-quick="rec">🔁 Transaction mensuelle</button>
-        <button type="button" class="btn secondary" data-quick="item">🏛️ Actif / dette</button>
-        <button type="button" class="btn secondary" data-quick="ins">🛡️ Assurance</button>
-        <button type="button" class="btn secondary" data-quick="pen">🧓 Prévoyance</button>
+    <div class="sheet nu-pilot-sheet quick-intent-sheet" id="quickMenu" style="display:none"
+         role="dialog" aria-modal="true" aria-labelledby="quickMenuTitle">
+      <h3 id="quickMenuTitle">Que voulez-vous ajouter&nbsp;?</h3>
+      <p class="caption quick-intent-help">Choisissez une phrase. L'app prépare le bon formulaire.</p>
+      <div class="quick-intent-grid">
+        <button type="button" class="quick-intent" data-quick="expense">
+          <span aria-hidden="true">💸</span><strong>J'ai dépensé</strong><small>Courses, transport, sortie…</small>
+        </button>
+        <button type="button" class="quick-intent" data-quick="income">
+          <span aria-hidden="true">💰</span><strong>J'ai reçu</strong><small>Salaire ou autre revenu</small>
+        </button>
+        <button type="button" class="quick-intent" data-quick="save">
+          <span aria-hidden="true">🏦</span><strong>J'ai mis de côté</strong><small>Épargne, impôts ou 3e pilier</small>
+        </button>
+        <button type="button" class="quick-intent" data-quick="rec">
+          <span aria-hidden="true">🔁</span><strong>Ça revient chaque mois</strong><small>Facture, abonnement ou revenu</small>
+        </button>
       </div>
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
     </div>
@@ -2872,468 +2845,30 @@ function monthPriority(y, m, s, report) {
   return null;
 }
 
-/* Ancien renderer conservé temporairement pour la compatibilité des outils
-   de référence NU2. Il n'est plus relié à la navigation. */
-function renderHome() {
-  const { y, m } = cursor;
-  // R4 — widgets personnalisables : l'essentiel reste, le reste se choisit.
-  const hiddenW = (S.homeWidgets && Array.isArray(S.homeWidgets.hidden)) ? S.homeWidgets.hidden : [];
-  const w = (key, html) => hiddenW.includes(key) ? "" : html;
-  const isCurrent = (y === NOW.y && m === NOW.m);
-  const s = snapshot(y, m);
-  const report = budgetReport(y, m);
-  const posted = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
-
-  // Salaire : reçu ce mois ?
-  const salary = salaryRecurring();
-  const salaryReceived = posted.filter(t => t.type === "income" && salary && (t.recurringId ? t.recurringId === salary.id : t.title === salary.title));
-  const otherIncome = posted.filter(t => t.type === "income" && (!salary || (t.recurringId ? t.recurringId !== salary.id : t.title !== salary.title)));
-
-  // Factures dues ce mois
-  const monthBills = (S.bills || []).filter(b => b.dueY === y && b.dueM === m);
-
-  // Dépenses vs envois : la règle d'or — un envoi vers un compte n'est PAS une dépense.
-  const expenses = posted.filter(t => t.type === "expense" && !isDebtPayment(t)); // impôts et capital de dette à part (D04)
-  const refunds = posted.filter(t => t.type === "refund");
-  const spentTotal = expenses.reduce((a, t) => a + txCHF(t), 0) - refunds.reduce((a, t) => a + txCHF(t), 0);
-  const sends = posted.filter(t => ["saving", "investment", "transfer"].includes(t.type));
-  const sentTotal = sends.filter(t => t.type !== "transfer").reduce((a, t) => a + txCHF(t), 0);
-
-  // Portefeuille global
-  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
-  const savingsTotal = ACCOUNTS.filter(a => a.kind === "savings").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const brokerageTotal = ACCOUNTS.filter(a => a.kind === "brokerage").reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const pensionAccounts = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const pensionPositions = pensionPositionsTotal();
-  const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
-  const liabTotal = liabilitiesTotal();
-  const insuranceMonthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
-  const net = liquid + savingsTotal + brokerageTotal + pensionAccounts + pensionPositions + assetsTotal - liabTotal;
-  const activeGoals = GOALS.filter(g => !g.achieved);
-  const goalsTarget = activeGoals.reduce((a, g) => a + g.target, 0);
-  const goalsCurrent = activeGoals.reduce((a, g) => a + Math.min(goalCurrent(g), g.target), 0);
-
-  const txMini = t => `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
-    <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
-    <div class="meta"><div class="t">${esc(t.title)}</div>
-      <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")} · ${t.dest ? "→ " + esc((ACCOUNTS.find(a => a.id === t.dest) || {}).name || "?") : TYPE_LABEL[t.type]}</div></div>
-    <span class="amount ${t.type === "income" || t.type === "refund" ? "pos" : (["transfer", "saving", "investment"].includes(t.type) ? "info" : "neg")}">${money(t.amount, accountCurrency(t.acc))}</span>
-  </div>`;
-  // Toute ligne du portefeuille mène quelque part : sous-vue dédiée si
-  // target, sinon l'onglet Comptes (A03-N3 : plus d'asymétrie tactile).
-  const portfolioRow = (label, amount, target, icon, sub) => `<div class="card row tx"${target ? ` data-more="${target}" role="button" tabindex="0" style="cursor:pointer"` : ' data-gototab="accounts" role="button" tabindex="0" style="cursor:pointer"'}>
-    <div class="ico" aria-hidden="true">${icon}</div>
-    <div class="meta"><div class="t">${label}</div>${sub ? `<div class="s">${sub}</div>` : ""}</div>
-    <span class="amount">${chf(amount)}</span>
-  </div>`;
-  const contribSub = kinds => {
-    const agg = contributionsFor(kinds);
-    return agg.total > 0 ? `Mis de côté cette année : ${chf(agg.year)} · en tout : ${chf(agg.total)}` : "";
-  };
-
-  // Horizon L2 — LA priorité du mois : une seule recommandation, dérivée
-  // de l'état réel, jamais un conseil financier. Ordre : rattrapage >
-  // facture en retard > réserve d'impôts > budget dépassé > objectif.
-  const recommendation = (() => {
-    if (!s.isCurrent) return "";
-    const p = monthPriority(y, m, s, report);
-    if (!p) return "";
-    // L3 : carte distincte, texte complet — JAMAIS tronqué (constat L1).
-    return `<div class="card row tx priority-card" ${p.nav} role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${p.icon}</div>
-      <div class="meta"><div class="t">${p.text}</div></div>
-      <span style="color:var(--nu-violet);font-weight:700" aria-hidden="true">›</span>
-    </div>`;
-  })();
-
-  // L3 : montant héros dominant, jamais tronqué (classe `long` dès 7 chiffres).
-  const heroLong = (v) => Math.abs(v) >= 1000000 ? " long" : "";
-  const hero = s.isCurrent ? `
-    <div class="card hero">
-      <p class="card-label">Argent disponible</p>
-      <p class="hero-amount${s.available < 0 ? " neg" : ""}${heroLong(s.available)}">${chf(s.available)}</p>
-      <span class="caption">${s.daysRemaining} jours restants · ${chf(s.daily)} par jour</span>
-      <details>
-        <summary>D'où vient ce montant ?</summary>
-        <div class="breakdown">
-          <div><span>Argent disponible inclus</span><span>${chf(s.liquid)}</span></div>
-          <div><span>Revenus attendus</span><span>${chf(s.plannedIncome + s.recurringIncome, true)}</span></div>
-          <div><span>Charges engagées (prévues)</span><span>${chf(-s.plannedOut, true)}</span></div>
-          <div><span>Paiements réguliers à venir</span><span>${chf(-s.recurringCharges, true)}</span></div>
-          ${s.irregularIncome > 0 ? `<div><span>Revenus attendus (moyenne 3 mois)</span><span>${chf(s.irregularIncome, true)}</span></div>` : ""}
-          <div><span>Réserve d'impôts manquante</span><span>${chf(-s.taxGap, true)}</span></div>
-        </div>
-      </details>
-      <button class="btn nu-cta" data-addtx>＋ Ajouter un mouvement</button>
-    </div>` : `
-    <div class="card hero">
-      <p class="card-label">Ce qui reste du mois</p>
-      <p class="hero-amount ${s.cashFlow < 0 ? "neg" : "pos"}${heroLong(s.cashFlow)}">${chf(s.cashFlow, true)}</p>
-      <span class="caption">Mois clôturé — revenus ${chf(s.income)}, coût de la vie ${chf(s.living)}</span>
-    </div>`;
-
-  // L3 — les quatre métriques du contrat : Entré, Dépensé, À payer, Mis de
-  // côté. « À payer » ADDITIONNE des valeurs déjà calculées par snapshot()
-  // (charges prévues + réguliers à venir + réserve d'impôts manquante) —
-  // affichage seulement, aucune formule nouvelle.
-  const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
-  const metrics = `<div class="stat-grid">
-      <div class="stat"><span class="card-label">Entré</span><span class="amount pos">${chf(s.income)}</span>
-        <span class="caption">Ce que vous avez vraiment reçu</span></div>
-      <div class="stat"><span class="card-label">Dépensé</span><span class="amount neg">${chf(s.living)}</span>
-        ${(() => { const pm = shiftMonth({ y, m }, -1); const pl = snapshot(pm.y, pm.m).living;
-          return pl > 0 ? `<span class="caption">Mois dernier : ${chf(pl)}</span>` : `<span class="caption">Coût de la vie</span>`; })()}</div>
-      <div class="stat"><span class="card-label">À payer</span><span class="amount warn">${chf(toPay)}</span>
-        <span class="caption">${toPay > 0 ? "Prévu, factures, réguliers, impôts" : "Rien en attente"}</span></div>
-      <div class="stat"><span class="card-label">Mis de côté</span><span class="amount info">${chf(s.savings + s.invest)}</span>
-        <span class="caption">${s.income > 0 ? "Taux : " + pct(s.savingsRate) : "Épargne + investissements"}</span></div>
-    </div>`;
-
-  const chartRows = report.lines.filter(l => l.kind === "expense").slice(0, 5).map(l => {
-    const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
-    const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
-    return `<div class="bar-row">
-      <div class="bar-head"><span>${esc(l.cat)}${l.over ? '<span class="badge">Dépassé</span>' : ""}</span>
-        <span class="vals">${chf(l.actual)} / ${chf(l.planned)}</span></div>
-      <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
-    </div>`;
-  }).join("");
-
-  // Rituel « Boucler mon mois » — la progression du mois affiché.
-  const checks = monthCheckItems(y, m);
-  const doneCount = checks.filter(c => c.done).length;
-  const monthKey = `${y}-${m}`;
-  const monthClosed = checks.length > 0 && doneCount === checks.length;
-  if (monthClosed && !(S.monthChecks || {})[monthKey]) {
-    S.monthChecks[monthKey] = Date.now();
-    saveState();
-    const streak = closedStreak(y, m);
-    toast(streak >= 2 ? `Mois bouclé ✓ · 🔥 ×${streak}` : "Mois bouclé ✓");
-  } else if (!monthClosed && (S.monthChecks || {})[monthKey]) {
-    delete S.monthChecks[monthKey]; // un élément s'est rouvert : le mois ne l'est plus
-    saveState();
-  }
-  const closedAt = (S.monthChecks || {})[monthKey];
-  const checkCard = checks.length === 0 ? "" : `
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <p class="card-label" style="margin:0">Check du mois${(() => { const st = closedStreak(y, m); return st >= 2 ? ` · 🔥 ×${st}` : ""; })()}</p>
-        <span class="caption">${doneCount}/${checks.length} validé${doneCount > 1 ? "s" : ""}</span>
-      </div>
-      <div class="track" style="margin:10px 0 ${monthClosed ? "10px" : "4px"}">
-        <div class="fill" style="width:${(doneCount / checks.length * 100).toFixed(1)}%"></div>
-      </div>
-      ${(() => {
-        const history = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5)).map(mm => ({
-          short: MONTH_NAMES[mm.m - 1].slice(0, 3),
-          closed: !!(S.monthChecks || {})[`${mm.y}-${mm.m}`],
-          current: mm.y === y && mm.m === m,
-        }));
-        return `<div style="display:flex;gap:6px;margin:2px 0 8px" aria-label="Mois bouclés récents">
-          ${history.map(h => `<span class="caption" style="flex:1;text-align:center;padding:4px 0;border-radius:8px;${h.current ? "border:1px solid var(--nu-border);" : ""}${h.closed ? "color:var(--nu-positive);font-weight:700" : ""}">${h.short}${h.closed ? " ✓" : ""}</span>`).join("")}
-        </div>`;
-      })()}
-      ${monthClosed ? `<p style="margin:0;font-size:14px;font-weight:700;color:var(--nu-positive)">✓ Mois bouclé${closedAt ? " le " + new Date(closedAt).toLocaleDateString("fr-CH") : ""} — tout est validé</p>`
-        : checks.filter(c => !c.done).map(c => `
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--nu-border)">
-        <div style="display:flex;align-items:center;gap:9px;min-width:0">
-          <span aria-hidden="true">${c.icon}</span>
-          <div style="min-width:0"><div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.label)}</div>
-            <div class="caption">${c.income ? "+" : "−"}${chf(c.amount)}</div></div>
-        </div>
-        <button class="btn ${c.income ? "" : "secondary"}" data-${c.action}="${esc(c.ref)}" style="width:auto;padding:7px 12px;font-size:12px;flex:none">${c.cta}</button>
-      </div>`).join("")}
-    </div>`;
-
-  // Contrats d'assurance dont l'échéance annuelle approche (≤ 45 jours).
-  const contractAlerts = INSURANCES.filter(i => i.dueM && i.dueD).map(i => {
-    const today = new Date(NOW.y, NOW.m - 1, NOW.d);
-    let due = new Date(NOW.y, i.dueM - 1, i.dueD);
-    if (due < today) due = new Date(NOW.y + 1, i.dueM - 1, i.dueD);
-    return { i, due, days: Math.round((due - today) / 86400000) };
-  }).filter(x => x.days <= 45).sort((a, b) => a.days - b.days);
-  const alertCards = contractAlerts.map(({ i, due, days }) => `
-    <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">📅</div>
-      <div class="meta"><div class="t">« ${esc(i.name)} » arrive à échéance</div>
-        <div class="s">Le ${String(due.getDate()).padStart(2, "0")}.${String(due.getMonth() + 1).padStart(2, "0")} — ${days <= 0 ? "aujourd'hui" : days + " jour" + (days > 1 ? "s" : "")} pour comparer ou résilier</div></div>
-      <span style="color:var(--nu-warning);font-weight:700">›</span>
-    </div>`).join("");
-
-  // L3 — premier viewport du contrat : salutation courte + mois → héros
-  // « Disponible » (avec action universelle) → 4 métriques → UNE priorité →
-  // actions rapides → aperçu Budget → mouvements récents (sections).
-  return `<h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
-    ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "") + " 👋"
-    : "Bonjour 👋"}</h2>
-    ${monthNav()}
-    ${fxWarningHTML()}
-    ${hero}
-    ${metrics}
-    ${recommendation}
-    <div class="quick-row">
-      <button class="btn secondary" data-quickexp>💸 Dépense</button>
-      <button class="btn secondary" data-quickinc>💰 Revenu</button>
-      <button class="btn secondary" data-quicksend>🏦 Mettre de côté</button>
-      <button class="btn secondary" data-quickinv>📈 Investir</button>
-    </div>
-    ${w("budgetrest", (() => {
-      // Aperçu Budget — widget compact qui mène à l'onglet Budget.
-      const rep = budgetReport(y, m);
-      const expLines = rep.lines.filter(l => l.kind === "expense");
-      if (!expLines.length) return "";
-      const plannedC = expLines.reduce((a, l) => a + toCents(l.planned), 0);
-      const actualC = expLines.reduce((a, l) => a + toCents(l.actual), 0);
-      const remainingB = fromCents(plannedC - actualC);
-      const fr = plannedC > 0 ? Math.min(1, actualC / plannedC) : 0;
-      return `<div class="card row tx" data-gototab="budget" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico t-expense" aria-hidden="true">⏱</div>
-        <div class="meta"><div class="t">Budget restant : ${chf(remainingB)}</div>
-          <div class="track" style="margin-top:6px"><div class="fill ${actualC > plannedC ? "over-fill" : (fr > 0.85 ? "warn-fill" : "")}" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
-        <span style="color:var(--nu-text-tertiary)" aria-hidden="true">›</span>
-      </div>`;
-    })())}
-    ${w("trend6", (() => {
-      // Résultat du mois — mini-courbe 6 mois (« ce qui reste »), pédagogique.
-      const months = Array.from({ length: 6 }, (_, k) => shiftMonth({ y, m }, k - 5));
-      const vals = months.map(mm => snapshot(mm.y, mm.m).cashFlow);
-      if (!vals.some(v => v !== 0)) return "";
-      const lo = Math.min(...vals, 0), hi = Math.max(...vals, 0);
-      const span = (hi - lo) || 1;
-      const px = (i) => 8 + i * (304 / 5);
-      const py = (v) => 8 + (1 - (v - lo) / span) * 40;
-      const points = vals.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
-      const lastUp = vals[5] >= vals[4];
-      return `<div class="card" data-more="year" role="button" tabindex="0" style="cursor:pointer">
-        <div class="bar-head"><span class="card-label" style="margin:0">Ce qui reste, 6 derniers mois</span>
-          <span class="vals ${lastUp ? "pos" : "neg"}">${chf(vals[5], true)}</span></div>
-        <svg viewBox="0 0 320 56" width="100%" height="56" role="img" preserveAspectRatio="none"
-             aria-label="Reste du mois sur 6 mois : ${months.map((mm, i) => MONTH_NAMES[mm.m - 1].slice(0, 3) + " " + chf(vals[i], true)).join(", ")}">
-          <polyline fill="none" stroke="var(--nu-cyan)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${points}"/>
-          <circle cx="${px(5).toFixed(1)}" cy="${py(vals[5]).toFixed(1)}" r="3.5" fill="var(--nu-cyan)"/>
-        </svg>
-        <span class="caption">${MONTH_NAMES[months[0].m - 1].slice(0, 3)} → ${MONTH_NAMES[m - 1].slice(0, 3)} · revenus − coût de la vie − mis de côté − impôts</span>
-      </div>`;
-    })())}
-    ${w("goal", (() => {
-      // Objectif prioritaire — progression et action directe.
-      const g = GOALS.find(x => !x.achieved && x.priority) || GOALS.find(x => !x.achieved);
-      if (!g) return "";
-      const cur = Math.min(goalCurrent(g), g.target);
-      const fr = g.target > 0 ? cur / g.target : 0;
-      return `<div class="card row tx" data-more="goals" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico t-goal" aria-hidden="true">${esc(g.emoji || "🎯")}</div>
-        <div class="meta"><div class="t">${esc(g.name)} — ${pct(fr)}</div>
-          <div class="track" style="margin-top:6px"><div class="fill" style="width:${(fr * 100).toFixed(1)}%"></div></div></div>
-        <span style="color:var(--nu-text-tertiary)">›</span>
-      </div>`;
-    })())}
-    ${w("check", checkCard)}
-    ${(() => {
-      const prev = shiftMonth({ y, m }, -1);
-      if ((S.monthChecks || {})[`${prev.y}-${prev.m}`]) return "";
-      const prevChecks = monthCheckItems(prev.y, prev.m);
-      const prevPending = prevChecks.filter(c => !c.done).length;
-      if (!prevPending) return "";
-      return `<div class="card row tx" data-gotomonth="${prev.y}-${prev.m}" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico" aria-hidden="true">⏪</div>
-        <div class="meta"><div class="t">${MONTH_NAMES[prev.m - 1]} n'est pas bouclé</div>
-          <div class="s">${prevPending} élément${prevPending > 1 ? "s" : ""} à rattraper</div></div>
-        <span style="color:var(--nu-violet);font-weight:700">›</span>
-      </div>`;
-    })()}
-    ${w("alerts", alertCards)}
-
-    <p class="section-title">💰 Salaire et revenus</p>
-    ${isCurrent ? RECURRINGS.filter(r => r.type === "income"
-        && recurringDueIn(r, y, m) && !recurringOccurrence(r, y, m))
-      .map(r => `
-    <div class="card row" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div><div style="font-size:14px;font-weight:600">${esc(r.title)} pas encore reçu</div>
-        <div class="caption">${chf(recurringAmountInBase(r))} attendu ce mois</div></div>
-      <button class="btn" data-postrec="${esc(r.id)}" style="width:auto;padding:9px 14px;font-size:13px">✓ Reçu</button>
-    </div>`).join("") : ""}
-    ${salaryReceived.map(txMini).join("")}
-    ${otherIncome.map(txMini).join("")}
-    ${!salary && !salaryReceived.length && !otherIncome.length ? `<div class="card row"><span class="caption">Configurez votre salaire dans Réglages.</span></div>` : ""}
-
-    <p class="section-title">🧾 Factures du mois</p>
-    ${monthBills.length === 0 ? `<div class="card row"><span class="caption">Aucune facture ce mois.</span></div>` : ""}
-    ${monthBills.map(b => `<div class="card row tx">
-      <div class="ico" aria-hidden="true">🧾</div>
-      <div class="meta" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer"><div class="t"><span class="t-label">${esc(b.name)}</span>${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
-        <div class="s">Échéance ${billDueLabel(b)}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
-      ${billIsCovered(b) ? `<span class="amount ${billIsPaid(b) ? "pos" : "warn"}">${chf(billAmountInBase(b))}</span>`
-        : `<button class="btn" data-paybill="${esc(b.id)}" style="width:auto;padding:8px 12px;font-size:12px">Payer ${chf(billAmountInBase(b))}</button>`}
-    </div>`).join("")}
-
-    <p class="section-title">💸 Dépenses du mois — ${chf(spentTotal)}</p>
-    ${expenses.slice(-3).reverse().map(txMini).join("")}
-    ${expenses.length === 0 ? `<div class="card row"><span class="caption">Aucune dépense ce mois.</span></div>` : ""}
-
-    <p class="section-title">📤 Envois vers mes comptes — ${chf(sentTotal)} mis de côté</p>
-    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">L'argent change de poche — il reste à vous.</p>
-    ${sends.slice(-3).reverse().map(txMini).join("")}
-    ${sends.length === 0 ? `<div class="card row"><span class="caption">Aucun envoi ce mois.</span></div>` : ""}
-
-    ${w("budgetbars", `<div class="card" style="margin-top:14px">
-      <p class="card-label">Budget vs réel — principales dépenses</p>
-      ${chartRows || `<span class="caption">Pas encore de budget pour ce mois — l'onglet Budget en crée un.</span>`}
-    </div>`)}
-    ${w("upcoming", s.upcomingRecurrings.length ? `
-    <p class="section-title">À venir ce mois</p>
-    ${s.upcomingRecurrings.map(r => `<div class="card row tx">
-      <div class="ico" aria-hidden="true">${r.icon}</div>
-      <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span><span class="badge planned">Prévu</span></div>
-        <div class="s">Ce mois · paiement régulier</div></div>
-      <span class="amount ${r.type === "income" ? "pos" : "neg"}">${r.type === "income" ? "+" : "−"}${chf(recurringAmountInBase(r))}</span>
-    </div>`).join("")}` : "")}
-
-    ${w("wealth", `<details class="home-fold">
-    <summary class="section-title" style="cursor:pointer;list-style:none">🌍 Mon patrimoine — ${chf(net)}</summary>
-    <div class="card hero">
-      <p class="card-label">Fortune nette totale</p>
-      <p class="hero-amount">${chf(net)}</p>
-      <span class="caption">Argent disponible ce mois : ${chf(s.available)}</span>
-    </div>
-    ${portfolioRow("Comptes et argent disponible", liquid, null, "💳")}
-    ${portfolioRow("Épargne", savingsTotal, null, "🏛️", contribSub(["savings"]))}
-    ${brokerageTotal || ACCOUNTS.some(a => a.kind === "brokerage") ? portfolioRow("Bourse / titres", brokerageTotal, null, "📈", contribSub(["brokerage"])) : ""}
-    ${portfolioRow(L("pensionGroup"), pensionAccounts + pensionPositions, "insurance", "🛡️", contribSub(["pension", "lifeinsurance"]))}
-    ${portfolioRow("Actifs (voiture, biens…)", assetsTotal, "networth", "🏷")}
-    ${liabTotal ? portfolioRow("Dettes", -liabTotal, "networth", "📄") : ""}
-    <div class="card row tx" data-more="insurance" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🛡️</div>
-      <div class="meta"><div class="t">Assurances</div><div class="s">${INSURANCES.length} contrat${INSURANCES.length > 1 ? "s" : ""}</div></div>
-      <span class="amount">${chf(insuranceMonthlyTotal)}/mois</span>
-    </div>
-    <div class="card row tx" data-more="goals" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🎯</div>
-      <div class="meta"><div class="t">Objectifs</div><div class="s">${activeGoals.length} actif${activeGoals.length > 1 ? "s" : ""}</div></div>
-      <span class="amount">${goalsTarget > 0 ? pct(Math.min(1, goalsCurrent / goalsTarget)) : "—"}</span>
-    </div>
-    </details>`)}
-    <button class="btn secondary" data-customize style="margin:6px 0 2px">🎛 Personnaliser mon écran</button>`;
-}
-
-/* ADR-026 — Accueil de lecture immédiate. Toute la richesse reste dans les
-   cinq destinations ; Mois ne montre que les montants utiles et les
-   factures du mois, avec une seule action principale. */
-/* LE RYTHME DU MOIS — la question qu'on se pose vraiment tous les jours.
-   « Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un
-   solde : elle se répond avec un rythme. L'app calculait déjà `daily` et
-   `daysRemaining` depuis des mois… dans `renderHome`, l'écran détaillé qui
-   n'est plus affiché depuis ADR-026. Personne ne les voyait.
-
-   Deux repères, et rien d'autre :
-     · le TEMPS écoulé du mois ;
-     · la part de l'enveloppe libre déjà dépensée.
-   Si l'argent va plus vite que le temps, on le dit. C'est un CONSTAT
-   arithmétique sur ses propres données, pas un conseil : l'app ne dit
-   jamais quoi faire, elle dit où on en est.
-
-   L'enveloppe libre = ce qui est déjà dépensé + ce qui reste disponible.
-   `available` a DÉJÀ déduit ce qui doit encore sortir, donc les deux ne se
-   chevauchent pas et rien n'est compté deux fois. */
-function rythmeDuMois(s) {
-  if (!s.isCurrent) return "";
-  const joursDuMois = new Date(NOW.y, NOW.m, 0).getDate();
-  const partTemps = Math.min(1, NOW.d / joursDuMois);
-
-  if (s.available < 0) {
-    // À découvert : un rythme par jour n'aurait aucun sens, et une barre
-    // pleine ferait la morale. On dit le fait, et l'action utile.
-    return `<div class="card rythme">
-      <p class="card-label">Où vous en êtes</p>
-      <p class="rythme-phrase warn">Il manque ${chf(Math.abs(s.available))} pour finir le mois.</p>
-      <p class="caption" style="margin:6px 0 0">Il reste ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}. Repoussez une dépense, ou reprenez sur ce qui est mis de côté.</p>
-    </div>`;
-  }
-
-  const enveloppeC = toCents(s.living) + toCents(s.available);
-  if (enveloppeC <= 0) return "";
-  const partArgent = Math.min(1, toCents(s.living) / enveloppeC);
-  // Marge de trois points : un écart d'un franc ne doit pas faire clignoter
-  // un avertissement le 2 du mois.
-  const enAvance = partArgent > partTemps + 0.03;
-  const pct = v => Math.round(v * 100);
-
-  return `<div class="card rythme">
-    <p class="card-label">Où vous en êtes</p>
-    <p class="rythme-phrase">${chf(s.daily)} par jour <span class="rythme-jours">pendant ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}</span></p>
-    <div class="rythme-bar" role="img"
-         aria-label="${pct(partArgent)} % de votre argent du mois dépensé, ${pct(partTemps)} % du mois écoulé">
-      <span class="rythme-fill${enAvance ? " avance" : ""}" style="width:${Math.max(1, pct(partArgent))}%"></span>
-      <span class="rythme-jalon" style="left:${pct(partTemps)}%"></span>
-    </div>
-    <p class="caption rythme-verdict${enAvance ? " warn" : " pos"}">${enAvance
-      ? `${pct(partArgent)} % dépensé, mais ${pct(partTemps)} % du mois seulement.`
-      : `${pct(partArgent)} % dépensé pour ${pct(partTemps)} % du mois. Vous êtes dans le rythme.`}</p>
-  </div>`;
-}
-
+/* Accueil essentiel : une seule réponse, trois repères et une seule liste
+   d'actions. Les analyses détaillées restent dans leurs cinq destinations
+   stables ; rien n'est supprimé des données ni des calculs. */
 function renderSimpleHome() {
   const { y, m } = cursor;
   const s = snapshot(y, m);
   syncMonthCheckState(y, m);
 
-  const heroLong = value => Math.abs(value) >= 1000000 ? " long" : "";
-  /* HÉROS QUI TOURNE — demande du propriétaire (06.08.2026) : « que tu
-     puisses tourner le widget et avoir tout, placement, patrimoine,
-     disponible, prévoyance… que je puisse choisir de gauche à droite ».
-     Un seul chiffre à la fois, en grand, et on fait défiler pour changer de
-     question. Chaque carte reste une carte : rien n'est additionné entre
-     elles, et chacune dit d'où vient son montant. */
-  const cash = fromCents(ACCOUNTS.filter(a => a.cash)
-    .reduce((acc, a) => acc + toCents(toCHF(balance(a.id), a.currency)), 0));
-  const placements = fromCents(ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))
-    .reduce((acc, a) => acc + toCents(toCHF(balance(a.id), a.currency)), 0));
-  const prevoyance = fromCents(
-    ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
-      .reduce((acc, a) => acc + toCents(toCHF(balance(a.id), a.currency)), 0)
-    + toCents(pensionPositionsTotal()));
-  const biens = fromCents(ASSETS.filter(x => x.include !== false)
-    .reduce((acc, x) => acc + toCents(x.value), 0));
-  const patrimoine = round2(cash + placements + prevoyance + biens - liabilitiesTotal());
+  const heroValue = s.isCurrent ? s.available : s.cashFlow;
+  const heroTitle = s.isCurrent ? "Disponible jusqu'à la fin du mois" : "Reste du mois";
+  const heroNote = s.isCurrent
+    ? (s.available < 0
+      ? `Il manque ${chf(Math.abs(s.available))} pour finir le mois.`
+      : `${chf(s.daily)} par jour pendant ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}.`)
+    : "Revenus moins sorties sur ce mois.";
+  const heroLong = Math.abs(heroValue) >= 1000000 ? " long" : "";
+  const hero = `<section class="card hero home-hero"
+      aria-label="${esc(heroTitle)} : ${chf(heroValue, !s.isCurrent)}">
+    <p class="card-label">${esc(heroTitle)}</p>
+    <p class="hero-amount ${heroValue < 0 ? "neg" : ""}${heroLong}">${chf(heroValue, !s.isCurrent)}</p>
+    <p class="caption hero-note">${esc(heroNote)}</p>
+    <button class="btn nu-cta home-add" data-addtx>＋ Ajouter</button>
+  </section>`;
 
-  const heroCards = [
-    s.isCurrent
-      ? { cle: "disponible", label: "Disponible", valeur: s.available,
-          cls: s.available < 0 ? "neg" : "",
-          note: "Une fois payé tout ce qui doit encore sortir ce mois.",
-          cta: `<button class="btn nu-cta" data-addtx>＋ Ajouter un mouvement</button>` }
-      : { cle: "reste", label: "Reste du mois", valeur: s.cashFlow,
-          cls: s.cashFlow < 0 ? "neg" : "pos", signe: true,
-          note: "Entré moins sorti, sur ce mois-là." },
-    { cle: "misdecote", label: "Mis de côté ce mois", valeur: s.savings + s.invest, cls: "info",
-      note: "L'argent envoyé vers vos comptes. Ce n'est pas dépensé." },
-    { cle: "placements", label: "Épargne et placements", valeur: placements, cls: "info",
-      note: "Vos comptes d'épargne et de titres, aujourd'hui." },
-    { cle: "prevoyance", label: L("pensionKind"), valeur: prevoyance, cls: "info",
-      note: "Bloquée jusqu'à la retraite : hors du disponible." },
-    { cle: "patrimoine", label: "Patrimoine", valeur: patrimoine, cls: patrimoine < 0 ? "neg" : "",
-      note: "Ce que vous possédez, moins ce que vous devez." },
-  ];
-  const hero = `<div class="hero-swipe">
-    <div class="hero-track" id="heroTrack" tabindex="0" role="group"
-         aria-label="Vue d'ensemble — ${heroCards.length} cartes, faites défiler de gauche à droite">
-      ${heroCards.map((c, i) => `
-      <section class="card hero home-hero hero-slide" data-heroslide="${c.cle}"
-               aria-label="${esc(c.label)} : ${chf(c.valeur)} — carte ${i + 1} sur ${heroCards.length}">
-        <p class="card-label">${esc(c.label)}</p>
-        <p class="hero-amount ${c.cls}${heroLong(c.valeur)}">${chf(c.valeur, !!c.signe)}</p>
-        <p class="caption hero-note">${esc(c.note)}</p>
-        ${c.cta || ""}
-      </section>`).join("")}
-    </div>
-    <div class="hero-dots" role="tablist" aria-label="Choisir la carte affichée">
-      ${heroCards.map((c, i) => `<button type="button" role="tab" data-herodot="${i}"
-        aria-selected="${i === 0}" aria-label="${esc(c.label)}"></button>`).join("")}
-    </div>
-  </div>`;
-
-  const toPay = round2(s.plannedOut + s.recurringCharges + s.taxGap);
-  const rythme = rythmeDuMois(s);
   const metricCurrency = (CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `).trim();
   const metricAmount = (value, cls) => {
     const compact = chf(value).replace(CURRENCY_PREFIX[baseCurrency()] || `${baseCurrency()} `, "");
@@ -3341,213 +2876,111 @@ function renderSimpleHome() {
   };
   const metricLabel = label =>
     `<div class="home-metric-label"><span class="card-label">${label}</span><span class="home-metric-currency">${esc(metricCurrency)}</span></div>`;
-  const metrics = `<div class="stat-grid home-metrics" aria-label="Montants du mois">
-    <div class="stat">${metricLabel("Entré")}${metricAmount(s.income, "pos")}</div>
+  const metrics = `<div class="stat-grid home-metrics" aria-label="Résumé du mois">
+    <div class="stat">${metricLabel("Reçu")}${metricAmount(s.income, "pos")}</div>
     <div class="stat">${metricLabel("Dépensé")}${metricAmount(s.living, "neg")}</div>
-    <div class="stat">${metricLabel("À payer")}${metricAmount(toPay, "warn")}</div>
     <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}</div>
-  </div>
-  ${(() => {
-    // La répartition DIT ce que « mis de côté » veut dire, mieux qu'une
-    // phrase d'explication : on voit où va l'argent, poche par poche.
-    const d = misDeCoteParDestination(y, m);
-    if (!(d.total > 0)) {
-      return "";
-    }
-    const lignes = [
-      ["Impôts", d.impots], [L("pensionKind"), d.prevoyance],
-      ["Objectifs", d.objectifs], ["Épargne libre", d.autres],
-    ].filter(([, v]) => v > 0);
-    return `<div class="card" style="margin:-2px 0 10px">
-      <p class="card-label">Où va votre argent mis de côté</p>
-      <div class="breakdown">
-        ${lignes.map(([nom, v]) => `<div><span>${esc(nom)}</span><span>${chf(v)}</span></div>`).join("")}
-      </div>
-      <p class="caption" style="margin:8px 0 0">Total ${chf(d.total)} — cet argent reste à vous, il n'est pas dépensé.</p>
-    </div>`;
-  })()}`;
+  </div>`;
 
-  /* Le mois se lit dans l'ordre où on le vit : ce qui doit RENTRER, puis ce
-     qui doit SORTIR. L'accueil simplifié n'offrait aucune action pour dire
-     « salaire reçu » — il fallait passer par une autre destination. Un tap
-     suffit désormais, et la ligne disparaît une fois encaissée.
-     Revenus et dépenses ne sont jamais additionnés : deux cartes, deux
-     totaux, deux sens. */
   const incomeDue = RECURRINGS
     .filter(r => {
       if (r.type !== "income" || !recurringDueIn(r, y, m)) return false;
-      const occ = recurringOccurrence(r, y, m);
-      // Rien d'enregistré, ou seulement PRÉVU : dans les deux cas l'argent
-      // n'est pas encore là, donc la ligne a encore quelque chose à demander.
-      return !occ || occ.status === "planned";
+      const occurrence = recurringOccurrence(r, y, m);
+      return !occurrence || occurrence.status === "planned";
     })
-    .map(r => ({ r, occ: recurringOccurrence(r, y, m), amount: recurringAmountInBase(r) }));
-  const expectedIncome = fromCents(incomeDue.reduce((sum, i) => sum + toCents(i.amount), 0));
-  const incomeCard = (s.isCurrent && incomeDue.length) ? `
-    <section class="card home-income-card" aria-labelledby="homeIncomeTitle">
-      <div class="home-bills-head">
-        <div>
-          <p class="card-label" id="homeIncomeTitle">Revenus attendus</p>
-          <p class="home-bills-total pos">${chf(expectedIncome)}</p>
-          <span class="caption">pas encore ${incomeDue.length > 1 ? "reçus" : "reçu"} ce mois</span>
-        </div>
-      </div>
-      <div class="home-bills-list">
-        ${incomeDue.slice(0, 3).map(({ r, occ, amount }) => {
-          // Plus de jour promis : le revenu est attendu DANS le mois, et le
-          // seul geste utile est de dire qu'il est arrivé. « Planifier » n'a
-          // plus de sens sans date — il ne planifiait qu'une date.
-          const etat = occ ? "Prévu ce mois" : "Attendu ce mois";
-          const bouton = occ
-            ? `<button class="btn secondary home-bill-action" data-confirmtx="${occ.id}">✓ Reçu</button>`
-            : `<button class="btn secondary home-bill-action" data-postrec="${esc(r.id)}">✓ Reçu</button>`;
-          return `
-        <div class="home-bill-row">
-          <div class="ico t-income" aria-hidden="true">${r.icon || "💰"}</div>
-          <div class="meta" data-recid="${esc(r.id)}" role="button" tabindex="0">
-            <div class="t">${esc(r.title)}</div>
-            <div class="s">${etat}</div>
-          </div>
-          <span class="amount pos">${chf(amount)}</span>
-          ${bouton}
-        </div>`;
-        }).join("")}
-      </div>
-      ${incomeDue.length > 3 ? `<button class="home-more-link" data-more="recurring">Voir les ${incomeDue.length} revenus attendus</button>` : ""}
-    </section>` : "";
+    .map(r => ({ r, occurrence: recurringOccurrence(r, y, m), amount: recurringAmountInBase(r) }));
 
   const obligations = monthlyObligations(y, m);
   const open = obligations.filter(item => item.state !== "paid");
-  const paidCount = obligations.filter(item => item.state === "paid").length;
-  const remaining = fromCents(open.reduce((sum, item) => sum + toCents(item.amount), 0));
   const status = item => {
-    if (item.state === "paid") return { label: "Payée", cls: "pos" };
     if (item.state === "scheduled") return { label: "Planifiée", cls: "warn" };
     if (item.state === "late") return { label: "En retard", cls: "neg" };
-    const today = compareDateParts(item.due, NOW) === 0;
-    return { label: today ? "À payer aujourd'hui" : `À venir le ${String(item.due.d).padStart(2, "0")}.${String(m).padStart(2, "0")}`, cls: "" };
+    return {
+      label: item.source === "bill"
+        ? `À faire avant le ${String(item.due.d).padStart(2, "0")}.${String(m).padStart(2, "0")}`
+        : "À faire ce mois",
+      cls: "",
+    };
   };
-  const action = item => {
-    // Une échéance PRÉVUE n'était plus actionnable : elle restait affichée
-    // « Planifiée » jusqu'à sa date, sans aucun moyen de dire qu'elle avait
-    // été payée pour de bon. Un tap suffit désormais.
+  const outgoingAction = item => {
+    const futureMonth = y > NOW.y || (y === NOW.y && m > NOW.m);
+    const recurring = item.source === "recurring" && RECURRINGS.find(r => r.id === item.id);
+    const reserve = !!(recurring && recurringIsReserve(recurring));
     if (item.state === "scheduled") {
+      if (futureMonth) return "";
       return item.linkedTxId != null
-        ? `<button class="btn secondary home-bill-action" data-confirmtx="${item.linkedTxId}">✓ Payé</button>`
+        ? `<button class="btn secondary home-bill-action" data-confirmtx="${item.linkedTxId}">${reserve ? "Mis de côté" : "Payé"}</button>`
         : "";
     }
     if (!["late", "upcoming"].includes(item.state)) return "";
-    const attr = item.source === "recurring"
+    const attribute = item.source === "recurring"
       ? `data-postrec="${esc(item.id)}"`
       : `data-paybill="${esc(item.id)}"`;
-    const dueNow = compareDateParts(item.due, NOW) <= 0;
-    return `<button class="btn secondary home-bill-action" ${attr}>${dueNow ? "Payer" : "Planifier"}</button>`;
+    const label = (item.source === "bill"
+      ? compareDateParts(item.due, NOW) > 0
+      : futureMonth)
+      ? "Planifier"
+      : (reserve ? "Mis de côté" : "Payé");
+    return `<button class="btn secondary home-bill-action" ${attribute}>${label}</button>`;
   };
-  const row = item => {
-    const state = status(item);
+  const outgoingRow = item => {
+    const itemStatus = status(item);
+    const recurring = item.source === "recurring" && RECURRINGS.find(r => r.id === item.id);
+    const reserve = !!(recurring && recurringIsReserve(recurring));
     const target = item.source === "recurring"
       ? `data-recid="${esc(item.id)}"`
       : `data-billid="${esc(item.id)}"`;
-    // Le compte utilisé n'a pas sa place ici : il allonge la ligne de trois
-    // mots sans aider à décider. Il reste dans la fiche, à un tap.
     return `<div class="home-bill-row" data-obligation-key="${esc(item.key)}">
-      <div class="ico ${item.state === "paid" ? "t-income" : "t-expense"}" aria-hidden="true">${item.icon}</div>
+      <div class="ico ${reserve ? "t-save" : "t-expense"}" aria-hidden="true">${esc(item.icon)}</div>
       <div class="meta" ${target} role="button" tabindex="0">
         <div class="t">${esc(item.title)}</div>
-        <div class="s ${state.cls}">${state.label}</div>
+        <div class="s ${itemStatus.cls}">${itemStatus.label}</div>
       </div>
       <span class="amount">${chf(item.amount)}</span>
-      ${action(item)}
+      ${outgoingAction(item)}
     </div>`;
   };
-  // Ce qui est réglé SORT de la liste : l'accueil montre ce qu'il reste à
-  // faire, pas ce qui est fait. Le compte réglé et la barre gardent la
-  // trace, « Gérer » montre le détail complet, et le toast « Annuler »
-  // rattrape une erreur pendant six secondes.
-  const shown = open.slice(0, 3);
-  const bills = `<section class="card home-bills-card" aria-labelledby="monthlyBillsTitle">
+
+  const incomeRows = s.isCurrent ? incomeDue.map(({ r, occurrence, amount }) => ({
+    priority: 1,
+    html: `<div class="home-bill-row home-income-row">
+      <div class="ico t-income" aria-hidden="true">${esc(r.icon || "💰")}</div>
+      <div class="meta" data-recid="${esc(r.id)}" role="button" tabindex="0">
+        <div class="t">${esc(r.title)}</div><div class="s">À recevoir ce mois</div>
+      </div>
+      <span class="amount pos">${chf(amount)}</span>
+      ${occurrence
+        ? `<button class="btn secondary home-bill-action" data-confirmtx="${occurrence.id}">Reçu</button>`
+        : `<button class="btn secondary home-bill-action" data-postrec="${esc(r.id)}">Reçu</button>`}
+    </div>`,
+  })) : [];
+  const outgoingRows = open.map(item => ({
+    priority: item.state === "late" ? 0 : 2,
+    html: outgoingRow(item),
+  }));
+  const agenda = [...incomeRows, ...outgoingRows].sort((a, b) => a.priority - b.priority);
+  const shown = agenda.slice(0, 5);
+  const tasks = `<section class="card home-bills-card home-agenda-card" aria-labelledby="monthlyTasksTitle">
     <div class="home-bills-head">
       <div>
-        <p class="card-label" id="monthlyBillsTitle">Transactions mensuelles</p>
-        <p class="home-bills-total">${chf(remaining)}</p>
-        <span class="caption">à payer · ${paidCount} sur ${obligations.length} payée${paidCount === 1 ? "" : "s"}</span>
+        <p class="card-label" id="monthlyTasksTitle">À faire ce mois</p>
+        <p class="home-agenda-count">${agenda.length
+          ? `${agenda.length} action${agenda.length > 1 ? "s" : ""}`
+          : "Tout est à jour"}</p>
       </div>
-      <button class="btn secondary home-manage" data-more="recurring">Gérer</button>
+      <button class="btn secondary home-manage" data-gototab="more">Gérer</button>
     </div>
-    ${obligations.length ? `
-      <div class="track home-bills-progress" role="progressbar" aria-label="Factures payées"
-        aria-valuemin="0" aria-valuemax="${obligations.length}" aria-valuenow="${paidCount}">
-        <div class="fill" style="width:${(paidCount / obligations.length * 100).toFixed(1)}%"></div>
-      </div>
-      ${open.length ? `<div class="home-bills-list">${shown.map(row).join("")}</div>` : `
-        <p class="home-bills-done">Tout est réglé ce mois ✓</p>`}
-      ${open.length > shown.length ? `<button class="home-more-link" data-more="recurring">Voir les ${open.length} factures à régler</button>` : ""}
+    ${agenda.length ? `
+      <div class="home-bills-list">${shown.map(item => item.html).join("")}</div>
+      ${agenda.length > shown.length
+        ? `<button class="home-more-link" data-gototab="more">Voir les ${agenda.length} actions</button>`
+        : ""}
     ` : `
       <div class="home-bills-empty">
-        <p class="caption">Ajoutez votre loyer, vos primes ou vos abonnements une fois : ils reviendront automatiquement chaque mois.</p>
-        <button class="btn secondary" data-addrec>＋ Ajouter une transaction mensuelle</button>
+        <p class="home-bills-done">Tout est à jour ✓</p>
+        <p class="caption">Les factures, abonnements, revenus et mises de côté mensuels apparaîtront ici.</p>
       </div>`}
   </section>`;
-
-  // Tuiles d'accès : chaque destination utile, avec un chiffre RÉEL calculé
-  // depuis les données — jamais un libellé décoratif. Une tuile qui n'a rien
-  // à dire dit ce qu'il faut faire pour qu'elle serve.
-  const tiles = (() => {
-    const closed = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
-    const activeSubs = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
-    const subsPerMonth = activeSubs.length
-      ? fromCents(Math.round(activeSubs.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12))
-      : 0;
-    const openBills = (S.bills || []).filter(b => !billIsCovered(b));
-    const lateBills = openBills.filter(billIsOverdue).length;
-    const report = budgetReport(y, m);
-    const plannedC = report.lines.filter(l => l.kind === "expense").reduce((a, l) => a + toCents(l.planned), 0);
-    const actualC = report.lines.filter(l => l.kind === "expense").reduce((a, l) => a + toCents(l.actual), 0);
-    const tax = taxSummary(NOW.y);
-    const netWorth = round2(
-      ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
-      + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
-      + pensionPositionsTotal()
-      - liabilitiesTotal());
-    const prio = GOALS.filter(g => !g.achieved);
-
-    const items = [
-      ["year", "📅", "Année", `${closed} mois bouclé${closed > 1 ? "s" : ""} sur 12`],
-      ["subs", "🎬", "Abonnements", activeSubs.length
-        ? `${activeSubs.length} actif${activeSubs.length > 1 ? "s" : ""} · ${chf(subsPerMonth)}/mois`
-        : "Rien de suivi pour l'instant"],
-      ["bills", "🧾", "Factures", lateBills
-        ? `${lateBills} en retard`
-        : (openBills.length ? `${openBills.length} à payer` : "Tout est payé 🎉")],
-      ["taxes", "📮", "Impôts", tax.reserveGap > 0
-        ? `${chf(tax.reserveGap)} à réserver`
-        : `Réserve ${NOW.y} couverte ✓`],
-      ["networth", "🏛️", "Patrimoine", chf(netWorth)],
-      ["goals", "🎯", "Objectifs", prio.length
-        ? `${prio.length} en cours`
-        : "Aucun objectif en cours"],
-    ];
-    const tile = ([id, icon, title, value]) =>
-      `<button class="home-tile" data-more="${id}" aria-label="${esc(title)} — ${esc(value)}">
-        <span class="home-tile-icon" aria-hidden="true">${icon}</span>
-        <span class="home-tile-title">${title}</span>
-        <span class="home-tile-value">${value}</span>
-      </button>`;
-    // Le Budget vit dans sa propre destination : la tuile y mène.
-    const budgetTile = plannedC > 0
-      ? `<button class="home-tile" data-gototab="budget" aria-label="Budget — ${Math.round(actualC / plannedC * 100)} % utilisé">
-          <span class="home-tile-icon" aria-hidden="true">📊</span>
-          <span class="home-tile-title">Budget</span>
-          <span class="home-tile-value">${Math.round(actualC / plannedC * 100)} % utilisé</span>
-        </button>`
-      : `<button class="home-tile" data-gototab="budget" aria-label="Budget — aucun budget fixé">
-          <span class="home-tile-icon" aria-hidden="true">📊</span>
-          <span class="home-tile-title">Budget</span>
-          <span class="home-tile-value">Aucun budget fixé</span>
-        </button>`;
-    return `<p class="section-title">Tout voir</p>
-      <div class="home-tiles">${items.slice(0, 3).map(tile).join("")}${budgetTile}${items.slice(3).map(tile).join("")}</div>`;
-  })();
 
   return `<div class="home-simple">
     <h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
@@ -3556,11 +2989,8 @@ function renderSimpleHome() {
     ${monthNav()}
     ${fxWarningHTML()}
     ${hero}
-    ${rythme}
     ${metrics}
-    ${incomeCard}
-    ${bills}
-    ${tiles}
+    ${tasks}
   </div>`;
 }
 
@@ -5761,43 +5191,6 @@ function finishOnboarding() {
   toast(`Bienvenue${obName ? ", " + obName : ""}${obPartner ? " & " + obPartner : ""} — tout est prêt`);
 }
 
-/* Héros qui tourne : les points suivent le défilement, et un point y renvoie.
-   Aucun geste maison — on lit `scrollLeft`, le navigateur fait le reste, donc
-   le clavier (flèches sur la piste), la molette et VoiceOver marchent seuls.
-   En mouvement réduit, le saut est instantané plutôt qu'animé. */
-function bindHeroSwipe() {
-  const track = document.getElementById("heroTrack");
-  if (!track) return;
-  const dots = [...document.querySelectorAll("[data-herodot]")];
-  const slides = [...track.querySelectorAll(".hero-slide")];
-  if (!dots.length || !slides.length) return;
-  const calme = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const indexVisible = () => {
-    // Le pas réel inclut l'écart entre cartes : le mesurer évite de dériver
-    // d'une carte au bout de cinq sur les petits écrans.
-    const pas = slides.length > 1
-      ? slides[1].offsetLeft - slides[0].offsetLeft
-      : (slides[0].offsetWidth || 1);
-    return Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / pas)));
-  };
-  const refresh = () => {
-    const i = indexVisible();
-    dots.forEach((d, k) => d.setAttribute("aria-selected", String(k === i)));
-  };
-  track.addEventListener("scroll", () => {
-    clearTimeout(track._heroTimer);
-    track._heroTimer = setTimeout(refresh, 60);
-  });
-  dots.forEach((dot, i) => dot.addEventListener("click", () => {
-    track.scrollTo({ left: slides[i].offsetLeft - slides[0].offsetLeft,
-                     behavior: calme ? "auto" : "smooth" });
-    // On marque tout de suite : attendre la fin du défilement laisserait
-    // croire que le tap n'a rien fait.
-    dots.forEach((d, k) => d.setAttribute("aria-selected", String(k === i)));
-  }));
-  refresh();
-}
-
 /* ---------- Écran verrouillé (Phase 12) ---------- */
 function renderLockScreen() {
   return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;gap:14px">
@@ -5868,7 +5261,6 @@ function render() {
   if (next) next.onclick = () => { cursor = shiftMonth(cursor, 1); moreTxPage = 0; render(); pushNav(); };
   const backToNow = document.getElementById("backToNow");
   if (backToNow) backToNow.onclick = () => { cursor = { y: NOW.y, m: NOW.m }; moreTxPage = 0; render(); pushNav(); };
-  bindHeroSwipe();
   // Page « Année » : navigation d'année, bornée aux années plausibles.
   const prevY = document.getElementById("prevY");
   const nextY = document.getElementById("nextY");
@@ -6041,9 +5433,14 @@ document.getElementById("screen").addEventListener("click", (e) => {
       && tx.y === NOW.y && tx.m === NOW.m) tx.d = NOW.d;
     saveState();
     const montant = money(tx.amount, accountCurrency(tx.acc));
-    toast(tx.type === "income"
-      ? `${tx.title} reçu : ${montant} 🎉`
-      : `« ${tx.title} » payé : ${montant}`, true);
+    toast(
+      tx.type === "income"
+        ? `${tx.title} reçu : ${montant} 🎉`
+        : (["saving", "investment"].includes(tx.type)
+          ? `« ${tx.title} » mis de côté : ${montant}`
+          : `« ${tx.title} » payé : ${montant}`),
+      true
+    );
     render();
     return;
   }
@@ -6068,7 +5465,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-quickinc]")) { openTxSheet(null, "income"); return; }
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }
   if (e.target.closest("[data-quickinv]")) { openTxSheet(null, "investment"); return; }
-  if (e.target.closest("[data-addtx]")) { openTxSheet(null); return; }
+  if (e.target.closest("[data-addtx]")) { openSheet("quickMenu"); return; }
   // Un élément qui porte AUSSI un mois (page Année) est traité plus bas :
   // sinon on changerait d'onglet sans jamais déplacer le curseur.
   const gotoTab = e.target.closest("[data-gototab]");
@@ -6424,6 +5821,7 @@ const catSelect = document.getElementById("fCat");
 const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm", "widgetForm"];
 let openSheetId = null;
 let openSheetSnapshot = "";
+let sheetOpener = null;
 // Empreinte des champs d'une feuille : sert à détecter une saisie en cours.
 function serializeSheet(id) {
   const el = document.getElementById(id);
@@ -6433,14 +5831,44 @@ function serializeSheet(id) {
     .join("␟");
 }
 function openSheet(id) {
+  if (!backdrop.classList.contains("open")) sheetOpener = document.activeElement;
   for (const sheetId of SHEET_IDS) {
     document.getElementById(sheetId).style.display = sheetId === id ? "" : "none";
+  }
+  const current = document.getElementById(id);
+  current.setAttribute("role", "dialog");
+  current.setAttribute("aria-modal", "true");
+  const title = current.querySelector("h3");
+  if (title) {
+    if (!title.id) title.id = `${id}AccessibleTitle`;
+    current.setAttribute("aria-labelledby", title.id);
   }
   backdrop.classList.add("open");
   // Les feuilles remplissent leurs champs AVANT d'appeler openSheet : la
   // photo est donc prise sur l'état initial réel (édition comprise).
   openSheetId = id;
   openSheetSnapshot = serializeSheet(id);
+  if (id === "quickMenu") {
+    requestAnimationFrame(() => current.querySelector("[data-quick]")?.focus());
+  }
+}
+function closeSheet() {
+  backdrop.classList.remove("open");
+  openSheetId = null;
+  const target = sheetOpener;
+  const targetId = target && target.id;
+  const targetTab = target && target.dataset ? target.dataset.tab : null;
+  const targetWasAdd = !!(target && target.hasAttribute && target.hasAttribute("data-addtx"));
+  sheetOpener = null;
+  requestAnimationFrame(() => {
+    const restored = target && target.isConnected
+      ? target
+      : (targetId ? document.getElementById(targetId) : null)
+        || (targetWasAdd ? document.querySelector("#screen [data-addtx]") : null)
+        || (targetTab ? document.querySelector(`#tabbar [data-tab="${targetTab}"]`) : null)
+        || document.querySelector("#tabbar button.active");
+    if (restored) restored.focus();
+  });
 }
 // Fermeture accidentelle (clic sur le fond, Échap) : si la saisie a
 // changé depuis l'ouverture, demander confirmation avant de la jeter.
@@ -6449,17 +5877,27 @@ function dismissSheetGuarded() {
   if (openSheetId && serializeSheet(openSheetId) !== openSheetSnapshot) {
     if (!confirm("Abandonner la saisie en cours ?")) return;
   }
-  backdrop.classList.remove("open");
-  openSheetId = null;
+  closeSheet();
 }
 // Épargne/investissement/virement créditent TOUJOURS un compte de
 // destination : l'argent change de poche, il ne disparaît jamais.
 
 function refreshCatOptions() {
   const type = document.getElementById("fType").value;
+  const reserveChoice = type === "saving" || type === "investment";
+  document.getElementById("fCatLabel").textContent = reserveChoice
+    ? "Je mets de côté pour"
+    : "Catégorie";
+  if (reserveChoice) {
+    catSelect.disabled = false;
+    catSelect.innerHTML = [...CATEGORIES_DE_RESERVE]
+      .map(category => `<option>${esc(category)}</option>`)
+      .join("");
+    catSelect.value = type === "investment" ? "Pilier 3a" : "Épargne";
+    return;
+  }
   const kinds = {
-    expense: ["expense"], income: ["income"], saving: ["saving"],
-    investment: ["investment"], taxPayment: ["tax"], refund: ["expense"],
+    expense: ["expense"], income: ["income"], taxPayment: ["tax"], refund: ["expense"],
   }[type];
   if (!kinds) { // virement interne : pas de catégorie
     catSelect.innerHTML = '<option value="">— (virement interne)</option>';
@@ -6482,10 +5920,12 @@ function refreshDestOptions(preselect) {
   wrap.style.display = "";
   const sourceId = document.getElementById("fAccount").value;
   const sourceCurrency = accountCurrency(sourceId);
-  const preferred = PREFERRED_DEST_KIND[type];
+  const preferred = document.getElementById("fCat").value === "Pilier 3a"
+    ? ["pension", "lifeinsurance"]
+    : [PREFERRED_DEST_KIND[type]];
   const candidates = ACCOUNTS
     .filter(a => a.id !== sourceId && accountCurrency(a.id) === sourceCurrency)
-    .sort((a, b) => (b.kind === preferred ? 1 : 0) - (a.kind === preferred ? 1 : 0));
+    .sort((a, b) => (preferred.includes(b.kind) ? 1 : 0) - (preferred.includes(a.kind) ? 1 : 0));
   const select = document.getElementById("fDest");
   select.innerHTML = candidates.length
     ? candidates.map(a => `<option value="${esc(a.id)}">${esc(a.name)} (${kindLabel(a.kind)}${a.currency && a.currency !== baseCurrency() ? ", " + a.currency : ""})</option>`).join("")
@@ -6500,6 +5940,18 @@ function syncTypeChips() {
   typeGrid.querySelectorAll("button[data-ftype]").forEach(b =>
     b.setAttribute("aria-pressed", String(b.dataset.ftype === type)));
   typeGrid.style.opacity = typeGrid.dataset.locked === "1" ? "0.5" : "";
+  const copy = {
+    expense: ["J'ai dépensé", "Nouvelle dépense"],
+    income: ["J'ai reçu", "Nouveau revenu"],
+    saving: ["J'ai mis de côté", "Nouvelle mise de côté"],
+    investment: ["J'ai investi", "Nouvel investissement"],
+    transfer: ["J'ai déplacé de l'argent", "Nouveau virement"],
+    taxPayment: ["J'ai payé mes impôts", "Nouveau paiement d'impôts"],
+    refund: ["J'ai reçu un remboursement", "Nouveau remboursement"],
+    adjustment: ["J'ai corrigé un solde", "Ajustement de solde"],
+  }[type] || ["Nouveau mouvement", "Nouveau mouvement"];
+  document.getElementById("fIntentNote").textContent = copy[0];
+  if (!editingTxId) document.getElementById("sheetTitle").textContent = copy[1];
 }
 typeGrid.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-ftype]");
@@ -6595,6 +6047,18 @@ function clearFieldErrors() {
 
 document.getElementById("fType").addEventListener("change", () => { refreshCatOptions(); refreshDestOptions(); syncTypeChips(); updateSheetNotes(); });
 document.getElementById("fAccount").addEventListener("change", () => { refreshDestOptions(); updateSheetNotes(); });
+document.getElementById("fCat").addEventListener("change", () => {
+  const select = document.getElementById("fType");
+  if (["saving", "investment"].includes(select.value)
+      && CATEGORIES_DE_RESERVE.has(catSelect.value)) {
+    // Un choix humain suffit : le 3e pilier est un investissement ;
+    // l'épargne libre et la réserve fiscale restent des mises de côté.
+    select.value = catSelect.value === "Pilier 3a" ? "investment" : "saving";
+    syncTypeChips();
+  }
+  refreshDestOptions();
+  updateSheetNotes();
+});
 document.getElementById("fDate").addEventListener("change", updateSheetNotes);
 document.getElementById("fDest").addEventListener("change", updateSheetNotes);
 document.getElementById("fAmount").addEventListener("input", () => {
@@ -6649,6 +6113,7 @@ function openTxSheet(tx, presetType) {
   updateSheetNotes();
   // Détails repliés par défaut ; ouverts en édition (l'intitulé y vit).
   document.getElementById("fMore").open = !!tx;
+  document.getElementById("fTypeMore").open = !!tx;
   openSheet("txForm");
   // Parcours fréquent : le clavier numérique s'ouvre sur le montant.
   document.getElementById("fAmount").focus();
@@ -6656,10 +6121,20 @@ function openTxSheet(tx, presetType) {
 
 /* Le ＋ vit dans la barre (recréé à chaque rendu) : son clic est délégué
    par l'écouteur du tabbar, avec la même garde de verrouillage. */
-document.getElementById("fCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("fCancel").addEventListener("click", closeSheet);
 backdrop.addEventListener("click", (e) => { if (e.target === backdrop) dismissSheetGuarded(); });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && backdrop.classList.contains("open")) dismissSheetGuarded();
+  if (!backdrop.classList.contains("open")) return;
+  if (e.key === "Escape") { dismissSheetGuarded(); return; }
+  if (e.key !== "Tab" || !openSheetId) return;
+  const sheet = document.getElementById(openSheetId);
+  const focusables = [...sheet.querySelectorAll(
+    'button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
+  )].filter(el => el.offsetParent !== null);
+  if (!focusables.length) return;
+  const first = focusables[0], last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
 document.getElementById("fDelete").addEventListener("click", () => {
@@ -6675,7 +6150,7 @@ document.getElementById("fDelete").addEventListener("click", () => {
     if (bill.paidTxId === editingTxId || (deleted && deleted.billId === bill.id)) bill.paidTxId = null;
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Mouvement supprimé", true);
   render();
 });
@@ -6697,8 +6172,12 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   if (y < 2000 || y > 2100) { fieldError("fDate", "Année entre 2000 et 2100."); return; }
 
   const editingExisting = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
-  const type = (editingExisting && editingExisting.type === "adjustment")
+  let type = (editingExisting && editingExisting.type === "adjustment")
     ? "adjustment" : document.getElementById("fType").value;
+  const cat = type === "transfer" || type === "adjustment" ? null : catSelect.value;
+  if (["saving", "investment"].includes(type) && CATEGORIES_DE_RESERVE.has(cat)) {
+    type = cat === "Pilier 3a" ? "investment" : "saving";
+  }
   const sourceId = document.getElementById("fAccount").value;
   if (!ACCOUNTS.some(a => a.id === sourceId)) { fieldError("fAccount", "Choisissez un compte."); return; }
   const sourceCurrency = accountCurrency(sourceId);
@@ -6712,7 +6191,6 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
     }
     dest = target.id;
   }
-  const cat = type === "transfer" ? null : catSelect.value;
   // Intitulé facultatif (parcours fréquent en trois gestes) : défaut =
   // catégorie, sinon le libellé du type. Jamais de mouvement sans nom.
   const title = rawTitle || cat || TYPE_LABEL[type] || "Mouvement";
@@ -6746,7 +6224,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   }
   saveState();
   cursor = { y, m };
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 
@@ -7244,7 +6722,7 @@ function openAccSheet(account) {
   openSheet("accForm");
   document.getElementById("aName").focus();
 }
-document.getElementById("aCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("aCancel").addEventListener("click", () => closeSheet());
 document.getElementById("accForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("aError");
@@ -7273,7 +6751,7 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
     toast("Compte ajouté");
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 function accountDeleteBlocker(id) {
@@ -7304,7 +6782,7 @@ document.getElementById("aDelete").addEventListener("click", () => {
   const index = ACCOUNTS.findIndex(a => a.id === editingAccId);
   if (index >= 0) ACCOUNTS.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Compte supprimé", true);
   render();
 });
@@ -7338,7 +6816,7 @@ function openLineSheet(cat) {
   openSheet("lineForm");
   document.getElementById("lAmount").focus();
 }
-document.getElementById("lCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("lCancel").addEventListener("click", () => closeSheet());
 document.getElementById("lineForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("lError");
@@ -7352,7 +6830,7 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
   if (line) { line.amount = amount; toast("Ligne modifiée"); }
   else { S.budgets[key].push({ cat, amount }); toast("Ligne ajoutée"); }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("lDelete").addEventListener("click", () => {
@@ -7364,7 +6842,7 @@ document.getElementById("lDelete").addEventListener("click", () => {
   const index = lines.findIndex(l => l.cat === editingLineCat);
   if (index >= 0) lines.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Ligne retirée", true);
   render();
 });
@@ -7383,7 +6861,7 @@ window.addEventListener("popstate", (e) => {
       try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (err) {}
       return; // on reste : la feuille demeure ouverte
     }
-    backdrop.classList.remove("open");
+    closeSheet();
     openSheetId = null;
     try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (err) {}
     return;
@@ -7437,7 +6915,7 @@ function openGoalSheet(goal) {
   document.getElementById("gName").focus();
 }
 document.getElementById("gLinked").addEventListener("change", refreshGoalManualField);
-document.getElementById("gCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("gCancel").addEventListener("click", () => closeSheet());
 document.getElementById("goalForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("gError");
@@ -7468,7 +6946,7 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
   if (existing) { Object.assign(existing, data); toast("Objectif modifié"); }
   else { GOALS.push({ id: "g-" + Date.now().toString(36), achieved: false, ...data }); toast("Objectif ajouté"); }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("gAchieve").addEventListener("click", () => {
@@ -7476,7 +6954,7 @@ document.getElementById("gAchieve").addEventListener("click", () => {
   if (!goal) return;
   goal.achieved = !goal.achieved;
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(goal.achieved ? "Objectif atteint 🎉" : "Objectif réactivé");
   render();
 });
@@ -7486,7 +6964,7 @@ document.getElementById("gDelete").addEventListener("click", () => {
   const index = GOALS.findIndex(g => g.id === editingGoalId);
   if (index >= 0) GOALS.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Objectif supprimé", true);
   render();
 });
@@ -7495,8 +6973,10 @@ document.getElementById("gDelete").addEventListener("click", () => {
 let editingRecId = null;
 function refreshRecCatOptions() {
   const kind = document.getElementById("rType").value === "income" ? "income" : "expense";
+  const isReserve = document.getElementById("rFamily").value === "reserve"
+    && document.getElementById("rType").value !== "income";
   document.getElementById("rCat").innerHTML = Object.entries(CATEGORIES)
-    .filter(([, k]) => k === kind)
+    .filter(([category, k]) => isReserve ? CATEGORIES_DE_RESERVE.has(category) : k === kind)
     .map(([c]) => `<option>${esc(c)}</option>`).join("");
 }
 document.getElementById("rType").addEventListener("change", refreshRecCatOptions);
@@ -7541,7 +7021,7 @@ function openRecSheet(rec) {
   }
   // Destination : celle qui a été choisie, sinon la poche déduite. Elle est
   // recalculée APRÈS la catégorie, dont elle dépend (3e pilier → prévoyance).
-  refreshRecDest();
+  refreshRecDest(false);
   if (rec && rec.destAccountId && ACCOUNTS.some(a => a.id === rec.destAccountId)) {
     const destSel = document.getElementById("rDest");
     if ([...destSel.options].some(o => o.value === rec.destAccountId)) destSel.value = rec.destAccountId;
@@ -7606,13 +7086,13 @@ function applyRecKind() {
   // de côté, c'est suggérer le contraire de ce qu'on vient de choisir.
   document.getElementById("rTitle").placeholder = KIND_EXEMPLES[kind];
   refreshRecCatOptions();
-  refreshRecDest();
+  refreshRecDest(false);
 }
 document.getElementById("rKind").addEventListener("change", applyRecKind);
 
 /* La destination n'apparaît que pour une mise de côté, et n'y est jamais
    facultative : sans compte d'arrivée, l'argent disparaît du patrimoine. */
-function refreshRecDest() {
+function refreshRecDest(preserveCurrent = true) {
   const reserve = document.getElementById("rFamily").value === "reserve"
     && document.getElementById("rType").value !== "income";
   const wrap = document.getElementById("rDestWrap");
@@ -7636,13 +7116,18 @@ function refreshRecDest() {
     ? cibles.map(a => `<option value="${esc(a.id)}">${esc(a.name)} · ${esc(chf(toCHF(balance(a.id), a.currency)))}</option>`).join("")
     : `<option value="">— aucun autre compte —</option>`;
   const defaut = reserveDefaultDest(document.getElementById("rCat").value, source);
-  select.value = cibles.some(a => a.id === voulu) ? voulu : (defaut || "");
+  select.value = preserveCurrent && cibles.some(a => a.id === voulu)
+    ? voulu : (defaut || "");
   document.getElementById("rDestNote").textContent = cibles.length
     ? "Cet argent sort de votre compte chaque mois et arrive ici. Il reste à vous : ce n'est pas une dépense."
     : "Créez d'abord un deuxième compte (Comptes → ＋) : une mise de côté doit arriver quelque part.";
 }
-document.getElementById("rAccount").addEventListener("change", refreshRecDest);
-document.getElementById("rCat").addEventListener("change", refreshRecDest);
+document.getElementById("rAccount").addEventListener("change", () => refreshRecDest(true));
+// Changer de projet change aussi la poche proposée : 3a → prévoyance,
+// épargne/impôts → épargne. On ne conserve pas silencieusement une ancienne
+// destination qui reste techniquement valide mais ne correspond plus au
+// choix que la personne vient de faire.
+document.getElementById("rCat").addEventListener("change", () => refreshRecDest(false));
 /* Le bloc « mois d'échéance » suit le rythme choisi, et la note dit
    explicitement ce que l'app fera du montant — aucun lissage caché. */
 
@@ -7678,10 +7163,10 @@ document.getElementById("rEnd").addEventListener("click", () => {
     toast(`« ${rec.title} » réactivé`);
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
-document.getElementById("rCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("rCancel").addEventListener("click", closeSheet);
 document.getElementById("recForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("rError");
@@ -7739,7 +7224,7 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     toast(`${label} ajoutée`);
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("rPost").addEventListener("click", () => {
@@ -7763,7 +7248,7 @@ document.getElementById("rPost").addEventListener("click", () => {
     return;
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   const avanceRec = resultat && resultat.transaction && resultat.transaction.status === "posted"
     ? progresObjectif(resultat.transaction.dest, photoRec) : null;
   toast(avanceRec || (rec.type === "income" ? "Revenu mensuel enregistré"
@@ -7778,7 +7263,7 @@ document.getElementById("rDelete").addEventListener("click", () => {
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Paiement régulier supprimé", true);
   render();
 });
@@ -7812,7 +7297,7 @@ function openItemSheet(kind, id) {
   openSheet("itemForm");
   document.getElementById("iName").focus();
 }
-document.getElementById("iCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("iCancel").addEventListener("click", () => closeSheet());
 document.getElementById("itemForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("iError");
@@ -7846,7 +7331,7 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
     } else if (idx >= 0) RECURRINGS.splice(idx, 1);
   }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("iDelete").addEventListener("click", () => {
@@ -7860,7 +7345,7 @@ document.getElementById("iDelete").addEventListener("click", () => {
   const index = list.findIndex(x => x.id === editingItem.id);
   if (index >= 0) list.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Élément supprimé", true);
   render();
 });
@@ -7921,7 +7406,7 @@ function openInsSheet(contract) {
   openSheet("insForm");
   document.getElementById("insName").focus();
 }
-document.getElementById("insCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("insCancel").addEventListener("click", () => closeSheet());
 document.getElementById("insForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("insError");
@@ -7939,7 +7424,7 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
   if (existing) { delete existing.monthly; Object.assign(existing, data); toast("Assurance modifiée"); }
   else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Assurance ajoutée"); }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("insDelete").addEventListener("click", () => {
@@ -7947,7 +7432,7 @@ document.getElementById("insDelete").addEventListener("click", () => {
   pushUndo();
   const index = INSURANCES.findIndex(i => i.id === editingInsId);
   if (index >= 0) INSURANCES.splice(index, 1);
-  saveState(); backdrop.classList.remove("open"); toast("Assurance supprimée", true); render();
+  saveState(); closeSheet(); toast("Assurance supprimée", true); render();
 });
 
 /* ---------- Feuille prévoyance (W4) ---------- */
@@ -7973,7 +7458,7 @@ function openPenSheet(position) {
   openSheet("penForm");
   document.getElementById("penName").focus();
 }
-document.getElementById("penCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("penCancel").addEventListener("click", () => closeSheet());
 document.getElementById("penForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("penError");
@@ -7994,14 +7479,14 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
   if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
   else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Prévoyance ajoutée"); }
-  saveState(); backdrop.classList.remove("open"); render();
+  saveState(); closeSheet(); render();
 });
 document.getElementById("penDelete").addEventListener("click", () => {
   if (!editingPenId || !confirm("Supprimer cette prévoyance ?")) return;
   pushUndo();
   const index = PENSIONS.findIndex(p => p.id === editingPenId);
   if (index >= 0) PENSIONS.splice(index, 1);
-  saveState(); backdrop.classList.remove("open"); toast("Prévoyance supprimée", true); render();
+  saveState(); closeSheet(); toast("Prévoyance supprimée", true); render();
 });
 
 /* ---------- Feuille impôts (W4) ---------- */
@@ -8013,7 +7498,7 @@ function openTaxSheet() {
   openSheet("taxForm");
   document.getElementById("txRate").focus();
 }
-document.getElementById("txCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("txCancel").addEventListener("click", () => closeSheet());
 document.getElementById("taxForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("txError");
@@ -8024,7 +7509,7 @@ document.getElementById("taxForm").addEventListener("submit", (e) => {
   if (Number.isNaN(reserve)) { err.textContent = "Ce montant mis de côté n'est pas valable. Exemple : 2400.00"; return; }
   S.taxRate = Math.round(rate) / 100;
   S.taxReserve = reserve;
-  saveState(); backdrop.classList.remove("open");
+  saveState(); closeSheet();
   toast(`Profil d'impôts mis à jour (taux ${Math.round(rate)} %)`);
   render();
 });
@@ -8050,7 +7535,7 @@ function openCodeSheet(mode) {
   openSheet("codeForm");
   document.getElementById("code1").focus();
 }
-document.getElementById("codeCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("codeCancel").addEventListener("click", () => closeSheet());
 document.getElementById("codeForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("codeError");
@@ -8070,11 +7555,11 @@ document.getElementById("codeForm").addEventListener("submit", (e) => {
     locked = false;
     toast("Verrouillage désactivé");
   }
-  saveState(); backdrop.classList.remove("open"); render();
+  saveState(); closeSheet(); render();
 });
 
 /* ---------- Feuille document (W4) ---------- */
-document.getElementById("dCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("dCancel").addEventListener("click", () => closeSheet());
 let editingDocId = null;
 document.getElementById("docForm").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -8086,11 +7571,11 @@ document.getElementById("docForm").addEventListener("submit", (e) => {
     const doc = S.documents.find(d => d.id === editingDocId);
     if (doc) { doc.name = name; doc.kind = kind; }
     editingDocId = null;
-    saveState(); backdrop.classList.remove("open"); toast("Document modifié"); render();
+    saveState(); closeSheet(); toast("Document modifié"); render();
     return;
   }
   S.documents.push({ id: "doc-" + Date.now().toString(36), name, kind });
-  saveState(); backdrop.classList.remove("open"); toast("Document ajouté"); render();
+  saveState(); closeSheet(); toast("Document ajouté"); render();
 });
 
 
@@ -8124,7 +7609,7 @@ function openBillSheet(bill) {
   openSheet("billForm");
   document.getElementById("bName").focus();
 }
-document.getElementById("bCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("bCancel").addEventListener("click", () => closeSheet());
 document.getElementById("billForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("bError");
@@ -8155,7 +7640,7 @@ document.getElementById("billForm").addEventListener("submit", (e) => {
   }
   else { S.bills.push({ id: "bill-" + Date.now().toString(36), paidTxId: null, note: "", ...data }); toast("Facture ajoutée"); }
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 document.getElementById("bPay").addEventListener("click", () => {
@@ -8167,7 +7652,7 @@ document.getElementById("bPay").addEventListener("click", () => {
   catch (error) { document.getElementById("bError").textContent = error.message || "Taux de change manquant."; return; }
   if (!result.created) return;
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(result.transaction.status === "planned"
     ? "Facture planifiée — mouvement prévu créé"
     : "Facture payée — mouvement créé", true);
@@ -8182,7 +7667,7 @@ document.getElementById("bUnpay").addEventListener("click", () => {
   if (index >= 0) transactions.splice(index, 1);
   bill.paidTxId = null;
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Facture remise à payer. La dépense a été retirée.", true);
   render();
 });
@@ -8192,22 +7677,21 @@ document.getElementById("bDelete").addEventListener("click", () => {
   const index = S.bills.findIndex(b => b.id === editingBillId);
   if (index >= 0) S.bills.splice(index, 1);
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Facture supprimée", true);
   render();
 });
 
 /* ---------- Menu d'actions rapides (W5) ---------- */
-document.getElementById("quickCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("quickCancel").addEventListener("click", closeSheet);
 document.getElementById("quickMenu").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-quick]");
   if (!btn) return;
   const open = {
-    tx: () => openTxSheet(null), save: () => openTxSheet(null, "saving"),
-    bill: () => openBillSheet(null),
-    acc: () => openAccSheet(null), goal: () => openGoalSheet(null),
-    rec: () => openRecSheet(null), item: () => openItemSheet("asset", null),
-    ins: () => openInsSheet(null), pen: () => openPenSheet(null),
+    expense: () => openTxSheet(null, "expense"),
+    income: () => openTxSheet(null, "income"),
+    save: () => openTxSheet(null, "saving"),
+    rec: () => openRecSheet(null),
   }[btn.dataset.quick];
   if (open) open();
 });
@@ -8226,7 +7710,7 @@ document.getElementById("fDuplicate").addEventListener("click", () => {
 
 
 /* ---------- Mon salaire (W6) ---------- */
-document.getElementById("sCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("sCancel").addEventListener("click", () => closeSheet());
 document.getElementById("salaryForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("sError");
@@ -8237,39 +7721,39 @@ document.getElementById("salaryForm").addEventListener("submit", (e) => {
   else RECURRINGS.push({ id: "r-salaire", title: "Salaire", amount, type: "income",
     cat: "Salaire", day: 1, accountId: defaultCashAccount(), icon: "💰" });
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(`Salaire enregistré : ${chf(amount)} par mois`);
   render();
 });
 
 /* ---------- Mon prénom ---------- */
-document.getElementById("nCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("nCancel").addEventListener("click", () => closeSheet());
 document.getElementById("nameForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const name = document.getElementById("nName").value.trim().slice(0, 30);
   if (!name) { document.getElementById("nName").focus(); return; }
   S.profile.name = name;
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(`Enchanté, ${name} 👋`);
   render();
 });
 
 /* ---------- Mon pays ---------- */
-document.getElementById("cCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("cCancel").addEventListener("click", () => closeSheet());
 document.getElementById("countryForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const chosen = document.getElementById("cCountry").value;
   if (!COUNTRIES[chosen]) return;
   S.country = chosen;
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(`${COUNTRIES[chosen].flag} ${COUNTRIES[chosen].name}`);
   render();
 });
 
 /* ---------- Devise de référence ---------- */
-document.getElementById("baseCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("baseCancel").addEventListener("click", () => closeSheet());
 document.getElementById("baseForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const chosen = document.getElementById("bCurrency").value;
@@ -8284,12 +7768,12 @@ document.getElementById("baseForm").addEventListener("submit", (e) => {
     saveState();
     toast(`Devise de référence : ${chosen}`);
   }
-  backdrop.classList.remove("open");
+  closeSheet();
   render();
 });
 
 /* ---------- Taux de change manuels (W6) ---------- */
-document.getElementById("fxCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("fxCancel").addEventListener("click", () => closeSheet());
 let fxEditKeys = ["EUR", "USD"];
 document.getElementById("fxForm").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -8301,7 +7785,7 @@ document.getElementById("fxForm").addEventListener("submit", (e) => {
   }
   S.fxRates = { [fxEditKeys[0]]: eur, [fxEditKeys[1]]: usd };
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Taux de change mis à jour");
   render();
 });
@@ -8323,7 +7807,7 @@ document.getElementById("aReconcile").addEventListener("click", () => {
   openSheet("reconForm");
   document.getElementById("reconAmount").focus();
 });
-document.getElementById("reconCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("reconCancel").addEventListener("click", () => closeSheet());
 document.getElementById("reconForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("reconError");
@@ -8346,7 +7830,7 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
     cat: null, acc: account.id, dest: null, status: "posted",
   });
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(`Solde mis à jour à ${money(wanted, account.currency || baseCurrency())}`, true);
   render();
 });
@@ -8380,15 +7864,15 @@ document.getElementById("widgetForm").addEventListener("submit", (e) => {
     .filter(cb => !cb.checked).map(cb => cb.dataset.wkey);
   S.homeWidgets = { hidden };
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast(hidden.length ? "Écran personnalisé — l'essentiel reste toujours visible" : "Tous les widgets sont affichés");
   render();
 });
-document.getElementById("wCancel").addEventListener("click", () => backdrop.classList.remove("open"));
+document.getElementById("wCancel").addEventListener("click", () => closeSheet());
 document.getElementById("wRestore").addEventListener("click", () => {
   S.homeWidgets = { hidden: [] };
   saveState();
-  backdrop.classList.remove("open");
+  closeSheet();
   toast("Disposition recommandée restaurée");
   render();
 });

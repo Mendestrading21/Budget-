@@ -18,6 +18,48 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Mon mois en 10 secondes (14.08.2026) — VERIFYING
+
+Le lot vertical ADR-030 est implémenté sur la branche
+`agent/budget-mois-simple`, sans migration ni modification des moteurs
+financiers.
+
+### Résultat visible
+
+- PWA et iOS : un héros mensuel, une phrase de rythme, trois repères et une
+  liste unique `À faire ce mois` ; le carrousel, la carte de rythme autonome,
+  la grille de grandes cartes et les tuiles ont quitté l'accueil.
+- Un seul `Ajouter` ouvre quatre intentions humaines. Le formulaire courant
+  commence par le montant et replie les choix techniques. `J'ai mis de côté`
+  prépare réellement Épargne, Impôts ou 3e pilier et leur compte d'arrivée.
+- iOS : revenus, factures, épargne et investissements ont des libellés/action
+  distincts ; une date future n'a plus de bouton qui prétend qu'elle est déjà
+  payée. L'ajout depuis un autre mois reçoit la date de ce mois.
+- Récurrents iOS : `Facture · Abonnement · Revenu · Mise de côté`, avec le
+  prochain passage visible, puis le rythme et la date de fin sous options
+  avancées. L'écran de gestion sépare factures, mises de côté et revenus.
+- PWA : les réserves mensuelles proposent exactement `Épargne · Pilier 3a ·
+  Impôts`; les feuilles sont des dialogues nommés, le menu Ajouter piège le
+  focus et restitue le focus à sa fermeture.
+
+### Preuves locales
+
+- `git diff --check` : propre.
+- Scripts inline PWA, trois fichiers de test `.mjs` et tous les JSON : syntaxe
+  valide.
+- Tests adaptés : accueil sans tuiles/carrousel, quatre intentions, cibles
+  44 px, dialogue accessible, verbes mensuels et soumission réelle des trois
+  réserves.
+- Tests Swift ajoutés : intentions rapides, natures récurrentes, verbes,
+  échéance future et conservation du mois sélectionné ; tours UI adaptés.
+
+### Limite de l'environnement
+
+Chromium et Xcode/Swift ne sont pas installés localement. Le téléchargement de
+Chromium est refusé par le proxy/certificat. Les suites navigateur, la
+compilation Swift, les tests iOS et les captures simulateur doivent donc être
+confirmés par GitHub Actions avant fusion.
+
 ## Mettre de côté est une ligne mensuelle — et l'argent arrive quelque part (10.08.2026) — VERIFYING
 
 Demande du propriétaire : **« Je veux ça dans facture 🧾. Parce que pour moi,

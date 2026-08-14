@@ -1,5 +1,73 @@
 # Budget decision log
 
+## ADR-030 — « Mon mois en 10 secondes » et ajout par intention
+
+Date: 2026-08-14
+Status: accepted
+
+### Contexte
+
+L'audit complet et l'essai du propriétaire aboutissent au même constat :
+l'application sait suivre beaucoup de choses, mais l'accueil oblige encore à
+interpréter un carrousel de cinq montants, une carte de rythme, quatre cartes
+mensuelles, deux listes et sept tuiles. Le bouton principal demande ensuite de
+comprendre jusqu'à sept types comptables. Cette densité rend la tâche de base —
+comprendre son mois puis enregistrer un geste — trop difficile, notamment pour
+une personne jeune ou peu familière avec la finance.
+
+### Décision
+
+1. Les cinq destinations `Mois · Historique · Budget · Comptes · Gérer`
+   restent stables. La simplification porte sur le premier niveau, pas sur une
+   nouvelle navigation.
+2. `Mois` montre, dans cet ordre : le mois, un seul héros « Disponible jusqu'à
+   la fin du mois », une phrase de rythme, trois repères `Reçu · Dépensé · Mis
+   de côté`, un CTA `Ajouter`, puis une liste unique `À faire ce mois`.
+3. Le carrousel, la carte de rythme autonome et les tuiles d'analyse quittent
+   l'accueil. Leurs informations restent disponibles dans les destinations
+   dédiées. Cette décision remplace la présentation en tuiles d'ADR-028 §6 ;
+   elle ne retire ni écran ni donnée.
+4. `Ajouter` pose une seule question et propose exactement quatre intentions :
+   `J'ai dépensé · J'ai reçu · J'ai mis de côté · Ça revient chaque mois`.
+   Le type comptable est prérempli. Les opérations rares restent accessibles
+   sous `Changer le type` / les parcours avancés.
+5. Le formulaire courant commence par le montant. Date, compte source et
+   texte sont préremplis ou rangés sous `Plus d'options`. La destination d'une
+   épargne ou d'un investissement reste visible et obligatoire. L'intention
+   `J'ai mis de côté` propose directement `Épargne · Pilier 3a · Impôts` et
+   prépare le bon type ainsi que la poche d'arrivée.
+6. Une ligne qui revient se décrit par quatre mots humains : `Facture ·
+   Abonnement · Revenu · Mise de côté`. Épargne et placement restent deux
+   destinations financières distinctes après ce choix. Sur iOS, sa prochaine
+   date reste au premier niveau car elle détermine réellement le calendrier.
+7. La liste mensuelle emploie le verbe réel : `Reçu`, `Payée`, `Mis de côté`,
+   `Versé` ou `Effectué`. Sur iOS, une échéance future reste `Prévue` et ne
+   peut plus être déclarée terminée avant sa date.
+8. La PWA propose réellement `Épargne · Pilier 3a · Impôts` quand la personne
+   choisit une mise de côté mensuelle. Ces trois choix passent par les modèles
+   existants ; aucun format de sauvegarde ni calcul financier ne change.
+
+### Conséquences
+
+- L'accueil répond à une seule question principale et ne comporte qu'un point
+  focal lumineux.
+- Les revenus, factures, abonnements et réserves partagent une liste, sans être
+  additionnés ni appelés tous « factures ».
+- Les cinq onglets, SwiftData, `localStorage`, les sauvegardes et les services
+  financiers restent inchangés.
+- Les correctifs de vérité fiscale, CSV, restauration et dette identifiés par
+  l'audit restent des lots séparés : cette ADR ne masque pas leur priorité.
+
+### Vérification attendue
+
+PWA : syntaxe des scripts, trois suites navigateur, 320/390 px, quatre
+intentions, dialogue nommé/piège de focus, absence de carrousel/tuiles et
+matrice réelle Épargne/3a/Impôts. iOS : tests des quatre intentions, des quatre
+natures récurrentes, des verbes mensuels, de l'interdiction de confirmer une
+date future et de la date du mois consulté ; tours UI du CTA jusqu'au
+formulaire guidé. La CI GitHub macOS et Chromium fait foi lorsque les binaires
+locaux ne sont pas disponibles.
+
 ## ADR-029 — Mettre de côté exige une poche d'arrivée, sur les deux plateformes
 
 Date: 2026-08-10

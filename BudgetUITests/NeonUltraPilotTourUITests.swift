@@ -36,19 +36,22 @@ final class NeonUltraPilotTourUITests: XCTestCase {
         _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
         snap(app, "nu3-budget")
 
-        // La feuille de saisie s'ouvre depuis « Mois » : ADR-026 a supprimé
-        // l'ajout global, l'action vit dans la barre de navigation.
+        // La saisie guidée s'ouvre depuis « Mois » : un seul CTA, puis quatre
+        // intentions simples avant les champs comptables.
         let moisTab = app.tabBars.buttons["Mois"]
         moisTab.tap()
-        let addButton = app.buttons["Ajouter un mouvement"]
+        let addButton = app.buttons["Ajouter une opération"]
         XCTAssertTrue(
             addButton.waitForExistence(timeout: 10),
             "« Mois » doit porter son action d'ajout"
         )
         addButton.tap()
+        let expenseIntent = app.buttons["quick-entry.expense"]
+        XCTAssertTrue(expenseIntent.waitForExistence(timeout: 10), "L'intention Dépense doit être visible")
+        expenseIntent.tap()
         XCTAssertTrue(
-            app.navigationBars["Nouveau mouvement"].waitForExistence(timeout: 10),
-            "La feuille « Nouveau mouvement » doit s'ouvrir"
+            app.navigationBars["Ajouter une dépense"].waitForExistence(timeout: 10),
+            "La feuille guidée Dépense doit s'ouvrir"
         )
         snap(app, "nu3-nouveau-mouvement")
         app.buttons["Annuler"].tap()

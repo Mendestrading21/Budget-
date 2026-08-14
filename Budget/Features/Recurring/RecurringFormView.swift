@@ -1,6 +1,45 @@
 import SwiftUI
 import SwiftData
 
+/// Les quatre réponses compréhensibles proposées pour une opération qui
+/// revient. Le type comptable correspondant reste celui des modèles existants.
+enum RecurringEntryKind: String, CaseIterable, Identifiable {
+    case bill
+    case subscription
+    case income
+    case setAside
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .bill: "Facture"
+        case .subscription: "Abonnement"
+        case .income: "Revenu"
+        case .setAside: "Mise de côté"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .bill: "doc.text"
+        case .subscription: "repeat"
+        case .income: "arrow.down.circle"
+        case .setAside: "building.columns"
+        }
+    }
+
+    var defaultTransactionType: TransactionType {
+        switch self {
+        case .bill, .subscription: .expense
+        case .income: .income
+        case .setAside: .saving
+        }
+    }
+
+    var marksSubscription: Bool { self == .subscription }
+}
+
 /// Création ou modification d'une facture, d'un revenu ou d'un versement qui
 /// revient. Les quatre champs indispensables sont visibles immédiatement ; les
 /// réglages rares sont rangés dans « Options avancées ».
@@ -36,6 +75,7 @@ struct RecurringFormView: View {
 
     @State private var title = ""
     @State private var amountText = ""
+    @State private var kind: RecurringEntryKind = .bill
     @State private var type: TransactionType = .expense
     @State private var frequency: FrequencyChoice = .monthly
     @State private var customUnit: RecurrenceUnit = .month
@@ -57,10 +97,6 @@ struct RecurringFormView: View {
     @State private var errorMessage: String?
 
     private let validationService = TransactionValidationService()
-
-    private static let selectableTypes: [TransactionType] = [
-        .expense, .income, .saving, .investment, .taxPayment, .debtPayment,
-    ]
 
     private var editedRecurring: RecurringTransaction? {
         if case .edit(let recurring) = mode { return recurring }
@@ -108,31 +144,54 @@ struct RecurringFormView: View {
         }
     }
 
+    /// Les effets de changement ne partent que d'un choix explicite dans le
+    /// formulaire. `populate()` écrit directement les états afin que
+    /// l'ouverture d'une ligne existante ne réinitialise aucune donnée.
+    private var kindSelection: Binding<RecurringEntryKind> {
+        Binding(
+            get: { kind },
+            set: { apply($0) }
+        )
+    }
+
+    private var setAsideTypeSelection: Binding<TransactionType> {
+        Binding(
+            get: { type },
+            set: { newType in
+                type = newType
+                category = nil
+            }
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("L'essentiel") {
+                    Picker("C'est quoi ?", selection: kindSelection) {
+                        ForEach(RecurringEntryKind.allCases) { kind in
+                            Label(kind.title, systemImage: kind.systemImage).tag(kind)
+                        }
+                    }
+
                     TextField("Nom — par exemple Loyer", text: $title)
                     TextField("Montant en CHF", text: $amountText)
                         .keyboardType(.decimalPad)
 
-                    Picker("C'est quoi ?", selection: $type) {
-                        ForEach(Self.selectableTypes) { type in
-                            Label(type.displayName, systemImage: type.systemImage).tag(type)
+                    DatePicker(
+                        "Prochaine date",
+                        selection: $firstOccurrence,
+                        displayedComponents: .date
+                    )
+
+                    if kind == .setAside {
+                        Picker("Je mets sur", selection: setAsideTypeSelection) {
+                            Label("Épargne", systemImage: TransactionType.saving.systemImage)
+                                .tag(TransactionType.saving)
+                            Label("Placement ou 3e pilier", systemImage: TransactionType.investment.systemImage)
+                                .tag(TransactionType.investment)
                         }
                     }
-                    .onChange(of: type) { _, newType in
-                        category = nil
-                        if !newType.supportsDestinationAccount { destinationAccount = nil }
-                    }
-
-                    Picker("Revient", selection: $frequency) {
-                        ForEach(FrequencyChoice.allCases) { choice in
-                            Text(choice.label).tag(choice)
-                        }
-                    }
-
-                    DatePicker("Prochaine date", selection: $firstOccurrence, displayedComponents: .date)
                 }
 
                 Section("Où va l'argent ?") {
@@ -162,6 +221,19 @@ struct RecurringFormView: View {
 
                 Section {
                     DisclosureGroup("Options avancées", isExpanded: $showsAdvancedOptions) {
+                        Picker("Revient", selection: $frequency) {
+                            ForEach(FrequencyChoice.allCases) { choice in
+                                Text(choice.label).tag(choice)
+                            }
+                        }
+                        .onChange(of: frequency) { _, newFrequency in
+                            // Un rythme personnalisé ne doit jamais utiliser
+                            // des valeurs cachées que la personne n'a pas vues.
+                            if newFrequency == .custom {
+                                showsAdvancedOptions = true
+                            }
+                        }
+
                         if frequency == .custom {
                             Stepper("Tous les \(customCount)", value: $customCount, in: 1...36)
                             Picker("Période", selection: $customUnit) {
@@ -177,7 +249,6 @@ struct RecurringFormView: View {
                             DatePicker("Se termine le", selection: $endDate, displayedComponents: .date)
                         }
 
-                        Toggle("C'est un abonnement", isOn: $isSubscription)
                         if isSubscription {
                             Toggle("Date de renouvellement", isOn: $hasRenewalDate)
                             if hasRenewalDate {
@@ -190,10 +261,10 @@ struct RecurringFormView: View {
                         }
 
                         Toggle("Dépense professionnelle", isOn: $isProfessional)
-                        Toggle("Facture active", isOn: $isActive)
+                        Toggle("Actif", isOn: $isActive)
                     }
                 } footer: {
-                    Text("La plupart des factures n'ont besoin d'aucun réglage supplémentaire.")
+                    Text("Chaque mois et le compte courant sont déjà prêts. Ouvrez seulement si vous voulez changer le rythme ou une date.")
                 }
 
                 if let errorMessage {
@@ -203,7 +274,7 @@ struct RecurringFormView: View {
                     }
                 }
             }
-            .navigationTitle(editedRecurring == nil ? "Ajouter une facture" : "Modifier la facture")
+            .navigationTitle(editedRecurring == nil ? "Ajouter ce qui revient" : "Modifier ce qui revient")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -222,6 +293,14 @@ struct RecurringFormView: View {
             title = recurring.title
             amountText = "\(recurring.amount)"
             type = recurring.type
+            switch recurring.type {
+            case .income, .refund:
+                kind = .income
+            case .saving, .investment:
+                kind = .setAside
+            default:
+                kind = recurring.isSubscription ? .subscription : .bill
+            }
             switch (recurring.intervalUnit, recurring.intervalCount) {
             case (.week, 1): frequency = .weekly
             case (.month, 1): frequency = .monthly
@@ -251,6 +330,18 @@ struct RecurringFormView: View {
             account = allAccounts.first { $0.isActive && $0.type == .current }
                 ?? allAccounts.first(where: \.isActive)
         }
+    }
+
+    private func apply(_ newKind: RecurringEntryKind) {
+        kind = newKind
+        if newKind == .setAside, (type == .saving || type == .investment) {
+            // Conserver le choix Épargne/Placement déjà fait.
+        } else {
+            type = newKind.defaultTransactionType
+        }
+        isSubscription = newKind.marksSubscription
+        category = nil
+        if !type.supportsDestinationAccount { destinationAccount = nil }
     }
 
     private func save() {
@@ -342,7 +433,7 @@ struct RecurringFormView: View {
     }
 }
 
-#Preview("Ajouter une facture") {
+#Preview("Ajouter ce qui revient") {
     let preview = DemoDataFactory.previewAppContainer()
     return RecurringFormView(mode: .create)
         .environment(preview)

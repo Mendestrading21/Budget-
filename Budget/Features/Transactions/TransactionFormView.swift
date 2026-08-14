@@ -13,6 +13,12 @@ struct TransactionFormView: View {
     /// Preselects the movement type on creation (e.g. a tax payment
     /// started from the tax module).
     var prefilledType: TransactionType? = nil
+    /// Keeps an addition started from another month inside that visible
+    /// month. Nil preserves the historical "today" default.
+    var prefilledDate: Date? = nil
+    /// Common home intents hide the nine-type accounting picker. The exact
+    /// persisted type is still carried by `type` and validated normally.
+    var guidedIntent: QuickEntryIntent? = nil
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -39,6 +45,7 @@ struct TransactionFormView: View {
     /// retour haptique de succès, géré par le système (réglages
     /// utilisateur respectés). Jamais décoratif.
     @State private var saveSuccessCount = 0
+    @State private var showsGuidedOptions = false
 
     /// L8 correctif : la décision d'avancer le déclencheur haptique est
     /// EXTRAITE et testée — vrai uniquement si la validation est passée
@@ -47,6 +54,10 @@ struct TransactionFormView: View {
     /// navigation, une suppression ou une simple sélection.
     static func hapticTriggerAdvances(validationErrors: [TransactionValidationError], saveSucceeded: Bool) -> Bool {
         validationErrors.isEmpty && saveSucceeded
+    }
+
+    static func initialDate(prefilledDate: Date?, now: Date) -> Date {
+        prefilledDate ?? now
     }
     /// Parcours fréquent (pilote L4) : le clavier décimal s'ouvre sur le
     /// montant dès la création.
@@ -72,6 +83,18 @@ struct TransactionFormView: View {
     private var editedTransaction: BudgetTransaction? {
         if case .edit(let transaction) = mode { return transaction }
         return nil
+    }
+
+    private var isGuidedCreate: Bool {
+        guidedIntent != nil && editedTransaction == nil
+    }
+
+    private var formTitle: String {
+        guard editedTransaction == nil else { return "Modifier" }
+        if guidedIntent == .expense { return "Ajouter une dépense" }
+        if guidedIntent == .income { return "Ajouter un revenu" }
+        if guidedIntent == .setAside { return "Mettre de côté" }
+        return "Nouveau mouvement"
     }
 
     private var selectableAccounts: [Account] {
@@ -113,23 +136,24 @@ struct TransactionFormView: View {
 
     var body: some View {
         NavigationStack {
-            // Ordre du pilote Obsidian (L4, parité PWA L3) : type → montant
-            // → date + statut → comptes → catégorie → détails facultatifs.
-            // Le bouton Enregistrer vit dans la barre de navigation : le
-            // clavier ne peut jamais le cacher.
+            // Le parcours guidé commence par le montant et la catégorie ;
+            // date, compte source et texte restent sous « Plus d'options ».
+            // L'édition et les opérations avancées conservent tous les champs.
             Form {
-                Section("Type") {
-                    Picker("Type", selection: $type) {
-                        ForEach(TransactionType.allCases) { type in
-                            Label(type.displayName, systemImage: type.systemImage).tag(type)
+                if guidedIntent == nil || editedTransaction != nil {
+                    Section("Type") {
+                        Picker("Type", selection: $type) {
+                            ForEach(TransactionType.allCases) { type in
+                                Label(type.displayName, systemImage: type.systemImage).tag(type)
+                            }
+                        }
+                        .onChange(of: type) { _, newType in
+                            category = nil
+                            if !newType.supportsDestinationAccount { destinationAccount = nil }
                         }
                     }
-                    .onChange(of: type) { _, _ in
-                        category = nil
-                        if !type.supportsDestinationAccount { destinationAccount = nil }
-                    }
+                    .listRowBackground(NeonUltraColor.surface)
                 }
-                .listRowBackground(NeonUltraColor.surface)
 
                 Section("Montant") {
                     TextField("Montant (CHF)", text: $amountText)
@@ -145,7 +169,25 @@ struct TransactionFormView: View {
                 }
                 .listRowBackground(NeonUltraColor.surface)
 
-                Section("Date et statut") {
+                if guidedIntent == .setAside && editedTransaction == nil {
+                    Section("Je mets de côté") {
+                        Picker("Destination de l'effort", selection: $type) {
+                            Label("Épargne", systemImage: TransactionType.saving.systemImage)
+                                .tag(TransactionType.saving)
+                            Label("Placement", systemImage: TransactionType.investment.systemImage)
+                                .tag(TransactionType.investment)
+                        }
+                        .pickerStyle(.segmented)
+                        .onChange(of: type) { _, newType in
+                            category = nil
+                            if !newType.supportsDestinationAccount { destinationAccount = nil }
+                        }
+                    }
+                    .listRowBackground(NeonUltraColor.surface)
+                }
+
+                if !isGuidedCreate {
+                    Section("Date et statut") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                     LabeledContent("Statut") {
                         Text(automaticStatus.displayName)
@@ -169,27 +211,43 @@ struct TransactionFormView: View {
                             Text("Diminue le solde").tag(false)
                         }
                     }
-                }
-                .listRowBackground(NeonUltraColor.surface)
-
-                Section(type == .transfer ? "Comptes" : "Compte") {
-                    Picker("Compte", selection: $account) {
-                        Text("Choisir…").tag(Account?.none)
-                        ForEach(selectableAccounts) { account in
-                            Text(account.name).tag(Account?.some(account))
-                        }
                     }
+                    .listRowBackground(NeonUltraColor.surface)
+                }
+
+                if isGuidedCreate {
                     if type.supportsDestinationAccount {
-                        Picker(destinationPickerLabel, selection: $destinationAccount) {
-                            Text(destinationRequired ? "Choisir…" : "Aucun").tag(Account?.none)
-                            ForEach(selectableDestinations) { account in
+                        Section("Vers quel compte ?") {
+                            Picker(destinationPickerLabel, selection: $destinationAccount) {
+                                Text(destinationRequired ? "Choisir…" : "Aucun").tag(Account?.none)
+                                ForEach(selectableDestinations) { account in
+                                    Text(account.name).tag(Account?.some(account))
+                                }
+                            }
+                            flowSummary
+                        }
+                        .listRowBackground(NeonUltraColor.surface)
+                    }
+                } else {
+                    Section(type == .transfer ? "Comptes" : "Compte") {
+                        Picker("Compte", selection: $account) {
+                            Text("Choisir…").tag(Account?.none)
+                            ForEach(selectableAccounts) { account in
                                 Text(account.name).tag(Account?.some(account))
                             }
                         }
+                        if type.supportsDestinationAccount {
+                            Picker(destinationPickerLabel, selection: $destinationAccount) {
+                                Text(destinationRequired ? "Choisir…" : "Aucun").tag(Account?.none)
+                                ForEach(selectableDestinations) { account in
+                                    Text(account.name).tag(Account?.some(account))
+                                }
+                            }
+                        }
+                        flowSummary
                     }
-                    flowSummary
+                    .listRowBackground(NeonUltraColor.surface)
                 }
-                .listRowBackground(NeonUltraColor.surface)
 
                 if validationService.categoryRequired(for: type) {
                     Section("Catégorie") {
@@ -203,12 +261,38 @@ struct TransactionFormView: View {
                     .listRowBackground(NeonUltraColor.surface)
                 }
 
-                Section("Détails (facultatif)") {
-                    TextField("Intitulé — sinon la catégorie", text: $title)
-                    TextField("Commerçant", text: $merchant)
-                    TextField("Note", text: $note, axis: .vertical)
+                if isGuidedCreate {
+                    Section {
+                        DisclosureGroup("Plus d'options", isExpanded: $showsGuidedOptions) {
+                            DatePicker("Date", selection: $date, displayedComponents: .date)
+                            LabeledContent("Statut") {
+                                Text(automaticStatus.displayName)
+                                    .foregroundStyle(
+                                        automaticStatus == .planned
+                                            ? NeonUltraColor.warning
+                                            : NeonUltraColor.positive
+                                    )
+                            }
+                            Picker("Compte utilisé", selection: $account) {
+                                Text("Choisir…").tag(Account?.none)
+                                ForEach(selectableAccounts) { account in
+                                    Text(account.name).tag(Account?.some(account))
+                                }
+                            }
+                            TextField("Intitulé — sinon la catégorie", text: $title)
+                            TextField("Commerçant", text: $merchant)
+                            TextField("Note", text: $note, axis: .vertical)
+                        }
+                    }
+                    .listRowBackground(NeonUltraColor.surface)
+                } else {
+                    Section("Détails (facultatif)") {
+                        TextField("Intitulé — sinon la catégorie", text: $title)
+                        TextField("Commerçant", text: $merchant)
+                        TextField("Note", text: $note, axis: .vertical)
+                    }
+                    .listRowBackground(NeonUltraColor.surface)
                 }
-                .listRowBackground(NeonUltraColor.surface)
 
                 if !errors.isEmpty || saveErrorMessage != nil {
                     Section {
@@ -244,7 +328,7 @@ struct TransactionFormView: View {
             // NU3 : feuille PILOTE — fond Neon Ultra et lignes de `Form`
             // sur la surface mate, jamais le gris système.
             .background { NeonUltraScreenBackground() }
-            .navigationTitle(editedTransaction == nil ? "Nouveau mouvement" : "Modifier")
+            .navigationTitle(formTitle)
             .sensoryFeedback(.success, trigger: saveSuccessCount)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -330,8 +414,15 @@ struct TransactionFormView: View {
     private func populate() {
         switch mode {
         case .create(let prefilledAccount):
-            date = appContainer.dateProvider.now
-            if let prefilledType { type = prefilledType }
+            date = Self.initialDate(
+                prefilledDate: prefilledDate,
+                now: appContainer.dateProvider.now
+            )
+            if let guidedIntent, let guidedType = guidedIntent.transactionType {
+                type = guidedType
+            } else if let prefilledType {
+                type = prefilledType
+            }
             account = prefilledAccount ?? allAccounts.first { $0.isActive && $0.type == .current } ?? allAccounts.first(where: \.isActive)
             // Parcours fréquent : clavier décimal directement sur le montant.
             amountFocused = true
@@ -378,6 +469,7 @@ struct TransactionFormView: View {
             now: appContainer.dateProvider.now,
             allowInactiveAccounts: editedTransaction != nil
         )
+        if isGuidedCreate && !errors.isEmpty { showsGuidedOptions = true }
         guard errors.isEmpty, let amount else { return }
 
         let now = appContainer.dateProvider.now
