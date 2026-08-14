@@ -44,7 +44,7 @@ enum HomePilotDisplay {
         if isFuture {
             return pending == 0 ? "Rien de prévu" : "\(pending) prévu\(pending > 1 ? "s" : "")"
         }
-        switch (pending, completed) {
+        return switch (pending, completed) {
         case (0, 0): "Rien à faire"
         case (0, let done): "Tout est à jour · \(done) fait\(done > 1 ? "s" : "")"
         case (let todo, 0): "\(todo) à faire"
