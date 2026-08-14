@@ -268,6 +268,27 @@ for (const [name, value] of Object.entries(CANONICAL)) {
     `aucun hex brut hors :root dans les règles de neon-ultra.css (trouvé : ${rawHex.join(", ")})`);
 }
 
+// ---------- Budget Prisme : registre SVG et shell sans troisième palette ----------
+currentTest = "Budget Prisme structure";
+check(indexSrc.includes('class="phone nu-app"'),
+  "le shell de production porte la portée unique .nu-app");
+check(indexSrc.includes("const BUDGET_GLYPHS = Object.freeze")
+    && indexSrc.includes('stroke="currentColor"')
+    && indexSrc.includes('stroke-width="1.75"')
+    && indexSrc.includes('stroke-linecap="round"')
+    && indexSrc.includes('stroke-linejoin="round"'),
+  "Budget Glyphs possède une grille SVG et un trait canonique currentColor");
+check(!indexSrc.includes("const TYPE_ICON"),
+  "aucun ancien registre de caractères/emoji ne concurrence Budget Glyphs");
+check((indexSrc.match(/class="quick-intent-icon[^"]*" data-budget-glyph=/g) || []).length === 4,
+  "les quatre intentions Ajouter utilisent exactement quatre Budget Glyphs");
+check(indexSrc.includes('aria-current="page"'),
+  "la destination active expose aria-current=page");
+check(nuCss.includes("#screen.nu-pilot-screen .card::after { content: none; }")
+    && nuCss.includes("--nu-gradient-prism-edge")
+    && nuCss.includes(".nu-app .tabbar button.active"),
+  "les reflets répétés sont coupés et le Prisme reste borné au focus actif");
+
 // ---------- NU3 : parité des rôles avec DesignTokens.swift ----------
 currentTest = "NU parité Swift";
 const swiftSrc = fs.readFileSync(
@@ -1044,10 +1065,24 @@ void clippedIn;
     labels: [...document.querySelectorAll("#tabbar button[data-tab]")]
       .map(button => button.getAttribute("aria-label")),
     fab: !!document.getElementById("fab"),
+    glyphs: document.querySelectorAll("#tabbar .budget-glyph").length,
+    current: document.querySelectorAll('#tabbar [aria-current="page"]').length,
+    glyphSlotsHydrated: [...document.querySelectorAll("[data-budget-glyph]")]
+      .every(slot => slot.querySelector(":scope > .budget-glyph")),
+    activeShape: (() => {
+      const active = document.querySelector("#tabbar button.active");
+      if (!active) return false;
+      const style = getComputedStyle(active);
+      return style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.boxShadow !== "none";
+    })(),
   }));
   check(!mov.pilot, "Historique reste Obsidian");
   check(mov.labels.join(",") === "Mois,Historique,Budget,Comptes,Gérer" && !mov.fab,
     `barre à 5 destinations sans ＋ (${mov.labels.join(",")}, fab=${mov.fab})`);
+  check(mov.glyphs === 5 && mov.current === 1 && mov.activeShape,
+    `shell Prisme : cinq glyphes et une destination active par forme (${JSON.stringify(mov)})`);
+  check(mov.glyphSlotsHydrated,
+    "les glyphes statiques des formulaires et intentions sont tous matérialisés");
   await page.context().close();
 }
 
@@ -1066,11 +1101,13 @@ currentTest = "NU2 accessibilité";
       card: card ? getComputedStyle(card).backgroundColor : "rgb(21, 25, 35)",
       shadow: getComputedStyle(hero).boxShadow,
       blur: getComputedStyle(hero).backdropFilter,
+      prismEdge: getComputedStyle(hero, "::before").content,
     };
   });
   check(rt.hero === "rgb(21, 25, 35)", `transparence réduite : héros opaque #151923 (obtenu ${rt.hero})`);
   check(rt.card === "rgb(21, 25, 35)", `transparence réduite : cartes opaques (obtenu ${rt.card})`);
-  check(rt.shadow === "none" && rt.blur === "none", "transparence réduite : ni ombre ni blur résiduels");
+  check(rt.shadow === "none" && rt.blur === "none" && rt.prismEdge === "none",
+    "transparence réduite : ni ombre, blur ou liseré spectral résiduels");
   await page.context().close();
 }
 {

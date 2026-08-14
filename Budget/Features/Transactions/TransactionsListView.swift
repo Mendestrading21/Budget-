@@ -332,28 +332,6 @@ struct TransactionsListView: View {
 /// colored by direction, planned badge.
 struct TransactionRow: View {
     let transaction: BudgetTransaction
-    @Environment(\.colorScheme) private var colorScheme
-
-    /// Pastille teintée par nature (Horizon v2) — l'orientation avant la
-    /// lecture, miroir des pastilles PWA.
-    private var iconTint: Color {
-        switch transaction.type {
-        case .income, .refund: BudgetTint.income(colorScheme)
-        case .expense, .taxPayment: BudgetTint.expense(colorScheme)
-        case .saving, .investment: BudgetTint.saving(colorScheme)
-        case .transfer, .adjustment, .debtPayment: BudgetTint.neutral(colorScheme)
-        }
-    }
-
-    private var iconColor: Color {
-        switch transaction.type {
-        case .income, .refund: BudgetColor.positive
-        case .expense, .taxPayment: BudgetColor.negative
-        // Épargne/investissement : teinte de MARQUE (l'ex-teal a disparu).
-        case .saving, .investment: BudgetColor.brandBright
-        case .transfer, .adjustment, .debtPayment: BudgetTheme.secondaryText(colorScheme)
-        }
-    }
 
     private var isInflow: Bool {
         switch transaction.type {
@@ -381,10 +359,12 @@ struct TransactionRow: View {
     var body: some View {
         GlassCard(style: .row) {
             HStack(spacing: BudgetSpacing.medium) {
-                Image(systemName: transaction.type.systemImage)
-                    .foregroundStyle(iconColor)
-                    .frame(width: 40, height: 40)
-                    .background(iconTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                BudgetIcon(
+                    transaction.type.budgetGlyph,
+                    tone: transaction.status == .planned
+                        ? transaction.type.budgetPlannedIconTone
+                        : transaction.type.budgetIconTone
+                )
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: BudgetSpacing.micro) {
                         Text(transaction.title)

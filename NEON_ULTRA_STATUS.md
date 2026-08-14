@@ -133,6 +133,39 @@ projection d'élan sur les carrousels, geste de fermeture des feuilles au
 doigt (drag-to-dismiss avec vélocité), effet de bord de défilement sous les
 en-têtes collants.
 
+## Budget Prisme : une seule matière et ses propres glyphes (14.08.2026) — VERIFYING
+
+Retour propriétaire : les références confirment la direction sombre, mais le
+produit paraît encore assemblé par couches et ses icônes mélangent SVG,
+symboles Unicode et emojis. ADR-032 affine Neon Ultra sans changer de palette
+ni créer un troisième design system.
+
+### Périmètre du lot
+
+- Constitution détaillée :
+  `docs/neon-ultra/budget-prisme/STYLE.md`.
+- Budget Glyphs partagé par noms sémantiques sur PWA et iOS : navigation,
+  mouvements et quatre intentions d'ajout d'abord.
+- Matière unifiée : cartes répétées mates, rayons `26 / 18 / 14`, aucun reflet
+  diagonal ; arête prisme rare sur le héros ou la sélection principale.
+- Les primitives héritées deviennent des wrappers de compatibilité vers la
+  matière canonique afin que les écrans non pilotes ne ressemblent plus à une
+  autre application.
+- Navigation inchangée : `Mois · Historique · Budget · Comptes · Gérer`, sans
+  bouton global central ou flottant.
+
+### Impact financier et données
+
+Nul. Ce lot ne modifie aucun modèle, service, calcul, validation, format de
+sauvegarde, clé `localStorage`, import, devise ou route. Les anciennes icônes
+persistées restent acceptées ; seule leur représentation est normalisée.
+
+### Clôture attendue
+
+Suites Web, parité, iOS Debug/Release, PrivacyInfo et iPhone-only vertes,
+captures PWA 320/390 et simulateur iOS inspectées, puis validation visuelle du
+propriétaire. Aucune fusion ni publication avant cette validation.
+
 ## Bilan du mois : à faire et déjà fait (14.08.2026) — VERIFYING
 
 Lot vertical ADR-031 sur `agent/budget-bilan-mensuel-clair`, empilé sur le

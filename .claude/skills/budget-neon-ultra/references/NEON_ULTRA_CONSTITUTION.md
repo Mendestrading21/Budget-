@@ -6,6 +6,13 @@ Elle remplace la direction « Obsidian Glass / accent indigo unique »
 financières, techniques, de confidentialité, de sauvegarde, d'accessibilité et
 de publication restent en vigueur.
 
+Affinement autorisé par le propriétaire le 14.08.2026 (ADR-032) : la
+signature publique de cette direction s'appelle **Budget Prisme**. Ce nom ne
+crée pas une troisième famille technique : les tokens et primitives
+`NeonUltra*` restent l'unique implémentation canonique. Le contrat détaillé et
+ses critères de clôture vivent dans
+`docs/neon-ultra/budget-prisme/STYLE.md`.
+
 ## 1. Palette canonique
 
 ### Fonds et surfaces
@@ -76,6 +83,37 @@ fallback opaque 4,78:1.
    JAMAIS seul pour un petit libellé actif. Le texte actif reste
    `textPrimary #F5F7FA`, accompagné d'un indicateur violet, sauf autre
    paire réellement mesurée à ≥ 4,5:1.
+10. **Arête prisme rare** : le cyan-violet-magenta peut dessiner une arête
+    fine sur le héros ou la sélection principale. Jamais un contour lumineux
+    complet autour de chaque carte.
+11. **Aucun reflet automatique** : les cartes répétées ne portent ni sheen
+    diagonal, ni pseudo-élément glossy. Leur relief vient de la différence de
+    surface et d'une bordure neutre.
+
+## 2.1 Iconographie canonique — Budget Glyphs
+
+- Grille logique `24 × 24`, trait 1,8, extrémités et jointures arrondies.
+- Glyphes monochromes pilotés par `currentColor` sur le web ; configuration
+  et poids uniques sur iOS.
+- Puits de 40 px/pt, rayon 12 ; toute action conserve une cible de 44 px/pt.
+- Registre sémantique commun pour navigation, mouvements, rythmes, comptes et
+  actions. Un écran ne choisit pas localement une autre métaphore.
+- Aucun emoji comme icône fonctionnelle par défaut. Les emojis déjà persistés
+  restent lisibles et sont traduits vers un glyphe connu ou un repli neutre ;
+  aucune sauvegarde n'est mutée pour des raisons visuelles.
+- Les cinq onglets gardent texte + glyphe. L'état actif ajoute une forme
+  (capsule/indicateur et `aria-current`), jamais la couleur seule.
+
+## 2.2 Typographie et géométrie Budget Prisme
+
+- Montants en police système standard et chiffres tabulaires ; aucune variante
+  arrondie ludique sur les chiffres financiers.
+- Casse phrase pour les libellés ordinaires ; capitales réservées aux
+  abréviations.
+- Grille de 4 px, espacements 4/8/12/16/24/32.
+- Rayons canoniques : héros/feuille 26, carte 18, contrôle/ligne 14.
+- Une surface élevée maximum par viewport ; les listes partagent de préférence
+  une carte et des séparateurs au lieu d'empiler des cartes dans des cartes.
 
 ## 3. Accessibilité (non négociable)
 

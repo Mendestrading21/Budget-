@@ -20,15 +20,6 @@ enum AppTab: String, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
-        switch self {
-        case .home: "calendar"
-        case .transactions: "list.bullet"
-        case .budget: "chart.pie"
-        case .accounts: "creditcard"
-        case .more: "square.grid.2x2"
-        }
-    }
 }
 
 /// Central navigation state: selected tab and per-tab navigation paths.

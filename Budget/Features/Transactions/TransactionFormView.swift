@@ -144,7 +144,12 @@ struct TransactionFormView: View {
                     Section("Type") {
                         Picker("Type", selection: $type) {
                             ForEach(TransactionType.allCases) { type in
-                                Label(type.displayName, systemImage: type.systemImage).tag(type)
+                                HStack(spacing: BudgetSpacing.small) {
+                                    BudgetGlyphMark(glyph: type.budgetGlyph)
+                                        .frame(width: 18, height: 18)
+                                    Text(type.displayName)
+                                }
+                                .tag(type)
                             }
                         }
                         .onChange(of: type) { _, newType in
@@ -172,9 +177,17 @@ struct TransactionFormView: View {
                 if guidedIntent == .setAside && editedTransaction == nil {
                     Section("Je mets de côté") {
                         Picker("Destination de l'effort", selection: $type) {
-                            Label("Épargne", systemImage: TransactionType.saving.systemImage)
+                            HStack(spacing: BudgetSpacing.small) {
+                                BudgetGlyphMark(glyph: .setAside)
+                                    .frame(width: 18, height: 18)
+                                Text("Épargne")
+                            }
                                 .tag(TransactionType.saving)
-                            Label("Placement", systemImage: TransactionType.investment.systemImage)
+                            HStack(spacing: BudgetSpacing.small) {
+                                BudgetGlyphMark(glyph: .investment)
+                                    .frame(width: 18, height: 18)
+                                Text("Placement")
+                            }
                                 .tag(TransactionType.investment)
                         }
                         .pickerStyle(.segmented)
@@ -297,7 +310,7 @@ struct TransactionFormView: View {
                 if !errors.isEmpty || saveErrorMessage != nil {
                     Section {
                         ForEach(errorMessages, id: \.self) { message in
-                            Label(message, systemImage: "exclamationmark.circle")
+                            Label(message, systemImage: BudgetGlyph.error.systemName)
                                 .foregroundStyle(NeonUltraColor.negative)
                                 .font(NeonUltraTypography.body)
                         }
@@ -312,12 +325,12 @@ struct TransactionFormView: View {
                         Button {
                             duplicate(transaction)
                         } label: {
-                            Label("Dupliquer (copie modifiable)", systemImage: "plus.square.on.square")
+                            Label("Dupliquer (copie modifiable)", systemImage: BudgetGlyph.copy.systemName)
                         }
                         Button(role: .destructive) {
                             isConfirmingDelete = true
                         } label: {
-                            Label("Supprimer ce mouvement", systemImage: "trash")
+                            Label("Supprimer ce mouvement", systemImage: BudgetGlyph.delete.systemName)
                                 .foregroundStyle(NeonUltraColor.negative)
                         }
                     }
@@ -388,19 +401,21 @@ struct TransactionFormView: View {
     private var flowSummary: some View {
         if let source = account, let destination = destinationAccount {
             if type == .transfer {
-                Label(
-                    "\(source.name) → \(destination.name) — neutre : ni revenu, ni dépense, votre fortune ne bouge pas.",
-                    systemImage: "arrow.left.arrow.right"
-                )
-                .font(NeonUltraTypography.meta)
-                .foregroundStyle(NeonUltraColor.textSecondary)
+                HStack(alignment: .top, spacing: BudgetSpacing.small) {
+                    BudgetGlyphMark(glyph: .transfer, color: NeonUltraColor.textSecondary)
+                        .frame(width: 18, height: 18)
+                    Text("\(source.name) → \(destination.name) — neutre : ni revenu, ni dépense, votre fortune ne bouge pas.")
+                }
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
             } else if type == .saving || type == .investment {
-                Label(
-                    "\(source.name) → \(destination.name) — compté comme « mis de côté », pas comme une dépense.",
-                    systemImage: "building.columns"
-                )
-                .font(NeonUltraTypography.meta)
-                .foregroundStyle(NeonUltraColor.textSecondary)
+                HStack(alignment: .top, spacing: BudgetSpacing.small) {
+                    BudgetGlyphMark(glyph: type.budgetGlyph, color: NeonUltraColor.textSecondary)
+                        .frame(width: 18, height: 18)
+                    Text("\(source.name) → \(destination.name) — compté comme « mis de côté », pas comme une dépense.")
+                }
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
             }
         }
     }

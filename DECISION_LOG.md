@@ -1,5 +1,84 @@
 # Budget decision log
 
+## ADR-032 — Budget Prisme : une matière et une iconographie propres
+
+Date: 2026-08-14
+Status: accepted
+
+### Contexte
+
+Le propriétaire fournit six nouvelles références de dashboards financiers
+sombres et demande une identité plus propre, moins générique et immédiatement
+reconnaissable. L'audit du produit courant explique le malaise : Neon Ultra
+habille le parcours mensuel, tandis que les primitives Obsidian restent
+visibles sur Historique, Comptes, Gérer et plusieurs modules. La PWA mélange
+en plus SVG filaires, caractères Unicode et emojis ; une carte pilote conserve
+encore un reflet diagonal hérité. Sur iOS, environ soixante `GlassCard`
+coexistent avec dix cartes Neon Ultra et les icônes sont choisies localement
+dans plus de cent sites.
+
+Le problème n'est donc pas l'absence d'une nouvelle couleur. C'est l'absence
+d'une seule autorité de matière, de géométrie et d'iconographie.
+
+### Décision
+
+1. La signature publique s'appelle **Budget Prisme** : graphite mat, montants
+   blancs, une arête cyan-violet-magenta rare et une seule surface élevée par
+   viewport. Elle affine ADR-024 sans créer une troisième famille de code :
+   `NeonUltra*` et `--nu-*` restent les autorités techniques.
+2. La palette canonique d'ADR-024 est conservée. Le dégradé reste réservé au
+   CTA principal, à une sélection ou à l'arête prisme. Aucun montant ne reçoit
+   de gradient ou de glow ; vert, corail et ambre restent strictement
+   financiers.
+3. Les cartes répétées deviennent entièrement mates. Elles ne portent plus de
+   reflet diagonal, de blur lourd ou d'ombre colorée. Le héros seul peut
+   recevoir une ombre noire diffuse et une arête prisme fine.
+4. La géométrie unique reste `26 / 18 / 14` pour héros, carte et contrôle. La
+   typographie financière emploie le dessin système standard et des chiffres
+   tabulaires, sans variante arrondie ludique.
+5. **Budget Glyphs** devient l'autorité iconographique : grille 24, trait 1,8,
+   extrémités arrondies, monochrome, noms sémantiques partagés PWA/iOS. Les
+   cinq onglets, les mouvements et les quatre intentions d'ajout utilisent le
+   registre ; aucun emoji ne sert d'icône fonctionnelle par défaut.
+6. Les emojis déjà persistés restent acceptés. La vue les traduit vers un
+   glyphe sémantique ou un repli neutre ; aucune donnée ni sauvegarde n'est
+   modifiée pour changer une apparence.
+7. Les cinq destinations et leur ordre restent
+   `Mois · Historique · Budget · Comptes · Gérer`. L'état actif possède une
+   forme et un attribut accessible en plus de la couleur. Aucun bouton global
+   central ou flottant n'est ajouté.
+8. Le premier lot converge les primitives héritées et le parcours
+   `Mois · Budget · Ajouter` ; il n'altère aucun modèle, service, calcul,
+   validation, format de sauvegarde, clé de persistance, import ou route.
+9. Les six références restent une inspiration de principes. Aucun écran,
+   texte, avatar, marque, illustration ou actif tiers n'est copié.
+
+Le contrat complet est versionné dans
+`docs/neon-ultra/budget-prisme/STYLE.md` et devient la lecture détaillée de la
+constitution ADR-024 pour les lots visuels suivants.
+
+### Conséquences
+
+- Les écrans hérités gagnent la même matière sans réécriture massive ni
+  rupture d'API de leurs composants.
+- Le parcours mensuel devient le pilote visuel de l'identité, avec des glyphes
+  cohérents sur les deux plateformes.
+- Une barre d'onglets native iOS totalement personnalisée reste hors lot : le
+  `TabView` est conservé jusqu'à une passe dédiée de VoiceOver, safe area et
+  restauration d'onglet.
+- Les futures catégories d'icônes doivent étendre le registre, jamais ajouter
+  un emoji ou une bibliothèque locale dans un écran.
+
+### Vérification attendue
+
+PWA : registre SVG `currentColor`, navigation avec `aria-current`, aucun emoji
+fonctionnel sur Mois/Budget/Ajouter, cartes pilotes sans `::before`/`::after`,
+un seul accent spectral, 320/390 px, texte agrandi, mouvement/transparence
+réduits et trois suites web vertes. iOS : registre exhaustif pour onglets,
+intentions et types, puits d'icône, matière héritée convergente, Dynamic Type,
+Reduce Motion/Transparency, builds Debug/Release et tests. Les invariants
+financiers et de persistance restent inchangés.
+
 ## ADR-031 — Un vrai bilan du mois : à faire et déjà fait
 
 Date: 2026-08-14

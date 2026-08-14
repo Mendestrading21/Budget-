@@ -14,14 +14,13 @@ extension EnvironmentValues {
     }
 }
 
-/// Carte verre Obsidian : surface translucide, reflet supérieur discret,
-/// bord d'un point et une seule ombre extérieure mesurée.
+/// Wrapper de compatibilité des anciennes cartes vers Budget Prisme.
 ///
-/// `style` dose le traitement — `.hero` pour la carte principale (verre
-/// fort + blur), `.standard` pour les cartes de section, `.row` pour les
-/// cellules de listes où tout matériau lourd nuirait aux performances.
+/// L'API reste stable pour ne toucher ni les écrans ni leurs données. Le
+/// rendu est désormais le même que Neon Ultra : surfaces mates, listes sans
+/// ombre et un seul liseré spectral discret sur le héros.
 struct GlassCard<Content: View>: View {
-    enum Style {
+    enum Style: Equatable {
         case hero
         case standard
         case row
@@ -45,8 +44,8 @@ struct GlassCard<Content: View>: View {
             .background { background }
             .shadow(
                 color: shadowColor,
-                radius: style == .hero ? 24 : 12,
-                y: style == .hero ? 12 : 6
+                radius: style == .hero ? 18 : 0,
+                y: style == .hero ? 10 : 0
             )
     }
 
@@ -64,9 +63,9 @@ struct GlassCard<Content: View>: View {
 
     private var cornerRadius: CGFloat {
         switch style {
-        case .hero: BudgetRadius.hero
-        case .standard: BudgetRadius.card
-        case .row: BudgetRadius.control
+        case .hero: NeonUltraRadius.hero
+        case .standard: NeonUltraRadius.card
+        case .row: NeonUltraRadius.control
         }
     }
 
@@ -75,60 +74,31 @@ struct GlassCard<Content: View>: View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         shape
             .fill(fillStyle)
-            // Le voile qui recouvrait le matériau du héros n'a plus d'objet :
-            // la carte est déjà remplie de `glassStrong`, opaque. Le garder
-            // n'aurait fait qu'assombrir une surface au hasard.
             .overlay {
-                // Reflet supérieur très discret — supprimé sans transparence.
-                if !isOpaqueFallback {
+                shape.strokeBorder(NeonUltraColor.border, lineWidth: 1)
+                if style == .hero && !isOpaqueFallback {
                     shape
-                        .fill(
-                            LinearGradient(
-                                colors: [.white.opacity(0.06), .clear],
-                                startPoint: .topLeading,
-                                endPoint: .center
-                            )
-                        )
+                        .strokeBorder(NeonUltraGradient.prismEdge, lineWidth: 1)
+                        .opacity(0.42)
                 }
-            }
-            .overlay {
-                shape.strokeBorder(borderStyle, lineWidth: 1)
             }
     }
 
     private var fillStyle: AnyShapeStyle {
         // Transparence réduite : surface graphite OPAQUE, sans blur.
         if isOpaqueFallback {
-            return AnyShapeStyle(BudgetColor.glassFallback)
+            return AnyShapeStyle(NeonUltraColor.surfaceFallback)
         }
         switch style {
         case .hero:
-            // Plus de `.ultraThinMaterial` : les surfaces sont MATES
-            // (ADR-024). Un matériau système laisse transparaître le fond
-            // et rend la carte imprévisible selon ce qui défile dessous —
-            // sur un noir très sombre, ça se voyait.
-            return AnyShapeStyle(BudgetColor.glassStrong)
+            return AnyShapeStyle(NeonUltraColor.surfaceElevated)
         case .standard, .row:
-            // Cellule légère : pas de matériau dans les listes.
-            return AnyShapeStyle(BudgetColor.glass)
+            return AnyShapeStyle(NeonUltraColor.surface)
         }
-    }
-
-    private var borderStyle: AnyShapeStyle {
-        if isOpaqueFallback {
-            return AnyShapeStyle(BudgetColor.stroke)
-        }
-        return AnyShapeStyle(
-            LinearGradient(
-                colors: [.white.opacity(0.16), BudgetColor.strokeActive, .clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
     }
 
     private var shadowColor: Color {
-        style == .hero ? BudgetColor.brand.opacity(0.14) : Color.black.opacity(0.25)
+        style == .hero && !isOpaqueFallback ? Color.black.opacity(0.45) : .clear
     }
 }
 
@@ -136,7 +106,7 @@ struct GlassCard<Content: View>: View {
 struct BudgetScreenBackground: View {
     var body: some View {
         Rectangle()
-            .fill(BudgetTheme.screenBackground(.dark))
+            .fill(NeonUltraColor.canvas)
             .ignoresSafeArea()
     }
 }
