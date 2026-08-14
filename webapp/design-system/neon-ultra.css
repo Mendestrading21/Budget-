@@ -418,6 +418,7 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 }
 #screen.nu-pilot-screen .home-metric-label {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 6px;
