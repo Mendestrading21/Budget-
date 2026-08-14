@@ -5994,6 +5994,12 @@ currentTest = "choisir où va l'argent mis de côté";
     await page.evaluate(() => openRecSheet(null));
     await page.waitForSelector("#recForm", { state: "visible" });
     await page.click('#rKindGrid button[data-rkind="reserve"]');
+    // La catégorie est volontairement rangée dans les détails pour garder le
+    // parcours courant court. Le test l'ouvre comme le ferait une personne
+    // qui veut distinguer épargne, 3a et impôts.
+    if (!(await page.$eval("#rMore", details => details.open))) {
+      await page.click("#rMore > summary");
+    }
     await page.selectOption("#rCat", { label: category });
     await page.fill("#rTitle", `Réserve formulaire ${category}`);
     await page.fill("#rAmount", String(31 + index));
