@@ -2,6 +2,13 @@
 
 Use only the project skill `/budget-neon-ultra` for substantial work on Budget.
 
+The skill `/apple-design` (`.claude/skills/apple-design/SKILL.md`) is an
+**active companion reference** for interaction feel: instant response,
+gesture-driven motion, springs, spatial consistency, materials, typography
+and reduced-motion. It complements — never overrides — the Neon Ultra
+constitution: palette, hierarchy, navigation and accessibility rules stay
+governed by ADR-024/ADR-026 and the invariants below.
+
 ## Active programme
 
 - Programme: **Budget v1 — Neon Ultra** (ADR-024, unifié en v1 le 13.08.2026)
