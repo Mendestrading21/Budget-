@@ -2818,11 +2818,12 @@ function txRow(t) {
   // seule couleur ; épargne/investissement sont marqués « mis de côté ».
   const natureNote = t.type === "transfer" ? " · neutre"
     : (t.type === "saving" || t.type === "investment") ? " · mis de côté" : "";
-  return `<div class="card row tx" data-txid="${t.id}" role="button" tabindex="0" style="cursor:pointer">
+  const dateLabel = esc(`${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y}`);
+  return `<div class="card row tx" data-txid="${esc(t.id)}" role="button" tabindex="0" style="cursor:pointer">
     <div class="${icoClass(t.type)}" aria-hidden="true">${TYPE_ICON[t.type] || "•"}</div>
     <div class="meta">
       <div class="t"><span class="t-label">${esc(t.title)}</span>${plannedBadge}</div>
-      <div class="s">${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y} · ${TYPE_LABEL[t.type]}${natureNote}${destName}</div>
+      <div class="s">${dateLabel} · ${TYPE_LABEL[t.type]}${natureNote}${destName}</div>
     </div>
     <span class="amount ${cls}">${sign}${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
@@ -2909,7 +2910,7 @@ function renderSimpleHome() {
     if (item.state === "scheduled") {
       if (futureMonth) return "";
       return item.linkedTxId != null
-        ? `<button class="btn secondary home-bill-action" data-confirmtx="${item.linkedTxId}">${reserve ? "Mis de côté" : "Payé"}</button>`
+        ? `<button class="btn secondary home-bill-action" data-confirmtx="${esc(item.linkedTxId)}">${reserve ? "Mis de côté" : "Payé"}</button>`
         : "";
     }
     if (!["late", "upcoming"].includes(item.state)) return "";
@@ -2950,7 +2951,7 @@ function renderSimpleHome() {
       </div>
       <span class="amount pos">${chf(amount)}</span>
       ${occurrence
-        ? `<button class="btn secondary home-bill-action" data-confirmtx="${occurrence.id}">Reçu</button>`
+        ? `<button class="btn secondary home-bill-action" data-confirmtx="${esc(occurrence.id)}">Reçu</button>`
         : `<button class="btn secondary home-bill-action" data-postrec="${esc(r.id)}">Reçu</button>`}
     </div>`,
   })) : [];
@@ -3261,7 +3262,7 @@ function renderAccountDetail(a) {
     <div class="card hero">
       <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
       <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
-      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${f} — calculé depuis votre solde de départ et vos mouvements</span>` : ""; })()}
+      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${esc(f)} — calculé depuis votre solde de départ et vos mouvements</span>` : ""; })()}
       ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
@@ -3346,7 +3347,7 @@ function renderAccounts() {
         return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="ico" aria-hidden="true">${kind.icon}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
-          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · pas dans l'argent disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + f : ""; })()}</div>${contribLine}</div>
+          <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · pas dans l'argent disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + esc(f) : ""; })()}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
@@ -3889,7 +3890,7 @@ function renderNetWorth() {
     <p class="section-title">Vos biens</p>
     ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun bien ajouté pour l'instant.</span></div>` : ""}
     ${ASSETS.map(a => `<div class="card row tx read-row" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${a.icon || "🏷"}</div>
+      <div class="ico" aria-hidden="true">${esc(a.icon || "🏷")}</div>
       <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation${a.include === false ? " · pas compté ici" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
     <p class="section-title">Ce que vous devez</p>
@@ -3899,7 +3900,7 @@ function renderNetWorth() {
       const monthsLeft = (l.monthly > 0 && bal > 0) ? Math.ceil(bal / l.monthly) : null;
       const end = monthsLeft !== null ? shiftMonth(NOW, monthsLeft) : null;
       return `<div class="card row tx read-row" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${l.icon || "📄"}</div>
+      <div class="ico" aria-hidden="true">${esc(l.icon || "📄")}</div>
       <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Pas comptée ici"
         : bal <= 0 ? "Remboursée ✓"
         : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"}</div></div>
@@ -3929,7 +3930,7 @@ function renderInsurance() {
         const days = Math.round((due - today) / 86400000);
         if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
       }
-      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${i.icon || "🛡️"}</div>
+      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${esc(i.icon || "🛡️")}</div>
       <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span></div>`;
     }).join("")}
@@ -3947,7 +3948,7 @@ function renderInsurance() {
       </div>`;
     })()}
     ${PENSIONS.length === 0 ? `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez ce qui est écrit sur vos certificats pour voir votre total.</span></div>` : ""}
-    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${p.icon || "🛡️"}</div>
+    ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${esc(p.icon || "🛡️")}</div>
       <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">${pensionIsLinked(p)
         ? `Suit le solde de « ${esc((ACCOUNTS.find(a => a.id === p.accountId) || {}).name || "")} »`
         : "Le montant de votre certificat"}</div></div>
@@ -3995,7 +3996,7 @@ function renderRecurring() {
     // `read-row` : dans une liste de GESTION, le nom EST l'information —
     // il se lit en entier, contrairement à la liste dense des mouvements.
     return `<div class="card row tx read-row" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${r.icon || (isIncome ? "💰" : "🔁")}</div>
+      <div class="ico ${isIncome ? "t-income" : "t-expense"}" aria-hidden="true">${esc(r.icon || (isIncome ? "💰" : "🔁"))}</div>
       <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span>${pill}</div>
         <div class="s">${rhythm}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : "neg"}">${isIncome ? "+" : "−"}${chf(recurringAmountInBase(r))}</span></div>`;
@@ -4154,7 +4155,7 @@ function subsBody() {
       </div>`;
     return `<div class="card row tx sub-row" data-recid="${esc(r.id)}" role="button" tabindex="0"
          style="cursor:pointer" aria-label="Modifier ${esc(r.title)}${share === null ? "" : ` — ${share} % du coût annuel`}">
-      <div class="ico t-expense" aria-hidden="true">${r.icon || "🔁"}</div>
+      <div class="ico t-expense" aria-hidden="true">${esc(r.icon || "🔁")}</div>
       <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span> ${rhythm}</div>
         <div class="s">${when} · ${compare}${endedNote}</div>${shareBar}</div>
       <span class="amount neg">−${chf(amount)}</span></div>`;
@@ -4784,7 +4785,7 @@ function renderMoreTxList() {
         <button type="button" class="btn secondary" data-txpage="last"${moreTxPage >= pageCount - 1 ? " disabled" : ""} aria-label="Dernière page">»</button>
       </div>` : "";
     return `<p class="caption" style="margin:0 0 8px">${monthTx.length} mouvement${monthTx.length > 1 ? "s" : ""} · au total ${chf(total, true)}${pageCount > 1 ? ` · page ${moreTxPage + 1}/${pageCount}` : ""}</p>`
-      + byDay.map(g => `<p class="day-header">${String(g.d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}</p>`
+      + byDay.map(g => `<p class="day-header">${esc(`${String(g.d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`)}</p>`
         + g.items.map(txRow).join("")).join("")
       + pager;
   }
@@ -5313,7 +5314,7 @@ document.getElementById("tabbar").addEventListener("click", (e) => {
 document.getElementById("screen").addEventListener("click", (e) => {
   const txEl = e.target.closest("[data-txid]");
   if (txEl) {
-    const tx = transactions.find(t => t.id === Number(txEl.dataset.txid));
+    const tx = transactions.find(t => String(t.id) === txEl.dataset.txid);
     if (tx) openTxSheet(tx);
     return;
   }
