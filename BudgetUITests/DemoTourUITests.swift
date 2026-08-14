@@ -25,6 +25,17 @@ final class DemoTourUITests: XCTestCase {
             \(app.debugDescription)
             """)
         }
+        XCTAssertTrue(
+            app.staticTexts["home.month-summary.title"].waitForExistence(timeout: 10),
+            "Le dashboard doit annoncer un seul Bilan du mois"
+        )
+        let completedMonthlyItem = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "home.month.completed."))
+            .firstMatch
+        XCTAssertTrue(
+            completedMonthlyItem.waitForExistence(timeout: 10),
+            "Une opération régulière déjà faite doit rester visible dans le bilan"
+        )
         snap(app, "01-accueil")
 
         openTab(app, "Historique")
@@ -50,7 +61,7 @@ final class DemoTourUITests: XCTestCase {
                              lastProofPrefix: nil,
                              namedProofs: ["networth.chart.evolution"])
         demoNetWorthSelectionProof(app)
-        visitFinancialModule(app, label: "Transactions mensuelles", base: "09-recurrents",
+        visitFinancialModule(app, label: "Ce qui revient", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
                              namedProofs: ["recurring.row.Loyer"])
         visitSettingsWithDestructiveProof(app)

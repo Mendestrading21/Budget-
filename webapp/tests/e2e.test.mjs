@@ -156,9 +156,11 @@ const monthlyRecurring = await page.evaluate(() => {
   saveState();
   render();
   const firstText = document.getElementById("screen").innerText;
+  const firstTodo = !!document.querySelector('[data-home-section="todo"]');
   cursor = secondMonth;
   render();
   const secondText = document.getElementById("screen").innerText;
+  const secondTodo = !!document.querySelector('[data-home-section="todo"]');
 
   const first = materializeRecurring(recurring, firstMonth.y, firstMonth.m);
   const firstAgain = materializeRecurring(recurring, firstMonth.y, firstMonth.m);
@@ -182,17 +184,21 @@ const monthlyRecurring = await page.evaluate(() => {
   return {
     firstText,
     secondText,
+    firstTodo,
+    secondTodo,
     manualIgnored,
     created: [first.created, firstAgain.created, second.created, secondAgain.created],
     perMonth,
   };
 });
-check(/à faire ce mois/i.test(monthlyRecurring.firstText)
+check(/bilan du mois/i.test(monthlyRecurring.firstText)
+    && monthlyRecurring.firstTodo
     && monthlyRecurring.firstText.includes("Loyer mensuel ADR026"),
   "la facture mensuelle doit être visible sur le mois précédent");
 check(/En retard/i.test(monthlyRecurring.firstText),
   "une échéance mensuelle dépassée doit être signalée explicitement « En retard »");
-check(/à faire ce mois/i.test(monthlyRecurring.secondText)
+check(/bilan du mois/i.test(monthlyRecurring.secondText)
+    && monthlyRecurring.secondTodo
     && monthlyRecurring.secondText.includes("Loyer mensuel ADR026"),
   "la même facture récurrente doit revenir le mois suivant");
 check(monthlyRecurring.created.join(",") === "true,false,true,false"
@@ -717,7 +723,7 @@ check(homeEssentials.hero, "le montant disponible doit rester le héros de l'acc
 check(homeEssentials.stats.join(",") === "Reçu,Dépensé,Mis de côté",
   `les trois repères essentiels sont attendus (${homeEssentials.stats.join(",")})`);
 check(homeEssentials.addActions === 1, "une seule action « Ajouter » sur l'accueil");
-check(/à faire ce mois/i.test(homeEssentials.text), "la section À faire ce mois doit être visible");
+check(/bilan du mois/i.test(homeEssentials.text), "la section Bilan du mois doit être visible");
 check(homeEssentials.quickActions === 0 && !homeEssentials.customization && !homeEssentials.foldedWealth,
   "l'accueil ne doit plus afficher actions rapides, personnalisation ou patrimoine replié");
 
@@ -868,8 +874,8 @@ currentTest = "mois blueprint";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Disponible"), "le montant disponible doit dominer l'écran Mois");
-check(screenHTML.includes("À faire ce mois"), "les actions mensuelles doivent suivre les trois repères");
+check(screenHTML.includes("Reste pour le mois"), "le reste du mois doit dominer l'écran Mois");
+check(screenHTML.includes("Bilan du mois"), "le bilan mensuel doit suivre les trois repères");
 // ADR-026 : l'accueil ne CHARGE aucune analyse. Un raccourci de navigation
 // vers une destination dédiée n'est pas une analyse — un widget de
 // progression, une courbe ou une jauge en est une. L'assertion distingue
@@ -884,7 +890,7 @@ const home35 = await page.evaluate(() => {
     // Aucun ancien widget d'objectif ni tuile d'analyse.
     goalWidget: !!s.querySelector('.card.row.tx[data-more="goals"]'),
     tileCount: s.querySelectorAll(".home-tile").length,
-    agenda: !!bills && /à faire ce mois/i.test(bills.innerText),
+    agenda: !!bills && /bilan du mois/i.test(bills.innerText),
     manageUnified: s.querySelector(".home-manage")?.dataset.gototab === "more",
     carousel: !!s.querySelector("#heroTrack, [data-heroslide], [data-herodot]"),
   };
@@ -893,7 +899,7 @@ check(!home35.goalWidget,
   "l'ancien widget d'objectif ne doit plus charger l'écran Mois");
 check(home35.tileCount === 0 && !home35.carousel,
   `aucune tuile ni carrousel ne surcharge l'accueil (${home35.tileCount} tuile)`);
-check(home35.agenda, "la liste unique À faire ce mois reste au premier niveau");
+check(home35.agenda, "le bilan unique du mois reste au premier niveau");
 check(home35.manageUnified,
   "Gérer ouvre le hub qui contient les lignes mensuelles ET les factures ponctuelles");
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
@@ -912,7 +918,8 @@ await page.waitForSelector("#tabbar button");
 const legacyWidgets = await page.evaluate(() => ({
   hidden: S.homeWidgets?.hidden || [],
   customize: !!document.querySelector("#screen [data-customize]"),
-  essential: /disponible/i.test(document.getElementById("screen").innerText),
+  essential: /reste pour le mois|résultat du mois|estimation du mois/i
+    .test(document.querySelector(".home-hero .card-label")?.textContent || ""),
 }));
 check(legacyWidgets.hidden.includes("trend6"),
   "l'ancienne préférence widget doit survivre pour la compatibilité des sauvegardes");
@@ -1101,13 +1108,13 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 // Ordre du premier niveau : salutation → héros → repères → actions mensuelles.
 const orderIdx = {
   hello: screenHTML.indexOf("Bonjour"),
-  hero: screenHTML.indexOf("Disponible"),
+  hero: screenHTML.indexOf("Reste pour le mois"),
   metrics: screenHTML.indexOf('class="stat-grid'),
-  bills: screenHTML.indexOf("À faire ce mois"),
+  bills: screenHTML.indexOf("Bilan du mois"),
 };
 check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
 check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
-check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
+check(orderIdx.hero < orderIdx.metrics, "héros « Reste pour le mois » avant les métriques");
 check(orderIdx.metrics < orderIdx.bills, "repères avant les actions mensuelles");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
 // Exactement 3 repères, avec les mots du contrat.
@@ -1189,8 +1196,8 @@ await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("À faire ce mois"), "état vide guidé : liste mensuelle");
-check(screenHTML.includes("Disponible"), "le héros existe même sans mouvement");
+check(screenHTML.includes("Bilan du mois"), "état vide guidé : bilan mensuel");
+check(screenHTML.includes("Reste pour le mois"), "le héros existe même sans mouvement");
 const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(demoHidden, "pas de bannière démo pour un vrai départ");
 // Mode démo clairement identifié (chargée depuis les Réglages).
@@ -1729,6 +1736,31 @@ await page.waitForTimeout(200);
 const pen54 = await page.$eval('[data-penid="l6pen"]', el => el.textContent);
 check(!pen54.includes("Projection"), "une position SANS projection de certificat n'en reçoit JAMAIS une");
 await page.evaluate(() => { const i = PENSIONS.findIndex(p => p.id === "l6pen"); if (i >= 0) PENSIONS.splice(i, 1); render(); });
+await page.evaluate(() => {
+  const source = defaultCashAccount();
+  const destination = (ACCOUNTS.find(a => a.kind === "savings" && a.id !== source)
+    || ACCOUNTS.find(a => a.id !== source)).id;
+  RECURRINGS.push({
+    id: "l6-reserve", title: "Épargne régulière L6", amount: 80,
+    type: "expense", nature: "reserve", cat: "Épargne", day: 1,
+    accountId: source, destAccountId: destination,
+  });
+  const changedAfterPayment = {
+    id: "l6-proof-history", title: "Preuve historique L6", amount: 42,
+    type: "expense", nature: "facture", cat: "Logement", day: 1,
+    accountId: source,
+  };
+  RECURRINGS.push(changedAfterPayment);
+  materializeRecurring(changedAfterPayment, NOW.y, NOW.m);
+  changedAfterPayment.nature = "reserve";
+  changedAfterPayment.cat = "Épargne";
+  changedAfterPayment.title = "Nouvelle définition L6";
+  changedAfterPayment.amount = 99;
+  changedAfterPayment.every = "year";
+  changedAfterPayment.dueM = NOW.m === 12 ? 11 : NOW.m + 1;
+  changedAfterPayment.destAccountId = destination;
+  saveState(); render();
+});
 await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 await page.click('#screen [data-more="recurring"]');
@@ -1738,8 +1770,116 @@ check(rec54.length > 0, "des paiements réguliers sont affichés en démo");
 // « En retard » et « À venir » ont disparu avec le jour de paiement : sans
 // date promise, une charge n'est ni en avance ni en retard À L'INTÉRIEUR du
 // mois — elle est simplement encore à régler.
-check(rec54.every(t => /Payée ce mois|Reçu ce mois|Planifiée|À régler ce mois|À recevoir ce mois|Pas ce mois/.test(t)),
-  `chaque paiement mensuel porte son état écrit (pill) — obtenu ${JSON.stringify(rec54.slice(0, 2))}`);
+check(rec54.every(t => /Payé ce mois|Reçu ce mois|Mis de côté ce mois|Investi ce mois|Prévu|À payer ce mois|À mettre de côté ce mois|À investir ce mois|À recevoir ce mois|Pas ce mois/.test(t)),
+  `chaque ligne régulière porte son état écrit (pill) — obtenu ${JSON.stringify(rec54.slice(0, 2))}`);
+const reserve54 = await page.evaluate(() => RECURRINGS
+  .filter(recurring => recurring.id === "l6-reserve")
+  .map(recurring => {
+  const row = document.querySelector(`[data-recid="${CSS.escape(recurring.id)}"]`);
+  return {
+    title: recurring.title,
+    text: row?.textContent || "",
+    saveIcon: !!row?.querySelector(".ico.t-save"),
+    negativeAmount: !!row?.querySelector(".amount.neg"),
+  };
+  }));
+check(reserve54.length > 0 && reserve54.every(row => row.saveIcon
+    && !row.negativeAmount && !/Payé ce mois|À payer ce mois/.test(row.text)),
+  `une mise de côté régulière n'est jamais présentée comme une dépense (${JSON.stringify(reserve54)})`);
+const proof54 = await page.$eval('[data-recid="l6-proof-history"]', row => ({
+  text: row.textContent,
+  expenseIcon: !!row.querySelector(".ico.t-expense"),
+  negativeAmount: !!row.querySelector(".amount.neg"),
+  amount: row.querySelector(".amount")?.textContent.trim() || "",
+  expectedAmount: "−" + chf(42),
+}));
+check(/Preuve historique L6/.test(proof54.text) && !/Nouvelle définition L6/.test(proof54.text)
+    && /Payé ce mois/.test(proof54.text) && !/Mis de côté ce mois/.test(proof54.text)
+    && proof54.amount === proof54.expectedAmount
+    && proof54.expenseIcon && proof54.negativeAmount,
+  `modifier la ligne après paiement ne réécrit ni le geste ni son apparence (${JSON.stringify(proof54)})`);
+const orphanProof54 = await page.evaluate(() => {
+  const index = RECURRINGS.findIndex(recurring => recurring.id === "l6-proof-history");
+  if (index >= 0) RECURRINGS.splice(index, 1);
+  activeTab = "home"; moreView = null; render();
+  const row = [...document.querySelectorAll("[data-home-done-key]")]
+    .find(element => element.textContent.includes("Preuve historique L6"));
+  return {
+    text: row?.textContent || "",
+    expenseIcon: !!row?.querySelector(".ico.t-expense"),
+    checkDone: monthCheckItems(NOW.y, NOW.m)
+      .some(item => item.label === "Preuve historique L6" && item.done),
+  };
+});
+check(/Payé ce mois/.test(orphanProof54.text) && orphanProof54.expenseIcon
+    && orphanProof54.checkDone,
+  `supprimer la définition conserve une preuve fidèle dans le bilan (${JSON.stringify(orphanProof54)})`);
+await page.evaluate(() => {
+  for (const id of ["l6-reserve", "l6-proof-history"]) {
+    const index = RECURRINGS.findIndex(recurring => recurring.id === id);
+    if (index >= 0) RECURRINGS.splice(index, 1);
+  }
+  const transactionIndex = transactions.findIndex(transaction => transaction.recurringId === "l6-proof-history");
+  if (transactionIndex >= 0) transactions.splice(transactionIndex, 1);
+  saveState(); render();
+});
+const plannedOrphan54 = await page.evaluate(() => {
+  const saved = {
+    recurrings: structuredClone(RECURRINGS),
+    bills: structuredClone(S.bills || []),
+    monthChecks: structuredClone(S.monthChecks || {}),
+    transactions: structuredClone(transactions),
+  };
+  RECURRINGS.splice(0, RECURRINGS.length);
+  transactions.splice(0, transactions.length);
+  S.bills = [];
+  const source = defaultCashAccount();
+  const destination = (ACCOUNTS.find(account => account.kind === "savings" && account.id !== source)
+    || ACCOUNTS.find(account => account.id !== source)).id;
+  RECURRINGS.push({
+    id: "deleted-planned-54", title: "Ligne déplacée L6", amount: 25,
+    type: "expense", nature: "facture", cat: "Autre", day: 1,
+    every: "year", dueM: NOW.m === 12 ? 11 : NOW.m + 1,
+    accountId: source, icon: "🧾",
+  });
+  RECURRINGS.push({
+    id: "closed-check-54", title: "Facture déjà faite L6", amount: 15,
+    type: "expense", nature: "facture", cat: "Autre", day: 1,
+    every: "month", accountId: source, icon: "🧾",
+  });
+  transactions.push({
+    id: ++txSeq, y: NOW.y, m: NOW.m, d: 1,
+    title: "Facture déjà faite L6", amount: 15, type: "expense", cat: "Autre",
+    acc: source, dest: null, status: "posted", recurringId: "closed-check-54",
+  });
+  const plannedID = ++txSeq;
+  const originalTodayParts = todayParts;
+  todayParts = () => ({ y: NOW.y, m: NOW.m, d: 1 });
+  transactions.push({
+    id: plannedID, y: NOW.y, m: NOW.m, d: new Date(NOW.y, NOW.m, 0).getDate(),
+    title: "Épargne prévue sans ligne L6", amount: 25, type: "saving", cat: "Épargne",
+    acc: source, dest: destination, status: "planned", recurringId: "deleted-planned-54",
+  });
+  activeTab = "home"; moreView = null; render();
+  const row = document.querySelector(`[data-unrepresented-planned="${plannedID}"]`);
+  const result = {
+    text: row?.textContent || "",
+    saveIcon: !!row?.querySelector(".ico.t-save"),
+    action: row?.querySelector(".home-bill-action")?.textContent.trim() || "",
+    monthClosed: !!(S.monthChecks || {})[`${NOW.y}-${NOW.m}`],
+  };
+  transactions.splice(0, transactions.length, ...saved.transactions);
+  todayParts = originalTodayParts;
+  RECURRINGS.splice(0, RECURRINGS.length, ...saved.recurrings);
+  S.bills = saved.bills;
+  S.monthChecks = saved.monthChecks;
+  saveState(); render();
+  return result;
+});
+check(/À mettre de côté ce mois · Prévu/.test(plannedOrphan54.text)
+    && plannedOrphan54.saveIcon && plannedOrphan54.action === "Mis de côté"
+    && !plannedOrphan54.monthClosed,
+  `un mouvement prévu survit au déplacement ou à la suppression de sa ligne (${JSON.stringify(plannedOrphan54)})`);
 
 // ---------- Test 55 : a11y L6 — 320 px sur les 6 modules, extrême, cibles 44 px ----------
 currentTest = "a11y L6";
@@ -4160,12 +4300,13 @@ await goHome();
 
 // ---------- Test 96 : le mois se coche depuis l'accueil ----------
 currentTest = "cocher son mois depuis l'accueil";
-// Demande du propriétaire du 05.08.2026 : « ce mois salaire reçu, bouton
-// facture payée, op ça disparaît ». Trois manques réels :
+// Le dashboard doit garder la trace du geste : le salaire passe de
+// « À recevoir » à « Reçu », une facture de « À payer » à « Payé » et une
+// réserve à « Mis de côté ». Rien ne disparaît du bilan du mois.
 //   · l'accueil simplifié n'offrait AUCUNE action pour encaisser un revenu ;
 //   · une échéance seulement PRÉVUE n'était plus actionnable du tout — elle
 //     restait « Planifiée » sans moyen de dire qu'elle avait eu lieu ;
-//   · ce qui était réglé restait dans la liste des choses à faire.
+//   · ce qui était réglé doit quitter « À faire » sans quitter le bilan.
 await goHome();
 {
   await page.evaluate(() => {
@@ -4177,17 +4318,19 @@ await goHome();
 
   // Une réserve déjà planifiée doit garder sa vraie nature jusque dans
   // l'action et l'annonce de confirmation : jamais « dépense/payé ».
-  // On isole ce scénario : l'agenda est volontairement limité à cinq lignes,
+  // On isole ce scénario : l'agenda est volontairement limité à trois lignes,
   // donc les nombreuses fixtures du test ne doivent pas masquer la réserve
   // que cette assertion cherche précisément à manipuler.
   const monthAgendaState96 = await page.evaluate(() => JSON.stringify({
     recurrings: RECURRINGS,
     bills: S.bills || [],
     monthChecks: S.monthChecks || {},
+    transactions,
   }));
   await page.evaluate(() => {
     RECURRINGS.splice(0, RECURRINGS.length);
     S.bills = [];
+    transactions.splice(0, transactions.length);
     const source = defaultCashAccount();
     const destination = (ACCOUNTS.find(a => a.kind === "savings" && a.id !== source)
       || ACCOUNTS.find(a => a.id !== source)).id;
@@ -4196,11 +4339,20 @@ await goHome();
       type: "expense", nature: "reserve", cat: "Épargne", day: 1,
       accountId: source, destAccountId: destination,
     });
+    window.__todayParts96 = todayParts;
+    todayParts = () => ({ y: NOW.y, m: NOW.m, d: 1 });
     transactions.push({
-      id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(new Date(NOW.y, NOW.m, 0).getDate(), NOW.d + 1),
+      id: ++txSeq, y: NOW.y, m: NOW.m, d: new Date(NOW.y, NOW.m, 0).getDate(),
       title: "Réserve planifiée E2E", amount: 47, type: "saving", cat: "Épargne",
       acc: source, dest: destination, status: "planned", recurringId: "reserve-planifiee-96",
     });
+    // Une modification ultérieure de la définition ne doit jamais réécrire
+    // le mouvement déjà prévu que le bouton va réellement confirmer.
+    const changed = RECURRINGS.find(r => r.id === "reserve-planifiee-96");
+    changed.amount = 99;
+    changed.nature = "facture";
+    changed.cat = "Autre";
+    delete changed.destAccountId;
     saveState(); render();
   });
   await page.waitForTimeout(180);
@@ -4209,40 +4361,71 @@ await goHome();
     return {
       action: row?.querySelector(".home-bill-action")?.textContent.trim() || "",
       saveColor: !!row?.querySelector(".ico.t-save"),
+      amount: row?.querySelector(".amount")?.textContent.trim() || "",
+      expectedAmount: chf(47),
+      monthClosed: !!(S.monthChecks || {})[`${NOW.y}-${NOW.m}`],
     };
   });
-  check(reserve96.action === "Mis de côté" && reserve96.saveColor,
-    `une réserve planifiée reste une mise de côté (${JSON.stringify(reserve96)})`);
+  check(reserve96.action === "Mis de côté" && reserve96.saveColor
+      && reserve96.amount === reserve96.expectedAmount && !reserve96.monthClosed,
+    `une réserve planifiée garde son type et son montant réels (${JSON.stringify(reserve96)})`);
   await page.click('[data-obligation-key^="recurring:reserve-planifiee-96"] .home-bill-action');
   await page.waitForTimeout(180);
   const reserveConfirmee96 = await page.evaluate((serializedAgendaState) => {
     const transaction = transactions.find(t => t.recurringId === "reserve-planifiee-96");
     const toastText = document.getElementById("toast")?.textContent || "";
-    const stillVisible = !!document.querySelector('[data-obligation-key^="recurring:reserve-planifiee-96"]');
+    const undoVisible = !!document.getElementById("toastUndo");
+    const stillPending = !!document.querySelector('[data-obligation-key^="recurring:reserve-planifiee-96"]');
+    const doneText = [...document.querySelectorAll(".home-done-row")]
+      .find(row => row.textContent.includes("Réserve planifiée E2E"))?.textContent || "";
     const txIndex = transactions.findIndex(t => t.recurringId === "reserve-planifiee-96");
     if (txIndex >= 0) transactions.splice(txIndex, 1);
     const previous = JSON.parse(serializedAgendaState);
     RECURRINGS.splice(0, RECURRINGS.length, ...previous.recurrings);
     S.bills = previous.bills;
     S.monthChecks = previous.monthChecks;
+    transactions.splice(0, transactions.length, ...previous.transactions);
+    todayParts = window.__todayParts96;
+    delete window.__todayParts96;
     saveState(); render();
-    return { status: transaction?.status, toastText, stillVisible };
+    return { status: transaction?.status, toastText, undoVisible, stillPending, doneText };
   }, monthAgendaState96);
   check(reserveConfirmee96.status === "posted"
       && /mis de côté/i.test(reserveConfirmee96.toastText)
-      && !reserveConfirmee96.stillVisible,
-    `confirmer la réserve la comptabilise sans la dire payée (${JSON.stringify(reserveConfirmee96)})`);
+      && /Mois bouclé/.test(reserveConfirmee96.toastText)
+      && reserveConfirmee96.undoVisible
+      && !reserveConfirmee96.stillPending
+      && /Mis de côté/.test(reserveConfirmee96.doneText),
+    `confirmer la réserve la déplace dans « Fait ce mois » sans la dire payée (${JSON.stringify(reserveConfirmee96)})`);
+
+  // Le salaire seed ne doit pas dépendre du jour où tourne la CI. On remet
+  // son mouvement en attente sous une horloge locale figée au 1er, puis le
+  // clic ci-dessous doit le dater au vrai `NOW.d` du scénario.
+  await page.evaluate(() => {
+    window.__todayPartsSalary96 = todayParts;
+    todayParts = () => ({ y: NOW.y, m: NOW.m, d: 1 });
+    const transaction = transactions.find(
+      t => t.recurringId === "r-salaire" && inMonth(t, cursor.y, cursor.m)
+    );
+    if (transaction) {
+      transaction.status = "planned";
+      transaction.d = new Date(NOW.y, NOW.m, 0).getDate();
+    }
+    saveState(); render();
+  });
 
   const lire = () => page.evaluate(() => ({
     revenus: [...document.querySelectorAll(".home-agenda-card .home-income-row .meta .t")]
       .map(e => e.textContent.trim()),
     revenusCta: [...document.querySelectorAll(".home-agenda-card .home-income-row .home-bill-action")]
       .map(e => e.textContent.trim()),
-    factures: [...document.querySelectorAll(".home-agenda-card .home-bill-row:not(.home-income-row) .meta .t")]
+    factures: [...document.querySelectorAll(".home-agenda-card .home-bills-list:not(.home-done-list) .home-bill-row:not(.home-income-row) .meta .t")]
       .map(e => e.textContent.trim()),
-    facturesCta: [...document.querySelectorAll(".home-agenda-card .home-bill-row:not(.home-income-row) .home-bill-action")]
+    facturesCta: [...document.querySelectorAll(".home-agenda-card .home-bills-list:not(.home-done-list) .home-bill-row:not(.home-income-row) .home-bill-action")]
       .map(e => e.textContent.trim()),
-    tout: !!document.querySelector(".home-bills-done"),
+    faits: [...document.querySelectorAll(".home-agenda-card .home-done-row .s")]
+      .map(e => e.textContent.trim()),
+    tout: /Tout est à jour/.test(document.querySelector(".home-agenda-count")?.textContent || ""),
     entre: snapshot(cursor.y, cursor.m).income,
   }));
 
@@ -4253,10 +4436,18 @@ await goHome();
   // n'offrait plus aucun bouton.
   const prevu = await page.evaluate(() => {
     const t = transactions.find(t => t.recurringId === "r-salaire" && inMonth(t, cursor.y, cursor.m));
-    return t ? { statut: t.status, d: t.d } : null;
+    const row = [...document.querySelectorAll(".home-income-row")]
+      .find(element => element.textContent.includes(t?.title || "Salaire"));
+    return t ? {
+      statut: t.status,
+      d: t.d,
+      montantMouvement: chf(txCHF(t)),
+      montantAffiche: row?.querySelector(".amount")?.textContent.trim() || "",
+    } : null;
   });
-  check(prevu && prevu.statut === "planned",
-    `le salaire du mois est bien seulement PRÉVU au départ (obtenu ${JSON.stringify(prevu)})`);
+  check(prevu && prevu.statut === "planned"
+      && prevu.montantAffiche === prevu.montantMouvement,
+    `le salaire prévu affiche le mouvement qui sera réellement reçu (${JSON.stringify(prevu)})`);
 
   // Si l'action manque, on le dit par une assertion plutôt que de laisser la
   // suite mourir sur un délai d'attente : un échec doit rester lisible.
@@ -4273,20 +4464,23 @@ await goHome();
     `confirmer un revenu le comptabilise AU JOUR RÉEL (obtenu ${JSON.stringify(apres)})`);
   check(encaisse.revenus.length === depart.revenus.length - 1,
     "le revenu encaissé quitte la liste des revenus attendus");
+  check(encaisse.faits.some(text => /Reçu/.test(text)),
+    `le salaire reste dans le bilan avec son état « Reçu » (${JSON.stringify(encaisse.faits)})`);
   check(encaisse.entre > depart.entre,
     `« Entré » augmente vraiment (${depart.entre} → ${encaisse.entre})`);
 
-  // Chaque facture réglée disparaît de la liste des choses à faire.
+  // Chaque facture réglée quitte « À faire » et reste dans « Fait ce mois ».
   let garde = 0, vu = depart.factures.length;
-  while (garde++ < 8) {
-    const bouton = await page.$(".home-agenda-card .home-bill-row:not(.home-income-row) .home-bill-action");
+  while (garde++ < 30) {
+    const bouton = await page.$(".home-agenda-card .home-bills-list:not(.home-done-list) .home-bill-row:not(.home-income-row) .home-bill-action");
     if (!bouton) break;
     await bouton.click();
     await page.waitForTimeout(400);
   }
   const fin = await lire();
-  check(vu > 0 && fin.factures.length === 0 && fin.tout,
-    `tout réglé : la liste se vide et l'accueil le dit (restant ${JSON.stringify(fin.factures)}, message ${fin.tout})`);
+  check(vu > 0 && fin.factures.length === 0 && fin.tout
+      && fin.faits.some(text => /Payé|Mis de côté|Investi/.test(text)),
+    `tout réglé : « À faire » se vide et « Fait ce mois » garde les preuves (${JSON.stringify(fin)})`);
 
   // Garde-fou : « confirmer » ne touche JAMAIS un mouvement déjà comptabilisé.
   const garde96 = await page.evaluate(() => {
@@ -4302,6 +4496,11 @@ await goHome();
   });
   check(garde96.avant.statut === garde96.apres.statut && garde96.avant.d === garde96.apres.d,
     `un mouvement comptabilisé n'est jamais re-daté ni retouché (${JSON.stringify(garde96)})`);
+  await page.evaluate(() => {
+    todayParts = window.__todayPartsSalary96;
+    delete window.__todayPartsSalary96;
+    saveState(); render();
+  });
 }
 
 // ---------- Test 97 : aucun état rogné, aucun nom coupé ----------
@@ -5162,11 +5361,17 @@ currentTest = "charges et abonnements dès la bienvenue";
   const accueil104 = await p104.evaluate(() => ({
     texte: document.getElementById("screen").innerText,
     engage: snapshot(NOW.y, NOW.m).recurringCharges,
+    lignesVisibles: document.querySelectorAll(".home-bill-row:not(.home-done-row)").length,
+    overflow: document.querySelector(".home-agenda-card .home-done-more")?.textContent || "",
   }));
+  const chargesVisibles104 = cree.charges
+    .filter(charge => accueil104.texte.includes(charge.t)).length;
   check(Math.abs(accueil104.engage - 2081.90) < 0.01
-      && cree.charges.every(charge => accueil104.texte.includes(charge.t))
-      && /À faire ce mois/.test(accueil104.texte),
-    `dès la première ouverture, les trois charges sont engagées et lisibles (${JSON.stringify(accueil104)})`);
+      && chargesVisibles104 === 2
+      && accueil104.lignesVisibles === 3
+      && /Et 1 autre à faire/.test(accueil104.overflow)
+      && /Bilan du mois/i.test(accueil104.texte),
+    `dès la première ouverture, les trois charges sont engagées et le bilan garde trois priorités (${JSON.stringify({ ...accueil104, chargesVisibles104 })})`);
   check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
   await ctx104.close();
 }
@@ -5223,9 +5428,9 @@ await goHome();
   });
   check(heros.count === 1 && heros.carousel === 0,
     `un seul héros, aucun carrousel (${JSON.stringify(heros)})`);
-  check(/Disponible|Reste du mois/.test(heros.title) && /\d/.test(heros.amount),
+  check(/Reste pour le mois|Résultat du mois|Estimation du mois/.test(heros.title) && /\d/.test(heros.amount),
     `le héros répond avec un montant (${heros.title} · ${heros.amount})`);
-  check(/par jour|Il manque|Revenus moins sorties/.test(heros.note),
+  check(/par jour|Il manque|Revenus moins sorties|Depuis le solde actuel/.test(heros.note),
     `une seule phrase explique le montant (« ${heros.note} »)`);
   check(heros.cta.includes("Ajouter") && heros.debordePage <= 1,
     `le CTA reste visible sans débordement (${JSON.stringify(heros)})`);
@@ -6060,35 +6265,122 @@ currentTest = "choisir où va l'argent mis de côté";
   await goHome();
 }
 
-// ---------- Test 117 : un seul mot pour la ligne mensuelle ------------------
-currentTest = "transaction mensuelle, partout le même mot";
-// « J'aimerais que tu changes facture mensuelle en transaction mensuelle. »
-// Le mot était devenu faux : l'écran accueille aussi des abonnements, des
-// mises de côté et des revenus. On vérifie qu'aucun « facture mensuelle »
-// visible ne subsiste — ni sur l'écran, ni dans le menu, ni dans la feuille.
+// ---------- Test 117 : un seul nom pour ce qui revient ----------------------
+currentTest = "ce qui revient, partout le même mot";
+// Le formulaire accepte le mois ET l'année : « transaction mensuelle » et
+// « ça revient chaque mois » étaient donc faux. Le langage visible reste
+// humain et décrit le rythme seulement dans le champ prévu pour cela.
 {
   const restes = await page.evaluate(async () => {
     const trouves = [];
     const lire = (ou) => {
       const t = document.getElementById("screen").innerText;
-      if (/factures? mensuelles?/i.test(t)) trouves.push(ou);
+      if (/transactions? mensuelles?|ça revient chaque mois/i.test(t)) trouves.push(ou);
     };
     activeTab = "home"; render(); lire("accueil");
-    activeTab = "more"; moreView = null; render(); lire("menu Gérer");
-    moreView = "recurring"; render(); lire("écran des transactions mensuelles");
+    const quick = document.querySelector('#quickMenu [data-quick="rec"] strong')?.textContent || "";
+    activeTab = "more"; moreView = null; render();
+    const menu = document.getElementById("screen").innerText;
+    lire("menu Gérer");
+    moreView = "recurring"; render();
+    const ecran = document.getElementById("screen").innerText;
+    lire("écran Ce qui revient");
     moreView = "subs"; render(); lire("abonnements");
     openRecSheet(null);
     const feuille = document.getElementById("recForm").innerText;
-    if (/factures? mensuelles?/i.test(feuille)) trouves.push("feuille de saisie");
+    if (/transactions? mensuelles?|ça revient chaque mois/i.test(feuille)) trouves.push("feuille de saisie");
     const titre = document.getElementById("recSheetTitle").textContent;
+    const rythmes = [...document.getElementById("rEvery").options].map(option => option.textContent);
     closeSheet();
     activeTab = "home"; moreView = null; render();
-    return { trouves, titre };
+    return { trouves, titre, quick, menu, ecran, rythmes };
   });
   check(restes.trouves.length === 0,
-    `plus aucun « facture mensuelle » visible (restes : ${JSON.stringify(restes.trouves)})`);
-  check(/transaction mensuelle/i.test(restes.titre),
-    `la feuille s'appelle « Nouvelle transaction mensuelle » (obtenu « ${restes.titre} »)`);
+    `plus aucun ancien terme mensuel générique (restes : ${JSON.stringify(restes.trouves)})`);
+  check(restes.quick === "Ça revient régulièrement"
+      && /Ce qui revient/.test(restes.menu)
+      && /Ce qui revient/.test(restes.ecran)
+      && restes.titre === "Ajouter ce qui revient",
+    `le même langage humain relie Ajouter, Gérer, l'écran et la feuille (${JSON.stringify(restes)})`);
+  check(restes.rythmes.includes("Tous les mois") && restes.rythmes.includes("Une fois par an"),
+    `le vrai rythme reste choisi dans le formulaire (${JSON.stringify(restes.rythmes)})`);
+  const verbes = await page.evaluate(() => ({
+    labels: Object.fromEntries(
+      ["income", "refund", "expense", "taxPayment", "debtPayment", "saving",
+        "investment", "transfer", "adjustment"]
+        .map(type => [type, completedMovementLabel(type)])
+    ),
+    tones: Object.fromEntries(
+      ["income", "expense", "debtPayment", "saving", "transfer", "adjustment"]
+        .map(type => [type, icoClass(type)])
+    ),
+  }));
+  check(JSON.stringify(verbes.labels) === JSON.stringify({
+    income: "Reçu", refund: "Reçu", expense: "Payé", taxPayment: "Payé",
+    debtPayment: "Payé", saving: "Mis de côté", investment: "Investi",
+    transfer: "Transféré", adjustment: "Confirmé",
+  }) && verbes.tones.income.includes("t-income")
+      && verbes.tones.expense.includes("t-expense")
+      && verbes.tones.debtPayment.includes("t-expense")
+      && verbes.tones.saving.includes("t-save")
+      && verbes.tones.transfer.includes("t-neutral")
+      && verbes.tones.adjustment.includes("t-neutral"),
+  `chaque mouvement garde un seul verbe et une teinte fidèle (${JSON.stringify(verbes)})`);
+  const futur = await page.evaluate(() => {
+    const previous = {
+      cursor: { ...cursor }, activeTab, moreView,
+      recurringLength: RECURRINGS.length,
+      monthChecks: structuredClone(S.monthChecks || {}),
+    };
+    for (let i = 0; i < 4; i += 1) {
+      RECURRINGS.push({
+        id: `future-copy-${i}`, title: `Prévision ${i + 1}`, amount: 10 + i,
+        type: "expense", nature: "facture", cat: "Autre", day: 1,
+        every: "month", accountId: defaultCashAccount(), icon: "🧾",
+      });
+    }
+    cursor = shiftMonth(NOW, 1);
+    activeTab = "home";
+    moreView = null;
+    render();
+    const salary = [...document.querySelectorAll(".home-income-row")]
+      .find(row => row.textContent.includes("Salaire"));
+    const outgoing = document.querySelector(
+      ".home-bills-list:not(.home-done-list) .home-bill-row:not(.home-income-row)"
+    );
+    const result = {
+      hero: document.querySelector(".home-hero .card-label")?.textContent || "",
+      progress: document.querySelector(".home-agenda-count")?.textContent || "",
+      section: document.querySelector('[data-home-section="future"]')?.textContent || "",
+      overflow: document.querySelector('[data-home-section="future"] ~ .home-done-more')?.textContent || "",
+      salary: salary?.textContent || "",
+      actionable: !!salary?.querySelector(".home-bill-action"),
+      outgoing: outgoing?.textContent || "",
+      outgoingActionable: !!outgoing?.querySelector(".home-bill-action"),
+    };
+    cursor = shiftMonth(NOW, -1);
+    render();
+    result.pastIncomeRows = document.querySelectorAll(".home-income-row").length;
+    RECURRINGS.splice(previous.recurringLength);
+    S.monthChecks = previous.monthChecks;
+    cursor = previous.cursor;
+    activeTab = previous.activeTab;
+    moreView = previous.moreView;
+    saveState();
+    render();
+    return result;
+  });
+  check(futur.hero === "Estimation du mois"
+      && /prévu/i.test(futur.progress)
+      && futur.section.trim() === "Prévu ce mois"
+      && /prévu/i.test(futur.overflow)
+      && !/à faire/i.test(futur.overflow)
+      && /À recevoir ce mois · Prévu/.test(futur.salary)
+      && !futur.actionable
+      && /Prévu/.test(futur.outgoing)
+      && !futur.outgoingActionable
+      && futur.pastIncomeRows === 0,
+    `un salaire futur reste visible comme prévu, jamais comme résultat ou reçu (${JSON.stringify(futur)})`);
   await goHome();
 }
 

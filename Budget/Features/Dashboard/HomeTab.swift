@@ -14,10 +14,10 @@ enum HomePilotDisplay {
     static func actionVerb(for type: TransactionType) -> String {
         switch type {
         case .income, .refund: "Reçu"
-        case .expense, .taxPayment, .debtPayment: "Payée"
+        case .expense, .taxPayment, .debtPayment: "Payé"
         case .saving: "Mis de côté"
-        case .investment: "Versé"
-        case .transfer: "Effectué"
+        case .investment: "Investi"
+        case .transfer: "Transféré"
         case .adjustment: "Confirmé"
         }
     }
@@ -33,8 +33,98 @@ enum HomePilotDisplay {
         }
     }
 
+    /// Résumé court du seul bloc mensuel. Les deux nombres viennent des
+    /// occurrences et mouvements existants ; aucun total financier n'est
+    /// recalculé pour l'affichage.
+    static func monthProgress(
+        pending: Int,
+        completed: Int,
+        isFuture: Bool = false
+    ) -> String {
+        if isFuture {
+            return pending == 0 ? "Rien de prévu" : "\(pending) prévu\(pending > 1 ? "s" : "")"
+        }
+        return switch (pending, completed) {
+        case (0, 0): "Rien à faire"
+        case (0, let done): "Tout est à jour · \(done) fait\(done > 1 ? "s" : "")"
+        case (let todo, 0): "\(todo) à faire"
+        case (let todo, let done): "\(todo) à faire · \(done) fait\(done > 1 ? "s" : "")"
+        }
+    }
+
+    static func completedTransactions(
+        in interval: MonthInterval,
+        from transactions: [BudgetTransaction]
+    ) -> [BudgetTransaction] {
+        transactions
+            .filter {
+                $0.recurringID != nil
+                    && $0.status == .posted
+                    && interval.contains($0.date)
+            }
+            .sorted {
+                if $0.date == $1.date { return $0.title < $1.title }
+                return $0.date > $1.date
+            }
+    }
+
+    static func plannedRegularTransactions(
+        in interval: MonthInterval,
+        from transactions: [BudgetTransaction]
+    ) -> [BudgetTransaction] {
+        transactions
+            .filter {
+                $0.recurringID != nil
+                    && $0.status == .planned
+                    && interval.contains($0.date)
+            }
+            .sorted {
+                if $0.date == $1.date { return $0.title < $1.title }
+                return $0.date < $1.date
+            }
+    }
+
+    /// Une fréquence hebdomadaire peut produire plusieurs lignes dans le
+    /// même mois. Seule la prochaine occurrence non couverte est validable :
+    /// confirmer la troisième avant la première contredirait l'appariement
+    /// chronologique du service et ferait apparaître la même date deux fois.
+    static func confirmableOccurrenceIDs(
+        from occurrences: [ForecastOccurrence]
+    ) -> Set<String> {
+        var seen = Set<UUID>()
+        var result = Set<String>()
+        for occurrence in occurrences.sorted(by: { $0.date < $1.date }) {
+            if seen.insert(occurrence.recurringID).inserted {
+                result.insert(occurrence.id)
+            }
+        }
+        return result
+    }
+
     static func canConfirm(date: Date, now: Date, calendar: Calendar) -> Bool {
         calendar.startOfDay(for: date) <= calendar.startOfDay(for: now)
+    }
+}
+
+/// Une ligne encore attendue vient soit du forecast, soit d'un mouvement
+/// régulier déjà matérialisé mais encore `planned`. Les réunir empêche une
+/// opération future de disparaître simplement parce qu'elle est déjà liée.
+private enum HomeMonthPendingItem: Identifiable {
+    case forecast(ForecastOccurrence)
+    case planned(BudgetTransaction)
+
+    var id: String {
+        switch self {
+        case .forecast(let occurrence): "forecast:\(occurrence.id)"
+        case .planned(let transaction): "planned:\(transaction.id.uuidString)"
+        }
+    }
+
+    var date: Date {
+        switch self {
+        case .forecast(let occurrence): occurrence.date
+        case .planned(let transaction): transaction.date
+        }
     }
 }
 
@@ -53,7 +143,7 @@ enum QuickEntryIntent: String, CaseIterable, Identifiable {
         case .expense: "J'ai dépensé"
         case .income: "J'ai reçu"
         case .setAside: "J'ai mis de côté"
-        case .recurring: "Ça revient chaque mois"
+        case .recurring: "Ça revient régulièrement"
         }
     }
 
@@ -62,7 +152,7 @@ enum QuickEntryIntent: String, CaseIterable, Identifiable {
         case .expense: "Courses, sortie, facture du jour"
         case .income: "Salaire, remboursement, autre revenu"
         case .setAside: "Épargne, 3e pilier ou placement"
-        case .recurring: "Loyer, abonnement, salaire ou épargne"
+        case .recurring: "Salaire, facture, abonnement ou épargne"
         }
     }
 
@@ -153,7 +243,17 @@ struct HomeTab: View {
 
     var body: some View {
         let snapshot = makeSnapshot()
+        let isFutureMonth = snapshot.interval.start > appContainer.dateProvider.now
         let forecast = makeForecast(interval: snapshot.interval)
+        let completed = completedMonthlyTransactions(in: snapshot.interval)
+        let planned = HomePilotDisplay.plannedRegularTransactions(
+            in: snapshot.interval,
+            from: transactions
+        )
+        let pending = (
+            forecast.map(HomeMonthPendingItem.forecast)
+                + planned.map(HomeMonthPendingItem.planned)
+        ).sorted { $0.date < $1.date }
 
         NavigationStack {
             ZStack {
@@ -165,7 +265,11 @@ struct HomeTab: View {
                         monthSelector
                         availableCard(snapshot)
                         compactAmounts(snapshot)
-                        monthlyActions(forecast: forecast)
+                        monthlyActions(
+                            pending: pending,
+                            completed: completed,
+                            isFutureMonth: isFutureMonth
+                        )
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
@@ -234,8 +338,11 @@ struct HomeTab: View {
 
     private func availableCard(_ snapshot: MonthSnapshot) -> some View {
         let isCurrentMonth = snapshot.interval.contains(appContainer.dateProvider.now)
-        let amount = isCurrentMonth ? snapshot.available.total : snapshot.cashFlow
-        let title = isCurrentMonth ? "Disponible jusqu'à la fin du mois" : "Reste du mois"
+        let isFutureMonth = snapshot.interval.start > appContainer.dateProvider.now
+        let amount = (isCurrentMonth || isFutureMonth)
+            ? snapshot.available.total : snapshot.cashFlow
+        let title = isCurrentMonth ? "Reste pour le mois"
+            : (isFutureMonth ? "Estimation du mois" : "Résultat du mois")
 
         return NeonUltraElevatedCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
@@ -247,7 +354,11 @@ struct HomeTab: View {
                     // Montant héros SANS glow : la constitution l'interdit.
                     // Un mois passé garde son SIGNE explicite (+/−) : le sens
                     // ne repose jamais sur la seule couleur.
-                    NeonUltraAmountText(amount: amount, hero: true, signed: !isCurrentMonth)
+                    NeonUltraAmountText(
+                        amount: amount,
+                        hero: true,
+                        signed: !isCurrentMonth && !isFutureMonth
+                    )
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
@@ -261,6 +372,11 @@ struct HomeTab: View {
                     .font(NeonUltraTypography.meta)
                     .foregroundStyle(amount < 0 ? NeonUltraColor.warning : NeonUltraColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                } else if isFutureMonth {
+                    Text("Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois.")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Button {
@@ -379,21 +495,43 @@ struct HomeTab: View {
         }
     }
 
-    // MARK: - Ce qu'il reste à faire ce mois
+    // MARK: - Bilan du mois
+
+    /// Les mouvements liés à une ligne régulière et déjà comptabilisés sont
+    /// la preuve de ce qui a été fait. Les afficher ici ne change ni leur
+    /// statut, ni le forecast, ni les soldes.
+    private func completedMonthlyTransactions(in interval: MonthInterval) -> [BudgetTransaction] {
+        HomePilotDisplay.completedTransactions(in: interval, from: transactions)
+    }
 
     @ViewBuilder
-    private func monthlyActions(forecast: [ForecastOccurrence]) -> some View {
+    private func monthlyActions(
+        pending: [HomeMonthPendingItem],
+        completed: [BudgetTransaction],
+        isFutureMonth: Bool
+    ) -> some View {
+        let confirmableOccurrenceIDs = HomePilotDisplay.confirmableOccurrenceIDs(
+            from: pending.compactMap { item in
+                if case .forecast(let occurrence) = item { return occurrence }
+                return nil
+            }
+        )
+
         VStack(alignment: .leading, spacing: BudgetSpacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("À faire ce mois")
+                    Text("Bilan du mois")
                         .font(NeonUltraTypography.title)
                         .foregroundStyle(NeonUltraColor.textPrimary)
-                    if !forecast.isEmpty {
-                        Text("\(forecast.count) action\(forecast.count > 1 ? "s" : "") restante\(forecast.count > 1 ? "s" : "")")
-                            .font(NeonUltraTypography.meta)
-                            .foregroundStyle(NeonUltraColor.textSecondary)
-                    }
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityIdentifier("home.month-summary.title")
+                    Text(HomePilotDisplay.monthProgress(
+                        pending: pending.count,
+                        completed: completed.count,
+                        isFuture: isFutureMonth
+                    ))
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
                 }
 
                 Spacer()
@@ -408,57 +546,215 @@ struct HomeTab: View {
                 }
             }
 
-            if forecast.isEmpty {
+            if pending.isEmpty && completed.isEmpty {
                 NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                         Label(
-                            recurrings.isEmpty ? "Ajoutez ce qui revient" : "Tout est à jour",
-                            systemImage: recurrings.isEmpty ? "calendar.badge.plus" : "checkmark.circle"
+                            isFutureMonth ? "Rien de prévu"
+                                : (recurrings.isEmpty ? "Ajoutez ce qui revient" : "Tout est à jour"),
+                            systemImage: isFutureMonth ? "calendar"
+                                : (recurrings.isEmpty ? "calendar.badge.plus" : "checkmark.circle")
                         )
                             .font(NeonUltraTypography.label)
                             .foregroundStyle(recurrings.isEmpty ? NeonUltraColor.cyan : NeonUltraColor.positive)
                         Text(
-                            recurrings.isEmpty
+                            isFutureMonth
+                                ? "Les éléments de ce mois apparaîtront ici quand ils seront prévus."
+                                : (recurrings.isEmpty
                                 ? "Loyer, salaire, abonnements et épargne : ajoutez-les une fois avec le bouton Ajouter."
-                                : "Les revenus, factures et mises de côté encore attendus apparaîtront ici."
+                                : "Les revenus, paiements et mises de côté attendus apparaîtront ici.")
                         )
                             .font(NeonUltraTypography.meta)
                             .foregroundStyle(NeonUltraColor.textSecondary)
                     }
                 }
-            } else {
-                let visible = Array(forecast.prefix(6))
+            } else if !pending.isEmpty {
+                Text(isFutureMonth ? "Prévu ce mois" : "À faire")
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+
+                let visible = Array(pending.prefix(3))
                 NeonUltraCard {
                     VStack(spacing: 0) {
-                        ForEach(visible) { occurrence in
-                            monthlyActionRow(occurrence)
-                            if occurrence.id != visible.last?.id {
+                        ForEach(visible) { item in
+                            monthlyPendingRow(
+                                item,
+                                confirmableOccurrenceIDs: confirmableOccurrenceIDs
+                            )
+                            if item.id != visible.last?.id {
                                 Divider().overlay(NeonUltraColor.border)
                             }
                         }
                     }
                 }
 
-                if forecast.count > 6 {
-                    NavigationLink {
-                        RecurringListView()
-                    } label: {
-                        Text("Voir les \(forecast.count) actions")
-                            .font(NeonUltraTypography.label)
-                            .foregroundStyle(NeonUltraColor.cyan)
-                            .frame(maxWidth: .infinity, minHeight: 44)
+                if pending.count > 3 {
+                    Text(
+                        isFutureMonth
+                            ? "Et \(pending.count - 3) autre\(pending.count - 3 > 1 ? "s" : "") prévu\(pending.count - 3 > 1 ? "s" : "")."
+                            : "Et \(pending.count - 3) autre\(pending.count - 3 > 1 ? "s" : "") à faire."
+                    )
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+                }
+            }
+
+            if !completed.isEmpty {
+                Text("Fait ce mois")
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+
+                let visibleCompleted = Array(completed.prefix(3))
+                NeonUltraCard {
+                    VStack(spacing: 0) {
+                        ForEach(visibleCompleted) { transaction in
+                            completedMonthlyRow(transaction)
+                            if transaction.id != visibleCompleted.last?.id {
+                                Divider().overlay(NeonUltraColor.border)
+                            }
+                        }
                     }
+                }
+
+                if completed.count > 3 {
+                    Text("Et \(completed.count - 3) autre\(completed.count - 3 > 1 ? "s" : "") ce mois.")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
                 }
             }
         }
     }
 
-    private func monthlyActionRow(_ occurrence: ForecastOccurrence) -> some View {
-        let canConfirm = HomePilotDisplay.canConfirm(
+    @ViewBuilder
+    private func monthlyPendingRow(
+        _ item: HomeMonthPendingItem,
+        confirmableOccurrenceIDs: Set<String>
+    ) -> some View {
+        switch item {
+        case .forecast(let occurrence):
+            monthlyActionRow(
+                occurrence,
+                isNextOccurrence: confirmableOccurrenceIDs.contains(occurrence.id)
+            )
+        case .planned(let transaction):
+            plannedMonthlyRow(transaction)
+        }
+    }
+
+    private func plannedMonthlyRow(_ transaction: BudgetTransaction) -> some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    plannedMonthlyIdentity(transaction)
+                    NeonUltraAmountText(amount: transaction.amount)
+                    Text("Prévu")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                }
+            } else {
+                HStack(spacing: BudgetSpacing.medium) {
+                    plannedMonthlyIdentity(transaction)
+                    Spacer(minLength: BudgetSpacing.small)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        NeonUltraAmountText(amount: transaction.amount)
+                        Text("Prévu")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, BudgetSpacing.small)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(transaction.title), \(HomePilotDisplay.actionLabel(for: transaction.type)) le \(FinanceFormatting.swissDate(transaction.date)), prévu, \(FinanceFormatting.chf(transaction.amount))"
+        )
+        .accessibilityIdentifier("home.month.pending.planned.\(transaction.id.uuidString)")
+    }
+
+    private func plannedMonthlyIdentity(_ transaction: BudgetTransaction) -> some View {
+        HStack(spacing: BudgetSpacing.medium) {
+            Image(systemName: actionIcon(for: transaction.type))
+                .frame(width: 28)
+                .foregroundStyle(actionColor(for: transaction.type))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.title)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(HomePilotDisplay.actionLabel(for: transaction.type)) · \(FinanceFormatting.swissDate(transaction.date))")
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func completedMonthlyRow(_ transaction: BudgetTransaction) -> some View {
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    completedMonthlyIdentity(transaction)
+                    NeonUltraAmountText(amount: transaction.amount)
+                }
+            } else {
+                HStack(spacing: BudgetSpacing.medium) {
+                    completedMonthlyIdentity(transaction)
+                    Spacer(minLength: BudgetSpacing.small)
+                    NeonUltraAmountText(amount: transaction.amount)
+                }
+            }
+        }
+        .padding(.vertical, BudgetSpacing.small)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(transaction.title), \(HomePilotDisplay.actionVerb(for: transaction.type)) ce mois, \(FinanceFormatting.chf(transaction.amount))"
+        )
+        .accessibilityIdentifier("home.month.completed.\(transaction.id.uuidString)")
+    }
+
+    private func completedMonthlyIdentity(_ transaction: BudgetTransaction) -> some View {
+        HStack(spacing: BudgetSpacing.medium) {
+            Image(systemName: actionIcon(for: transaction.type))
+                .frame(width: 28)
+                .foregroundStyle(actionColor(for: transaction.type))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.title)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(HomePilotDisplay.actionVerb(for: transaction.type)) ce mois")
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.positive)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func monthlyActionRow(
+        _ occurrence: ForecastOccurrence,
+        isNextOccurrence: Bool
+    ) -> some View {
+        let canConfirm = isNextOccurrence && HomePilotDisplay.canConfirm(
             date: occurrence.date,
             now: appContainer.dateProvider.now,
             calendar: appContainer.calendar
         )
+        let dateReached = HomePilotDisplay.canConfirm(
+            date: occurrence.date,
+            now: appContainer.dateProvider.now,
+            calendar: appContainer.calendar
+        )
+        let waitingLabel = !isNextOccurrence && dateReached
+            ? "Après la précédente" : "Prévu"
         let verb = HomePilotDisplay.actionVerb(for: occurrence.type)
 
         return Group {
@@ -466,7 +762,12 @@ struct HomeTab: View {
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                     monthlyActionIdentity(occurrence)
                     NeonUltraAmountText(amount: occurrence.amount)
-                    monthlyActionControl(occurrence, canConfirm: canConfirm, verb: verb)
+                    monthlyActionControl(
+                        occurrence,
+                        canConfirm: canConfirm,
+                        verb: verb,
+                        waitingLabel: waitingLabel
+                    )
                 }
             } else {
                 HStack(spacing: BudgetSpacing.medium) {
@@ -474,13 +775,19 @@ struct HomeTab: View {
                     Spacer(minLength: BudgetSpacing.small)
                     VStack(alignment: .trailing, spacing: 4) {
                         NeonUltraAmountText(amount: occurrence.amount)
-                        monthlyActionControl(occurrence, canConfirm: canConfirm, verb: verb)
+                        monthlyActionControl(
+                            occurrence,
+                            canConfirm: canConfirm,
+                            verb: verb,
+                            waitingLabel: waitingLabel
+                        )
                     }
                 }
             }
         }
         .padding(.vertical, BudgetSpacing.small)
         .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("home.month.pending.\(occurrence.id)")
     }
 
     private func monthlyActionIdentity(_ occurrence: ForecastOccurrence) -> some View {
@@ -507,7 +814,8 @@ struct HomeTab: View {
     private func monthlyActionControl(
         _ occurrence: ForecastOccurrence,
         canConfirm: Bool,
-        verb: String
+        verb: String,
+        waitingLabel: String
     ) -> some View {
         if canConfirm {
             // Action de ligne : surface mate + bordure, jamais le dégradé —
@@ -535,7 +843,7 @@ struct HomeTab: View {
             )
             .accessibilityLabel("\(occurrence.title) : \(verb)")
         } else {
-            Text("Prévu")
+            Text(waitingLabel)
                 .font(NeonUltraTypography.meta)
                 .foregroundStyle(NeonUltraColor.textSecondary)
         }

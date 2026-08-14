@@ -213,7 +213,7 @@ const PILOT_RENDERERS = new Set([
   "renderYearReview",  // Année (née dans l'identité Neon Ultra)
   "yearMonthRow",      // ligne de la page Année
   "subsBody",          // Abonnements — devenue un FILTRE de l'écran mensuel
-  "renderRecurring",   // Transactions mensuelles (écran unique depuis le 10.08)
+  "renderRecurring",   // Ce qui revient (écran unique depuis le 10.08)
 ]);
 {
   const lines = indexSrc.split("\n");
@@ -778,10 +778,14 @@ void clippedIn;
       metrics: document.querySelectorAll("#screen .stat").length,
       priorities: document.querySelectorAll("#screen .priority-card").length,
       quick: document.querySelectorAll("#screen .quick-row .btn").length,
-      bills: /à faire ce mois/i.test(s.innerText),
+      bills: /bilan du mois/i.test(s.innerText),
+      todoRows: document.querySelectorAll("#screen .home-bills-list:not(.home-done-list) .home-bill-row").length,
+      doneRows: document.querySelectorAll("#screen .home-done-list .home-done-row").length,
+      todoNamed: !!document.querySelector('#screen [data-home-section="todo"]'),
+      doneNamed: !!document.querySelector('#screen [data-home-section="done"]'),
       // Ordre du premier niveau : salutation → héros → métriques → actions.
-      order: [html.indexOf("Bonjour"), html.indexOf("Disponible"),
-              html.indexOf('class="stat-grid'), html.indexOf("À faire ce mois")],
+      order: [html.indexOf("Bonjour"), html.indexOf("Reste pour le mois"),
+              html.indexOf('class="stat-grid'), html.indexOf("Bilan du mois")],
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
       blurred: [...document.querySelectorAll("#screen .card")]
@@ -802,7 +806,11 @@ void clippedIn;
   check(mois.metrics === 3, `exactement 3 repères (obtenu ${mois.metrics})`);
   check(mois.priorities === 0, `aucune priorité technique sur l'accueil (obtenu ${mois.priorities})`);
   check(mois.quick === 0, `aucune rangée d'actions rapides (obtenu ${mois.quick})`);
-  check(mois.bills, "la section « À faire ce mois » est visible");
+  check(mois.bills, "la section « Bilan du mois » est visible");
+  check(mois.todoRows <= 3 && mois.doneRows <= 3,
+    `le bilan reste court : 3 à faire + 3 faits maximum (${mois.todoRows}/${mois.doneRows})`);
+  check((mois.todoRows === 0 || mois.todoNamed) && (mois.doneRows === 0 || mois.doneNamed),
+    "chaque état présent est nommé « À faire » ou « Fait ce mois », jamais porté par la couleur seule");
   check(mois.order.every(i => i >= 0) && mois.order[0] < mois.order[1]
     && mois.order[1] < mois.order[2] && mois.order[2] < mois.order[3],
     `ordre du premier niveau : salutation → héros → métriques → actions (${mois.order})`);
@@ -914,7 +922,7 @@ void clippedIn;
       && menu.intentions.some(text => text.includes("J'ai dépensé"))
       && menu.intentions.some(text => text.includes("J'ai reçu"))
       && menu.intentions.some(text => text.includes("J'ai mis de côté"))
-      && menu.intentions.some(text => text.includes("Ça revient chaque mois")),
+      && menu.intentions.some(text => text.includes("Ça revient régulièrement")),
     `Ajouter propose exactement quatre intentions (${menu.intentions.join(" | ")})`);
   check(menu.small === 0 && menu.dialog && menu.named,
     `le menu est un dialogue nommé avec des cibles ≥ 44 px (${JSON.stringify(menu)})`);

@@ -60,7 +60,7 @@ struct RecurringListView: View {
                 .padding(BudgetSpacing.screenMargin)
             }
         }
-        .navigationTitle("Transactions mensuelles")
+        .navigationTitle("Ce qui revient")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -68,7 +68,7 @@ struct RecurringListView: View {
                 } label: {
                     Image(systemName: "plus")
                 }
-                .accessibilityLabel("Ajouter une transaction mensuelle")
+                .accessibilityLabel("Ajouter ce qui revient")
             }
         }
         .sheet(isPresented: $isPresentingNew) {
@@ -82,13 +82,13 @@ struct RecurringListView: View {
     private var summaryCard: some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Factures à prévoir chaque mois")
+                Text("Factures régulières · moyenne par mois")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
 
                 AmountText(amount: monthlyBillsTotal, role: .hero)
 
-                Text("Factures, abonnements, revenus et mises de côté reviennent automatiquement et gardent chacun leur vrai nom.")
+                Text("Salaire, factures, abonnements et mises de côté : ajoutez-les une fois, puis suivez-les dans votre bilan du mois.")
                     .font(BudgetFont.caption)
                     .foregroundStyle(.secondary)
 
@@ -183,8 +183,8 @@ struct RecurringListView: View {
         GlassCard {
             EmptyState(
                 symbol: "calendar.badge.plus",
-                title: "Ajoutez vos transactions mensuelles",
-                message: "Loyer, téléphone, salaire ou épargne : ajoutez-les une seule fois. Ils reviendront ensuite automatiquement.",
+                title: "Ajoutez ce qui revient",
+                message: "Loyer, téléphone, salaire ou épargne : ajoutez-les une seule fois. Ils reviendront ensuite au bon rythme.",
                 actionTitle: "Ajouter ce qui revient",
                 action: { isPresentingNew = true }
             )
@@ -266,7 +266,7 @@ struct RecurringRow: View {
     }
 }
 
-#Preview("Transactions mensuelles") {
+#Preview("Ce qui revient") {
     let preview = DemoDataFactory.previewAppContainer()
     return NavigationStack {
         RecurringListView()

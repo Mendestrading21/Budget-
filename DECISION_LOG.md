@@ -1,5 +1,103 @@
 # Budget decision log
 
+## ADR-031 — Un vrai bilan du mois : à faire et déjà fait
+
+Date: 2026-08-14
+Status: accepted
+
+### Contexte
+
+Après la simplification ADR-030, le montant principal et les trois repères
+sont lisibles, mais une opération disparaît de l'accueil dès qu'elle est
+confirmée. La personne voit donc ce qu'elle doit encore faire, jamais la
+preuve que son salaire a été reçu, que son loyer a été payé ou que son argent
+a été mis de côté. Le mot `Transactions mensuelles` est aussi faux puisque le
+même écran accepte la semaine, le trimestre, le semestre et l'année.
+
+Un benchmark de sources officielles — Finary (entrées/sorties et virements
+neutres), Bankin' (prévision de fin de mois), YNAB (une priorité), Monarch
+(fixe/flexible/non mensuel), Copilot (reste mensuel et éléments à vérifier),
+Wallet (paiements planifiés) et Spendee (repère quotidien) — converge sur un
+principe : un montant principal, trois résultats courts, puis ce qui arrive
+ensuite. Budget en fait une synthèse originale ; aucun écran, texte, actif,
+couleur ou comportement propriétaire n'est reproduit.
+
+Sources officielles consultées : [Finary Budget](https://finary.com/fr/budget),
+[Bankin' — créer son budget](https://support.bankin.com/hc/fr/articles/20540527131665-Cr%C3%A9er-et-personnaliser-son-budget-avec-Bankin),
+[YNAB](https://www.ynab.com/features),
+[Monarch](https://www.monarch.com/features/budgeting),
+[Copilot](https://help.copilot.money/en/articles/6045480-dashboard-tab-overview),
+[Wallet](https://budgetbakers.com/en/products/wallet/features/planned-payments/) et
+[Spendee](https://help.spendee.com/article/114-what-is-spendee).
+
+### Décision
+
+1. Le héros courant s'appelle `Reste pour le mois`; un mois futur affiche
+   `Estimation du mois`, explicitement calculée depuis le solde actuel, et un
+   mois passé `Résultat du mois`. Les formules existantes restent strictement
+   inchangées.
+2. Les trois repères restent `Reçu · Dépensé · Mis de côté`. `Dépensé` décrit
+   le coût de la vie ; il n'est pas remplacé par `Payé`, qui est un état de
+   ligne et non un total financier.
+3. La carte `À faire ce mois` devient `Bilan du mois`. Elle annonce
+   `N à faire · M faits`, montre au maximum trois éléments `À faire`, puis au
+   maximum trois éléments `Fait ce mois`. Une ligne confirmée change de
+   section au lieu de disparaître. Pour un mois futur, elle dit à la place
+   `N prévus` et `Prévu ce mois` : aucune action future n'est présentée comme
+   une tâche immédiate.
+4. Un élément n'est `fait` que s'il existe déjà comme mouvement régulier ou
+   facture ponctuelle comptabilisé (`posted`) dans le mois. La PWA conserve
+   aussi l'ancien marqueur explicite `payée` des sauvegardes historiques, sans
+   lui inventer de date. Un mouvement `planned` reste prévu ; l'affichage ne
+   crée, ne déduit et ne modifie rien. `Fait ce mois` n'invente pas non plus
+   le jour exact du geste : les moteurs historiques ne portent pas tous cette
+   information avec le même sens. Dès qu'un mouvement `planned` ou `posted`
+   existe, son titre, son montant et son type gagnent sur une définition
+   régulière modifiée ensuite : le bouton confirme exactement ce qui est
+   affiché.
+   Le rituel historique `Mois bouclé` suit la même règle : un mouvement
+   seulement prévu ne ferme jamais le mois.
+5. Le vocabulaire d'état est unique sur les deux plateformes :
+
+   | Nature | Avant | Après |
+   |---|---|---|
+   | Revenu / salaire | `À recevoir` | `Reçu` |
+   | Facture / dépense | `À payer` | `Payé` |
+   | Épargne | `À mettre de côté` | `Mis de côté` |
+   | Placement | `À investir` | `Investi` |
+   | Virement interne | `À transférer` | `Transféré` |
+
+6. L'intention d'ajout devient `Ça revient régulièrement`. Le menu, l'écran
+   et la feuille utilisent le même nom humain : `Ce qui revient`. Les mots
+   `chaque mois`, `chaque année` et leurs variantes ne servent plus qu'à
+   décrire le vrai rythme choisi.
+7. Une mise de côté régulière n'est jamais rouge, négative, `À payer` ou
+   `Payé` dans l'interface. Elle reste visuellement et textuellement distincte
+   d'une dépense, conformément à l'invariant ADR-029.
+8. Ce lot remplace uniquement le vocabulaire et la présentation d'ADR-030
+   §2, §4 et §7. Les cinq onglets, les modèles, SwiftData, `localStorage`, les
+   formats de sauvegarde et tous les calculs financiers restent inchangés.
+
+### Conséquences
+
+- En moins de dix secondes, le même écran répond à : combien reste-t-il,
+  combien ai-je reçu, dépensé et mis de côté, que reste-t-il à faire, et
+  qu'ai-je déjà fait ?
+- Le dashboard reste borné : aucun constructeur de widgets, graphique de
+  patrimoine, objectif ou rapport expert n'est ajouté au premier niveau.
+- Les analyses par catégorie, l'historique complet et le patrimoine gardent
+  leurs destinations dédiées.
+
+### Vérification attendue
+
+PWA : passage réel `À faire → Fait ce mois` pour salaire, facture et réserve,
+trois lignes maximum par section, état écrit sans dépendre de la couleur,
+réserve jamais négative, cohérence `Ce qui revient`, 320/390 px et suites
+navigateur. iOS : sélection pure des mouvements réguliers `posted`, matrice
+des verbes, résumé singulier/pluriel, preuve UI d'au moins une ligne faite,
+Dynamic Type, tests Debug/Release. La CI GitHub macOS et Chromium fait foi
+quand ces outils ne sont pas disponibles localement.
+
 ## ADR-030 — « Mon mois en 10 secondes » et ajout par intention
 
 Date: 2026-08-14

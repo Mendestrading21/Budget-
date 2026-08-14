@@ -522,9 +522,25 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   padding: 8px 12px;
 }
 #screen.nu-pilot-screen .home-bills-progress { margin: 14px 0 8px; }
+#screen.nu-pilot-screen .home-section-title {
+  margin: 16px 0 6px;
+  color: var(--nu-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 #screen.nu-pilot-screen .home-bills-list {
   display: grid;
   border-top: 1px solid var(--nu-border);
+}
+#screen.nu-pilot-screen .home-done-row .s { color: var(--nu-positive); }
+#screen.nu-pilot-screen .home-done-more {
+  min-height: 44px;
+  margin: 6px 0 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 /* La ligne d'obligation n'est pas un `.tx` : sans cette règle, l'emoji se
    collait à gauche d'une pastille teintée non dimensionnée — un rectangle

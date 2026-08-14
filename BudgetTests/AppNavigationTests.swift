@@ -21,7 +21,7 @@ final class AppNavigationTests: XCTestCase {
     func testQuickEntryOffersExactlyFourPlainIntentions() {
         XCTAssertEqual(
             QuickEntryIntent.allCases.map(\.title),
-            ["J'ai dépensé", "J'ai reçu", "J'ai mis de côté", "Ça revient chaque mois"]
+            ["J'ai dépensé", "J'ai reçu", "J'ai mis de côté", "Ça revient régulièrement"]
         )
         XCTAssertEqual(QuickEntryIntent.expense.transactionType, .expense)
         XCTAssertEqual(QuickEntryIntent.income.transactionType, .income)
@@ -45,12 +45,12 @@ final class AppNavigationTests: XCTestCase {
         let expected: [(TransactionType, String, String)] = [
             (.income, "Reçu", "À recevoir"),
             (.refund, "Reçu", "À recevoir"),
-            (.expense, "Payée", "À payer"),
-            (.taxPayment, "Payée", "À payer"),
-            (.debtPayment, "Payée", "À payer"),
+            (.expense, "Payé", "À payer"),
+            (.taxPayment, "Payé", "À payer"),
+            (.debtPayment, "Payé", "À payer"),
             (.saving, "Mis de côté", "À mettre de côté"),
-            (.investment, "Versé", "À investir"),
-            (.transfer, "Effectué", "À transférer"),
+            (.investment, "Investi", "À investir"),
+            (.transfer, "Transféré", "À transférer"),
             (.adjustment, "Confirmé", "À confirmer"),
         ]
 
@@ -59,6 +59,96 @@ final class AppNavigationTests: XCTestCase {
             XCTAssertEqual(HomePilotDisplay.actionVerb(for: type), verb)
             XCTAssertEqual(HomePilotDisplay.actionLabel(for: type), label)
         }
+    }
+
+    func testMonthlyProgressAlwaysSaysWhatRemainsAndWhatIsDone() {
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 0), "Rien à faire")
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 0), "2 à faire")
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 1), "Tout est à jour · 1 fait")
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 4), "2 à faire · 4 faits")
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 0, isFuture: true), "Rien de prévu")
+        XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 0, isFuture: true), "2 prévus")
+    }
+
+    func testMonthlyDashboardKeepsOnlyPostedRegularOperationsAsDone() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        let august = calendar.date(from: DateComponents(year: 2026, month: 8, day: 14))!
+        let july = calendar.date(from: DateComponents(year: 2026, month: 7, day: 31))!
+        let interval = MonthInterval(containing: august, calendar: calendar)
+        let recurringID = UUID()
+        let salary = BudgetTransaction(
+            date: august,
+            amount: 4_500,
+            type: .income,
+            status: .posted,
+            title: "Salaire",
+            recurringID: recurringID
+        )
+        let plannedRent = BudgetTransaction(
+            date: august,
+            amount: 1_500,
+            type: .expense,
+            status: .planned,
+            title: "Loyer",
+            recurringID: recurringID
+        )
+        let manual = BudgetTransaction(
+            date: august,
+            amount: 30,
+            type: .expense,
+            status: .posted,
+            title: "Courses"
+        )
+        let old = BudgetTransaction(
+            date: july,
+            amount: 100,
+            type: .saving,
+            status: .posted,
+            title: "Épargne",
+            recurringID: recurringID
+        )
+
+        let completed = HomePilotDisplay.completedTransactions(
+            in: interval,
+            from: [plannedRent, old, salary, manual]
+        )
+        let planned = HomePilotDisplay.plannedRegularTransactions(
+            in: interval,
+            from: [plannedRent, old, salary, manual]
+        )
+
+        XCTAssertEqual(completed.map(\.title), ["Salaire"])
+        XCTAssertEqual(planned.map(\.title), ["Loyer"])
+    }
+
+    func testOnlyTheNextOccurrenceOfEachRegularLineCanBeConfirmed() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Zurich")!
+        let firstRecurring = UUID()
+        let secondRecurring = UUID()
+        func occurrence(_ id: String, _ recurringID: UUID, day: Int) -> ForecastOccurrence {
+            ForecastOccurrence(
+                id: id,
+                recurringID: recurringID,
+                title: id,
+                amount: 20,
+                type: .expense,
+                date: calendar.date(from: DateComponents(year: 2026, month: 8, day: day))!,
+                isSubscription: false
+            )
+        }
+        let occurrences = [
+            occurrence("weekly-15", firstRecurring, day: 15),
+            occurrence("other-12", secondRecurring, day: 12),
+            occurrence("weekly-01", firstRecurring, day: 1),
+            occurrence("weekly-08", firstRecurring, day: 8),
+        ]
+
+        XCTAssertEqual(
+            HomePilotDisplay.confirmableOccurrenceIDs(from: occurrences),
+            Set(["weekly-01", "other-12"])
+        )
     }
 
     func testFutureMonthlyActionCannotBeConfirmedAsAlreadyDone() {
