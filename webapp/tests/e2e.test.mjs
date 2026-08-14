@@ -918,7 +918,8 @@ await page.waitForSelector("#tabbar button");
 const legacyWidgets = await page.evaluate(() => ({
   hidden: S.homeWidgets?.hidden || [],
   customize: !!document.querySelector("#screen [data-customize]"),
-  essential: /disponible/i.test(document.getElementById("screen").innerText),
+  essential: /reste pour le mois|résultat du mois|estimation du mois/i
+    .test(document.querySelector(".home-hero .card-label")?.textContent || ""),
 }));
 check(legacyWidgets.hidden.includes("trend6"),
   "l'ancienne préférence widget doit survivre pour la compatibilité des sauvegardes");
@@ -4324,10 +4325,12 @@ await goHome();
     recurrings: RECURRINGS,
     bills: S.bills || [],
     monthChecks: S.monthChecks || {},
+    transactions,
   }));
   await page.evaluate(() => {
     RECURRINGS.splice(0, RECURRINGS.length);
     S.bills = [];
+    transactions.splice(0, transactions.length);
     const source = defaultCashAccount();
     const destination = (ACCOUNTS.find(a => a.kind === "savings" && a.id !== source)
       || ACCOUNTS.find(a => a.id !== source)).id;
@@ -4381,6 +4384,7 @@ await goHome();
     RECURRINGS.splice(0, RECURRINGS.length, ...previous.recurrings);
     S.bills = previous.bills;
     S.monthChecks = previous.monthChecks;
+    transactions.splice(0, transactions.length, ...previous.transactions);
     todayParts = window.__todayParts96;
     delete window.__todayParts96;
     saveState(); render();
@@ -5357,11 +5361,17 @@ currentTest = "charges et abonnements dès la bienvenue";
   const accueil104 = await p104.evaluate(() => ({
     texte: document.getElementById("screen").innerText,
     engage: snapshot(NOW.y, NOW.m).recurringCharges,
+    lignesVisibles: document.querySelectorAll(".home-bill-row:not(.home-done-row)").length,
+    overflow: document.querySelector(".home-agenda-card .home-done-more")?.textContent || "",
   }));
+  const chargesVisibles104 = cree.charges
+    .filter(charge => accueil104.texte.includes(charge.t)).length;
   check(Math.abs(accueil104.engage - 2081.90) < 0.01
-      && cree.charges.every(charge => accueil104.texte.includes(charge.t))
+      && chargesVisibles104 === 2
+      && accueil104.lignesVisibles === 3
+      && /Et 1 autre à faire/.test(accueil104.overflow)
       && /Bilan du mois/.test(accueil104.texte),
-    `dès la première ouverture, les trois charges sont engagées et lisibles (${JSON.stringify(accueil104)})`);
+    `dès la première ouverture, les trois charges sont engagées et le bilan garde trois priorités (${JSON.stringify({ ...accueil104, chargesVisibles104 })})`);
   check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
   await ctx104.close();
 }
