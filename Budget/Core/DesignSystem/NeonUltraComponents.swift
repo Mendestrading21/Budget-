@@ -109,9 +109,11 @@ struct NeonUltraCard<Content: View>: View {
     }
 }
 
-/// Carte ÉLEVÉE : surface `#181C26`, profondeur subtile par ombre
-/// noire (jamais un glow coloré), aucun blur. Sous Reduce
-/// Transparency : `surfaceFallback` opaque et ombre retirée.
+/// Carte ÉLEVÉE Budget Prisme : surface `#181C26`, profondeur subtile par
+/// ombre noire et un liseré spectral d'un point. Ce liseré est la signature
+/// rare du héros — il ne se répète jamais sur les cartes de liste. Sous
+/// Reduce Transparency : `surfaceFallback` opaque, bord simple et ombre
+/// retirée.
 struct NeonUltraElevatedCard<Content: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
     @Environment(\.neonUltraForcedReducedTransparency) private var forcedReduceTransparency
@@ -124,10 +126,18 @@ struct NeonUltraElevatedCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(NeonUltraSurfaceResolver.elevated(reduceTransparency: reduced))
             .clipShape(RoundedRectangle(cornerRadius: NeonUltraRadius.hero, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: NeonUltraRadius.hero, style: .continuous)
-                    .stroke(NeonUltraColor.border, lineWidth: 1)
-            )
+            .overlay {
+                let shape = RoundedRectangle(
+                    cornerRadius: NeonUltraRadius.hero,
+                    style: .continuous
+                )
+                shape.stroke(NeonUltraColor.border, lineWidth: 1)
+                if !reduced {
+                    shape
+                        .stroke(NeonUltraGradient.prismEdge, lineWidth: 1)
+                        .opacity(0.42)
+                }
+            }
             .shadow(
                 color: reduced ? .clear : Color.black.opacity(0.45),
                 radius: 18, x: 0, y: 10

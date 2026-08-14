@@ -8,10 +8,8 @@ import XCTest
 /// rebranchées — Mois, Budget, Nouveau mouvement — portent l'identité
 /// Neon Ultra et se construisent dans tous les états exigés.
 ///
-/// Les SURFACES des deux familles ont été unifiées (ADR-024) : l'app peint
-/// un seul noir et une seule matière de carte. Ce qui distingue encore
-/// Obsidian de Neon Ultra, c'est l'ACCENT — indigo contre cyan/magenta —
-/// jusqu'à ce que NU4 à NU7 aient rebranché le reste des écrans.
+/// Budget Prisme unifie surfaces, géométrie et accent : l'app peint un seul
+/// noir, une seule matière de carte et une seule autorité cyan/violet/magenta.
 final class NeonUltraPilotTests: XCTestCase {
     // MARK: - Outils
 
@@ -64,14 +62,13 @@ final class NeonUltraPilotTests: XCTestCase {
         )
     }
 
-    /// L'ACCENT Obsidian reste intact. Les surfaces, elles, ont été
-    /// délibérément unifiées sur Neon Ultra (ADR-024) : c'est la teinte de
-    /// marque, pas le fond, qui distingue encore les deux familles.
-    func testObsidianRolesAreUntouchedByThePilot() {
+    /// Budget Prisme ferme la dernière divergence : les wrappers historiques
+    /// utilisent maintenant le cyan Neon Ultra, sans conserver une seconde
+    /// teinte indigo dans les écrans non pilotes.
+    func testCompatibilityRolesUseTheSameBrandAccent() {
         let brand = resolve(BudgetColor.indigo)
-        XCTAssertEqual(Double(brand.r) * 255, 115, accuracy: 1.5, "Indigo Aurora #7367FF — rouge")
-        XCTAssertEqual(Double(brand.g) * 255, 103, accuracy: 1.5, "Indigo Aurora #7367FF — vert")
-        XCTAssertEqual(Double(brand.b) * 255, 255, accuracy: 1.5, "Indigo Aurora #7367FF — bleu")
+        let neon = resolve(NeonUltraColor.cyan)
+        XCTAssertEqual(brand, neon, "une seule autorité d'accent cyan")
     }
 
     // MARK: - Les trois surfaces pilotes se construisent réellement

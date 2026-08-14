@@ -36,23 +36,23 @@ struct MainTabView: View {
             }
             TabView(selection: $router.selectedTab) {
                 HomeTab()
-                    .tabItem { Label(AppTab.home.title, systemImage: AppTab.home.systemImage) }
+                    .tabItem { tabLabel(.home, selected: router.selectedTab) }
                     .tag(AppTab.home)
 
                 TransactionsTab()
-                    .tabItem { Label(AppTab.transactions.title, systemImage: AppTab.transactions.systemImage) }
+                    .tabItem { tabLabel(.transactions, selected: router.selectedTab) }
                     .tag(AppTab.transactions)
 
                 BudgetTab()
-                    .tabItem { Label(AppTab.budget.title, systemImage: AppTab.budget.systemImage) }
+                    .tabItem { tabLabel(.budget, selected: router.selectedTab) }
                     .tag(AppTab.budget)
 
                 AccountsTab()
-                    .tabItem { Label(AppTab.accounts.title, systemImage: AppTab.accounts.systemImage) }
+                    .tabItem { tabLabel(.accounts, selected: router.selectedTab) }
                     .tag(AppTab.accounts)
 
                 MoreTab()
-                    .tabItem { Label(AppTab.more.title, systemImage: AppTab.more.systemImage) }
+                    .tabItem { tabLabel(.more, selected: router.selectedTab) }
                     .tag(AppTab.more)
             }
             // ADR-024 : la coquille portait encore l'indigo Obsidian
@@ -64,6 +64,7 @@ struct MainTabView: View {
             .tint(NeonUltraColor.cyan)
             .toolbarBackground(NeonUltraColor.navigation, for: .tabBar)
             .toolbarBackground(.visible, for: .tabBar)
+            .toolbarColorScheme(.dark, for: .tabBar)
         }
         .background(NeonUltraColor.canvas)
         // L'annonce de progrès vit dans la COQUILLE : l'écriture part d'une
@@ -79,6 +80,19 @@ struct MainTabView: View {
         }
         // Un fondu simple : lisible, et déjà correct en mouvement réduit.
         .animation(.easeInOut(duration: 0.2), value: appContainer.goalProgressMessage)
+    }
+
+    private func tabLabel(_ tab: AppTab, selected: AppTab) -> some View {
+        Label {
+            Text(tab.title)
+        } icon: {
+            Image(
+                uiImage: BudgetGlyphTabImage.image(
+                    for: tab.budgetGlyph,
+                    isSelected: tab == selected
+                )
+            )
+        }
     }
 }
 
@@ -139,8 +153,7 @@ struct DemoModeBanner: View {
 
     var body: some View {
         HStack(spacing: BudgetSpacing.small) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(NeonUltraColor.magenta)
+            BudgetIcon(.demo, tone: .brand, style: .plain)
             Text("Mode démonstration — données fictives")
                 .font(BudgetFont.caption)
             Spacer()

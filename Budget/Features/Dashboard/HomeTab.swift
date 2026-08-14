@@ -156,15 +156,6 @@ enum QuickEntryIntent: String, CaseIterable, Identifiable {
         }
     }
 
-    var systemImage: String {
-        switch self {
-        case .expense: "arrow.up.circle"
-        case .income: "arrow.down.circle"
-        case .setAside: "building.columns"
-        case .recurring: "calendar.badge.clock"
-        }
-    }
-
     var transactionType: TransactionType? {
         switch self {
         case .expense: .expense
@@ -276,6 +267,7 @@ struct HomeTab: View {
                 .neonUltraScrollClearance()
             }
             .navigationTitle("Mois")
+            .navigationBarTitleDisplayMode(.inline)
             .alert(
                 saveErrorMessage ?? "",
                 isPresented: Binding(
@@ -298,7 +290,7 @@ struct HomeTab: View {
             Button {
                 shiftMonth(by: -1)
             } label: {
-                Image(systemName: "chevron.left")
+                BudgetIcon(.previous, tone: .brand, style: .plain)
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Mois précédent")
@@ -318,7 +310,7 @@ struct HomeTab: View {
             Button {
                 shiftMonth(by: 1)
             } label: {
-                Image(systemName: "chevron.right")
+                BudgetIcon(.next, tone: .brand, style: .plain)
                     .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Mois suivant")
@@ -382,18 +374,9 @@ struct HomeTab: View {
                 Button {
                     isPresentingQuickEntry = true
                 } label: {
-                    Label("Ajouter", systemImage: "plus")
-                        .font(NeonUltraTypography.label)
-                        .foregroundStyle(NeonUltraColor.textOnCta)
-                        .frame(maxWidth: .infinity, minHeight: 48)
-                        .background(NeonUltraGradient.cta)
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: NeonUltraRadius.control,
-                                style: .continuous
-                            )
-                        )
+                    Label("Ajouter", systemImage: BudgetGlyph.add.systemName)
                 }
+                .buttonStyle(NeonUltraPrimaryButtonStyle())
                 .accessibilityLabel("Ajouter une opération")
                 .accessibilityIdentifier("home.quick-entry")
             }
@@ -418,13 +401,27 @@ struct HomeTab: View {
 
     private func compactAmountsHorizontal(_ snapshot: MonthSnapshot) -> some View {
         HStack(alignment: .top, spacing: BudgetSpacing.small) {
-            compactMetric("Reçu", snapshot.totalIncome, emphasis: .positive)
+            compactMetric(
+                "Reçu",
+                snapshot.totalIncome,
+                glyph: .income,
+                tone: .positive,
+                emphasis: .positive
+            )
             Divider().overlay(NeonUltraColor.border)
-            compactMetric("Dépensé", snapshot.totalLivingExpenses, emphasis: .negative)
+            compactMetric(
+                "Dépensé",
+                snapshot.totalLivingExpenses,
+                glyph: .expense,
+                tone: .negative,
+                emphasis: .negative
+            )
             Divider().overlay(NeonUltraColor.border)
             compactMetric(
                 "Mis de côté",
                 snapshot.totalSavings + snapshot.totalInvestments,
+                glyph: .setAside,
+                tone: .brand,
                 emphasis: .neutral
             )
         }
@@ -432,11 +429,25 @@ struct HomeTab: View {
 
     private func compactAmountsVertical(_ snapshot: MonthSnapshot) -> some View {
         VStack(spacing: BudgetSpacing.small) {
-            compactMetricRow("Reçu", snapshot.totalIncome, emphasis: .positive)
-            compactMetricRow("Dépensé", snapshot.totalLivingExpenses, emphasis: .negative)
+            compactMetricRow(
+                "Reçu",
+                snapshot.totalIncome,
+                glyph: .income,
+                tone: .positive,
+                emphasis: .positive
+            )
+            compactMetricRow(
+                "Dépensé",
+                snapshot.totalLivingExpenses,
+                glyph: .expense,
+                tone: .negative,
+                emphasis: .negative
+            )
             compactMetricRow(
                 "Mis de côté",
                 snapshot.totalSavings + snapshot.totalInvestments,
+                glyph: .setAside,
+                tone: .brand,
                 emphasis: .neutral
             )
         }
@@ -445,9 +456,13 @@ struct HomeTab: View {
     private func compactMetric(
         _ title: String,
         _ amount: Decimal,
+        glyph: BudgetGlyph,
+        tone: BudgetIconTone,
         emphasis: AmountEmphasis
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
+            BudgetIcon(glyph, tone: tone)
+                .padding(.bottom, BudgetSpacing.micro)
             Text(title)
                 .font(NeonUltraTypography.meta)
                 .foregroundStyle(NeonUltraColor.textSecondary)
@@ -465,9 +480,12 @@ struct HomeTab: View {
     private func compactMetricRow(
         _ title: String,
         _ amount: Decimal,
+        glyph: BudgetGlyph,
+        tone: BudgetIconTone,
         emphasis: AmountEmphasis
     ) -> some View {
-        HStack {
+        HStack(spacing: BudgetSpacing.compact) {
+            BudgetIcon(glyph, tone: tone)
             Text(title)
                 .font(NeonUltraTypography.label)
                 .foregroundStyle(NeonUltraColor.textSecondary)
@@ -549,14 +567,23 @@ struct HomeTab: View {
             if pending.isEmpty && completed.isEmpty {
                 NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                        Label(
-                            isFutureMonth ? "Rien de prévu"
-                                : (recurrings.isEmpty ? "Ajoutez ce qui revient" : "Tout est à jour"),
-                            systemImage: isFutureMonth ? "calendar"
-                                : (recurrings.isEmpty ? "calendar.badge.plus" : "checkmark.circle")
-                        )
+                        HStack(spacing: BudgetSpacing.compact) {
+                            BudgetIcon(
+                                isFutureMonth ? .month
+                                    : (recurrings.isEmpty ? .recurring : .success),
+                                tone: (isFutureMonth || recurrings.isEmpty) ? .brand : .positive
+                            )
+                            Text(
+                                isFutureMonth ? "Rien de prévu"
+                                    : (recurrings.isEmpty ? "Ajoutez ce qui revient" : "Tout est à jour")
+                            )
                             .font(NeonUltraTypography.label)
-                            .foregroundStyle(recurrings.isEmpty ? NeonUltraColor.cyan : NeonUltraColor.positive)
+                            .foregroundStyle(
+                                (isFutureMonth || recurrings.isEmpty)
+                                    ? NeonUltraColor.cyan
+                                    : NeonUltraColor.positive
+                            )
+                        }
                         Text(
                             isFutureMonth
                                 ? "Les éléments de ce mois apparaîtront ici quand ils seront prévus."
@@ -678,10 +705,10 @@ struct HomeTab: View {
 
     private func plannedMonthlyIdentity(_ transaction: BudgetTransaction) -> some View {
         HStack(spacing: BudgetSpacing.medium) {
-            Image(systemName: actionIcon(for: transaction.type))
-                .frame(width: 28)
-                .foregroundStyle(actionColor(for: transaction.type))
-                .accessibilityHidden(true)
+            BudgetIcon(
+                transaction.type.budgetGlyph,
+                tone: transaction.type.budgetPlannedIconTone
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.title)
@@ -721,10 +748,10 @@ struct HomeTab: View {
 
     private func completedMonthlyIdentity(_ transaction: BudgetTransaction) -> some View {
         HStack(spacing: BudgetSpacing.medium) {
-            Image(systemName: actionIcon(for: transaction.type))
-                .frame(width: 28)
-                .foregroundStyle(actionColor(for: transaction.type))
-                .accessibilityHidden(true)
+            BudgetIcon(
+                transaction.type.budgetGlyph,
+                tone: transaction.type.budgetIconTone
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(transaction.title)
@@ -792,10 +819,10 @@ struct HomeTab: View {
 
     private func monthlyActionIdentity(_ occurrence: ForecastOccurrence) -> some View {
         HStack(spacing: BudgetSpacing.medium) {
-            Image(systemName: actionIcon(for: occurrence.type))
-                .frame(width: 28)
-                .foregroundStyle(actionColor(for: occurrence.type))
-                .accessibilityHidden(true)
+            BudgetIcon(
+                occurrence.type.budgetGlyph,
+                tone: occurrence.type.budgetPlannedIconTone
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(occurrence.title)
@@ -846,25 +873,6 @@ struct HomeTab: View {
             Text(waitingLabel)
                 .font(NeonUltraTypography.meta)
                 .foregroundStyle(NeonUltraColor.textSecondary)
-        }
-    }
-
-    private func actionIcon(for type: TransactionType) -> String {
-        switch type {
-        case .income, .refund: "arrow.down.circle"
-        case .expense, .taxPayment, .debtPayment: "calendar"
-        case .saving, .investment: "building.columns"
-        case .transfer: "arrow.left.arrow.right"
-        case .adjustment: "slider.horizontal.3"
-        }
-    }
-
-    private func actionColor(for type: TransactionType) -> Color {
-        switch type {
-        case .income, .refund: NeonUltraColor.positive
-        case .expense, .taxPayment, .debtPayment: NeonUltraColor.warning
-        case .saving, .investment: NeonUltraColor.cyan
-        case .transfer, .adjustment: NeonUltraColor.textSecondary
         }
     }
 
@@ -941,11 +949,11 @@ struct QuickEntrySheet: View {
                             } label: {
                                 NeonUltraCard {
                                     HStack(spacing: BudgetSpacing.medium) {
-                                        Image(systemName: intent.systemImage)
-                                            .font(.title3.weight(.semibold))
-                                            .foregroundStyle(NeonUltraColor.cyan)
-                                            .frame(width: 32)
-                                            .accessibilityHidden(true)
+                                        BudgetIcon(
+                                            intent.budgetGlyph,
+                                            tone: intent.budgetIconTone,
+                                            style: .control
+                                        )
 
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text(intent.title)
@@ -959,9 +967,7 @@ struct QuickEntrySheet: View {
 
                                         Spacer(minLength: BudgetSpacing.small)
 
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(NeonUltraColor.textSecondary)
-                                            .accessibilityHidden(true)
+                                        BudgetIcon(.next, style: .plain)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
                                 }

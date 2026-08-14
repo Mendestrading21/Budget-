@@ -60,16 +60,16 @@ final class DesignSystemTests: XCTestCase {
         assertColor(BudgetColor.glass, red: 17, green: 20, blue: 28, "glass #11141C — mate")
         assertColor(BudgetColor.glassStrong, red: 24, green: 28, blue: 38, "glassStrong #181C26 — mate")
         assertColor(BudgetColor.glassFallback, red: 21, green: 25, blue: 35, "glassFallback #151923")
-        assertColor(BudgetColor.strokeActive, red: 115, green: 103, blue: 255, alpha: 0.48, "strokeActive")
-        assertColor(BudgetColor.brand, red: 115, green: 103, blue: 255, "brand #7367FF")
-        assertColor(BudgetColor.brandBright, red: 145, green: 136, blue: 255, "brandBright #9188FF")
-        assertColor(BudgetColor.textPrimary, red: 246, green: 247, blue: 251, "textPrimary #F6F7FB")
-        assertColor(BudgetColor.textSecondary, red: 167, green: 176, blue: 192, "textSecondary #A7B0C0")
-        assertColor(BudgetColor.textTertiary, red: 117, green: 128, blue: 148, "textTertiary #758094")
-        assertColor(BudgetColor.positive, red: 54, green: 211, blue: 153, "positive #36D399")
-        assertColor(BudgetColor.negative, red: 255, green: 107, blue: 122, "negative #FF6B7A")
-        assertColor(BudgetColor.warning, red: 255, green: 180, blue: 84, "warning #FFB454")
-        assertColor(BudgetColor.brandDeep, red: 100, green: 87, blue: 240, "brandDeep #6457F0 (dérivé)")
+        assertColor(BudgetColor.strokeActive, red: 124, green: 58, blue: 237, alpha: 0.48, "strokeActive violet")
+        assertColor(BudgetColor.brand, red: 56, green: 189, blue: 248, "brand cyan #38BDF8")
+        assertColor(BudgetColor.brandBright, red: 56, green: 189, blue: 248, "brandBright cyan #38BDF8")
+        assertColor(BudgetColor.textPrimary, red: 245, green: 247, blue: 250, "textPrimary #F5F7FA")
+        assertColor(BudgetColor.textSecondary, red: 163, green: 172, blue: 186, "textSecondary #A3ACBA")
+        assertColor(BudgetColor.textTertiary, red: 124, green: 134, blue: 150, "textTertiary #7C8696")
+        assertColor(BudgetColor.positive, red: 53, green: 211, blue: 154, "positive #35D39A")
+        assertColor(BudgetColor.negative, red: 255, green: 101, blue: 119, "negative #FF6577")
+        assertColor(BudgetColor.warning, red: 246, green: 196, blue: 83, "warning #F6C453")
+        assertColor(BudgetColor.brandDeep, red: 110, green: 0, blue: 232, "brandDeep #6E00E8")
     }
 
     /// L'identité est unique : les rôles ne varient plus entre apparences.
@@ -174,8 +174,8 @@ final class DesignSystemTests: XCTestCase {
     // MARK: - Géométrie (constitution §3)
 
     func testGeometryTokens() {
-        XCTAssertEqual(BudgetRadius.hero, 28)
-        XCTAssertEqual(BudgetRadius.card, 22)
+        XCTAssertEqual(BudgetRadius.hero, 26)
+        XCTAssertEqual(BudgetRadius.card, 18)
         XCTAssertEqual(BudgetRadius.control, 14)
         XCTAssertEqual(BudgetSpacing.screenMargin, 18)
         XCTAssertEqual(BudgetSpacing.heroPadding, 24)

@@ -4815,38 +4815,37 @@ await goHome();
     check(!semantiques.interdits.includes(couleur),
       `--series-${i + 1} n'emprunte ni le vert, ni le corail, ni l'ambre (${couleur})`);
 
-  // Un glyphe de pastille doit SUIVRE la couleur du sens. On le rend deux
-  // fois, sous deux couleurs CSS, avec la police réelle de .ico : un emoji
-  // couleur donne deux rendus identiques au pixel près.
+  // Un Budget Glyph doit SUIVRE currentColor. On vérifie le contrat SVG
+  // plutôt que le rendu de police : grille 24 × 24, trait arrondi unique,
+  // aucune dépendance à un emoji système.
   const glyphes = await page.evaluate(() => {
-    const sonde = document.createElement("div");
-    sonde.className = "ico"; document.body.appendChild(sonde);
-    const cs = getComputedStyle(sonde);
-    const police = `${cs.fontSize} ${cs.fontFamily}`;
-    sonde.remove();
-    const dessine = (g, couleur) => {
-      const c = document.createElement("canvas"); c.width = 44; c.height = 44;
-      const x = c.getContext("2d");
-      x.fillStyle = "#000"; x.fillRect(0, 0, 44, 44);
-      x.font = police; x.fillStyle = couleur;
-      x.textBaseline = "middle"; x.textAlign = "center";
-      x.fillText(g, 22, 22);
-      return x.getImageData(0, 0, 44, 44).data;
-    };
-    return Object.entries(TYPE_ICON).map(([type, g]) => {
-      const a = dessine(g, "#36D399"), b = dessine(g, "#FF6B7A");
-      let encre = 0, change = 0;
-      for (let k = 0; k < a.length; k += 4) {
-        if (a[k] + a[k + 1] + a[k + 2] > 30) encre++;
-        if (a[k] !== b[k] || a[k + 1] !== b[k + 1] || a[k + 2] !== b[k + 2]) change++;
-      }
-      return { type, encre, change };
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const result = Object.entries(TYPE_GLYPH).map(([type, name]) => {
+      host.innerHTML = budgetGlyph(name);
+      const svg = host.querySelector("svg");
+      host.style.color = "#36D399";
+      const positiveStroke = getComputedStyle(svg).stroke;
+      host.style.color = "#FF6B7A";
+      const negativeStroke = getComputedStyle(svg).stroke;
+      return {
+        type, viewBox: svg.getAttribute("viewBox"), fill: svg.getAttribute("fill"),
+        stroke: svg.getAttribute("stroke"), width: svg.getAttribute("stroke-width"),
+        linecap: svg.getAttribute("stroke-linecap"), linejoin: svg.getAttribute("stroke-linejoin"),
+        marks: svg.querySelectorAll("path, circle, rect, line, polyline").length,
+        positiveStroke, negativeStroke, text: svg.textContent,
+      };
     });
+    host.remove();
+    return result;
   });
   for (const g of glyphes) {
-    check(g.encre > 0, `la pastille « ${g.type} » dessine réellement un glyphe`);
-    check(g.change > 0,
-      `la pastille « ${g.type} » suit la teinte du sens (un emoji couleur l'ignorerait)`);
+    check(g.viewBox === "0 0 24 24" && g.fill === "none" && g.stroke === "currentColor",
+      `Budget Glyph « ${g.type} » respecte la grille et currentColor (${JSON.stringify(g)})`);
+    check(g.width === "1.75" && g.linecap === "round" && g.linejoin === "round" && g.marks > 0,
+      `Budget Glyph « ${g.type} » possède un trait arrondi visible (${JSON.stringify(g)})`);
+    check(g.positiveStroke !== g.negativeStroke && g.text.trim() === "",
+      `Budget Glyph « ${g.type} » suit la couleur CSS et ne contient aucun caractère`);
   }
 
   // Patrimoine : quatre courbes de classe, quatre couleurs ET quatre traits.
@@ -6305,6 +6304,7 @@ currentTest = "ce qui revient, partout le même mot";
   check(restes.rythmes.includes("Tous les mois") && restes.rythmes.includes("Une fois par an"),
     `le vrai rythme reste choisi dans le formulaire (${JSON.stringify(restes.rythmes)})`);
   const verbes = await page.evaluate(() => ({
+    debtLabel: TYPE_LABEL.debtPayment,
     labels: Object.fromEntries(
       ["income", "refund", "expense", "taxPayment", "debtPayment", "saving",
         "investment", "transfer", "adjustment"]
@@ -6315,7 +6315,8 @@ currentTest = "ce qui revient, partout le même mot";
         .map(type => [type, icoClass(type)])
     ),
   }));
-  check(JSON.stringify(verbes.labels) === JSON.stringify({
+  check(verbes.debtLabel === "Remboursement de dette"
+      && JSON.stringify(verbes.labels) === JSON.stringify({
     income: "Reçu", refund: "Reçu", expense: "Payé", taxPayment: "Payé",
     debtPayment: "Payé", saving: "Mis de côté", investment: "Investi",
     transfer: "Transféré", adjustment: "Confirmé",

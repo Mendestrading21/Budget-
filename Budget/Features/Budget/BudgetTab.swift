@@ -61,7 +61,7 @@ struct BudgetTab: View {
                         }
                         outOfBudgetSection(report)
                         if let actionErrorMessage {
-                            Label(actionErrorMessage, systemImage: "exclamationmark.circle")
+                            Label(actionErrorMessage, systemImage: BudgetGlyph.error.systemName)
                                 .font(NeonUltraTypography.body)
                                 .foregroundStyle(NeonUltraColor.negative)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -72,19 +72,20 @@ struct BudgetTab: View {
                 .neonUltraScrollClearance()
             }
             .navigationTitle("Budget")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isPresentingNewLine = true
                     } label: {
-                        Label("Ajouter une ligne", systemImage: "plus")
+                        Label("Ajouter une ligne", systemImage: BudgetGlyph.add.systemName)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         AnnualBudgetView(yearAnchor: currentAnchor)
                     } label: {
-                        Label("Vue annuelle", systemImage: "calendar")
+                        Label("Vue annuelle", systemImage: BudgetGlyph.annual.systemName)
                     }
                 }
             }
@@ -104,8 +105,8 @@ struct BudgetTab: View {
             Button {
                 shiftMonth(by: -1)
             } label: {
-                Image(systemName: "chevron.left")
-                    .padding(BudgetSpacing.small)
+                BudgetIcon(.previous, tone: .brand, style: .plain)
+                    .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Mois précédent")
 
@@ -118,8 +119,8 @@ struct BudgetTab: View {
             Button {
                 shiftMonth(by: 1)
             } label: {
-                Image(systemName: "chevron.right")
-                    .padding(BudgetSpacing.small)
+                BudgetIcon(.next, tone: .brand, style: .plain)
+                    .frame(width: 44, height: 44)
             }
             .accessibilityLabel("Mois suivant")
         }
@@ -235,9 +236,12 @@ struct BudgetTab: View {
     private var emptyState: some View {
         NeonUltraCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Label("Aucun budget ce mois", systemImage: "chart.pie")
-                    .font(NeonUltraTypography.title)
-                    .foregroundStyle(NeonUltraColor.textPrimary)
+                HStack(spacing: BudgetSpacing.compact) {
+                    BudgetIcon(.budget, tone: .brand)
+                    Text("Aucun budget ce mois")
+                        .font(NeonUltraTypography.title)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
+                }
                 Text("Planifiez des enveloppes par catégorie pour comparer le prévu et le réel.")
                     .font(NeonUltraTypography.body)
                     .foregroundStyle(NeonUltraColor.textSecondary)

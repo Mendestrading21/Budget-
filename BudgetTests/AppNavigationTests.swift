@@ -12,9 +12,10 @@ final class AppNavigationTests: XCTestCase {
 
     func testEveryMainDestinationHasAnIconAndUniqueTitle() {
         let titles = AppTab.allCases.map(\.title)
-        let icons = AppTab.allCases.map(\.systemImage)
+        let icons = AppTab.allCases.compactMap { $0.budgetGlyph.pwaName }
 
         XCTAssertEqual(Set(titles).count, titles.count)
+        XCTAssertEqual(icons.count, AppTab.allCases.count)
         XCTAssertTrue(icons.allSatisfy { !$0.isEmpty })
     }
 
