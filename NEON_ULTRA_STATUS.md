@@ -18,6 +18,59 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Bilan du mois : à faire et déjà fait (14.08.2026) — VERIFYING
+
+Lot vertical ADR-031 sur `agent/budget-bilan-mensuel-clair`, empilé sur le
+correctif de sécurité encore en revue afin de ne pas le mélanger à `main`.
+Il modifie la présentation, les textes et la cohérence du rituel mensuel :
+un élément seulement prévu ne peut plus fermer `Mois bouclé`. Aucun modèle,
+format de sauvegarde, statut financier ou calcul financier n'est changé.
+
+### Résultat visible
+
+- PWA et iOS : le héros dit `Reste pour le mois`, puis les trois repères
+  historiques restent `Reçu · Dépensé · Mis de côté`.
+- La carte unique devient `Bilan du mois` avec un résumé `N à faire · M faits`,
+  trois éléments à faire au maximum et trois preuves `Fait ce mois` au
+  maximum. Confirmer un salaire, une facture ou une réserve déplace la ligne ;
+  elle ne disparaît plus du dashboard.
+- Un mois futur est explicitement une `Estimation du mois` : son bilan dit
+  `N prévus` / `Prévu ce mois` et ne propose aucune validation anticipée.
+- Les états sont unifiés : `Reçu · Payé · Mis de côté · Investi · Transféré`.
+  Les éléments futurs restent `Prévu`.
+- `Transactions mensuelles` et `Ça revient chaque mois` quittent les écrans :
+  menu, page et feuille disent `Ce qui revient`; Ajouter dit
+  `Ça revient régulièrement`. Le rythme réel garde ses choix mois/année côté
+  PWA et semaine/mois/trimestre/semestre/année côté iOS.
+- Une réserve régulière PWA n'est plus rouge, négative, `À payer` ou `Payé`.
+
+### Preuves locales
+
+- Nouveau contrat Swift testé : verbes, résumé singulier/pluriel et sélection
+  exclusive des mouvements réguliers `posted` du mois.
+- Tour UI iOS renforcé : le dashboard doit exposer son titre et au moins une
+  opération régulière déjà faite dans la démo.
+- E2E PWA renforcé : salaire, facture et réserve passent réellement de
+  `À faire` à `Fait ce mois`; le contrat `Ce qui revient` couvre aussi le
+  rythme annuel; le design borne chaque section à trois lignes.
+- Scripts inline et fichiers `.mjs` : syntaxe valide ; `git diff --check`
+  propre. Chromium, Swift et Xcode ne sont pas disponibles localement :
+  les suites réelles doivent être confirmées par la CI avant fusion.
+
+### Limites connues, hors moteur de ce lot
+
+- La PWA ne possède pas de date de début pour ses anciennes définitions
+  régulières. Dans un mois passé, elle n'invente donc pas un **revenu**
+  manquant à partir d'une ligne créée aujourd'hui ; un revenu passé n'apparaît
+  que si son mouvement est conservé. Les charges gardent pour l'instant le
+  comportement historique « en retard », faute de pouvoir distinguer une
+  vraie ancienne charge d'une définition créée plus tard. iOS peut être plus
+  précis grâce à son calendrier persistant ; ajouter cette date à la PWA
+  exige un lot de modèle et de migration séparé.
+- Une sauvegarde iOS historique peut déjà contenir une occurrence
+  hebdomadaire confirmée hors ordre. Ce lot empêche d'en créer une nouvelle,
+  sans réécrire rétroactivement les dates ou mouvements existants.
+
 ## Les données restaurées restent du texte inerte (14.08.2026) — VERIFYING
 
 Lot correctif isolé sur `agent/budget-securite-donnees`. Il ne modifie ni
