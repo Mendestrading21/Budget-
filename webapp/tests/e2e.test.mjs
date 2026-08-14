@@ -40,6 +40,16 @@ async function goMovements() {
   await page.waitForTimeout(200);
 }
 
+// L'ajout part désormais d'une intention humaine, puis ouvre le formulaire
+// comptable déjà prérempli. Les tests métier empruntent le même chemin que
+// l'utilisateur au lieu de contourner ce premier choix.
+async function openQuickEntry(intent = "expense", selector = "[data-addtx]") {
+  await page.click(selector);
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  await page.click(`#quickMenu [data-quick="${intent}"]`);
+  await page.waitForSelector(intent === "rec" ? "#recForm" : "#txForm", { state: "visible" });
+}
+
 // ---------- Test 0 : première ouverture = écran de bienvenue ----------
 currentTest = "bienvenue";
 await page.goto(APP_URL);
@@ -177,12 +187,12 @@ const monthlyRecurring = await page.evaluate(() => {
     perMonth,
   };
 });
-check(/transactions mensuelles/i.test(monthlyRecurring.firstText)
+check(/à faire ce mois/i.test(monthlyRecurring.firstText)
     && monthlyRecurring.firstText.includes("Loyer mensuel ADR026"),
   "la facture mensuelle doit être visible sur le mois précédent");
 check(/En retard/i.test(monthlyRecurring.firstText),
   "une échéance mensuelle dépassée doit être signalée explicitement « En retard »");
-check(/transactions mensuelles/i.test(monthlyRecurring.secondText)
+check(/à faire ce mois/i.test(monthlyRecurring.secondText)
     && monthlyRecurring.secondText.includes("Loyer mensuel ADR026"),
   "la même facture récurrente doit revenir le mois suivant");
 check(monthlyRecurring.created.join(",") === "true,false,true,false"
@@ -196,8 +206,7 @@ let screenHTML = await page.$eval("#screen", el => el.innerHTML);
 currentTest = "creation mouvement";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 // Accueil : plus de ＋ flottant — le bouton héros ouvre la feuille.
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Test E2E dépense");
 await page.fill("#fAmount", "42.50");
@@ -235,9 +244,7 @@ check(!screenHTML.includes("Test E2E dépense"), "mouvement non supprimé");
 // ---------- Test 4 : épargne depuis l'action unique — destination peuplée, fortune préservée ----------
 currentTest = "epargne";
 await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
-await page.click('#txForm [data-ftype="saving"]');
+await openQuickEntry("save");
 const destOptions = await page.$eval("#fDest", el => el.options.length);
 check(destOptions > 0, "aucune destination proposée pour une épargne");
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
@@ -252,8 +259,7 @@ check(screenHTML.includes("Épargne E2E"), "épargne absente de l'Historique");
 // ---------- Test 5 : Échap ferme la feuille ouverte depuis l'action unique ----------
 currentTest = "echap";
 await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 await page.keyboard.press("Escape");
 await page.waitForTimeout(150);
 const sheetOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
@@ -599,8 +605,7 @@ check(!baseSheetOpen, "le bouton Annuler de la devise de référence doit fermer
 // ---------- Test 21 : fermeture accidentelle d'une feuille avec saisie → garde-fou ----------
 currentTest = "garde-fou saisie";
 await goHome();
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 await page.evaluate(() => { document.getElementById("fMore").open = true; }); // L3 : intitulé sous « Détails »
 await page.fill("#fTitle", "Saisie en cours");
 await page.fill("#fAmount", "12.30");
@@ -610,8 +615,7 @@ await page.waitForTimeout(150);
 let guardOpen = await page.$eval("#sheetBackdrop", el => el.classList.contains("open"));
 check(!guardOpen, "après confirmation, la feuille doit se fermer");
 // ouvrir sans rien changer et cliquer le fond : pas de saisie → fermeture directe
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 const snapClean = await page.evaluate(() => serializeSheet("txForm") === openSheetSnapshot);
 check(snapClean, "une feuille fraîchement ouverte ne doit pas être considérée comme modifiée");
 await page.evaluate(() => document.getElementById("sheetBackdrop").click());
@@ -674,8 +678,7 @@ await page.reload();
 await page.waitForSelector("#tabbar button", { timeout: 10000 });
 await goMovements();
 await page.waitForSelector("[data-addtx]", { state: "visible" });
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 const txSheetShown = await page.$eval("#txForm", el => el.style.display !== "none");
 check(txSheetShown, "l'action de l'état vide des Mouvements doit ouvrir la feuille d'ajout");
 await page.click("#fCancel");
@@ -695,7 +698,7 @@ check(await page.$('#tabbar button[aria-label="Historique"]') !== null,
 check(screenHTML.includes('data-more="taxes"') && screenHTML.includes('data-more="networth"'),
   "les destinations du menu Gérer doivent rester atteignables après regroupement");
 
-// ---------- Test 26 : accueil essentiel — héros, 4 montants et factures mensuelles ----------
+// ---------- Test 26 : accueil essentiel — héros, 3 repères et actions mensuelles ----------
 currentTest = "accueil essentiel";
 await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
@@ -711,10 +714,10 @@ const homeEssentials = await page.evaluate(() => ({
   text: document.getElementById("screen").innerText,
 }));
 check(homeEssentials.hero, "le montant disponible doit rester le héros de l'accueil");
-check(homeEssentials.stats.join(",") === "Entré,Dépensé,À payer,Mis de côté",
-  `les quatre montants essentiels sont attendus (${homeEssentials.stats.join(",")})`);
-check(homeEssentials.addActions === 1, "une seule action « Ajouter un mouvement » sur l'accueil");
-check(/transactions mensuelles/i.test(homeEssentials.text), "la section Transactions mensuelles doit être visible");
+check(homeEssentials.stats.join(",") === "Reçu,Dépensé,Mis de côté",
+  `les trois repères essentiels sont attendus (${homeEssentials.stats.join(",")})`);
+check(homeEssentials.addActions === 1, "une seule action « Ajouter » sur l'accueil");
+check(/à faire ce mois/i.test(homeEssentials.text), "la section À faire ce mois doit être visible");
 check(homeEssentials.quickActions === 0 && !homeEssentials.customization && !homeEssentials.foldedWealth,
   "l'accueil ne doit plus afficher actions rapides, personnalisation ou patrimoine replié");
 
@@ -866,7 +869,7 @@ await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Disponible"), "le montant disponible doit dominer l'écran Mois");
-check(screenHTML.includes("Transactions mensuelles"), "les transactions mensuelles doivent suivre les quatre montants");
+check(screenHTML.includes("À faire ce mois"), "les actions mensuelles doivent suivre les trois repères");
 // ADR-026 : l'accueil ne CHARGE aucune analyse. Un raccourci de navigation
 // vers une destination dédiée n'est pas une analyse — un widget de
 // progression, une courbe ou une jauge en est une. L'assertion distingue
@@ -876,27 +879,23 @@ check(!screenHTML.includes("Ce qui reste, 6 derniers mois")
   "ni courbe 6 mois ni budget détaillé ne doivent charger l'écran Mois");
 const home35 = await page.evaluate(() => {
   const s = document.getElementById("screen");
-  const tiles = [...s.querySelectorAll(".home-tile")];
   const bills = s.querySelector(".home-bills-card");
-  const grid = s.querySelector(".home-tiles");
   return {
-    // Aucun ancien widget d'objectif : seule une tuile de navigation subsiste.
+    // Aucun ancien widget d'objectif ni tuile d'analyse.
     goalWidget: !!s.querySelector('.card.row.tx[data-more="goals"]'),
-    // Aucune tuile ne porte de jauge ni de graphique.
-    tilesWithGauge: tiles.filter(t => t.querySelector(".track, svg")).length,
-    tileCount: tiles.length,
-    // Les tuiles viennent APRÈS les factures : le premier niveau reste
-    // le mois, le disponible, les quatre montants, les factures.
-    tilesAfterBills: !!(grid && bills)
-      && (bills.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
+    tileCount: s.querySelectorAll(".home-tile").length,
+    agenda: !!bills && /à faire ce mois/i.test(bills.innerText),
+    manageUnified: s.querySelector(".home-manage")?.dataset.gototab === "more",
+    carousel: !!s.querySelector("#heroTrack, [data-heroslide], [data-herodot]"),
   };
 });
 check(!home35.goalWidget,
   "l'ancien widget d'objectif ne doit plus charger l'écran Mois");
-check(home35.tileCount > 0 && home35.tilesWithGauge === 0,
-  `les tuiles sont de la NAVIGATION, pas des analyses (obtenu ${home35.tilesWithGauge} avec jauge sur ${home35.tileCount})`);
-check(home35.tilesAfterBills,
-  "les tuiles viennent après les factures : le premier niveau reste essentiel");
+check(home35.tileCount === 0 && !home35.carousel,
+  `aucune tuile ni carrousel ne surcharge l'accueil (${home35.tileCount} tuile)`);
+check(home35.agenda, "la liste unique À faire ce mois reste au premier niveau");
+check(home35.manageUnified,
+  "Gérer ouvre le hub qui contient les lignes mensuelles ET les factures ponctuelles");
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
 check(tabLabel === "Mois", "l'onglet d'accueil s'appelle « Mois »");
 
@@ -1099,22 +1098,22 @@ await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-// Ordre du premier niveau : salutation → héros → métriques → factures mensuelles.
+// Ordre du premier niveau : salutation → héros → repères → actions mensuelles.
 const orderIdx = {
   hello: screenHTML.indexOf("Bonjour"),
   hero: screenHTML.indexOf("Disponible"),
   metrics: screenHTML.indexOf('class="stat-grid'),
-  bills: screenHTML.indexOf("Transactions mensuelles"),
+  bills: screenHTML.indexOf("À faire ce mois"),
 };
 check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
 check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
 check(orderIdx.hero < orderIdx.metrics, "héros « Disponible » avant les métriques");
-check(orderIdx.metrics < orderIdx.bills, "métriques avant les transactions mensuelles");
+check(orderIdx.metrics < orderIdx.bills, "repères avant les actions mensuelles");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
-// Exactement 4 métriques, avec les mots du contrat.
+// Exactement 3 repères, avec les mots du contrat.
 const statLabels = await page.$$eval(".stat-grid .stat .card-label", els => els.map(e => e.textContent.trim()));
-check(statLabels.length === 4, `exactement 4 métriques (obtenu ${statLabels.length})`);
-for (const label of ["Entré", "Dépensé", "À payer", "Mis de côté"]) {
+check(statLabels.length === 3, `exactement 3 repères (obtenu ${statLabels.length})`);
+for (const label of ["Reçu", "Dépensé", "Mis de côté"]) {
   check(statLabels.includes(label), `métrique « ${label} » absente (${statLabels.join(", ")})`);
 }
 check(await page.$(".priority-card") === null, "aucune carte de priorité technique sur l'accueil");
@@ -1190,7 +1189,7 @@ await page.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
 await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Transactions mensuelles"), "état vide guidé : section transactions mensuelles");
+check(screenHTML.includes("À faire ce mois"), "état vide guidé : liste mensuelle");
 check(screenHTML.includes("Disponible"), "le héros existe même sans mouvement");
 const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(demoHidden, "pas de bannière démo pour un vrai départ");
@@ -1259,8 +1258,8 @@ await page.evaluate(() => { // nettoyage
 currentTest = "ajout L3";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(150);
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
+await page.evaluate(() => { document.getElementById("fTypeMore").open = true; });
 // Chips de type synchronisées sur le select historique.
 const chipPressed = await page.$eval('#typeGrid button[data-ftype="expense"]', el => el.getAttribute("aria-pressed"));
 check(chipPressed === "true", "la chip Dépense est active par défaut");
@@ -1350,8 +1349,8 @@ await page.evaluate(() => { // nettoyage
 });
 // Virement : résumé explicite et neutralité affichée (bouton héros).
 await page.click(`#tabbar button[aria-label="Mois"]`);
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
+await page.evaluate(() => { document.getElementById("fTypeMore").open = true; });
 await page.click('#typeGrid button[data-ftype="transfer"]');
 await page.waitForTimeout(100);
 const transferNote = await page.$eval("#fTransferNote", el => el.textContent);
@@ -1359,8 +1358,7 @@ check(transferNote.includes("neutre") || transferNote === "", "un virement s'ann
 await page.click("#fCancel");
 // Clavier : hauteur réduite (clavier ouvert simulé) → montant ET Enregistrer visibles.
 await page.setViewportSize({ width: 320, height: 480 });
-await page.click("[data-addtx]");
-await page.waitForSelector("#txForm", { state: "visible" });
+await openQuickEntry("expense");
 await page.focus("#fAmount");
 const keyboardSafe = await page.evaluate(() => {
   const amount = document.getElementById("fAmount").getBoundingClientRect();
@@ -1398,7 +1396,7 @@ const a11yLabels = await page.evaluate(() => ({
   add: (document.querySelector("#screen [data-addtx]")?.textContent || "").trim(),
   charts: [...document.querySelectorAll("#screen svg[role='img']")].every(s => (s.getAttribute("aria-label") || "").length > 5),
 }));
-check(a11yLabels.add.includes("Ajouter un mouvement"),
+check(a11yLabels.add.includes("Ajouter"),
   "l'action principale porte un libellé compréhensible");
 check(a11yLabels.charts, "chaque graphique SVG porte une étiquette accessible");
 // Budget à 320 px : aucun débordement.
@@ -2601,8 +2599,8 @@ await goHome();
     `Mois : le montant héros reste un vrai chiffre lisible (obtenu « ${mois73.amountText} »)`);
   check(mois73.ctaCount === 1,
     `Mois : un SEUL point focal lumineux par écran (obtenu ${mois73.ctaCount} CTA)`);
-  check(mois73.ctaText.includes("Ajouter un mouvement"),
-    `Mois : le CTA reste l'action utile « Ajouter un mouvement » (obtenu « ${mois73.ctaText} »)`);
+  check(mois73.ctaText.includes("Ajouter"),
+    `Mois : le CTA reste l'action utile « Ajouter » (obtenu « ${mois73.ctaText} »)`);
   check(mois73.ctaBg.includes("192, 0, 164") && mois73.ctaBg.includes("110, 0, 232"),
     `Mois : CTA en dégradé #C000A4 → #6E00E8 (obtenu ${mois73.ctaBg})`);
   check(mois73.ctaColor === "rgb(255, 255, 255)",
@@ -2788,8 +2786,7 @@ await goHome();
 {
   const before75 = await page.evaluate(() => transactions.length);
   check(await page.$("#fab") === null, "aucun bouton flottant avant l'ajout");
-  await page.click("#screen [data-addtx]");
-  await page.waitForSelector("#txForm", { state: "visible" });
+  await openQuickEntry("expense", "#screen [data-addtx]");
   const form75 = await page.evaluate(() => {
     const form = document.getElementById("txForm");
     const amount = document.getElementById("fAmount");
@@ -2803,7 +2800,8 @@ await goHome();
       submitColor: getComputedStyle(submit).color,
       ctaCount: form.querySelectorAll(".btn.nu-cta").length,
       chips: chips.map(c => c.dataset.ftype),
-      chipsSmall: chips.filter(c => c.getBoundingClientRect().height < 44).length,
+      chipsVisible: chips.filter(c => c.offsetParent !== null).length,
+      advancedClosed: !document.getElementById("fTypeMore").open,
       titleTag: (document.getElementById("fTitle").tagName || "").toLowerCase(),
       smallTargets: [...form.querySelectorAll("button, input:not(.sr-select), select:not(.sr-select), textarea, summary")]
         .filter(el => el.offsetParent !== null)
@@ -2823,14 +2821,13 @@ await goHome();
     `formulaire : CTA en dégradé de marque, texte blanc (obtenu ${form75.submitColor})`);
   check(form75.chips.join(",") === "expense,income,saving,investment,transfer,taxPayment,refund",
     `formulaire : les sept types de mouvement sont intacts (obtenu ${form75.chips.join(",")})`);
-  check(form75.chipsSmall === 0,
-    `formulaire : chaque type reste une cible d'au moins 44 px (obtenu ${form75.chipsSmall} trop petites)`);
+  check(form75.chipsVisible === 0 && form75.advancedClosed,
+    "formulaire : les types techniques sont conservés mais repliés dans Changer le type");
   check(form75.titleTag === "textarea",
     `formulaire : l'intitulé complet reste visible (multiligne, obtenu <${form75.titleTag}>)`);
   check(form75.smallTargets.length === 0,
     `formulaire : tous les contrôles font ≥ 44 px (${form75.smallTargets.map(t => `${t.label}: ${t.height.toFixed(0)}px`).join(", ")})`);
   // Enregistrement RÉEL : le montant saisi doit se retrouver au centime près.
-  await page.click('#txForm [data-ftype="expense"]');
   await page.fill("#fAmount", "84.50");
   await page.evaluate(() => { document.getElementById("fMore").open = true; });
   await page.fill("#fTitle", "Courses NU2");
@@ -2853,8 +2850,7 @@ await goHome();
 // ---------- Test 76 : NU2 — erreur de formulaire lisible, PRÈS du champ ----------
 currentTest = "NU2 erreur de formulaire";
 {
-  await page.click("#screen [data-addtx]");
-  await page.waitForSelector("#txForm", { state: "visible" });
+  await openQuickEntry("expense", "#screen [data-addtx]");
   await page.fill("#fAmount", "");
   await page.click('#txForm button[type="submit"]');
   await page.waitForTimeout(300);
@@ -3271,7 +3267,7 @@ const fx83 = await page79.evaluate(() => {
   const after = txCHF(movement);
   openAccSheet(ACCOUNTS.find(a => a.id === "eur-correctness"));
   const accountCurrencyLocked = document.getElementById("aCurrency").disabled;
-  backdrop.classList.remove("open");
+  closeSheet();
   document.getElementById("bCurrency").value = "EUR";
   document.getElementById("baseForm").dispatchEvent(
     new Event("submit", { bubbles: true, cancelable: true })
@@ -3764,77 +3760,33 @@ currentTest = "écran Abonnements";
   check(!clean90, "les abonnements de test sont retirés (aucune trace)");
 }
 
-// ---------- Test 91 : tuiles de l'accueil — chiffres réels et destinations vivantes ----------
-currentTest = "tuiles de l'accueil";
+// ---------- Test 91 : accueil sans tuiles — destinations gardées dans la navigation ----------
+currentTest = "accueil sans tuiles";
 await goHome();
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(300);
 {
-  const tiles91 = await page.evaluate(() => {
+  const home91 = await page.evaluate(() => {
     const s = document.getElementById("screen");
-    const tiles = [...s.querySelectorAll(".home-tile")];
-    // Valeurs attendues recalculées depuis l'état, indépendamment du rendu.
-    const activeSubs = RECURRINGS.filter(r => r.type === "expense" && recurringIsActive(r));
-    const perMonth = chf(fromCents(Math.round(
-      activeSubs.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12)));
-    const closed = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
     return {
-      count: tiles.length,
-      keys: tiles.map(t => t.dataset.more || t.dataset.gototab),
-      texts: tiles.map(t => t.innerText.replace(/\n/g, " · ")),
-      // Toutes tapables et assez grandes.
-      small: tiles.filter(t => t.getBoundingClientRect().height < 44).length,
-      // Chacune est annoncée avec son chiffre.
-      unlabelled: tiles.filter(t => !(t.getAttribute("aria-label") || "").includes("—")).length,
-      expectedSubs: `${activeSubs.length} actif${activeSubs.length > 1 ? "s" : ""} · ${perMonth}/mois`,
-      expectedYear: `${closed} mois bouclé${closed > 1 ? "s" : ""} sur 12`,
-      // Le point focal reste unique : le CTA du héros.
+      tiles: s.querySelectorAll(".home-tile, .home-tiles").length,
+      carousel: s.querySelectorAll("#heroTrack, [data-heroslide], [data-herodot]").length,
+      heroes: s.querySelectorAll(".home-hero").length,
+      stats: [...s.querySelectorAll(".home-metrics .card-label")].map(el => el.textContent.trim()),
+      agendas: s.querySelectorAll(".home-agenda-card").length,
       ctas: s.querySelectorAll(".btn.nu-cta").length,
-      gradientTiles: tiles.filter(t => getComputedStyle(t).backgroundImage !== "none").length,
+      tabs: [...document.querySelectorAll("#tabbar button[data-tab]")]
+        .map(button => button.getAttribute("aria-label")),
     };
   });
-  check(tiles91.count === 7,
-    `sept tuiles d'accès (obtenu ${tiles91.count})`);
-  check(tiles91.keys.join(",") === "year,subs,bills,budget,taxes,networth,goals",
-    `les tuiles mènent aux sept destinations attendues (obtenu ${tiles91.keys.join(",")})`);
-  check(tiles91.small === 0, `toutes les tuiles font au moins 44 px (obtenu ${tiles91.small} trop petites)`);
-  check(tiles91.unlabelled === 0,
-    `chaque tuile est annoncée avec son chiffre (obtenu ${tiles91.unlabelled} sans)`);
-  check(tiles91.texts.some(t => t.includes(tiles91.expectedSubs)),
-    `la tuile Abonnements porte le coût mensuel EXACT « ${tiles91.expectedSubs} » (obtenu ${JSON.stringify(tiles91.texts)})`);
-  check(tiles91.texts.some(t => t.includes(tiles91.expectedYear)),
-    `la tuile Année porte le compte de mois bouclés EXACT « ${tiles91.expectedYear} »`);
-  check(tiles91.ctas === 1,
-    `le point focal reste unique malgré les tuiles (obtenu ${tiles91.ctas} CTA)`);
-  check(tiles91.gradientTiles === 0,
-    `aucune tuile ne porte de dégradé (obtenu ${tiles91.gradientTiles})`);
-  // Chaque tuile ouvre RÉELLEMENT sa destination, et l'onglet Mois y revient.
-  for (const [key, expect] of [["year", "Année"], ["subs", "Abonnements"],
-                               ["bills", "Factures"], ["taxes", "Impôts"],
-                               ["networth", "Patrimoine"], ["goals", "Objectifs"]]) {
-    await page.click(`#tabbar button[aria-label="Mois"]`);
-    await page.waitForTimeout(200);
-    await page.click(`#screen .home-tile[data-more="${key}"]`);
-    await page.waitForTimeout(300);
-    const landed = await page.evaluate(() => ({
-      tab: activeTab, view: moreView,
-      text: document.getElementById("screen").innerText.slice(0, 80),
-    }));
-    check(landed.tab === "more" && landed.view === key,
-      `la tuile ${key} ouvre sa destination (obtenu ${landed.tab}/${landed.view})`);
-    check(landed.text.includes(expect),
-      `la destination ${key} affiche « ${expect} » (obtenu « ${landed.text.replace(/\n/g, " ").slice(0, 50)} »)`);
-  }
-  // La tuile Budget mène à l'onglet Budget, pas à une vue de Gérer.
-  await page.click(`#tabbar button[aria-label="Mois"]`);
-  await page.waitForTimeout(200);
-  await page.click('#screen .home-tile[data-gototab="budget"]');
-  await page.waitForTimeout(300);
-  const budget91 = await page.evaluate(() => ({ tab: activeTab, view: moreView }));
-  check(budget91.tab === "budget" && budget91.view === null,
-    `la tuile Budget ouvre l'onglet Budget (obtenu ${budget91.tab}/${budget91.view})`);
-  await page.click(`#tabbar button[aria-label="Mois"]`);
-  await page.waitForTimeout(200);
+  check(home91.tiles === 0 && home91.carousel === 0,
+    `aucune tuile ni carrousel sur l'accueil (${JSON.stringify(home91)})`);
+  check(home91.heroes === 1 && home91.agendas === 1 && home91.ctas === 1,
+    `un héros, une liste et un CTA (${JSON.stringify(home91)})`);
+  check(home91.stats.join(",") === "Reçu,Dépensé,Mis de côté",
+    `trois repères simples (${home91.stats.join(",")})`);
+  check(home91.tabs.join(",") === "Mois,Historique,Budget,Comptes,Gérer",
+    `les destinations détaillées restent stables (${home91.tabs.join(",")})`);
 }
 
 // ---------- Test 92 : rythme et résiliation — FIDÉLITÉ de la sauvegarde et du passé ----------
@@ -4054,7 +4006,7 @@ await goHome();
       check(r.chips >= 2 && r.chipsSmall === 0,
         `${label} : des pastilles tactiles remplacent le menu déroulant (obtenu ${r.chips}, ${r.chipsSmall} trop petites)`);
     }
-    await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+    await page.evaluate(() => closeSheet());
     await page.waitForTimeout(120);
   }
   // Les pastilles pilotent le select historique, qui reste la source de vérité.
@@ -4137,7 +4089,7 @@ await goHome();
     }), [id, assertion]);
     check(after.saved && !after.open,
       `${label} : les champs visibles suffisent à enregistrer (message « ${after.err} », feuille ${after.open ? "restée ouverte" : "fermée"})`);
-    await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+    await page.evaluate(() => closeSheet());
     await page.waitForTimeout(120);
   }
   // Le salaire : le montant seul suffit — plus aucun jour n'est demandé.
@@ -4168,7 +4120,7 @@ await goHome();
   // refus ne désignait pas un champ replié. Le champ n'existe plus, donc le
   // piège non plus — et c'est CELA qu'on verrouille désormais : aucune des
   // deux feuilles ne réclame de date, et l'enregistrement passe sans.
-  await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+  await page.evaluate(() => closeSheet());
   await goHome();
   await page.evaluate(() => openRecSheet(null));
   await page.waitForSelector("#recForm", { state: "visible" });
@@ -4222,22 +4174,68 @@ await goHome();
     saveState(); render();
   });
   await page.waitForTimeout(300);
+
+  // Une réserve déjà planifiée doit garder sa vraie nature jusque dans
+  // l'action et l'annonce de confirmation : jamais « dépense/payé ».
+  await page.evaluate(() => {
+    const source = defaultCashAccount();
+    const destination = (ACCOUNTS.find(a => a.kind === "savings" && a.id !== source)
+      || ACCOUNTS.find(a => a.id !== source)).id;
+    RECURRINGS.push({
+      id: "reserve-planifiee-96", title: "Réserve planifiée E2E", amount: 47,
+      type: "expense", nature: "reserve", cat: "Épargne", day: 1,
+      accountId: source, destAccountId: destination,
+    });
+    transactions.push({
+      id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.min(new Date(NOW.y, NOW.m, 0).getDate(), NOW.d + 1),
+      title: "Réserve planifiée E2E", amount: 47, type: "saving", cat: "Épargne",
+      acc: source, dest: destination, status: "planned", recurringId: "reserve-planifiee-96",
+    });
+    saveState(); render();
+  });
+  await page.waitForTimeout(180);
+  const reserve96 = await page.evaluate(() => {
+    const row = document.querySelector('[data-obligation-key^="recurring:reserve-planifiee-96"]');
+    return {
+      action: row?.querySelector(".home-bill-action")?.textContent.trim() || "",
+      saveColor: !!row?.querySelector(".ico.t-save"),
+    };
+  });
+  check(reserve96.action === "Mis de côté" && reserve96.saveColor,
+    `une réserve planifiée reste une mise de côté (${JSON.stringify(reserve96)})`);
+  await page.click('[data-obligation-key^="recurring:reserve-planifiee-96"] .home-bill-action');
+  await page.waitForTimeout(180);
+  const reserveConfirmee96 = await page.evaluate(() => {
+    const transaction = transactions.find(t => t.recurringId === "reserve-planifiee-96");
+    const toastText = document.getElementById("toast")?.textContent || "";
+    const stillVisible = !!document.querySelector('[data-obligation-key^="recurring:reserve-planifiee-96"]');
+    const txIndex = transactions.findIndex(t => t.recurringId === "reserve-planifiee-96");
+    if (txIndex >= 0) transactions.splice(txIndex, 1);
+    const recurringIndex = RECURRINGS.findIndex(r => r.id === "reserve-planifiee-96");
+    if (recurringIndex >= 0) RECURRINGS.splice(recurringIndex, 1);
+    saveState(); render();
+    return { status: transaction?.status, toastText, stillVisible };
+  });
+  check(reserveConfirmee96.status === "posted"
+      && /mis de côté/i.test(reserveConfirmee96.toastText)
+      && !reserveConfirmee96.stillVisible,
+    `confirmer la réserve la comptabilise sans la dire payée (${JSON.stringify(reserveConfirmee96)})`);
+
   const lire = () => page.evaluate(() => ({
-    revenus: [...document.querySelectorAll(".home-income-card .home-bill-row .meta .t")]
+    revenus: [...document.querySelectorAll(".home-agenda-card .home-income-row .meta .t")]
       .map(e => e.textContent.trim()),
-    revenusCta: [...document.querySelectorAll(".home-income-card .home-bill-action")]
+    revenusCta: [...document.querySelectorAll(".home-agenda-card .home-income-row .home-bill-action")]
       .map(e => e.textContent.trim()),
-    factures: [...document.querySelectorAll(".home-bills-card .home-bill-row .meta .t")]
+    factures: [...document.querySelectorAll(".home-agenda-card .home-bill-row:not(.home-income-row) .meta .t")]
       .map(e => e.textContent.trim()),
-    facturesCta: [...document.querySelectorAll(".home-bills-card .home-bill-action")]
+    facturesCta: [...document.querySelectorAll(".home-agenda-card .home-bill-row:not(.home-income-row) .home-bill-action")]
       .map(e => e.textContent.trim()),
-    reglees: (document.querySelector(".home-bills-card .caption") || {}).textContent || "",
     tout: !!document.querySelector(".home-bills-done"),
     entre: snapshot(cursor.y, cursor.m).income,
   }));
 
   const depart = await lire();
-  check(depart.revenus.length > 0 && depart.revenusCta.includes("✓ Reçu"),
+  check(depart.revenus.length > 0 && depart.revenusCta.includes("Reçu"),
     `un revenu attendu s'encaisse d'un tap depuis l'accueil (obtenu ${JSON.stringify(depart.revenusCta)})`);
   // Le salaire de démonstration est PRÉVU le 25 : c'est justement le cas qui
   // n'offrait plus aucun bouton.
@@ -4250,7 +4248,7 @@ await goHome();
 
   // Si l'action manque, on le dit par une assertion plutôt que de laisser la
   // suite mourir sur un délai d'attente : un échec doit rester lisible.
-  const cta96 = await page.$(".home-income-card .home-bill-action");
+  const cta96 = await page.$(".home-agenda-card .home-income-row .home-bill-action");
   check(!!cta96, "l'accueil porte réellement l'action d'encaissement");
   if (cta96) await cta96.click();
   await page.waitForTimeout(400);
@@ -4269,7 +4267,7 @@ await goHome();
   // Chaque facture réglée disparaît de la liste des choses à faire.
   let garde = 0, vu = depart.factures.length;
   while (garde++ < 8) {
-    const bouton = await page.$(".home-bills-card .home-bill-action");
+    const bouton = await page.$(".home-agenda-card .home-bill-row:not(.home-income-row) .home-bill-action");
     if (!bouton) break;
     await bouton.click();
     await page.waitForTimeout(400);
@@ -4277,8 +4275,6 @@ await goHome();
   const fin = await lire();
   check(vu > 0 && fin.factures.length === 0 && fin.tout,
     `tout réglé : la liste se vide et l'accueil le dit (restant ${JSON.stringify(fin.factures)}, message ${fin.tout})`);
-  check(/(\d+) sur \1 pay/.test(fin.reglees),
-    `le compteur atteint le total (obtenu « ${fin.reglees} »)`);
 
   // Garde-fou : « confirmer » ne touche JAMAIS un mouvement déjà comptabilisé.
   const garde96 = await page.evaluate(() => {
@@ -5189,69 +5185,31 @@ currentTest = "charges et abonnements dès la bienvenue";
   await ctx104b.close();
 }
 
-// ---------- Test 105 : le héros tourne, et chaque carte dit d'où elle vient --
-currentTest = "héros qui tourne";
-// Demande du propriétaire (06.08.2026), capture à l'appui : « que tu puisses
-// tourner le widget et avoir tout, placement, patrimoine, disponible,
-// prévoyance… que je puisse choisir de gauche à droite ». Et sa question, la
-// même nuit : « le mis de côté, c'est le montant disponible après les
-// factures ? » — non, et c'est bien pour ça que chaque carte doit s'expliquer.
+// ---------- Test 105 : un seul héros répond à la question du mois ----------
+currentTest = "héros mensuel unique";
 await goHome();
 {
   const heros = await page.evaluate(() => {
-    const track = document.getElementById("heroTrack");
-    const slides = [...document.querySelectorAll("[data-heroslide]")];
+    const hero = document.querySelector(".home-hero");
     return {
-      piste: !!track,
-      cles: slides.map(s => s.dataset.heroslide),
-      // Chaque carte porte UNE phrase qui dit d'où vient son montant.
-      toutesExpliquees: slides.every(s => {
-        const note = s.querySelector(".hero-note");
-        return note && note.textContent.trim().length > 20;
-      }),
-      snap: getComputedStyle(track).scrollSnapType,
-      points: document.querySelectorAll("[data-herodot]").length,
-      ciblePoint: Math.min(...[...document.querySelectorAll("[data-herodot]")]
-        .map(d => Math.min(d.getBoundingClientRect().width, d.getBoundingClientRect().height))),
-      // Le carrousel ne doit JAMAIS élargir la page : il défile en lui-même.
+      count: document.querySelectorAll(".home-hero").length,
+      title: hero?.querySelector(".card-label")?.textContent.trim() || "",
+      amount: hero?.querySelector(".hero-amount")?.textContent.trim() || "",
+      note: hero?.querySelector(".hero-note")?.textContent.trim() || "",
+      cta: hero?.querySelector("[data-addtx]")?.textContent.trim() || "",
+      carousel: document.querySelectorAll("#heroTrack, [data-heroslide], [data-herodot]").length,
       debordePage: document.getElementById("screen").scrollWidth
         - document.getElementById("screen").clientWidth,
     };
   });
-  check(heros.piste && heros.cles.length >= 4,
-    `le héros propose plusieurs cartes (${heros.cles.join(", ")})`);
-  check(heros.cles.includes("disponible") && heros.cles.includes("patrimoine")
-    && heros.cles.includes("prevoyance") && heros.cles.includes("placements"),
-    `disponible, placements, prévoyance et patrimoine sont là (${heros.cles.join(", ")})`);
-  check(/mandatory/.test(heros.snap), `les cartes s'aimantent une par une (${heros.snap})`);
-  check(heros.toutesExpliquees,
-    "chaque carte écrit d'où vient son montant — c'est la question posée sur « Mis de côté »");
-  check(heros.points === heros.cles.length, `un point par carte (${heros.points}/${heros.cles.length})`);
-  check(heros.ciblePoint >= 44, `les points restent de vraies cibles tactiles (${heros.ciblePoint} px)`);
-  check(heros.debordePage <= 1, `le carrousel n'élargit pas la page (${heros.debordePage} px)`);
-
-  // Tourner par un point doit RÉELLEMENT changer la carte visible.
-  const avant = await page.evaluate(() => document.getElementById("heroTrack").scrollLeft);
-  await page.click('[data-herodot="2"]');
-  await page.waitForTimeout(500);
-  const apres = await page.evaluate(() => ({
-    scroll: document.getElementById("heroTrack").scrollLeft,
-    actif: [...document.querySelectorAll("[data-herodot]")]
-      .findIndex(d => d.getAttribute("aria-selected") === "true"),
-  }));
-  check(apres.scroll > avant, `un point fait tourner le héros (${avant} → ${apres.scroll})`);
-  check(apres.actif === 2, `le point touché devient le point actif (obtenu ${apres.actif})`);
-  // Et la tuile « Mis de côté » ne peut plus être confondue avec le reste.
-  const explication = await page.evaluate(() => document.getElementById("screen").innerText);
-  // Adapté le 10.08.2026 : l'explication a quitté la légende flottante sous
-  // les métriques pour la carte du héros qui PORTE le chiffre — meilleur
-  // endroit, et un mot de moins. Le titre y est en capitales par CSS, et
-  // `innerText` en tient compte : la garantie porte sur la présence de
-  // l'explication, pas sur sa casse.
-  check(/Où va votre argent mis de côté/i.test(explication)
-      || /Mis de côté.*argent envoyé vers vos comptes/is.test(explication),
-    "« Mis de côté » ne se devine pas : soit la phrase, soit la répartition poche par poche");
-  await goHome();
+  check(heros.count === 1 && heros.carousel === 0,
+    `un seul héros, aucun carrousel (${JSON.stringify(heros)})`);
+  check(/Disponible|Reste du mois/.test(heros.title) && /\d/.test(heros.amount),
+    `le héros répond avec un montant (${heros.title} · ${heros.amount})`);
+  check(/par jour|Il manque|Revenus moins sorties/.test(heros.note),
+    `une seule phrase explique le montant (« ${heros.note} »)`);
+  check(heros.cta.includes("Ajouter") && heros.debordePage <= 1,
+    `le CTA reste visible sans débordement (${JSON.stringify(heros)})`);
 }
 
 // ---------- Test 106 : « mis de côté » n'est pas une dépense ----------
@@ -5643,10 +5601,10 @@ currentTest = "mettre de côté depuis un mouvement";
 // chose.
 await goHome();
 {
-  await page.evaluate(() => openTxSheet(null));
-  await page.waitForSelector("#txForm", { state: "visible" });
+  await page.click("#screen [data-addtx]");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
   const geste = await page.evaluate(() => {
-    const b = document.querySelector('[data-ftype="saving"]');
+    const b = document.querySelector('[data-quick="save"]');
     return { existe: !!b, texte: b ? b.textContent.trim() : null,
              haut: b ? b.getBoundingClientRect().height : 0 };
   });
@@ -5654,7 +5612,30 @@ await goHome();
   check(/mettre de côté/i.test(geste.texte || ""),
     `il porte le mot de l'app, pas un nom de banque (obtenu « ${geste.texte} »)`);
   check(geste.haut >= 44, `et c'est une vraie cible tactile (${geste.haut} px)`);
-  await page.evaluate(() => document.getElementById("sheetBackdrop").classList.remove("open"));
+  await page.click('#quickMenu [data-quick="save"]');
+  await page.waitForSelector("#txForm", { state: "visible" });
+  check(await page.$eval("#fType", element => element.value) === "saving",
+    "le choix ouvre le formulaire déjà réglé sur une mise de côté");
+  const choices112 = await page.$eval("#fCat", select =>
+    [...select.options].map(option => option.value));
+  check(choices112.join("|") === "Épargne|Pilier 3a|Impôts",
+    `la promesse du raccourci est réelle (${choices112.join("|")})`);
+  await page.selectOption("#fCat", { label: "Pilier 3a" });
+  const pilier112 = await page.evaluate(() => ({
+    type: document.getElementById("fType").value,
+    destination: (ACCOUNTS.find(a => a.id === document.getElementById("fDest").value) || {}).kind,
+  }));
+  check(pilier112.type === "investment"
+      && ["pension", "lifeinsurance"].includes(pilier112.destination),
+    `3e pilier prépare un versement vers la prévoyance (${JSON.stringify(pilier112)})`);
+  await page.selectOption("#fCat", { label: "Impôts" });
+  const impots112 = await page.evaluate(() => ({
+    type: document.getElementById("fType").value,
+    destination: (ACCOUNTS.find(a => a.id === document.getElementById("fDest").value) || {}).kind,
+  }));
+  check(impots112.type === "saving" && impots112.destination === "savings",
+    `Impôts prépare une réserve vers l'épargne (${JSON.stringify(impots112)})`);
+  await page.click("#fCancel");
   await page.waitForTimeout(150);
 
   // Le même mot AUX TROIS ENDROITS où le geste est proposé, et chacun ouvre
@@ -5674,7 +5655,7 @@ await goHome();
     document.querySelector('[data-quick="save"]').click();
     await new Promise(r => setTimeout(r, 200));
     const typeOuvert = document.getElementById("fType").value;
-    document.getElementById("sheetBackdrop").classList.remove("open");
+    closeSheet();
     return { mots, menu, typeOuvert };
   });
   check(partout.mots.length >= 2,
@@ -5959,6 +5940,7 @@ currentTest = "choisir où va l'argent mis de côté";
       attendus: ACCOUNTS.filter(a => a.id !== source).map(a => a.id).sort(),
       proposes: options.map(o => o.value).sort(),
       textes: options.map(o => o.textContent),
+      categories: [...document.getElementById("rCat").options].map(o => o.value),
       sourceProposee: options.some(o => o.value === source),
       // Le nom réel de chaque compte doit apparaître tel qu'il est saisi.
       nomsPresents: ACCOUNTS.filter(a => a.id !== source)
@@ -5974,6 +5956,8 @@ currentTest = "choisir où va l'argent mis de côté";
   check(poches.textes.every(t => /·/.test(t)),
     `chaque option dit aussi le solde du compte (obtenu ${JSON.stringify(poches.textes)})`);
   check(poches.premiereEstEpargne, "l'épargne est proposée en premier");
+  check(poches.categories.join("|") === "Épargne|Pilier 3a|Impôts",
+    `une mise de côté propose uniquement Épargne, Pilier 3a et Impôts (${poches.categories.join("|")})`);
 
   // L'exemple d'intitulé suit le choix : plus de « Loyer » sous une réserve.
   const exemples = await page.evaluate(async () => {
@@ -5989,6 +5973,59 @@ currentTest = "choisir où va l'argent mis de côté";
   check(exemples.reserve !== "Loyer" && exemples.facture === "Loyer",
     "une mise de côté ne propose plus « Loyer » comme exemple");
   await page.click("#rCancel");
+
+  // Les trois choix passent réellement par la feuille avant d'être
+  // matérialisés. Les anciens tests injectaient directement les objets et
+  // ne pouvaient donc pas détecter une liste de catégories cassée.
+  const matrice = [];
+  for (const [index, category] of ["Épargne", "Pilier 3a", "Impôts"].entries()) {
+    await page.evaluate(() => openRecSheet(null));
+    await page.waitForSelector("#recForm", { state: "visible" });
+    await page.click('#rKindGrid button[data-rkind="reserve"]');
+    await page.selectOption("#rCat", { label: category });
+    await page.fill("#rTitle", `Réserve formulaire ${category}`);
+    await page.fill("#rAmount", String(31 + index));
+    await page.click('#recForm button[type="submit"]');
+    await page.waitForTimeout(120);
+    matrice.push(await page.evaluate(category => {
+      const title = `Réserve formulaire ${category}`;
+      const recurring = RECURRINGS.find(r => r.title === title);
+      const before = snapshot(NOW.y, NOW.m);
+      const taxBefore = taxSummary(NOW.y).reservedFromMovements;
+      const result = materializeRecurring(recurring, NOW.y, NOW.m);
+      const after = snapshot(NOW.y, NOW.m);
+      const taxAfter = taxSummary(NOW.y).reservedFromMovements;
+      const destination = ACCOUNTS.find(a => a.id === recurring.destAccountId);
+      const report = {
+        category,
+        storedType: recurring.type,
+        nature: recurring.nature,
+        movementType: result.transaction.type,
+        destinationKind: destination?.kind || null,
+        livingDelta: round2(after.living - before.living),
+        reservedTaxDelta: round2(taxAfter - taxBefore),
+      };
+      const txIndex = transactions.findIndex(t => t.id === result.transaction.id);
+      if (txIndex >= 0) transactions.splice(txIndex, 1);
+      const recurringIndex = RECURRINGS.findIndex(r => r.id === recurring.id);
+      if (recurringIndex >= 0) RECURRINGS.splice(recurringIndex, 1);
+      saveState(); render();
+      return report;
+    }, category));
+  }
+  check(matrice.every(item => item.storedType === "expense" && item.nature === "reserve"),
+    `les trois lignes restent des réserves mensuelles (${JSON.stringify(matrice)})`);
+  check(matrice.find(item => item.category === "Épargne")?.movementType === "saving"
+      && matrice.find(item => item.category === "Pilier 3a")?.movementType === "investment"
+      && matrice.find(item => item.category === "Impôts")?.movementType === "saving",
+    `chaque réserve produit le bon mouvement (${JSON.stringify(matrice)})`);
+  check(matrice.every(item => Math.abs(item.livingDelta) < 0.01),
+    `aucune réserve ne devient une dépense de vie (${JSON.stringify(matrice)})`);
+  check(matrice.find(item => item.category === "Pilier 3a")?.destinationKind === "pension"
+      || matrice.find(item => item.category === "Pilier 3a")?.destinationKind === "lifeinsurance",
+    `le 3e pilier arrive dans une poche de prévoyance (${JSON.stringify(matrice)})`);
+  check(Math.abs((matrice.find(item => item.category === "Impôts")?.reservedTaxDelta || 0) - 33) < 0.01,
+    `la réserve Impôts augmente exactement de son montant (${JSON.stringify(matrice)})`);
   await page.waitForTimeout(150);
   await goHome();
 }
@@ -6014,7 +6051,7 @@ currentTest = "transaction mensuelle, partout le même mot";
     const feuille = document.getElementById("recForm").innerText;
     if (/factures? mensuelles?/i.test(feuille)) trouves.push("feuille de saisie");
     const titre = document.getElementById("recSheetTitle").textContent;
-    document.getElementById("sheetBackdrop").classList.remove("open");
+    closeSheet();
     activeTab = "home"; moreView = null; render();
     return { trouves, titre };
   });
@@ -6025,61 +6062,27 @@ currentTest = "transaction mensuelle, partout le même mot";
   await goHome();
 }
 
-// ---------- Test 118 : le rythme du mois dit la vérité ---------------------
-currentTest = "le rythme du mois";
-// « Est-ce que je peux sortir ce week-end ? » ne se répond pas avec un solde.
-// L'app calculait `daily` et `daysRemaining` depuis des mois… dans
-// `renderHome`, l'écran détaillé qui n'est plus rendu depuis ADR-026 :
-// personne ne les voyait. Ils remontent sur l'accueil, avec un repère de
-// temps. Ce test vérifie que les DEUX repères sont recalculés depuis l'état,
-// et que le cas « à découvert » ne fait jamais la morale avec une barre.
+// ---------- Test 118 : le rythme tient dans une seule phrase ---------------
+currentTest = "le rythme en une phrase";
 await goHome();
 {
   const vu = await page.evaluate(() => {
-    const carte = document.querySelector("#screen .rythme");
-    if (!carte) return null;
+    const hero = document.querySelector("#screen .home-hero");
     const s = snapshot(NOW.y, NOW.m);
-    const joursDuMois = new Date(NOW.y, NOW.m, 0).getDate();
-    const fill = carte.querySelector(".rythme-fill");
-    const jalon = carte.querySelector(".rythme-jalon");
-    const enveloppe = toCents(s.living) + toCents(s.available);
     return {
-      texte: carte.innerText,
+      texte: hero?.querySelector(".hero-note")?.textContent || "",
       attenduJour: chf(s.daily), attenduJours: s.daysRemaining,
-      largeurFill: fill ? Math.round(parseFloat(fill.style.width)) : null,
-      posJalon: jalon ? Math.round(parseFloat(jalon.style.left)) : null,
-      attenduArgent: Math.round(Math.min(1, toCents(s.living) / enveloppe) * 100),
-      attenduTemps: Math.round(Math.min(1, NOW.d / joursDuMois) * 100),
-      nomAccessible: carte.querySelector(".rythme-bar").getAttribute("aria-label") || "",
-      // Un repère juste mais transparent ne repère rien : on lit la couleur
-      // RÉELLEMENT peinte, pas seulement la position calculée.
-      jalonPeint: jalon ? getComputedStyle(jalon).backgroundColor : "",
-      jalonLarge: jalon ? Math.round(jalon.getBoundingClientRect().width) : 0,
-      avance: !!(fill && fill.classList.contains("avance")),
-      verdictAvance: /du mois seulement/.test(carte.innerText),
+      cartesRythme: document.querySelectorAll("#screen .rythme, #screen .rythme-bar").length,
     };
   });
-  check(vu !== null, "l'accueil montre où on en est dans le mois");
-  if (vu) {
-    check(vu.texte.includes(vu.attenduJour),
-      `le montant par jour est celui du moteur (${vu.attenduJour})`);
-    check(new RegExp(`${vu.attenduJours} jour`).test(vu.texte),
-      `le nombre de jours restants est celui du moteur (${vu.attenduJours})`);
-    check(Math.abs(vu.largeurFill - vu.attenduArgent) <= 1,
-      `la barre dessine la part d'argent dépensée (${vu.largeurFill} % vs ${vu.attenduArgent} %)`);
-    check(Math.abs(vu.posJalon - vu.attenduTemps) <= 1,
-      `le jalon marque la part du mois écoulée (${vu.posJalon} % vs ${vu.attenduTemps} %)`);
-    check(/%/.test(vu.nomAccessible) && vu.nomAccessible.length > 20,
-      "la barre a un équivalent texte pour VoiceOver");
-    check(!/rgba\(0, 0, 0, 0\)|transparent/.test(vu.jalonPeint) && vu.jalonLarge >= 2,
-      `le repère du temps est réellement visible (${vu.jalonPeint}, ${vu.jalonLarge} px)`);
-    // La couleur ne décide jamais seule : le verdict écrit et la teinte
-    // disent la MÊME chose, ou l'un des deux ment.
-    check(vu.avance === vu.verdictAvance,
-      `la couleur et la phrase disent la même chose (barre ${vu.avance ? "ambre" : "verte"}, phrase ${vu.verdictAvance ? "en avance" : "dans le rythme"})`);
-  }
+  check(vu.texte.includes(vu.attenduJour),
+    `le montant par jour est celui du moteur (${vu.attenduJour})`);
+  check(new RegExp(`${vu.attenduJours} jour`).test(vu.texte),
+    `le nombre de jours restants est celui du moteur (${vu.attenduJours})`);
+  check(vu.cartesRythme === 0,
+    `aucune carte ni jauge de rythme séparée (${vu.cartesRythme})`);
 
-  // À découvert : pas de barre, pas de « par jour », un fait et une action.
+  // À découvert : pas de « par jour », le manque est dit dans le héros.
   const decouvert = await page.evaluate(() => {
     const courant = defaultCashAccount();
     const enorme = snapshot(NOW.y, NOW.m).available + 500;
@@ -6087,11 +6090,11 @@ await goHome();
       amount: round2(enorme), type: "expense", cat: "Autre",
       acc: courant, dest: null, status: "posted" });
     render();
-    const carte = document.querySelector("#screen .rythme");
+    const hero = document.querySelector("#screen .home-hero");
     const res = {
       dispo: snapshot(NOW.y, NOW.m).available,
-      texte: carte ? carte.innerText : "",
-      barre: !!(carte && carte.querySelector(".rythme-bar")),
+      texte: hero?.querySelector(".hero-note")?.textContent || "",
+      barre: !!document.querySelector("#screen .rythme-bar"),
     };
     const i = transactions.findIndex(t => t.id === 96001);
     if (i >= 0) transactions.splice(i, 1);
@@ -6099,9 +6102,10 @@ await goHome();
     return res;
   });
   check(decouvert.dispo < 0, `le scénario met bien à découvert (${decouvert.dispo})`);
-  check(!decouvert.barre, "à découvert, aucune barre ne vient faire la morale");
+  check(!decouvert.barre && !/par jour/.test(decouvert.texte),
+    "à découvert, aucune barre ni faux budget quotidien");
   check(/Il manque/.test(decouvert.texte),
-    `le manque est dit en clair (obtenu « ${decouvert.texte.split("\n")[1] || ""} »)`);
+    `le manque est dit en clair (obtenu « ${decouvert.texte} »)`);
   await goHome();
 }
 
@@ -6237,4 +6241,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 119 parcours verts (78 historiques/UX + 8 correctifs critiques de fiabilité + 2 page Année + 2 abonnements mensuel/annuel + 1 tuiles de l'accueil + 1 fidélité rythme/passé + 1 lisibilité audit + 1 style de saisie unifié + 1 enregistrement réel de chaque feuille + 1 mois coché depuis l'accueil + 1 états et noms jamais rognés + 1 identité installée + 1 graphiques honnêtes + 1 couleurs et lignes honnêtes + 1 sans jargon + 1 un seul système + 1 premier écran vivant + 1 charges et abonnements dès la bienvenue + 1 héros qui tourne + 1 facture ou mis de côté + 1 provision d'impôts réelle + 1 prévoyance sans double compte + 1 répartition du mis de côté + 1 objectif relié par défaut + 1 textes courts + 1 mettre de côté + 1 retour lisible + 1 mise de côté sans évaporation + 1 mettre de côté au premier plan + 1 choisir où va l’argent + 1 un seul mot pour la ligne mensuelle + 1 rythme du mois + 1 objectif qui avance), zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 119 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

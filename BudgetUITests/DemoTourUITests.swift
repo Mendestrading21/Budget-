@@ -64,18 +64,20 @@ final class DemoTourUITests: XCTestCase {
                              lastProofPrefix: "pension.info",
                              namedProofs: ["pension.info.footer"], then: "Prévoyance")
 
-        // Pilote Obsidian L4 : la feuille « Ajouter un mouvement » fait
-        // partie des trois parcours refondus — preuve native exigée.
+        // La saisie guidée fait partie du parcours cœur — preuve native
+        // exigée : CTA unique, intention claire, puis formulaire adapté.
         openTab(app, "Mois")
-        // ADR-026 : plus d'ajout global à menu. Le bouton de la barre de
-        // navigation ouvre DIRECTEMENT « Nouveau mouvement ».
-        let addButton = app.buttons["Ajouter un mouvement"]
+        let addButton = app.buttons["Ajouter une opération"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 10),
                       "L'accueil doit porter son action d'ajout")
         addButton.tap()
+        let expenseIntent = app.buttons["quick-entry.expense"]
+        XCTAssertTrue(expenseIntent.waitForExistence(timeout: 10),
+                      "L'intention Dépense doit être proposée")
+        expenseIntent.tap()
         XCTAssertTrue(
-            app.navigationBars["Nouveau mouvement"].waitForExistence(timeout: 10),
-            "La feuille « Nouveau mouvement » doit s'ouvrir"
+            app.navigationBars["Ajouter une dépense"].waitForExistence(timeout: 10),
+            "La feuille guidée Dépense doit s'ouvrir"
         )
         snap(app, "12-nouveau-mouvement")
         app.buttons["Annuler"].tap()

@@ -208,8 +208,7 @@ check(nuGallery.includes('href="neon-ultra.css"') && !nuGallery.includes("obsidi
 // plus élargir la portée en silence, et le message nomme les fuyards.
 // Liste blanche = exactement les renderers des surfaces pilotes.
 const PILOT_RENDERERS = new Set([
-  "renderHome",        // Mois
-  "renderSimpleHome",  // Mois (accueil essentiel, ADR-026)
+  "renderSimpleHome",  // Mois (accueil essentiel, ADR-030)
   "renderBudget",      // Budget
   "renderYearReview",  // Année (née dans l'identité Neon Ultra)
   "yearMonthRow",      // ligne de la page Année
@@ -772,17 +771,17 @@ void clippedIn;
       screenBg: getComputedStyle(s).backgroundColor,
       heroBg: getComputedStyle(hero).backgroundColor,
       heroBlur: getComputedStyle(hero).backdropFilter,
-      statBg: getComputedStyle(stat).backgroundColor,
+      statBg: getComputedStyle(stat.closest(".home-metrics")).backgroundColor,
       ctaGradient: getComputedStyle(cta).backgroundImage,
       ctaColor: getComputedStyle(cta).color,
       amountShadow: getComputedStyle(amt).textShadow,
       metrics: document.querySelectorAll("#screen .stat").length,
       priorities: document.querySelectorAll("#screen .priority-card").length,
       quick: document.querySelectorAll("#screen .quick-row .btn").length,
-      bills: /transactions mensuelles/i.test(s.innerText),
-      // Ordre du premier niveau : salutation → héros → métriques → factures.
+      bills: /à faire ce mois/i.test(s.innerText),
+      // Ordre du premier niveau : salutation → héros → métriques → actions.
       order: [html.indexOf("Bonjour"), html.indexOf("Disponible"),
-              html.indexOf('class="stat-grid'), html.indexOf("Transactions mensuelles")],
+              html.indexOf('class="stat-grid'), html.indexOf("À faire ce mois")],
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,
       blurred: [...document.querySelectorAll("#screen .card")]
@@ -797,16 +796,16 @@ void clippedIn;
   check(mois.heroBlur === "none", "aucun blur sur le héros pilote");
   check(mois.statBg === "rgb(17, 20, 28)", `métriques sur surface mate (obtenu ${mois.statBg})`);
   check(mois.ctaGradient.includes("gradient") && mois.ctaGradient.includes("192, 0, 164"),
-    "l'action « Ajouter un mouvement » porte le dégradé CTA canonique");
+    "l'action « Ajouter » porte le dégradé CTA canonique");
   check(mois.ctaColor === "rgb(255, 255, 255)", "texte du CTA en blanc pur");
   check(mois.amountShadow === "none" && mois.glowing === 0, "AUCUN glow autour d'un montant");
-  check(mois.metrics === 4, `exactement 4 métriques (obtenu ${mois.metrics})`);
+  check(mois.metrics === 3, `exactement 3 repères (obtenu ${mois.metrics})`);
   check(mois.priorities === 0, `aucune priorité technique sur l'accueil (obtenu ${mois.priorities})`);
   check(mois.quick === 0, `aucune rangée d'actions rapides (obtenu ${mois.quick})`);
-  check(mois.bills, "la section « Transactions mensuelles » est visible");
+  check(mois.bills, "la section « À faire ce mois » est visible");
   check(mois.order.every(i => i >= 0) && mois.order[0] < mois.order[1]
     && mois.order[1] < mois.order[2] && mois.order[2] < mois.order[3],
-    `ordre du premier niveau : salutation → héros → métriques → factures (${mois.order})`);
+    `ordre du premier niveau : salutation → héros → métriques → actions (${mois.order})`);
   check(mois.gradientCtas === 1, `UN SEUL CTA gradient sur Mois (obtenu ${mois.gradientCtas})`);
   check(mois.blurred === 0, "aucune carte de liste floutée sur une surface pilote");
   // Cibles ≥ 44 px et aucune troncature interne.
@@ -895,11 +894,31 @@ void clippedIn;
   check(loaded.gradientCtas <= 1, `Budget chargé : au plus un CTA gradient (obtenu ${loaded.gradientCtas})`);
   check(loaded.overflow <= 0, `Budget chargé : aucun débordement horizontal (${loaded.overflow}px)`);
 
-  // Feuille pilote : l'action unique ouvre directement Nouveau mouvement.
+  // Feuille pilote : l'action unique demande d'abord une intention simple.
   await page.click(`#tabbar button[aria-label="Mois"]`);
   await page.waitForTimeout(200);
   check(await page.$("#fab") === null, "aucun bouton flottant global");
   await page.click("#screen [data-addtx]");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  const menu = await page.evaluate(() => {
+    const sheet = document.getElementById("quickMenu");
+    const buttons = [...sheet.querySelectorAll("[data-quick]")];
+    return {
+      intentions: buttons.map(button => button.textContent.trim().replace(/\s+/g, " ")),
+      small: buttons.filter(button => button.getBoundingClientRect().height < 44).length,
+      dialog: sheet.getAttribute("role") === "dialog" && sheet.getAttribute("aria-modal") === "true",
+      named: !!sheet.getAttribute("aria-labelledby"),
+    };
+  });
+  check(menu.intentions.length === 4
+      && menu.intentions.some(text => text.includes("J'ai dépensé"))
+      && menu.intentions.some(text => text.includes("J'ai reçu"))
+      && menu.intentions.some(text => text.includes("J'ai mis de côté"))
+      && menu.intentions.some(text => text.includes("Ça revient chaque mois")),
+    `Ajouter propose exactement quatre intentions (${menu.intentions.join(" | ")})`);
+  check(menu.small === 0 && menu.dialog && menu.named,
+    `le menu est un dialogue nommé avec des cibles ≥ 44 px (${JSON.stringify(menu)})`);
+  await page.click('#quickMenu [data-quick="expense"]');
   await page.waitForSelector("#txForm", { state: "visible" });
   const form = await page.evaluate(() => {
     const f = document.getElementById("txForm");

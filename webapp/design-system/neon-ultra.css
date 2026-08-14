@@ -399,7 +399,22 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 }
 #screen.nu-pilot-screen .home-simple .home-metrics .stat {
   min-width: 0;
-  padding: 16px 14px;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+#screen.nu-pilot-screen .home-simple .home-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  padding: 8px;
+  margin: 10px 0 12px;
+  background: var(--nu-surface);
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-card);
+}
+#screen.nu-pilot-screen .home-simple .home-metrics .stat + .stat {
+  border-left: 1px solid var(--nu-border);
 }
 #screen.nu-pilot-screen .home-metric-label {
   display: flex;
@@ -415,7 +430,7 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 #screen.nu-pilot-screen .home-simple .home-metrics .amount {
   display: block;
   max-width: 100%;
-  font-size: clamp(16px, 5vw, 22px);
+  font-size: clamp(13px, 4.2vw, 19px);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -429,6 +444,10 @@ html[data-nu-large-text="true"] { font-size: 200%; }
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: var(--nu-elevation);
+}
+#screen.nu-pilot-screen .home-hero .home-add {
+  margin-top: 16px;
+  min-height: 48px;
 }
 
 /* --- Montants : nets, tabulaires, JAMAIS de glow --- */
@@ -467,6 +486,12 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 /* --- Accueil simple : un seul widget mensuel, lisible à 320 px --- */
 #screen.nu-pilot-screen .home-bills-card,
 #screen.nu-pilot-screen .home-income-card { padding: 18px; }
+#screen.nu-pilot-screen .home-agenda-count {
+  margin: 3px 0 0;
+  color: var(--nu-text-primary);
+  font-size: 18px;
+  font-weight: 750;
+}
 /* Les revenus attendus se lisent AVANT les factures : ce qui rentre, puis
    ce qui sort. Le vert reste sémantique — il dit « entrée », pas « joli ». */
 #screen.nu-pilot-screen .home-income-card { margin-bottom: 12px; }
@@ -798,48 +823,6 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 #screen.nu-pilot-screen .year-month .amount,
 #screen.nu-pilot-screen .sub-row .amount { white-space: nowrap; }
 
-/* --- Tuiles d'accès de l'accueil ---
-   Deux colonnes de cartes MATES : une icône, un nom, un chiffre réel.
-   Cible tactile généreuse, texte qui revient à la ligne plutôt que d'être
-   coupé, et aucun dégradé — le seul point focal de l'écran reste le CTA
-   du héros. */
-#screen.nu-pilot-screen .home-tiles {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-#screen.nu-pilot-screen .home-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-height: 88px;
-  padding: 14px;
-  background: var(--nu-surface);
-  border: 1px solid var(--nu-border);
-  border-radius: var(--nu-radius-card);
-  box-shadow: none;
-  text-align: left;
-  font-family: inherit;
-  cursor: pointer;
-  width: 100%;
-  box-sizing: border-box;
-}
-#screen.nu-pilot-screen .home-tile:active { border-color: var(--nu-violet); }
-#screen.nu-pilot-screen .home-tile-icon { font-size: 20px; line-height: 1.2; }
-#screen.nu-pilot-screen .home-tile-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--nu-text-primary);
-  overflow-wrap: anywhere;
-}
-#screen.nu-pilot-screen .home-tile-value {
-  font-size: 12.5px;
-  color: var(--nu-text-secondary);
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
 /* --- Jauges : barres simples, sans gradient décoratif --- */
 #screen.nu-pilot-screen .track { background: var(--nu-border); }
 #screen.nu-pilot-screen .fill { background: var(--nu-violet); }
@@ -909,6 +892,64 @@ html[data-nu-large-text="true"] { font-size: 200%; }
 .sheet.nu-pilot-sheet h3 { color: var(--nu-text-primary); }
 .sheet.nu-pilot-sheet label { color: var(--nu-text-secondary); }
 .sheet.nu-pilot-sheet .caption { color: var(--nu-text-tertiary); font-size: 13px; line-height: 1.45; }
+.sheet.nu-pilot-sheet .quick-intent-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0 0 6px;
+  padding: 0 11px;
+  border: 1px solid var(--nu-border);
+  border-radius: 999px;
+  background: var(--nu-tint-violet);
+  color: var(--nu-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sheet.nu-pilot-sheet .quick-intent-help { margin: -2px 0 14px; }
+.sheet.nu-pilot-sheet .quick-intent-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.sheet.nu-pilot-sheet .quick-intent {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 9px;
+  min-height: 92px;
+  padding: 13px;
+  border: 1px solid var(--nu-border);
+  border-radius: var(--nu-radius-control);
+  background: var(--nu-surface);
+  color: var(--nu-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sheet.nu-pilot-sheet .quick-intent > span {
+  grid-row: 1 / 3;
+  align-self: start;
+  font-size: 21px;
+}
+.sheet.nu-pilot-sheet .quick-intent strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+.sheet.nu-pilot-sheet .quick-intent small {
+  color: var(--nu-text-tertiary);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.sheet.nu-pilot-sheet .quick-intent:active,
+.sheet.nu-pilot-sheet .quick-intent[aria-pressed="true"] {
+  border-color: var(--nu-violet);
+  background: var(--nu-tint-violet);
+}
+@media (max-width: 340px) {
+  .sheet.nu-pilot-sheet .quick-intent-grid { grid-template-columns: 1fr; }
+  .sheet.nu-pilot-sheet .quick-intent { min-height: 68px; }
+}
 
 /* Champs OPAQUES, libellés persistants, saisie confortable.
    `.sr-select` est EXCLU : ce select masqué double les pastilles tactiles et

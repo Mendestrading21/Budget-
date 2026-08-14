@@ -8,6 +8,81 @@ enum HomePilotDisplay {
     static func toPay(_ available: AvailableBreakdown) -> Decimal {
         available.committedCharges + available.recurringCharges + available.taxReserveGap
     }
+
+    /// Vocabulaire de confirmation du rituel mensuel. Le type financier reste
+    /// la source de vérité ; seule sa traduction pour l'accueil vit ici.
+    static func actionVerb(for type: TransactionType) -> String {
+        switch type {
+        case .income, .refund: "Reçu"
+        case .expense, .taxPayment, .debtPayment: "Payée"
+        case .saving: "Mis de côté"
+        case .investment: "Versé"
+        case .transfer: "Effectué"
+        case .adjustment: "Confirmé"
+        }
+    }
+
+    static func actionLabel(for type: TransactionType) -> String {
+        switch type {
+        case .income, .refund: "À recevoir"
+        case .expense, .taxPayment, .debtPayment: "À payer"
+        case .saving: "À mettre de côté"
+        case .investment: "À investir"
+        case .transfer: "À transférer"
+        case .adjustment: "À confirmer"
+        }
+    }
+
+    static func canConfirm(date: Date, now: Date, calendar: Calendar) -> Bool {
+        calendar.startOfDay(for: date) <= calendar.startOfDay(for: now)
+    }
+}
+
+/// Les quatre intentions quotidiennes. Elles pilotent seulement la saisie :
+/// les types persistés et leurs règles financières restent inchangés.
+enum QuickEntryIntent: String, CaseIterable, Identifiable {
+    case expense
+    case income
+    case setAside
+    case recurring
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .expense: "J'ai dépensé"
+        case .income: "J'ai reçu"
+        case .setAside: "J'ai mis de côté"
+        case .recurring: "Ça revient chaque mois"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .expense: "Courses, sortie, facture du jour"
+        case .income: "Salaire, remboursement, autre revenu"
+        case .setAside: "Épargne, 3e pilier ou placement"
+        case .recurring: "Loyer, abonnement, salaire ou épargne"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .expense: "arrow.up.circle"
+        case .income: "arrow.down.circle"
+        case .setAside: "building.columns"
+        case .recurring: "calendar.badge.clock"
+        }
+    }
+
+    var transactionType: TransactionType? {
+        switch self {
+        case .expense: .expense
+        case .income: .income
+        case .setAside: .saving
+        case .recurring: nil
+        }
+    }
 }
 
 /// A deliberately simple home screen.
@@ -16,14 +91,14 @@ enum HomePilotDisplay {
 /// - How much money is available?
 /// - How much came in?
 /// - How much was spent?
-/// - How much still has to be paid?
+/// - How much was set aside?
 ///
-/// Monthly recurring items are shown immediately underneath and can be
-/// marked as paid in one tap. Detailed analysis remains available in the
-/// dedicated tabs instead of competing for attention on the dashboard.
+/// Everything still expected this month then lives in one chronological
+/// checklist, with a verb that matches the real nature of the movement.
 struct HomeTab: View {
     @Environment(AppContainer.self) private var appContainer
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @Query(sort: \BudgetTransaction.date, order: .reverse)
     private var transactions: [BudgetTransaction]
@@ -38,7 +113,7 @@ struct HomeTab: View {
 
     @State private var monthAnchor: Date?
     @State private var saveErrorMessage: String?
-    @State private var isPresentingCreate = false
+    @State private var isPresentingQuickEntry = false
 
     private var currentAnchor: Date {
         monthAnchor ?? appContainer.dateProvider.now
@@ -76,10 +151,6 @@ struct HomeTab: View {
         )
     }
 
-    private var greetingName: String? {
-        households.first?.members.first(where: { $0.role == .owner })?.firstName
-    }
-
     var body: some View {
         let snapshot = makeSnapshot()
         let forecast = makeForecast(interval: snapshot.interval)
@@ -93,25 +164,14 @@ struct HomeTab: View {
                     VStack(spacing: BudgetSpacing.medium) {
                         monthSelector
                         availableCard(snapshot)
-                        rhythmCard(snapshot)
-                        essentialAmounts(snapshot)
-                        monthlyBills(forecast: forecast, interval: snapshot.interval)
+                        compactAmounts(snapshot)
+                        monthlyActions(forecast: forecast)
                     }
                     .padding(BudgetSpacing.screenMargin)
                 }
                 .neonUltraScrollClearance()
             }
-            .navigationTitle(greetingName.map { "Bonjour \($0)" } ?? "Accueil")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isPresentingCreate = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel("Ajouter un mouvement")
-                }
-            }
+            .navigationTitle("Mois")
             .alert(
                 saveErrorMessage ?? "",
                 isPresented: Binding(
@@ -121,8 +181,8 @@ struct HomeTab: View {
             ) {
                 Button("OK", role: .cancel) {}
             }
-            .sheet(isPresented: $isPresentingCreate) {
-                TransactionFormView(mode: .create(prefilledAccount: nil))
+            .sheet(isPresented: $isPresentingQuickEntry) {
+                QuickEntrySheet(prefilledDate: currentAnchor)
             }
         }
     }
@@ -175,188 +235,139 @@ struct HomeTab: View {
     private func availableCard(_ snapshot: MonthSnapshot) -> some View {
         let isCurrentMonth = snapshot.interval.contains(appContainer.dateProvider.now)
         let amount = isCurrentMonth ? snapshot.available.total : snapshot.cashFlow
-        let title = isCurrentMonth ? "Disponible" : "Reste du mois"
+        let title = isCurrentMonth ? "Disponible jusqu'à la fin du mois" : "Reste du mois"
 
         return NeonUltraElevatedCard {
-            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text(title)
-                    .font(NeonUltraTypography.label)
-                    .foregroundStyle(NeonUltraColor.textSecondary)
-
-                // Montant héros SANS glow : la constitution l'interdit.
-                // Un mois passé garde son SIGNE explicite (+/−) : le sens
-                // ne repose jamais sur la seule couleur.
-                // La ligne « CHF X par jour » a quitté cette carte le
-                // 10.08.2026 : la carte du rythme, juste dessous, porte le
-                // même chiffre en grand. Le garder ici serait un doublon —
-                // le défaut que l'audit de cohérence traque côté web.
-                NeonUltraAmountText(amount: amount, hero: true, signed: !isCurrentMonth)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
-        }
-    }
-
-    // MARK: - Rythme du mois
-
-    /// « Est-ce que je peux sortir ce week-end ? » se répond avec un
-    /// rythme, pas un solde. Même carte que le web (10.08.2026) : le
-    /// budget du jour, une règle graduée où le remplissage marque l'argent
-    /// parti et un jalon clair marque le temps écoulé. À découvert, pas de
-    /// barre — une jauge pleine ferait la morale.
-    @ViewBuilder
-    private func rhythmCard(_ snapshot: MonthSnapshot) -> some View {
-        let rhythm = MonthRhythm.compute(
-            snapshot: snapshot,
-            now: appContainer.dateProvider.now,
-            calendar: appContainer.calendar
-        )
-        if let rhythm {
-            NeonUltraCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Text("Où vous en êtes")
+                    Text(title)
                         .font(NeonUltraTypography.label)
                         .foregroundStyle(NeonUltraColor.textSecondary)
 
-                    switch rhythm {
-                    case .overdrawn(let missing, let daysRemaining):
-                        Text("Il manque \(FinanceFormatting.chf(missing)) pour finir le mois.")
-                            .font(NeonUltraTypography.title)
-                            .foregroundStyle(NeonUltraColor.warning)
-                        Text("Il reste \(daysRemaining) jour\(daysRemaining > 1 ? "s" : ""). Repoussez une dépense, ou reprenez sur ce qui est mis de côté.")
-                            .font(NeonUltraTypography.meta)
-                            .foregroundStyle(NeonUltraColor.textSecondary)
-
-                    case .pace(let spentShare, let timeShare, let daily, let daysRemaining, let isAhead):
-                        let spentPct = Int((spentShare * 100).rounded())
-                        let timePct = Int((timeShare * 100).rounded())
-
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("\(FinanceFormatting.chf(daily)) par jour")
-                                .font(NeonUltraTypography.title)
-                                .foregroundStyle(NeonUltraColor.textPrimary)
-                            Text("pendant \(daysRemaining) jour\(daysRemaining > 1 ? "s" : "")")
-                                .font(NeonUltraTypography.meta)
-                                .foregroundStyle(NeonUltraColor.textSecondary)
-                        }
-
-                        rhythmBar(spentShare: spentShare, timeShare: timeShare, isAhead: isAhead)
-                            // La barre est décorative : le verdict écrit
-                            // juste dessous dit les mêmes pourcentages.
-                            .accessibilityHidden(true)
-
-                        // La couleur ne décide jamais seule : la teinte et
-                        // la phrase disent la MÊME chose.
-                        Text(isAhead
-                            ? "\(spentPct) % dépensé, mais \(timePct) % du mois seulement."
-                            : "\(spentPct) % dépensé pour \(timePct) % du mois. Vous êtes dans le rythme.")
-                            .font(NeonUltraTypography.meta)
-                            .foregroundStyle(isAhead ? NeonUltraColor.warning : NeonUltraColor.positive)
-                    }
+                    // Montant héros SANS glow : la constitution l'interdit.
+                    // Un mois passé garde son SIGNE explicite (+/−) : le sens
+                    // ne repose jamais sur la seule couleur.
+                    NeonUltraAmountText(amount: amount, hero: true, signed: !isCurrentMonth)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
+
+                if isCurrentMonth {
+                    Text(
+                        amount < 0
+                            ? "Il manque \(FinanceFormatting.chf(-amount)) pour finir le mois."
+                            : "\(FinanceFormatting.chf(snapshot.dailyAvailableBudget)) par jour pendant \(snapshot.daysRemaining) jour\(snapshot.daysRemaining > 1 ? "s" : "")."
+                    )
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(amount < 0 ? NeonUltraColor.warning : NeonUltraColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button {
+                    isPresentingQuickEntry = true
+                } label: {
+                    Label("Ajouter", systemImage: "plus")
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.textOnCta)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(NeonUltraGradient.cta)
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: NeonUltraRadius.control,
+                                style: .continuous
+                            )
+                        )
+                }
+                .accessibilityLabel("Ajouter une opération")
+                .accessibilityIdentifier("home.quick-entry")
             }
-            .accessibilityElement(children: .combine)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    /// Règle graduée, pas jauge de jeu : le remplissage = l'argent parti,
-    /// le jalon clair = le temps écoulé. Le jalon porte un liseré sombre
-    /// pour se détacher aussi bien du vert que de l'ambre — leçon du web,
-    /// où il a d'abord été peint invisible.
-    private func rhythmBar(spentShare: Double, timeShare: Double, isAhead: Bool) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(NeonUltraColor.tintNeutral)
-                Capsule()
-                    .fill(isAhead ? NeonUltraColor.warning : NeonUltraColor.positive)
-                    .frame(width: max(4, geo.size.width * spentShare))
-                ZStack {
-                    RoundedRectangle(cornerRadius: 2.5)
-                        .fill(NeonUltraColor.canvas.opacity(0.85))
-                        .frame(width: 5)
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(NeonUltraColor.textPrimary)
-                        .frame(width: 3)
+    /// Trois chiffres, une seule surface. `ViewThatFits` garde la lecture
+    /// horizontale en taille normale et bascule en lignes sous Dynamic Type.
+    private func compactAmounts(_ snapshot: MonthSnapshot) -> some View {
+        return NeonUltraCard {
+            if dynamicTypeSize.isAccessibilitySize {
+                compactAmountsVertical(snapshot)
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    compactAmountsHorizontal(snapshot)
+                    compactAmountsVertical(snapshot)
                 }
-                .offset(x: geo.size.width * timeShare - 2.5)
             }
         }
-        .frame(height: 10)
     }
 
-    private func essentialAmounts(_ snapshot: MonthSnapshot) -> some View {
-        let toPay = HomePilotDisplay.toPay(snapshot.available)
-
-        return LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: BudgetSpacing.medium),
-                GridItem(.flexible())
-            ],
-            spacing: BudgetSpacing.medium
-        ) {
-            amountCard(
-                "Entré",
-                snapshot.totalIncome,
-                symbol: "arrow.down",
-                emphasis: .positive
-            )
-            amountCard(
-                "Dépensé",
-                snapshot.totalLivingExpenses,
-                symbol: "arrow.up",
-                emphasis: .negative
-            )
-            amountCard(
-                "À payer",
-                toPay,
-                symbol: "calendar",
-                emphasis: toPay > 0 ? .warning : .neutral
-            )
-            amountCard(
+    private func compactAmountsHorizontal(_ snapshot: MonthSnapshot) -> some View {
+        HStack(alignment: .top, spacing: BudgetSpacing.small) {
+            compactMetric("Reçu", snapshot.totalIncome, emphasis: .positive)
+            Divider().overlay(NeonUltraColor.border)
+            compactMetric("Dépensé", snapshot.totalLivingExpenses, emphasis: .negative)
+            Divider().overlay(NeonUltraColor.border)
+            compactMetric(
                 "Mis de côté",
                 snapshot.totalSavings + snapshot.totalInvestments,
-                symbol: "building.columns",
                 emphasis: .neutral
             )
         }
     }
 
-    private func amountCard(
+    private func compactAmountsVertical(_ snapshot: MonthSnapshot) -> some View {
+        VStack(spacing: BudgetSpacing.small) {
+            compactMetricRow("Reçu", snapshot.totalIncome, emphasis: .positive)
+            compactMetricRow("Dépensé", snapshot.totalLivingExpenses, emphasis: .negative)
+            compactMetricRow(
+                "Mis de côté",
+                snapshot.totalSavings + snapshot.totalInvestments,
+                emphasis: .neutral
+            )
+        }
+    }
+
+    private func compactMetric(
         _ title: String,
         _ amount: Decimal,
-        symbol: String,
         emphasis: AmountEmphasis
     ) -> some View {
-        NeonUltraCard {
-            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Image(systemName: symbol)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(NeonUltraColor.textSecondary)
-                    .accessibilityHidden(true)
-
-                Text(FinanceFormatting.chf(amount))
-                    .font(NeonUltraTypography.amount)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-                    .foregroundStyle(color(for: emphasis))
-
-                Text(title)
-                    .font(NeonUltraTypography.label)
-                    .foregroundStyle(NeonUltraColor.textSecondary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textSecondary)
+            Text(FinanceFormatting.chf(amount))
+                .font(NeonUltraTypography.label.monospacedDigit())
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .foregroundStyle(color(for: emphasis))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
+    }
+
+    private func compactMetricRow(
+        _ title: String,
+        _ amount: Decimal,
+        emphasis: AmountEmphasis
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(NeonUltraTypography.label)
+                .foregroundStyle(NeonUltraColor.textSecondary)
+            Spacer()
+            Text(FinanceFormatting.chf(amount))
+                .font(NeonUltraTypography.label.monospacedDigit())
+                .foregroundStyle(color(for: emphasis))
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
     }
 
     private enum AmountEmphasis {
         case positive
         case negative
-        case warning
         case neutral
     }
 
@@ -364,33 +375,22 @@ struct HomeTab: View {
         switch emphasis {
         case .positive: NeonUltraColor.positive
         case .negative: NeonUltraColor.negative
-        case .warning: NeonUltraColor.warning
         case .neutral: NeonUltraColor.textPrimary
         }
     }
 
-    // MARK: - Monthly recurring bills
+    // MARK: - Ce qu'il reste à faire ce mois
 
     @ViewBuilder
-    private func monthlyBills(
-        forecast: [ForecastOccurrence],
-        interval: MonthInterval
-    ) -> some View {
-        let expenses = forecast.filter { $0.type != .income }
-        let check = scheduleService.monthCheck(
-            recurrings: recurrings,
-            in: interval,
-            transactions: transactions
-        )
-
+    private func monthlyActions(forecast: [ForecastOccurrence]) -> some View {
         VStack(alignment: .leading, spacing: BudgetSpacing.small) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Factures du mois")
+                    Text("À faire ce mois")
                         .font(NeonUltraTypography.title)
                         .foregroundStyle(NeonUltraColor.textPrimary)
-                    if check.total > 0 {
-                        Text("\(check.done) sur \(check.total) payées")
+                    if !forecast.isEmpty {
+                        Text("\(forecast.count) action\(forecast.count > 1 ? "s" : "") restante\(forecast.count > 1 ? "s" : "")")
                             .font(NeonUltraTypography.meta)
                             .foregroundStyle(NeonUltraColor.textSecondary)
                     }
@@ -408,52 +408,42 @@ struct HomeTab: View {
                 }
             }
 
-            if check.total > 0 {
-                ProgressView(value: Double(check.done), total: Double(check.total))
-                    .tint(check.done == check.total ? NeonUltraColor.positive : NeonUltraColor.violet)
-                    .accessibilityLabel("Factures payées")
-                    .accessibilityValue("\(check.done) sur \(check.total)")
-            }
-
-            if expenses.isEmpty {
+            if forecast.isEmpty {
                 NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                        Text("Aucune facture à payer")
+                        Label(
+                            recurrings.isEmpty ? "Ajoutez ce qui revient" : "Tout est à jour",
+                            systemImage: recurrings.isEmpty ? "calendar.badge.plus" : "checkmark.circle"
+                        )
                             .font(NeonUltraTypography.label)
-                            .foregroundStyle(NeonUltraColor.textPrimary)
-                        Text("Ajoutez votre loyer, vos assurances ou vos abonnements une seule fois. Ils reviendront automatiquement chaque mois.")
+                            .foregroundStyle(recurrings.isEmpty ? NeonUltraColor.cyan : NeonUltraColor.positive)
+                        Text(
+                            recurrings.isEmpty
+                                ? "Loyer, salaire, abonnements et épargne : ajoutez-les une fois avec le bouton Ajouter."
+                                : "Les revenus, factures et mises de côté encore attendus apparaîtront ici."
+                        )
                             .font(NeonUltraTypography.meta)
                             .foregroundStyle(NeonUltraColor.textSecondary)
-
-                        // SEUL dégradé de l'écran quand le héros n'a rien à
-                        // dire : un point focal lumineux, jamais deux.
-                        NavigationLink {
-                            RecurringListView()
-                        } label: {
-                            Label("Ajouter une transaction mensuelle", systemImage: "plus")
-                                .font(NeonUltraTypography.label)
-                                .foregroundStyle(NeonUltraColor.textOnCta)
-                                .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(NeonUltraGradient.cta)
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: NeonUltraRadius.control,
-                                        style: .continuous
-                                    )
-                                )
-                        }
                     }
                 }
             } else {
-                ForEach(expenses.prefix(6)) { occurrence in
-                    recurringBillRow(occurrence)
+                let visible = Array(forecast.prefix(6))
+                NeonUltraCard {
+                    VStack(spacing: 0) {
+                        ForEach(visible) { occurrence in
+                            monthlyActionRow(occurrence)
+                            if occurrence.id != visible.last?.id {
+                                Divider().overlay(NeonUltraColor.border)
+                            }
+                        }
+                    }
                 }
 
-                if expenses.count > 6 {
+                if forecast.count > 6 {
                     NavigationLink {
                         RecurringListView()
                     } label: {
-                        Text("Voir les \(expenses.count) factures")
+                        Text("Voir les \(forecast.count) actions")
                             .font(NeonUltraTypography.label)
                             .foregroundStyle(NeonUltraColor.cyan)
                             .frame(maxWidth: .infinity, minHeight: 44)
@@ -463,56 +453,110 @@ struct HomeTab: View {
         }
     }
 
-    private func recurringBillRow(_ occurrence: ForecastOccurrence) -> some View {
-        NeonUltraCard {
-            HStack(spacing: BudgetSpacing.medium) {
-                Image(systemName: "calendar")
-                    .frame(width: 28)
-                    .foregroundStyle(NeonUltraColor.warning)
-                    .accessibilityHidden(true)
+    private func monthlyActionRow(_ occurrence: ForecastOccurrence) -> some View {
+        let canConfirm = HomePilotDisplay.canConfirm(
+            date: occurrence.date,
+            now: appContainer.dateProvider.now,
+            calendar: appContainer.calendar
+        )
+        let verb = HomePilotDisplay.actionVerb(for: occurrence.type)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(occurrence.title)
-                        .font(NeonUltraTypography.label)
-                        .foregroundStyle(NeonUltraColor.textPrimary)
-                        .lineLimit(1)
-                    Text(FinanceFormatting.swissDate(occurrence.date))
-                        .font(NeonUltraTypography.meta)
-                        .foregroundStyle(NeonUltraColor.textSecondary)
-                }
-
-                Spacer(minLength: BudgetSpacing.small)
-
-                VStack(alignment: .trailing, spacing: 4) {
+        return Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    monthlyActionIdentity(occurrence)
                     NeonUltraAmountText(amount: occurrence.amount)
-
-                    // Action de ligne : surface mate + bordure, jamais le
-                    // dégradé — il reste réservé à l'action principale.
-                    Button("Payée") {
-                        post(occurrence)
+                    monthlyActionControl(occurrence, canConfirm: canConfirm, verb: verb)
+                }
+            } else {
+                HStack(spacing: BudgetSpacing.medium) {
+                    monthlyActionIdentity(occurrence)
+                    Spacer(minLength: BudgetSpacing.small)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        NeonUltraAmountText(amount: occurrence.amount)
+                        monthlyActionControl(occurrence, canConfirm: canConfirm, verb: verb)
                     }
-                    .font(NeonUltraTypography.label)
-                    .foregroundStyle(NeonUltraColor.textPrimary)
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, BudgetSpacing.small)
-                    .background(NeonUltraColor.surfaceFallback)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: NeonUltraRadius.control,
-                            style: .continuous
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(
-                            cornerRadius: NeonUltraRadius.control,
-                            style: .continuous
-                        )
-                        .stroke(NeonUltraColor.border, lineWidth: 1)
-                    )
-                    .accessibilityLabel("Marquer \(occurrence.title) comme payée")
                 }
             }
-            .accessibilityElement(children: .contain)
+        }
+        .padding(.vertical, BudgetSpacing.small)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func monthlyActionIdentity(_ occurrence: ForecastOccurrence) -> some View {
+        HStack(spacing: BudgetSpacing.medium) {
+            Image(systemName: actionIcon(for: occurrence.type))
+                .frame(width: 28)
+                .foregroundStyle(actionColor(for: occurrence.type))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(occurrence.title)
+                    .font(NeonUltraTypography.label)
+                    .foregroundStyle(NeonUltraColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(HomePilotDisplay.actionLabel(for: occurrence.type)) · \(FinanceFormatting.swissDate(occurrence.date))")
+                    .font(NeonUltraTypography.meta)
+                    .foregroundStyle(NeonUltraColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func monthlyActionControl(
+        _ occurrence: ForecastOccurrence,
+        canConfirm: Bool,
+        verb: String
+    ) -> some View {
+        if canConfirm {
+            // Action de ligne : surface mate + bordure, jamais le dégradé —
+            // il reste réservé à l'action principale.
+            Button(verb) {
+                post(occurrence)
+            }
+            .font(NeonUltraTypography.label)
+            .foregroundStyle(NeonUltraColor.textPrimary)
+            .frame(minHeight: 44)
+            .padding(.horizontal, BudgetSpacing.small)
+            .background(NeonUltraColor.surfaceFallback)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: NeonUltraRadius.control,
+                    style: .continuous
+                )
+            )
+            .overlay(
+                RoundedRectangle(
+                    cornerRadius: NeonUltraRadius.control,
+                    style: .continuous
+                )
+                .stroke(NeonUltraColor.border, lineWidth: 1)
+            )
+            .accessibilityLabel("\(occurrence.title) : \(verb)")
+        } else {
+            Text("Prévu")
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textSecondary)
+        }
+    }
+
+    private func actionIcon(for type: TransactionType) -> String {
+        switch type {
+        case .income, .refund: "arrow.down.circle"
+        case .expense, .taxPayment, .debtPayment: "calendar"
+        case .saving, .investment: "building.columns"
+        case .transfer: "arrow.left.arrow.right"
+        case .adjustment: "slider.horizontal.3"
+        }
+    }
+
+    private func actionColor(for type: TransactionType) -> Color {
+        switch type {
+        case .income, .refund: NeonUltraColor.positive
+        case .expense, .taxPayment, .debtPayment: NeonUltraColor.warning
+        case .saving, .investment: NeonUltraColor.cyan
+        case .transfer, .adjustment: NeonUltraColor.textSecondary
         }
     }
 
@@ -526,7 +570,7 @@ struct HomeTab: View {
         do {
             persistedTransactions = try modelContext.fetch(FetchDescriptor<BudgetTransaction>())
         } catch {
-            saveErrorMessage = "La facture n'a pas pu être vérifiée. Réessayez."
+            saveErrorMessage = "Cette action n'a pas pu être vérifiée. Réessayez."
             return
         }
         guard let transaction = scheduleService.makeTransactionIfNeeded(
@@ -535,8 +579,8 @@ struct HomeTab: View {
             existingTransactions: persistedTransactions,
             now: now
         ) else { return }
-        // Photo AVANT l'écriture : marquer une mise de côté mensuelle
-        // « payée » fait avancer le même objectif que la saisie manuelle,
+        // Photo AVANT l'écriture : confirmer une mise de côté mensuelle
+        // fait avancer le même objectif que la saisie manuelle,
         // et doit le dire pareil (parité web, 10.08.2026).
         let goalService = GoalProgressService(balanceService: appContainer.balanceService)
         let goalsBefore = goalService.snapshotCurrents(goals: goals)
@@ -549,6 +593,102 @@ struct HomeTab: View {
                before: goalsBefore
            ) {
             appContainer.goalProgressMessage = progress
+        }
+    }
+}
+
+/// Une seule feuille locale pour choisir l'intention avant de montrer les
+/// champs. Le choix change la présentation, jamais les règles métier.
+struct QuickEntrySheet: View {
+    let prefilledDate: Date
+    var prefilledAccount: Account? = nil
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedIntent: QuickEntryIntent?
+
+    var body: some View {
+        Group {
+            if let selectedIntent {
+                destination(for: selectedIntent)
+            } else {
+                chooser
+            }
+        }
+    }
+
+    private var chooser: some View {
+        NavigationStack {
+            ZStack {
+                NeonUltraScreenBackground()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
+                        Text("Que voulez-vous ajouter ?")
+                            .font(NeonUltraTypography.title)
+                            .foregroundStyle(NeonUltraColor.textPrimary)
+
+                        ForEach(QuickEntryIntent.allCases) { intent in
+                            Button {
+                                selectedIntent = intent
+                            } label: {
+                                NeonUltraCard {
+                                    HStack(spacing: BudgetSpacing.medium) {
+                                        Image(systemName: intent.systemImage)
+                                            .font(.title3.weight(.semibold))
+                                            .foregroundStyle(NeonUltraColor.cyan)
+                                            .frame(width: 32)
+                                            .accessibilityHidden(true)
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(intent.title)
+                                                .font(NeonUltraTypography.label)
+                                                .foregroundStyle(NeonUltraColor.textPrimary)
+                                            Text(intent.subtitle)
+                                                .font(NeonUltraTypography.meta)
+                                                .foregroundStyle(NeonUltraColor.textSecondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+
+                                        Spacer(minLength: BudgetSpacing.small)
+
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(NeonUltraColor.textSecondary)
+                                            .accessibilityHidden(true)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(intent.title). \(intent.subtitle)")
+                            .accessibilityIdentifier("quick-entry.\(intent.rawValue)")
+                        }
+                    }
+                    .padding(BudgetSpacing.screenMargin)
+                }
+            }
+            .navigationTitle("Ajouter")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { dismiss() }
+                }
+            }
+            .tint(NeonUltraColor.cyan)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for intent: QuickEntryIntent) -> some View {
+        if intent == .recurring {
+            RecurringFormView(mode: .create)
+        } else {
+            TransactionFormView(
+                mode: .create(prefilledAccount: prefilledAccount),
+                prefilledType: intent.transactionType,
+                prefilledDate: prefilledDate,
+                guidedIntent: intent
+            )
         }
     }
 }
