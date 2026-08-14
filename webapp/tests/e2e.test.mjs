@@ -4177,7 +4177,17 @@ await goHome();
 
   // Une réserve déjà planifiée doit garder sa vraie nature jusque dans
   // l'action et l'annonce de confirmation : jamais « dépense/payé ».
+  // On isole ce scénario : l'agenda est volontairement limité à cinq lignes,
+  // donc les nombreuses fixtures du test ne doivent pas masquer la réserve
+  // que cette assertion cherche précisément à manipuler.
+  const monthAgendaState96 = await page.evaluate(() => JSON.stringify({
+    recurrings: RECURRINGS,
+    bills: S.bills || [],
+    monthChecks: S.monthChecks || {},
+  }));
   await page.evaluate(() => {
+    RECURRINGS.splice(0, RECURRINGS.length);
+    S.bills = [];
     const source = defaultCashAccount();
     const destination = (ACCOUNTS.find(a => a.kind === "savings" && a.id !== source)
       || ACCOUNTS.find(a => a.id !== source)).id;
@@ -4205,17 +4215,19 @@ await goHome();
     `une réserve planifiée reste une mise de côté (${JSON.stringify(reserve96)})`);
   await page.click('[data-obligation-key^="recurring:reserve-planifiee-96"] .home-bill-action');
   await page.waitForTimeout(180);
-  const reserveConfirmee96 = await page.evaluate(() => {
+  const reserveConfirmee96 = await page.evaluate((serializedAgendaState) => {
     const transaction = transactions.find(t => t.recurringId === "reserve-planifiee-96");
     const toastText = document.getElementById("toast")?.textContent || "";
     const stillVisible = !!document.querySelector('[data-obligation-key^="recurring:reserve-planifiee-96"]');
     const txIndex = transactions.findIndex(t => t.recurringId === "reserve-planifiee-96");
     if (txIndex >= 0) transactions.splice(txIndex, 1);
-    const recurringIndex = RECURRINGS.findIndex(r => r.id === "reserve-planifiee-96");
-    if (recurringIndex >= 0) RECURRINGS.splice(recurringIndex, 1);
+    const previous = JSON.parse(serializedAgendaState);
+    RECURRINGS.splice(0, RECURRINGS.length, ...previous.recurrings);
+    S.bills = previous.bills;
+    S.monthChecks = previous.monthChecks;
     saveState(); render();
     return { status: transaction?.status, toastText, stillVisible };
-  });
+  }, monthAgendaState96);
   check(reserveConfirmee96.status === "posted"
       && /mis de côté/i.test(reserveConfirmee96.toastText)
       && !reserveConfirmee96.stillVisible,
