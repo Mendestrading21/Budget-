@@ -674,6 +674,22 @@
   @keyframes sink { to { transform: translateY(40px); opacity: 0; } }
   @keyframes veil-in { from { opacity: 0; } }
   @keyframes veil-out { to { opacity: 0; } }
+  /* Poignée de glissement (apple-design §2) : surface gestuelle en haut de
+     chaque feuille, masquée à la voix — fermer reste possible par les
+     boutons, seuls chemins annoncés. touch-action:none : le glissement
+     appartient au geste, pas au défilement de la feuille. */
+  .sheet-handle {
+    display: flex; align-items: center; justify-content: center;
+    height: 30px; margin: -12px -20px -2px;
+    cursor: grab; touch-action: none;
+  }
+  .sheet-handle::before {
+    content: ""; width: 36px; height: 5px; border-radius: 3px;
+    background: var(--line);
+  }
+  .sheet.dragging { animation: none; }
+  .sheet.dragging .sheet-handle { cursor: grabbing; }
+  .sheet.dragging, .sheet.dragging * { user-select: none; -webkit-user-select: none; }
   /* Entrée d'écran Horizon : les premières cartes se posent en douceur. */
   @keyframes settle { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
   .screen-enter > .card { animation: settle 0.26s ease backwards; }
@@ -6044,10 +6060,126 @@ const SHEET_REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)
 function settleSheetClose() {
   if (sheetCloseTimer) { clearTimeout(sheetCloseTimer); sheetCloseTimer = 0; }
   backdrop.classList.remove("closing");
+  // Une feuille partie au doigt garde sa translation hors écran pendant le
+  // fondu du voile ; on la remet en place une fois la couche masquée —
+  // jamais pendant un glissement en cours.
+  if (SHEET_DRAG.sheet && !SHEET_DRAG.sheet.classList.contains("dragging")) {
+    sheetDragClear(SHEET_DRAG.sheet);
+  }
 }
 backdrop.addEventListener("animationend", e => {
   if (e.target === backdrop && backdrop.classList.contains("closing")) settleSheetClose();
 });
+
+/* ---------- Fermer une feuille au doigt (skill apple-design) ----------
+   Suivi 1:1 depuis la poignée (§2), rubber-band vers le haut (§9),
+   projection de l'élan à la levée du doigt (§6, formule Apple), transfert
+   de la vélocité du geste dans un ressort amorti critique (§4/§5),
+   interruptible à tout instant (§3) : reprendre la poignée pendant le
+   ressort continue depuis la position et la vitesse réelles. */
+const SHEET_DRAG = { y: 0, v: 0, raf: 0, sheet: null };
+function sheetDragStop() {
+  if (SHEET_DRAG.raf) { cancelAnimationFrame(SHEET_DRAG.raf); SHEET_DRAG.raf = 0; }
+}
+function sheetDragClear(sheet) {
+  sheetDragStop();
+  if (sheet) { sheet.classList.remove("dragging"); sheet.style.transform = ""; }
+  SHEET_DRAG.y = 0; SHEET_DRAG.v = 0; SHEET_DRAG.sheet = null;
+}
+// Rubber-band Apple : plus on tire au-delà de la butée, moins ça suit.
+function sheetRubber(over, dim, c = 0.55) {
+  return (over * dim * c) / (dim + c * Math.abs(over));
+}
+// Projection d'élan Apple : où le geste s'arrêterait s'il décélérait seul.
+function sheetProject(v, rate = 0.998) { return (v / 1000) * rate / (1 - rate); }
+// Ressort amorti critique (damping 1.0, réponse ≈ 0,33 s) : retour en place
+// sans rebond, en continuant à la vitesse du doigt. Intégration
+// semi-implicite : y et v restent l'état vivant, donc interruptible.
+function sheetSpringBack(sheet) {
+  if (SHEET_REDUCED_MOTION.matches) { sheetDragClear(sheet); return; }
+  const w = 14;
+  let last = performance.now();
+  const step = now => {
+    SHEET_DRAG.raf = 0;
+    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    SHEET_DRAG.v += (-w * w * SHEET_DRAG.y - 2 * w * SHEET_DRAG.v) * dt;
+    SHEET_DRAG.y += SHEET_DRAG.v * dt;
+    if (Math.abs(SHEET_DRAG.y) < 0.5 && Math.abs(SHEET_DRAG.v) < 20) { sheetDragClear(sheet); return; }
+    sheet.style.transform = `translateY(${SHEET_DRAG.y}px)`;
+    SHEET_DRAG.raf = requestAnimationFrame(step);
+  };
+  SHEET_DRAG.raf = requestAnimationFrame(step);
+}
+// Sortie au doigt : la feuille continue à la vitesse du relâchement (jamais
+// plus lente qu'une chute naturelle), puis la fermeture normale fait le
+// reste — le voile s'éteint, settleSheetClose remettra la translation à zéro.
+function sheetSlideOut(sheet) {
+  const target = sheet.getBoundingClientRect().height + 60;
+  if (SHEET_DRAG.v < 500) SHEET_DRAG.v = 500;
+  let last = performance.now();
+  const step = now => {
+    SHEET_DRAG.raf = 0;
+    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    SHEET_DRAG.v += 2600 * dt;
+    SHEET_DRAG.y += SHEET_DRAG.v * dt;
+    sheet.style.transform = `translateY(${SHEET_DRAG.y}px)`;
+    if (SHEET_DRAG.y >= target) { closeSheet(); return; }
+    SHEET_DRAG.raf = requestAnimationFrame(step);
+  };
+  SHEET_DRAG.raf = requestAnimationFrame(step);
+}
+function attachSheetDrag(sheet) {
+  const handle = document.createElement("div");
+  handle.className = "sheet-handle";
+  handle.setAttribute("aria-hidden", "true");
+  sheet.prepend(handle);
+  let grabY = 0, hist = [];
+  handle.addEventListener("pointerdown", e => {
+    if (!backdrop.classList.contains("open")) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    sheetDragStop(); // interrompt un ressort ou une sortie en vol
+    SHEET_DRAG.sheet = sheet;
+    grabY = e.clientY - SHEET_DRAG.y; // respecte la position déjà atteinte
+    hist = [[performance.now(), SHEET_DRAG.y]];
+    sheet.classList.add("dragging");
+  });
+  handle.addEventListener("pointermove", e => {
+    if (SHEET_DRAG.sheet !== sheet || !sheet.classList.contains("dragging")) return;
+    let dy = e.clientY - grabY;
+    if (dy < 0) dy = sheetRubber(dy, sheet.getBoundingClientRect().height);
+    SHEET_DRAG.y = dy;
+    hist.push([performance.now(), dy]);
+    if (hist.length > 8) hist.shift();
+    sheet.style.transform = `translateY(${dy}px)`;
+  });
+  const release = () => {
+    if (SHEET_DRAG.sheet !== sheet || !sheet.classList.contains("dragging")) return;
+    sheet.classList.remove("dragging");
+    // Vélocité réelle des ~120 dernières millisecondes, en px/s.
+    const now = performance.now();
+    const past = hist.find(([t]) => now - t <= 120) || hist[0];
+    SHEET_DRAG.v = (SHEET_DRAG.y - past[1]) / Math.max(now - past[0], 1) * 1000;
+    const landing = SHEET_DRAG.y + sheetProject(SHEET_DRAG.v);
+    let leave = landing > sheet.getBoundingClientRect().height * 0.5;
+    // Même garde que le clic sur le fond : une saisie en cours ne se jette
+    // pas d'un geste distrait.
+    if (leave && openSheetId && serializeSheet(openSheetId) !== openSheetSnapshot
+        && !confirm("Abandonner la saisie en cours ?")) leave = false;
+    if (!leave) { sheetSpringBack(sheet); return; }
+    if (SHEET_REDUCED_MOTION.matches) { sheetDragClear(sheet); closeSheet(); return; }
+    sheetSlideOut(sheet);
+  };
+  handle.addEventListener("pointerup", release);
+  handle.addEventListener("pointercancel", () => {
+    if (SHEET_DRAG.sheet !== sheet || !sheet.classList.contains("dragging")) return;
+    sheet.classList.remove("dragging");
+    SHEET_DRAG.v = 0;
+    sheetSpringBack(sheet); // annulation système : retour en place, sans jeter la saisie
+  });
+}
+for (const sheetId of SHEET_IDS) attachSheetDrag(document.getElementById(sheetId));
+
 // Empreinte des champs d'une feuille : sert à détecter une saisie en cours.
 function serializeSheet(id) {
   const el = document.getElementById(id);

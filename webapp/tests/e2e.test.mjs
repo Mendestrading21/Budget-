@@ -6880,6 +6880,130 @@ check(fluid121press.tab && fluid121press.chip,
 check(fluid121press.tabReduced && fluid121press.chipReduced,
   "chaque retour de pression a son débrayage mouvement réduit");
 
+// ---------- Test 122 : gestes Apple — fermer une feuille au doigt ----------
+// apple-design §2 (1:1), §5 (vélocité), §6 (projection d'élan), §9
+// (rubber-band). Le geste part de la poignée ; les boutons restent le
+// chemin accessible.
+currentTest = "geste feuilles";
+await goHome();
+
+// Chaque feuille porte une poignée, masquée à la voix.
+const geste122handles = await page.evaluate(() => {
+  const ids = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm", "widgetForm"];
+  return ids.map(id => {
+    const el = document.getElementById(id);
+    const h = el && el.firstElementChild;
+    return { id, ok: !!(h && h.classList.contains("sheet-handle") && h.getAttribute("aria-hidden") === "true") };
+  }).filter(r => !r.ok).map(r => r.id);
+});
+check(geste122handles.length === 0,
+  `chaque feuille a sa poignée masquée à la voix (manquantes : ${geste122handles.join(", ") || "aucune"})`);
+
+const geste122ty = () => page.evaluate(() => {
+  const t = getComputedStyle(document.getElementById("quickMenu")).transform;
+  if (!t || t === "none") return 0;
+  return Number(t.split(",").pop().replace(")", "").trim());
+});
+const geste122fermee = async (timeout) => {
+  try {
+    await page.waitForFunction(() => getComputedStyle(document.getElementById("sheetBackdrop")).display === "none",
+      null, { timeout });
+    return true;
+  } catch { return false; }
+};
+const geste122ouvrir = async () => {
+  // Une étape ratée ne doit pas bloquer les suivantes : si une feuille est
+  // restée ouverte, on repart d'un état propre avant de rouvrir.
+  const restee = await page.evaluate(() =>
+    getComputedStyle(document.getElementById("sheetBackdrop")).display !== "none");
+  if (restee) { await page.evaluate(() => closeSheet()); await geste122fermee(2000); }
+  await page.click("[data-addtx]");
+  await page.waitForSelector("#quickMenu", { state: "visible" });
+  await page.waitForTimeout(350); // laisse finir l'animation d'entrée
+  const box = await (await page.$("#quickMenu .sheet-handle")).boundingBox();
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+};
+
+// 1. Petit glissement lent → la feuille suit puis REVIENT (ressort), sans se fermer.
+let grip = await geste122ouvrir();
+await page.mouse.move(grip.x, grip.y);
+await page.mouse.down();
+for (let i = 1; i <= 4; i++) {
+  await page.mouse.move(grip.x, grip.y + i * 10);
+  await page.waitForTimeout(40);
+}
+const geste122suit = await geste122ty();
+check(Math.abs(geste122suit - 40) < 2,
+  `la feuille suit le doigt 1:1 (translation ${geste122suit}px pour 40px)`);
+await page.mouse.up();
+await page.waitForTimeout(900);
+const geste122retour = await page.evaluate(() => ({
+  open: document.getElementById("sheetBackdrop").classList.contains("open"),
+  transform: getComputedStyle(document.getElementById("quickMenu")).transform,
+}));
+check(geste122retour.open && (geste122retour.transform === "none" || /matrix\(1, 0, 0, 1, 0, 0\)/.test(geste122retour.transform)),
+  `un petit glissement revient en place sans fermer (${JSON.stringify(geste122retour)})`);
+
+// 2. Vers le haut, la feuille RÉSISTE (rubber-band) : 80px de doigt,
+//    nettement moins de trajet.
+await page.mouse.move(grip.x, grip.y);
+await page.mouse.down();
+for (let i = 1; i <= 4; i++) {
+  await page.mouse.move(grip.x, grip.y - i * 20);
+  await page.waitForTimeout(40);
+}
+const geste122haut = await geste122ty();
+check(geste122haut < 0 && Math.abs(geste122haut) < 45,
+  `vers le haut la feuille résiste au lieu de suivre (80px de doigt → ${geste122haut}px)`);
+await page.mouse.up();
+await page.waitForTimeout(900);
+await page.click("#quickCancel");
+check(await geste122fermee(2000), "le bouton Fermer reste le chemin accessible après un geste");
+
+// 3. Une pichenette courte mais rapide ferme : c'est la PROJECTION de
+//    l'élan qui décide, pas la distance parcourue.
+grip = await geste122ouvrir();
+await page.mouse.move(grip.x, grip.y);
+await page.mouse.down();
+await page.mouse.move(grip.x, grip.y + 60, { steps: 3 });
+await page.mouse.move(grip.x, grip.y + 130, { steps: 3 });
+await page.mouse.up();
+check(await geste122fermee(3000), "une pichenette rapide ferme la feuille (projection d'élan)");
+
+// 4. Un glissement LENT mais profond (au-delà de la moitié) ferme aussi.
+grip = await geste122ouvrir();
+const geste122h = await page.evaluate(() => document.getElementById("quickMenu").getBoundingClientRect().height);
+await page.mouse.move(grip.x, grip.y);
+await page.mouse.down();
+const geste122pas = Math.ceil((geste122h * 0.62) / 8);
+for (let i = 1; i <= 8; i++) {
+  await page.mouse.move(grip.x, grip.y + i * geste122pas);
+  await page.waitForTimeout(50);
+}
+await page.waitForTimeout(200); // vélocité retombée : seule la position compte
+await page.mouse.up();
+check(await geste122fermee(3000), "un glissement profond et lent ferme aussi (position au-delà de la moitié)");
+
+// 5. Mouvement réduit : le geste reste possible, la fermeture est
+//    instantanée, sans descente ni classe .closing.
+await page.emulateMedia({ reducedMotion: "reduce" });
+grip = await geste122ouvrir();
+await page.mouse.move(grip.x, grip.y);
+await page.mouse.down();
+await page.mouse.move(grip.x, grip.y + 60, { steps: 3 });
+await page.mouse.move(grip.x, grip.y + 130, { steps: 3 });
+await page.mouse.up();
+await page.waitForTimeout(120);
+const geste122reduit = await page.evaluate(() => ({
+  display: getComputedStyle(document.getElementById("sheetBackdrop")).display,
+  closing: document.getElementById("sheetBackdrop").classList.contains("closing"),
+  transform: getComputedStyle(document.getElementById("quickMenu")).transform,
+}));
+check(geste122reduit.display === "none" && !geste122reduit.closing
+  && (geste122reduit.transform === "none" || /matrix\(1, 0, 0, 1, 0, 0\)/.test(geste122reduit.transform)),
+  `mouvement réduit : fermeture au geste instantanée et propre (${JSON.stringify(geste122reduit)})`);
+await page.emulateMedia({ reducedMotion: null });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -6889,4 +7013,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 121 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité des feuilles, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 122 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

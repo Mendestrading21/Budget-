@@ -18,6 +18,70 @@ verte prouvée — run CI #229 id 30221277893, success, jobs Web + iOS).
 | NU8 | Mouvement, accessibilité, performances | À VENIR |
 | NU9 | Audit final | À VENIR |
 
+## Gestes Apple : fermer une feuille au doigt (14.08.2026) — VERIFYING
+
+Second et dernier lot d'exécution du skill `/apple-design` : tout ce qui
+reste d'applicable à la PWA est livré ou honnêtement écarté (liste en fin
+de section). Périmètre : geste uniquement — aucun modèle, calcul, format de
+sauvegarde ni texte financier.
+
+### Résultat visible
+
+- Chaque feuille porte une **poignée** en haut (barre discrète `--line`,
+  masquée à la voix — les boutons restent les chemins annoncés).
+- **Suivi 1:1 (§2)** : la feuille colle au doigt depuis la poignée, en
+  respectant la position déjà atteinte à la reprise.
+- **Rubber-band (§9, formule Apple)** : vers le haut la feuille résiste
+  (80 px de doigt → ~30 px de trajet) au lieu de suivre.
+- **Projection d'élan (§6, formule Apple `v/1000·d/(1−d)`)** : une
+  pichenette courte mais rapide ferme ; un glissement profond et lent
+  ferme aussi (au-delà de la moitié) ; sinon **ressort amorti critique
+  (§4, damping 1.0, réponse ≈ 0,33 s)** qui reprend la **vélocité du
+  relâchement (§5)** — intégration semi-implicite, l'état y/v reste vivant
+  donc **interruptible (§3)** : reprendre la poignée pendant le ressort
+  continue depuis la position et la vitesse réelles.
+- **Garde de saisie conservée** : un geste distrait ne jette pas un
+  formulaire modifié — même confirmation que le clic sur le fond.
+- **Mouvement réduit** : le geste reste possible (il est piloté par la
+  personne), mais tout règlement est instantané — pas de descente animée.
+
+### Preuves
+
+- e2e passe de 121 à **122 parcours** : poignées sur les 20 feuilles,
+  suivi 1:1 mesuré (±2 px), rubber-band mesuré, pichenette (projection),
+  glissement profond lent, mouvement réduit. Les attentes passent par un
+  helper qui transforme un blocage en échec enregistré.
+- Contrôle négatif : projection court-circuitée + rubber-band retiré →
+  **3 échecs ciblés** (résistance, pichenette, mouvement réduit), zéro
+  crash, puis restauration → 122 verts.
+- Deux défauts de mon propre test attrapés en chemin : `waitForFunction`
+  prenait l'objet d'options en 2ᵉ position (il attendait 30 s, pas 3) ;
+  et une étape ratée laissait la feuille ouverte pour la suivante —
+  `geste122ouvrir` repart désormais d'un état propre.
+- Suites : 122 e2e + 5 parités + design verts ; audit-total 320/390/430,
+  audit-final (13 contrôles), audit-coherence — aucun défaut.
+- Captures 390/320 inspectées : poignée visible, feuille tenue au doigt à
+  mi-glissement (l'accueil se révèle), retour au repos.
+
+### Ce que le skill demande et qui est volontairement écarté (avec raison)
+
+- **Haptique/son (§13)** : `navigator.vibrate` n'existe pas sur iOS
+  Safari — pas de faux retour ; l'app native a déjà son haptique.
+- **Materialize blur+scale (§12)** : animer `backdrop-filter` coûte cher à
+  60 fps sur de vraies feuilles pleines ; le gain ne paie pas le risque.
+- **Effet de bord sous les barres collantes (§12)** : la surface définie
+  au liseré est le langage Neon Ultra, et reduced-transparency exige des
+  surfaces opaques — un fondu de contenu y serait incohérent.
+- **Rubber-band du défilement (§9)** : natif dans iOS Safari, rien à faire.
+- Le reste du skill (réponse §1, cohérence §7, typo §15, reduced §14,
+  fondations §16) est couvert par le lot précédent ou déjà conforme.
+
+### Prochaine action exacte
+
+Validation du propriétaire. Le skill `/apple-design` est exécuté au
+complet côté PWA ; côté iOS natif, les feuilles SwiftUI ont déjà le geste
+système — rien à porter.
+
 ## Fluidité Apple : les feuilles repartent par où elles arrivent (14.08.2026) — VERIFYING
 
 Premier lot exécutant le skill compagnon `/apple-design` (installé et
