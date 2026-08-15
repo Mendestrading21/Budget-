@@ -22,12 +22,13 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 **Fondation F01 — skill maître page par page**
 
-- État : `VERIFYING_AUTOMATED`.
+- État : `WAITING_VISUAL` — relecture humaine du protocole attendue.
 - Résultat : créer `/budget-prisme`, le registre P00–P18, le langage, les
   garde-fous finance/données, les preuves qualité et le protocole de release.
 - Ne modifie aucun écran, modèle, calcul, stockage ou sauvegarde.
-- Prochaine étape : valider le skill, ouvrir une PR ciblée et attendre CI +
-  approbation propriétaire.
+- PR #9 ouverte; validation structurelle, forward-tests et première CI Web+iOS
+  sont verts. Prochaine étape : approbation explicite du propriétaire, puis
+  fusion seulement sur demande.
 
 ## Registre d'avancement
 
