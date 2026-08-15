@@ -7097,6 +7097,47 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(200);
 
+// ---------- Test 124 : P0 — l'année consultée montre SES versements ----------
+// TEST ROUGE VOLONTAIRE (incident P0 « annee-consultee », Budget Prisme).
+// La carte « Mis de côté en YYYY, par type » de la page Année étiquette
+// l'année CONSULTÉE mais contributions() filtre sur NOW.y (année courante).
+// Fixture indépendante : 1000 CHF mis de côté l'an dernier, 250 CHF cette
+// année. En consultant l'an dernier, la carte doit dire 1000 — elle dit 250.
+// Ce test doit rester rouge tant que le correctif n'est pas approuvé/fusionné.
+currentTest = "P0 année consultée";
+await page.evaluate(() => {
+  localStorage.setItem("budget-app-state-v1", JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Fixture" },
+    baseCurrency: "CHF",
+    accounts: [
+      { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+      { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: false, currency: "CHF" },
+    ],
+    transactions: [
+      { id: 1, y: new Date().getFullYear() - 1, m: 6, d: 10, title: "Épargne an dernier", type: "saving",
+        cat: "Épargne", acc: "cur", dest: "sav", status: "posted", amount: 1000 },
+      { id: 2, y: new Date().getFullYear(), m: 1, d: 10, title: "Épargne cette année", type: "saving",
+        cat: "Épargne", acc: "cur", dest: "sav", status: "posted", amount: 250 },
+    ],
+    recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+    insurances: [], bills: [], documents: [], budgets: {},
+  }));
+  localStorage.removeItem("budget-app-state-rescue");
+});
+await page.reload();
+await page.waitForSelector("#tabbar button", { timeout: 10000 });
+const p0annee = await page.evaluate(() => {
+  activeTab = "more"; moreView = "year"; yearCursor = NOW.y - 1; render();
+  const carte = [...document.querySelectorAll("#screen .card")]
+    .find(c => /par type/.test(c.textContent));
+  const montant = carte ? (carte.textContent.match(/[\d'’]+\.\d\d/) || [])[0] : null;
+  return { label: carte ? (carte.textContent.match(/Mis de côté en \d{4}/) || [])[0] : null, montant };
+});
+check(p0annee.label === `Mis de côté en ${new Date().getFullYear() - 1}`,
+  `la carte étiquette bien l'année consultée (obtenu « ${p0annee.label} »)`);
+check(p0annee.montant === "1'000.00",
+  `l'année consultée montre SES versements : attendu 1'000.00, obtenu ${p0annee.montant} — c'est le montant de l'année courante qui s'affiche sous l'étiquette de l'année consultée`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7106,4 +7147,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 123 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 124 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

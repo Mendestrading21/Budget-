@@ -75,6 +75,30 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 | P17 | Réglages et confidentialité | READY | Verrou, backup, restore et suppression à auditer |
 | P18 | Assistant local | READY | PWA uniquement; réponses déterministes et explicables |
 
+## Incident P0 ouvert — « annee-consultee » (15.08.2026)
+
+- **Scénario fictif** : 1000 CHF mis de côté l'an dernier, 250 CHF cette
+  année. Consulter l'an dernier sur la page Année.
+- **Attendu / obtenu** : la carte « Mis de côté en <an dernier>, par type »
+  doit dire 1000.00 ; elle affiche **250.00** — le montant de l'année
+  COURANTE sous l'étiquette de l'année consultée.
+- **Source unique suspectée** : `contributions()` filtre `t.y === NOW.y`
+  (année courante figée) alors que `renderYearReview()` étiquette
+  `yearCursor` ; `contributionsFor()` ne transmet aucune année.
+- **Pages touchées** : P14 Année (carte « par type »). Les usages avec
+  étiquette `NOW.y` explicite (prévoyance/assurances) disent vrai.
+- **Fixture rouge** : parcours e2e 124 sur `agent/prisme-p0-annee-consultee`
+  — échec unique et ciblé, message exact « attendu 1'000.00, obtenu 250.00 ».
+  La CI de cette branche est ROUGE PAR CONSTRUCTION tant que le correctif
+  n'est pas approuvé.
+- **Contrôle adverse** : l'étiquette de la carte, elle, suit bien l'année
+  consultée (vérifié par le même parcours) — c'est la donnée qui ment.
+- **Critères de reprise** : correctif approuvé (année en paramètre de
+  `contributions()`/`contributionsFor()`, `NOW.y` par défaut pour les autres
+  usages), test 124 vert, suites complètes vertes, fusion, CI push verte du
+  SHA de merge.
+- Aucun lot visuel actif interrompu (P03 fusionné avant l'ouverture).
+
 ## Risques prioritaires connus
 
 Ces éléments sont des hypothèses d'audit à reproduire avant correction :
