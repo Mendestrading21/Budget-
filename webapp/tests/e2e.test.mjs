@@ -7098,12 +7098,13 @@ await page.evaluate(() => {
 await page.waitForTimeout(200);
 
 // ---------- Test 124 : P0 — l'année consultée montre SES versements ----------
-// TEST ROUGE VOLONTAIRE (incident P0 « annee-consultee », Budget Prisme).
-// La carte « Mis de côté en YYYY, par type » de la page Année étiquette
-// l'année CONSULTÉE mais contributions() filtre sur NOW.y (année courante).
+// Régression de l'incident P0 « annee-consultee » (Budget Prisme). Né ROUGE
+// (commit 6fc7e4b : la carte « par type » affichait les versements de NOW.y
+// sous l'étiquette de l'année consultée), vert depuis le correctif :
+// contributions()/contributionsFor() prennent l'année en paramètre, la page
+// Année transmet yearCursor, les autres écrans gardent NOW.y par défaut.
 // Fixture indépendante : 1000 CHF mis de côté l'an dernier, 250 CHF cette
-// année. En consultant l'an dernier, la carte doit dire 1000 — elle dit 250.
-// Ce test doit rester rouge tant que le correctif n'est pas approuvé/fusionné.
+// année — en consultant l'an dernier, la carte doit dire 1000.
 currentTest = "P0 année consultée";
 await page.evaluate(() => {
   localStorage.setItem("budget-app-state-v1", JSON.stringify({

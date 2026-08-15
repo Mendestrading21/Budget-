@@ -87,16 +87,17 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
   `yearCursor` ; `contributionsFor()` ne transmet aucune année.
 - **Pages touchées** : P14 Année (carte « par type »). Les usages avec
   étiquette `NOW.y` explicite (prévoyance/assurances) disent vrai.
-- **Fixture rouge** : parcours e2e 124 sur `agent/prisme-p0-annee-consultee`
-  — échec unique et ciblé, message exact « attendu 1'000.00, obtenu 250.00 ».
-  La CI de cette branche est ROUGE PAR CONSTRUCTION tant que le correctif
-  n'est pas approuvé.
+- **Fixture rouge → verte** : parcours e2e 124, né rouge (commit `6fc7e4b`,
+  échec unique « attendu 1'000.00, obtenu 250.00 »), vert depuis le correctif
+  approuvé par le propriétaire : `contributions()`/`contributionsFor()`
+  prennent l'année en paramètre (`NOW.y` par défaut pour les écrans qui
+  étiquettent l'année courante), la page Année transmet `yearCursor`.
+  Reproduction directe après correctif : 2025 → 1'000.00, 2026 → 250.00.
 - **Contrôle adverse** : l'étiquette de la carte, elle, suit bien l'année
   consultée (vérifié par le même parcours) — c'est la donnée qui ment.
-- **Critères de reprise** : correctif approuvé (année en paramètre de
-  `contributions()`/`contributionsFor()`, `NOW.y` par défaut pour les autres
-  usages), test 124 vert, suites complètes vertes, fusion, CI push verte du
-  SHA de merge.
+- **Critères de reprise** : correctif livré, test 124 vert, 124 parcours +
+  5 parités + design + 4 audits verts en local. Restent : CI de la PR #11 sur
+  le HEAD exact, fusion approuvée, CI push verte du SHA de merge.
 - Aucun lot visuel actif interrompu (P03 fusionné avant l'ouverture).
 
 ## Risques prioritaires connus

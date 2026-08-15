@@ -3854,14 +3854,19 @@ function renderTaxes() {
    placement s'additionne — total, année en cours, retraits (devise du
    compte). La plus-value d'un compte titres = solde − ouverture −
    versements nets (le solde se met à jour via « Réconcilier »). */
-function contributions(accId) {
+function contributions(accId, year = NOW.y) {
+  // Correctif P0 « annee-consultee » : `year` est l'année dont on parle.
+  // Par défaut l'année courante (comportement historique de tous les
+  // écrans qui étiquettent NOW.y) ; la page Année transmet l'année
+  // réellement consultée pour que l'étiquette et le chiffre disent la
+  // même chose.
   const destCur = accountCurrency(accId);
   let totalC = 0, yearC = 0, withdrawnC = 0; // centimes entiers (G01), devise du compte (E05)
   for (const t of transactions) {
     if (t.status !== "posted") continue;
     if (t.dest === accId) {
       const inDest = toCents(t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), destCur));
-      totalC += inDest; if (t.y === NOW.y) yearC += inDest;
+      totalC += inDest; if (t.y === year) yearC += inDest;
     }
     else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawnC += toCents(t.amount);
   }
@@ -3869,9 +3874,9 @@ function contributions(accId) {
 }
 
 /* Cumuls agrégés par nature de compte, en devise de référence. */
-function contributionsFor(kinds) {
+function contributionsFor(kinds, year = NOW.y) {
   const agg = ACCOUNTS.filter(a => kinds.includes(a.kind)).reduce((acc, a) => {
-    const c = contributions(a.id);
+    const c = contributions(a.id, year);
     acc.total += toCents(toCHF(c.total, a.currency)); acc.year += toCents(toCHF(c.year, a.currency));
     return acc;
   }, { total: 0, year: 0 });
@@ -4024,9 +4029,9 @@ function renderYearReview() {
     <div class="card">
       <p class="card-label">Mis de côté en ${y}, par type</p>
       <div class="breakdown">
-        ${[["🏛️ Épargne", contributionsFor(["savings"])],
-           ["📈 Bourse / titres", contributionsFor(["brokerage"])],
-           [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])]]
+        ${[["🏛️ Épargne", contributionsFor(["savings"], y)],
+           ["📈 Bourse / titres", contributionsFor(["brokerage"], y)],
+           [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"], y)]]
           .filter(([, agg]) => agg.year > 0)
           .map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)}</span></div>`).join("")
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
