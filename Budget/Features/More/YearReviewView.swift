@@ -29,9 +29,12 @@ struct YearReviewView: View {
                             Text("Mis de côté en \(String(year))")
                                 .font(BudgetFont.cardLabel)
                                 .foregroundStyle(.secondary)
+                            // « Mis de côté » n'est ni un gain ni une perte :
+                            // même ton que le repère de l'accueil (matrice des
+                            // opérations — épargne neutre, jamais rouge/verte).
                             Text(FinanceFormatting.chf(stats.saved))
                                 .font(BudgetFont.heroAmount)
-                                .foregroundStyle(BudgetColor.positive)
+                                .foregroundStyle(BudgetColor.textPrimary)
                             Text(stats.income > 0
                                  ? "Taux d'épargne : \(FinanceFormatting.percent(stats.savingsRate))\(previous.saved > 0 ? " · \(String(year - 1)) : \(FinanceFormatting.chf(previous.saved))" : "")"
                                  : "Aucun revenu comptabilisé cette année")
@@ -83,15 +86,17 @@ struct YearReviewView: View {
     private var contributionsCard: some View {
         let contributionService = ContributionService(calendar: appContainer.calendar)
         let now = appContainer.dateProvider.now
-        let rows: [(String, Decimal)] = [
-            ("🏛 Épargne", [.savings] as [AccountType]),
-            ("📈 Bourse / titres", [.broker]),
-            ("🛡 Prévoyance", [.pillar3a, .pillar3b, .occupationalPension]),
-        ].map { label, kinds in
-            (label, accounts.filter { kinds.contains($0.type) }.reduce(Decimal.zero) {
+        // Budget Glyphs (ADR-032) : plus d'emoji fonctionnel. Les montants
+        // gardent le ton neutre du « Mis de côté » de l'accueil.
+        let rows: [(BudgetGlyph, String, Decimal)] = [
+            (.setAside, "Épargne", [.savings] as [AccountType]),
+            (.investment, "Bourse / titres", [.broker]),
+            (.pension, "Prévoyance", [.pillar3a, .pillar3b, .occupationalPension]),
+        ].map { glyph, label, kinds in
+            (glyph, label, accounts.filter { kinds.contains($0.type) }.reduce(Decimal.zero) {
                 $0 + contributionService.summary(of: $1, movements: transactions, now: now).currentYear
             })
-        }.filter { $0.1 > 0 }
+        }.filter { $0.2 > 0 }
         return GlassCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 Text("Mis de côté en \(String(year)), par type")
@@ -102,13 +107,14 @@ struct YearReviewView: View {
                         .font(BudgetFont.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    ForEach(rows, id: \.0) { row in
-                        HStack {
-                            Text(row.0).font(BudgetFont.body)
+                    ForEach(rows, id: \.1) { row in
+                        HStack(spacing: BudgetSpacing.small) {
+                            BudgetIcon(row.0, tone: .neutral)
+                            Text(row.1).font(BudgetFont.body)
                             Spacer()
-                            Text("+\(FinanceFormatting.chf(row.1))")
+                            Text("+\(FinanceFormatting.chf(row.2))")
                                 .font(BudgetFont.amount)
-                                .foregroundStyle(BudgetColor.positive)
+                                .foregroundStyle(BudgetColor.textPrimary)
                         }
                     }
                 }

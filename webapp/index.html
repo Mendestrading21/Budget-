@@ -429,6 +429,9 @@
     font-size: 12px; color: var(--coolgray);
   }
   .breakdown div span:first-child { min-width: 0; }
+  /* P14 : libellés « par type » en Budget Glyphs — icône + texte alignés. */
+  .breakdown .bd-label { display: inline-flex; align-items: center; gap: 8px; }
+  .breakdown .bd-label .budget-glyph { width: 16px; height: 16px; }
   .breakdown div span:last-child {
     flex: none;
     font-variant-numeric: tabular-nums; color: var(--offwhite);
@@ -2848,6 +2851,7 @@ const BUDGET_GLYPHS = Object.freeze({
   chevronLeft: '<path d="m14.5 6-6 6 6 6"/>',
   chevronRight: '<path d="m9.5 6 6 6-6 6"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m15.7 15.7 4.3 4.3"/>',
+  shield: '<path d="M12 3.5 19 6.2v5c0 4.5-2.9 7.6-7 9.3-4.1-1.7-7-4.8-7-9.3v-5z"/>',
   tag: '<path d="M4 5.5v6.2L12.3 20 20 12.3 11.7 4H5.5A1.5 1.5 0 0 0 4 5.5"/><circle cx="8" cy="8" r="1"/>',
 });
 
@@ -3989,7 +3993,7 @@ function renderYearReview() {
         ? `${chf(r.entered)} entré · ${chf(r.spent)} sorti`
         : r.isFuture ? "Rien d'enregistré pour l'instant"
         : r.closed ? "Rien à valider ce mois"
-        : "Aucun mouvement ce mois";
+        : "Aucune opération ce mois";
       const name = MONTH_NAMES[r.m - 1].charAt(0).toUpperCase() + MONTH_NAMES[r.m - 1].slice(1);
       return `<div class="card row tx year-month" data-gotomonth="${r.y}-${r.m}" data-gototab="home"
            role="button" tabindex="0" style="cursor:pointer"
@@ -3999,19 +4003,19 @@ function renderYearReview() {
           <div class="s">${detail}</div>
         </div>
         ${r.hasData ? `<span class="amount ${r.net < 0 ? "neg" : "pos"}">${chf(r.net, true)}</span>` : ""}
-        <span style="color:var(--nu-text-tertiary)" aria-hidden="true">›</span>
+        <span style="color:var(--nu-text-tertiary)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
       </div>`;
     }).join("")}`;
 
   return backBar(`Année ${y}`) + `
     <div class="month-nav">
-      <button id="prevY" aria-label="Année précédente">‹</button>
+      <button id="prevY" aria-label="Année précédente"${y <= 2000 ? " disabled" : ""}>${budgetGlyph("chevronLeft")}</button>
       <span class="label">${y}${y !== NOW.y ? ' <button id="backToYear" style="background:none;border:none;color:var(--nu-cyan);font-size:11px;cursor:pointer;font-family:inherit">cette année</button>' : ""}</span>
-      <button id="nextY" aria-label="Année suivante">›</button>
+      <button id="nextY" aria-label="Année suivante"${y >= 2100 ? " disabled" : ""}>${budgetGlyph("chevronRight")}</button>
     </div>
     <div class="card hero">
       <p class="card-label">Mis de côté en ${y}</p>
-      <p class="hero-amount${now.saved < 0 ? " neg" : " pos"}${Math.abs(now.saved) >= 1000000 ? " long" : ""}">${chf(now.saved)}</p>
+      <p class="hero-amount${Math.abs(now.saved) >= 1000000 ? " long" : ""}">${chf(now.saved)}</p>
       <span class="caption">${chf(entered)} entré · ${chf(spent)} sorti${now.income > 0 ? ` · vous gardez ${pct(now.rate)}` : ""}</span>
       ${prev.saved !== 0 ? `<span class="caption" style="display:block;margin-top:4px">${y - 1} : ${chf(prev.saved)} mis de côté</span>` : ""}
     </div>
@@ -4029,11 +4033,11 @@ function renderYearReview() {
     <div class="card">
       <p class="card-label">Mis de côté en ${y}, par type</p>
       <div class="breakdown">
-        ${[["🏛️ Épargne", contributionsFor(["savings"], y)],
-           ["📈 Bourse / titres", contributionsFor(["brokerage"], y)],
-           [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"], y)]]
-          .filter(([, agg]) => agg.year > 0)
-          .map(([label, agg]) => `<div><span>${label}</span><span>${chf(agg.year, true)}</span></div>`).join("")
+        ${[["saving", "Épargne", contributionsFor(["savings"], y)],
+           ["investment", "Bourse / titres", contributionsFor(["brokerage"], y)],
+           ["shield", L("pensionGroup"), contributionsFor(["pension", "lifeinsurance"], y)]]
+          .filter(([, , agg]) => agg.year > 0)
+          .map(([glyph, label, agg]) => `<div><span class="bd-label">${budgetGlyph(glyph)}<span>${label}</span></span><span>${chf(agg.year, true)}</span></div>`).join("")
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
       </div>
     </div>

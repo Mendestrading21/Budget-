@@ -7139,6 +7139,63 @@ check(p0annee.label === `Mis de côté en ${new Date().getFullYear() - 1}`,
 check(p0annee.montant === "1'000.00",
   `l'année consultée montre SES versements : attendu 1'000.00, obtenu ${p0annee.montant} — c'est le montant de l'année courante qui s'affiche sous l'étiquette de l'année consultée`);
 
+// ---------- Test 125 : P14 Année — glyphes, ton neutre, bornes, langue ----------
+// Budget Prisme, lot P14. La carte « par type » parle en Budget Glyphs
+// (zéro emoji fonctionnel), le héros « Mis de côté » est blanc Prisme
+// (ni gain vert ni perte rouge — matrice des opérations), la navigation
+// d'année est bornée et les mois vides disent « opération ».
+currentTest = "P14 année";
+// L'état du parcours 124 (fixture épargne 250 CHF cette année) est encore
+// chargé : la carte « par type » a donc une ligne réelle à montrer.
+await page.evaluate(() => { activeTab = "more"; moreView = "year"; yearCursor = NOW.y; render(); });
+await page.waitForTimeout(250);
+const p14carte = await page.evaluate(() => {
+  const carte = [...document.querySelectorAll("#screen .card")]
+    .find(c => /par type/.test(c.textContent));
+  if (!carte) return null;
+  return {
+    glyphes: carte.querySelectorAll("svg.budget-glyph").length,
+    emoji: /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(carte.textContent),
+    montant: (carte.textContent.match(/[\d'’]+\.\d\d/) || [])[0],
+  };
+});
+check(p14carte && p14carte.glyphes >= 1 && !p14carte.emoji,
+  `la carte « par type » parle en Budget Glyphs, zéro emoji (${JSON.stringify(p14carte)})`);
+check(p14carte && p14carte.montant === "250.00",
+  `le montant de l'année consultée reste exact après le lot (obtenu ${p14carte && p14carte.montant})`);
+const p14hero = await page.evaluate(() => {
+  const el = document.querySelector("#screen .hero-amount");
+  return { color: getComputedStyle(el).color, classes: el.className };
+});
+check(p14hero.color === "rgb(245, 247, 250)" && !/\bpos\b|\bneg\b/.test(p14hero.classes),
+  `le héros « Mis de côté » est blanc Prisme, ni vert ni rouge (${JSON.stringify(p14hero)})`);
+const p14chevrons = await page.evaluate(() => ({
+  prev: !!document.querySelector("#prevY svg.budget-glyph"),
+  next: !!document.querySelector("#nextY svg.budget-glyph"),
+}));
+check(p14chevrons.prev && p14chevrons.next,
+  "la navigation d'année utilise les glyphes chevron, comme le mois");
+check((await page.evaluate(() => document.getElementById("screen").innerText)).includes("Aucune opération ce mois"),
+  "un mois passé vide dit « Aucune opération ce mois »");
+// Bornes : aux extrêmes, le bouton correspondant est réellement désactivé.
+await page.evaluate(() => { yearCursor = 2000; render(); });
+await page.waitForTimeout(150);
+const p14basse = await page.evaluate(() => ({
+  prevOff: document.getElementById("prevY").disabled,
+  nextOn: !document.getElementById("nextY").disabled,
+}));
+check(p14basse.prevOff && p14basse.nextOn,
+  `à la borne 2000, « année précédente » est désactivé (${JSON.stringify(p14basse)})`);
+await page.evaluate(() => { yearCursor = 2100; render(); });
+await page.waitForTimeout(150);
+const p14haute = await page.evaluate(() => ({
+  nextOff: document.getElementById("nextY").disabled,
+  prevOn: !document.getElementById("prevY").disabled,
+}));
+check(p14haute.nextOff && p14haute.prevOn,
+  `à la borne 2100, « année suivante » est désactivé (${JSON.stringify(p14haute)})`);
+await page.evaluate(() => { yearCursor = NOW.y; render(); });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7148,4 +7205,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 124 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 125 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
