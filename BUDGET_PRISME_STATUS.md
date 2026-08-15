@@ -75,6 +75,31 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 | P17 | Réglages et confidentialité | READY | Verrou, backup, restore et suppression à auditer |
 | P18 | Assistant local | READY | PWA uniquement; réponses déterministes et explicables |
 
+## Incident P0 ouvert — « annee-consultee » (15.08.2026)
+
+- **Scénario fictif** : 1000 CHF mis de côté l'an dernier, 250 CHF cette
+  année. Consulter l'an dernier sur la page Année.
+- **Attendu / obtenu** : la carte « Mis de côté en <an dernier>, par type »
+  doit dire 1000.00 ; elle affiche **250.00** — le montant de l'année
+  COURANTE sous l'étiquette de l'année consultée.
+- **Source unique suspectée** : `contributions()` filtre `t.y === NOW.y`
+  (année courante figée) alors que `renderYearReview()` étiquette
+  `yearCursor` ; `contributionsFor()` ne transmet aucune année.
+- **Pages touchées** : P14 Année (carte « par type »). Les usages avec
+  étiquette `NOW.y` explicite (prévoyance/assurances) disent vrai.
+- **Fixture rouge → verte** : parcours e2e 124, né rouge (commit `6fc7e4b`,
+  échec unique « attendu 1'000.00, obtenu 250.00 »), vert depuis le correctif
+  approuvé par le propriétaire : `contributions()`/`contributionsFor()`
+  prennent l'année en paramètre (`NOW.y` par défaut pour les écrans qui
+  étiquettent l'année courante), la page Année transmet `yearCursor`.
+  Reproduction directe après correctif : 2025 → 1'000.00, 2026 → 250.00.
+- **Contrôle adverse** : l'étiquette de la carte, elle, suit bien l'année
+  consultée (vérifié par le même parcours) — c'est la donnée qui ment.
+- **Critères de reprise** : correctif livré, test 124 vert, 124 parcours +
+  5 parités + design + 4 audits verts en local. Restent : CI de la PR #11 sur
+  le HEAD exact, fusion approuvée, CI push verte du SHA de merge.
+- Aucun lot visuel actif interrompu (P03 fusionné avant l'ouverture).
+
 ## Risques prioritaires connus
 
 Ces éléments sont des hypothèses d'audit à reproduire avant correction :
