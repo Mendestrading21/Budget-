@@ -2573,7 +2573,9 @@ const assertPage66 = (s, startIdx, label) => {
     `${label} : plage annoncée « ${startIdx + 1}–${endIdx + 1} sur ${n66} » (obtenu « ${s.range} »)`);
   check(s.first === ref66[startIdx] && s.last === ref66[endIdx],
     `${label} : première/dernière lignes = référence indépendante (obtenu « ${s.first} » / « ${s.last} ») — ni saut ni doublon`);
-  check(s.header.includes(`${n66} mouvements`),
+  // P03 : le compteur dit « opérations » (LANGUAGE.md) — l'intention du test
+  // reste identique : le décompte COMPLET du mois ne disparaît jamais.
+  check(s.header.includes(`${n66} opérations`),
     `${label} : l'en-tête garde le décompte COMPLET du mois (« ${s.header} »)`);
 };
 let st66 = await pageState66();
@@ -7005,6 +7007,96 @@ check(geste122reduit.display === "none" && !geste122reduit.closing
   `mouvement réduit : fermeture au geste instantanée et propre (${JSON.stringify(geste122reduit)})`);
 await page.emulateMedia({ reducedMotion: null });
 
+// ---------- Test 123 : P03 Historique — titre, langue et ajustement neutre ----------
+// Budget Prisme, lot P03. L'écran porte le nom de son onglet, parle
+// d'« opération », affiche un ajustement de solde NEUTRE (couleur
+// informative ET « neutre » écrit) et ses états vides utilisent les
+// Budget Glyphs, plus aucun emoji fonctionnel.
+currentTest = "P03 historique";
+await goHome();
+await goMovements();
+const p03titre = await page.$eval("#screen h2.screen-title", el => el.textContent.trim());
+check(p03titre === "Historique", `l'écran porte le nom de son onglet (obtenu « ${p03titre} »)`);
+const p03aria = await page.$eval("#moreSearchInput", el => el.getAttribute("aria-label"));
+check(p03aria === "Rechercher une opération", `la recherche parle d'opération (obtenu « ${p03aria} »)`);
+
+// Ajustement de solde : neutre dans les deux directions, signe conservé.
+await page.evaluate(() => {
+  addTx({ id: ++txSeq, y: cursor.y, m: cursor.m, d: Math.min(NOW.d, 28), title: "Correction P03 haut",
+    type: "adjustment", up: true, cat: null, acc: ACCOUNTS[0].id, dest: null, status: "posted", amount: 12.35 });
+  addTx({ id: ++txSeq, y: cursor.y, m: cursor.m, d: Math.min(NOW.d, 28), title: "Correction P03 bas",
+    type: "adjustment", up: false, cat: null, acc: ACCOUNTS[0].id, dest: null, status: "posted", amount: 7.65 });
+  saveState(); render();
+});
+await page.waitForTimeout(200);
+const p03adj = await page.evaluate(() => {
+  const lignes = [...document.querySelectorAll("#moreTxList .tx")];
+  const lire = titre => {
+    const row = lignes.find(r => r.textContent.includes(titre));
+    if (!row) return null;
+    const amount = row.querySelector(".amount");
+    const sub = row.querySelector(".s");
+    return {
+      classes: amount.className,
+      signe: amount.textContent.trim()[0],
+      sousTitre: sub.textContent,
+      // « neutre » doit être VISIBLE, pas seulement présent dans le DOM :
+      // une ligne tronquée par l'ellipse cache la mention (défaut attrapé
+      // sur la capture 390 de ce lot, corrigé par le libellé court).
+      tronque: sub.scrollWidth > sub.clientWidth + 1,
+    };
+  };
+  return { haut: lire("Correction P03 haut"), bas: lire("Correction P03 bas") };
+});
+check(p03adj.haut && p03adj.haut.classes.includes("info") && !p03adj.haut.classes.includes("pos"),
+  `l'ajustement vers le haut est peint NEUTRE, pas comme un revenu (${p03adj.haut && p03adj.haut.classes})`);
+check(p03adj.bas && p03adj.bas.classes.includes("info") && !p03adj.bas.classes.includes("neg"),
+  `l'ajustement vers le bas est peint NEUTRE, pas comme une dépense (${p03adj.bas && p03adj.bas.classes})`);
+check(p03adj.haut && p03adj.haut.signe === "+" && p03adj.bas && p03adj.bas.signe === "−",
+  `le signe dit la direction de la correction (obtenu ${p03adj.haut && p03adj.haut.signe} / ${p03adj.bas && p03adj.bas.signe})`);
+check(p03adj.haut && p03adj.haut.sousTitre.includes("neutre") && p03adj.bas && p03adj.bas.sousTitre.includes("neutre"),
+  "la neutralité de l'ajustement est ÉCRITE, jamais portée par la seule couleur");
+check(p03adj.haut && !p03adj.haut.tronque && p03adj.bas && !p03adj.bas.tronque,
+  "la mention « neutre » est réellement visible — la ligne n'est pas mangée par l'ellipse");
+const p03compteur = await page.$eval("#moreTxList .caption", el => el.textContent);
+check(/\d+ opérations?/.test(p03compteur), `le compteur parle d'opérations (obtenu « ${p03compteur} »)`);
+
+// États vides : Budget Glyphs, plus d'emoji fonctionnel.
+await page.fill("#moreSearchInput", "zzz-p03-introuvable");
+await page.waitForTimeout(250);
+const p03videRecherche = await page.evaluate(() => {
+  const g = document.querySelector("#moreTxList .empty-state .glyph");
+  return { svg: !!(g && g.querySelector("svg.budget-glyph")), emoji: g ? /[\u{1F300}-\u{1FAFF}]/u.test(g.textContent) : true };
+});
+check(p03videRecherche.svg && !p03videRecherche.emoji,
+  `l'état « Aucun résultat » utilise un Budget Glyph, pas un emoji (${JSON.stringify(p03videRecherche)})`);
+await page.fill("#moreSearchInput", "");
+await page.waitForTimeout(200);
+// Mois lointain sans opération : état vide guidé, bouton en langage canonique.
+await page.evaluate(() => { cursor = { y: cursor.y + 3, m: 1 }; render(); });
+await page.waitForTimeout(200);
+const p03videMois = await page.evaluate(() => {
+  const st = document.querySelector("#moreTxList .empty-state");
+  const btn = st && st.querySelector("[data-addtx]");
+  return {
+    svg: !!(st && st.querySelector(".glyph svg.budget-glyph")),
+    bouton: btn ? btn.textContent.trim() : null,
+  };
+});
+check(p03videMois.svg, "l'état « Rien ce mois-ci » utilise un Budget Glyph");
+check(p03videMois.bouton === "Ajouter une opération",
+  `le bouton du vide guidé dit « Ajouter une opération » (obtenu « ${p03videMois.bouton} »)`);
+// Nettoyage : retour au mois courant et retrait des corrections fictives.
+await page.evaluate(() => {
+  cursor = { y: NOW.y, m: NOW.m };
+  for (const titre of ["Correction P03 haut", "Correction P03 bas"]) {
+    const i = transactions.findIndex(t => t.title === titre);
+    if (i >= 0) transactions.splice(i, 1);
+  }
+  saveState(); render();
+});
+await page.waitForTimeout(200);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7014,4 +7106,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 122 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 123 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

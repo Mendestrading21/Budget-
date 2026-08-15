@@ -115,7 +115,7 @@ struct TransactionsListView: View {
             Button("OK", role: .cancel) {}
         }
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Rechercher un mouvement")
+        .searchable(text: $searchText, prompt: "Rechercher une opération")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -135,7 +135,7 @@ struct TransactionsListView: View {
             TransactionFormView(mode: .edit(transaction))
         }
         .confirmationDialog(
-            "Supprimer ce mouvement ?",
+            "Supprimer cette opération ?",
             isPresented: Binding(
                 get: { transactionToDelete != nil },
                 set: { if !$0 { transactionToDelete = nil } }
@@ -276,7 +276,7 @@ struct TransactionsListView: View {
         } label: {
             GlassCard(style: .row) {
                 HStack {
-                    Label("\(uncategorizedCount) mouvement(s) sans catégorie ce mois", systemImage: "questionmark.folder")
+                    Label("\(uncategorizedCount) opération\(uncategorizedCount > 1 ? "s" : "") sans catégorie ce mois", systemImage: "questionmark.folder")
                         .font(BudgetFont.body)
                         .foregroundStyle(BudgetColor.warning)
                     Spacer()
@@ -286,7 +286,7 @@ struct TransactionsListView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Filtre la liste sur les mouvements sans catégorie.")
+        .accessibilityHint("Filtre la liste sur les opérations sans catégorie.")
     }
 
     private var emptyState: some View {
@@ -296,12 +296,12 @@ struct TransactionsListView: View {
                     EmptyState(
                         symbol: "magnifyingglass",
                         title: "Aucun résultat",
-                        message: "Aucun mouvement ne correspond aux filtres actuels. Modifiez la recherche ou réinitialisez les filtres."
+                        message: "Aucune opération ne correspond aux filtres actuels. Modifiez la recherche ou réinitialisez les filtres."
                     )
                 } else {
                     EmptyState(
                         symbol: "tray",
-                        title: "Aucun mouvement ce mois",
+                        title: "Aucune opération ce mois",
                         message: "Ajoutez vos revenus, dépenses, épargne et virements pour suivre votre mois.",
                         actionTitle: "Ajouter",
                         action: { isPresentingNew = true }
@@ -342,7 +342,10 @@ struct TransactionRow: View {
     }
 
     private var amountColor: Color {
-        if transaction.type == .transfer || transaction.isInternalMovement {
+        // Ajustement de solde : neutre (matrice des opérations) — ce n'est ni
+        // un revenu ni une dépense, seul le signe dit la direction.
+        if transaction.type == .transfer || transaction.type == .adjustment
+            || transaction.isInternalMovement {
             return BudgetColor.informative
         }
         return isInflow ? BudgetColor.positive : BudgetColor.negative
@@ -395,7 +398,7 @@ struct TransactionRow: View {
     /// virement neutre, épargne/investissement « mis de côté ».
     private var natureNote: String {
         switch transaction.type {
-        case .transfer: " · neutre"
+        case .transfer, .adjustment: " · neutre"
         case .saving, .investment: " · mis de côté"
         default: ""
         }
