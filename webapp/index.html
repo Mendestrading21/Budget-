@@ -4314,8 +4314,14 @@ function renderRecurring() {
       : "Tous les mois";
     // `read-row` : dans une liste de GESTION, le nom EST l'information —
     // il se lit en entier, contrairement à la liste dense des mouvements.
+    // P08 : le glyphe suit le SENS du mouvement (revenu, mise de côté,
+    // investissement, facture, abonnement) — jamais une icône stockée.
+    const glyph = isIncome ? "income"
+      : movementType === "saving" ? "saving"
+      : movementType === "investment" ? "investment"
+      : recurringNature(r) === "abonnement" ? "recurring" : "bill";
     return `<div class="card row tx read-row" data-recid="${esc(r.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="${icoClass(movementType)}" aria-hidden="true">${esc(r.icon || (isIncome ? "💰" : "🔁"))}</div>
+      <div class="${icoClass(movementType)}" aria-hidden="true">${budgetGlyph(glyph)}</div>
       <div class="meta"><div class="t"><span class="t-label">${esc(title)}</span>${pill}</div>
         <div class="s">${rhythm}${account ? ` · ${esc(account.name)}` : ""}</div></div>
       <span class="amount ${isIncome ? "pos" : (isReserve ? "info" : "neg")}">${isIncome ? "+" : (isReserve ? "" : "−")}${chf(amount)}</span></div>`;
@@ -4345,22 +4351,26 @@ function renderRecurring() {
   const expenses = visibles.filter(r => r.type === "expense");
   const incomes = visibles.filter(r => r.type === "income");
   const vide = recFilter === "tout"
-    ? "Rien ne revient encore. Ajoutez par exemple votre salaire, votre loyer, un abonnement ou une mise de côté."
+    ? "Ajoutez par exemple votre salaire, votre loyer, un abonnement ou une mise de côté."
     : `Rien dans « ${REC_FILTRES.find(f => f[0] === recFilter)[1]} » pour l'instant.`;
   return backBar("Ce qui revient") + barre + `
     <p class="caption" style="margin:0 0 12px">Ajoutez une ligne une seule fois : elle revient ensuite au rythme choisi, sur le bon compte.</p>
-    ${expenses.length ? expenses.map(row).join("") : (incomes.length ? "" : `<div class="card row"><span class="caption">${vide}</span></div>`)}
+    ${expenses.length ? expenses.map(row).join("") : (incomes.length ? "" : `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">${budgetGlyph("recurring")}</span>
+      <p class="t">Rien ne revient encore</p>
+      <p>${vide}</p>
+    </div>`)}
     ${incomes.length ? `${expenses.length ? `<p class="section-title">Revenus réguliers</p>` : ""}${incomes.map(row).join("")}` : ""}
-    <button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter ce qui revient</button>
+    <button class="btn secondary" data-addrec style="margin-top:8px">Ajouter ce qui revient</button>
     <p class="caption" style="padding:6px 4px 0">Une facture reste à payer tant qu'aucune dépense ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
 /* Les cinq lectures de la même liste. L'ordre suit la fréquence d'usage. */
 const REC_FILTRES = [
   ["tout", "Tout"],
-  ["facture", "🧾 Factures"],
-  ["abonnement", "🔁 Abonnements"],
-  ["reserve", "🏦 Mis de côté"],
-  ["revenu", "💰 Revenus"],
+  ["facture", "Factures"],
+  ["abonnement", "Abonnements"],
+  ["reserve", "Mis de côté"],
+  ["revenu", "Revenus"],
 ];
 
 /* ---------- Abonnements ----------
@@ -4474,7 +4484,7 @@ function subsBody() {
       </div>`;
     return `<div class="card row tx sub-row" data-recid="${esc(r.id)}" role="button" tabindex="0"
          style="cursor:pointer" aria-label="Modifier ${esc(r.title)}${share === null ? "" : ` — ${share} % du coût annuel`}">
-      <div class="ico t-expense" aria-hidden="true">${esc(r.icon || "🔁")}</div>
+      <div class="ico t-expense" aria-hidden="true">${budgetGlyph("recurring")}</div>
       <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span> ${rhythm}</div>
         <div class="s">${when} · ${compare}${endedNote}</div>${shareBar}</div>
       <span class="amount neg">−${chf(amount)}</span></div>`;
@@ -4484,7 +4494,7 @@ function subsBody() {
     <div class="card hero">
       <p class="card-label">Aucun abonnement suivi</p>
       <p style="font-size:15px;color:var(--nu-text-secondary);margin:6px 0 14px;line-height:1.45">Ajoutez ce qui se renouvelle tout seul — streaming, logiciels, assurances. Vous verrez enfin ce que ça coûte vraiment sur une année.</p>
-      <button class="btn nu-cta" data-addrec>＋ Ajouter un abonnement</button>
+      <button class="btn nu-cta" data-addrec>Ajouter un abonnement</button>
     </div>` : `
     <div class="card hero">
       <p class="card-label">Ce que vos abonnements coûtent par an</p>
@@ -4499,7 +4509,7 @@ function subsBody() {
   return hero + `
     ${active.length ? `<p class="section-title">Vos abonnements, du plus cher au moins cher</p>
       ${active.sort(byAmount).map(row).join("")}` : ""}
-    ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">＋ Ajouter un abonnement</button>` : ""}
+    ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">Ajouter un abonnement</button>` : ""}
     ${ended.length ? `<p class="section-title">Résiliés</p>
       <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Conservés pour l'historique : ils ne pèsent plus sur vos prévisions.</p>
       ${ended.sort(byAmount).map(row).join("")}` : ""}
@@ -4511,7 +4521,7 @@ function subsBody() {
       if (!charges.length) return "";
       const total = fromCents(charges.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
       return `<div class="card row tx read-row" data-more="recurring" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
-        <div class="ico" aria-hidden="true">🏠</div>
+        <div class="ico" aria-hidden="true">${budgetGlyph("home")}</div>
         <div class="meta"><div class="t"><span class="t-label">Vos charges du foyer</span></div>
           <div class="s">${charges.length} poste${charges.length > 1 ? "s" : ""} — loyer, assurances, transports… comptés à part, pas comme des abonnements</div></div>
         <span class="amount neg">−${chf(total)}</span></div>`;
