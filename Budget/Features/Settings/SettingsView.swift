@@ -83,7 +83,7 @@ struct SettingsView: View {
                 isConfirmingDeleteAllSecond = true
             }
         } message: {
-            Text("Comptes, mouvements, budgets, objectifs, documents (fichiers compris) : tout sera effacé de cet appareil. Rien d'autre n'est touché.")
+            Text("Comptes, opérations, budgets, objectifs, documents (fichiers compris) : tout sera effacé de cet appareil. Rien d'autre n'est touché.")
         }
         .alert("Dernière confirmation", isPresented: $isConfirmingDeleteAllSecond) {
             Button("Tout supprimer définitivement", role: .destructive) { runDeleteAll() }
@@ -140,13 +140,13 @@ struct SettingsView: View {
         Section {
             if let exportCSVURL {
                 ShareLink(item: exportCSVURL) {
-                    Label("Partager les mouvements (CSV)", systemImage: "square.and.arrow.up")
+                    Label("Partager les opérations (CSV)", systemImage: "square.and.arrow.up")
                 }
             } else {
                 Button {
                     generateCSV()
                 } label: {
-                    Label("Exporter les mouvements (CSV)", systemImage: "tablecells")
+                    Label("Exporter les opérations (CSV)", systemImage: "tablecells")
                 }
             }
 
@@ -252,7 +252,7 @@ struct SettingsView: View {
             return "Toutes les données actuelles seront remplacées par le contenu de la sauvegarde. Cette action est irréversible."
         }
         return "Sauvegarde du \(FinanceFormatting.swissDate(summary.exportedAt)) (schéma \(summary.schemaVersion)). "
-            + "Contenu : \(summary.transactions) mouvements, \(summary.accounts) comptes, \(summary.goals) objectifs, "
+            + "Contenu : \(summary.transactions) opérations, \(summary.accounts) comptes, \(summary.goals) objectifs, "
             + "\(summary.recurrings) récurrents, \(summary.documents) documents (métadonnées). "
             + "La restauration REMPLACE toutes les données actuelles de cet appareil — irréversible. "
             + "Non contenu : les fichiers des documents et le réglage de verrouillage."
@@ -333,7 +333,7 @@ struct SettingsView: View {
         "Les virements internes déplacent l'argent entre vos comptes : ils ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
         "Provision d'impôts = revenus × votre taux configuré (30 % par défaut), corrigeable manuellement. Estimé = payé + encore dû, toujours.",
         "Tout ce qui est à vous, c'est vos comptes, vos biens et votre prévoyance, moins ce que vous devez. Les montants de retraite affichés viennent de vos certificats : l'app ne les calcule jamais.",
-        "Le prévu et le dépensé ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'a pas eu lieu.",
+        "Le prévu et le dépensé ne sont jamais mélangés : une opération prévue n'entre dans aucun solde tant qu'elle n'a pas eu lieu.",
     ]
 }
 

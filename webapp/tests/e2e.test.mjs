@@ -7196,6 +7196,65 @@ check(p14haute.nextOff && p14haute.prevOn,
   `à la borne 2100, « année suivante » est désactivé (${JSON.stringify(p14haute)})`);
 await page.evaluate(() => { yearCursor = NOW.y; render(); });
 
+// ---------- Test 126 : P17 Réglages — glyphes, verrou écrit, langue unifiée ----------
+// Budget Prisme, lot P17. Les Réglages parlent en Budget Glyphs (seul le
+// drapeau du pays reste un emoji : il EST l'information), l'état du verrou
+// est écrit sans caractère-état, l'export et l'effacement disent
+// « opérations ». La sécurité (code haché, sauvegarde sans secret) a été
+// auditée sans modification — ce lot est purement présentation/langue.
+currentTest = "P17 réglages";
+await goHome();
+await page.click('#tabbar button[aria-label="Gérer"]');
+await page.waitForTimeout(200);
+await page.click('#screen [data-more="settings"]');
+await page.waitForTimeout(300);
+const p17ecran = await page.evaluate(() => {
+  const s = document.getElementById("screen");
+  const texte = s.innerText;
+  // Emojis fonctionnels : tout pictogramme hors drapeaux (indicateurs
+  // régionaux) — le drapeau du pays est une vraie donnée, pas un décor.
+  const emojis = (texte.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []);
+  return {
+    emojis,
+    glyphes: s.querySelectorAll(".card.row .ico svg.budget-glyph").length,
+    exportCsv: texte.includes("Exporter les opérations (CSV)"),
+    exportMouvements: texte.includes("Exporter les mouvements"),
+    verrou: (document.querySelector("[data-togglelock]") || {}).textContent || "",
+  };
+});
+check(p17ecran.emojis.length === 0,
+  `zéro emoji fonctionnel dans les Réglages (restants : ${p17ecran.emojis.join(" ") || "aucun"})`);
+check(p17ecran.glyphes >= 7,
+  `les lignes de Réglages portent des Budget Glyphs (${p17ecran.glyphes} trouvés)`);
+check(p17ecran.exportCsv && !p17ecran.exportMouvements,
+  "l'export CSV dit « opérations »");
+check(/Activé|Désactivé/.test(p17ecran.verrou.trim()) && !p17ecran.verrou.includes("✓"),
+  `l'état du verrou est écrit sans caractère-état (obtenu « ${p17ecran.verrou.trim()} »)`);
+// L'état ACTIVÉ doit aussi être écrit en mots seuls — on l'exerce
+// réellement (verrou posé en mémoire puis retiré, rien n'est persisté
+// au-delà du nettoyage).
+const p17verrouOn = await page.evaluate(() => {
+  const avant = { fid: S.faceIDEnabled, code: S.lockCode };
+  S.faceIDEnabled = true; S.lockCode = codeHash("123456"); render();
+  const label = (document.querySelector("[data-togglelock]") || {}).textContent || "";
+  S.faceIDEnabled = avant.fid; S.lockCode = avant.code; render();
+  return label.trim();
+});
+check(p17verrouOn === "Activé",
+  `verrou activé : l'état est le mot seul (obtenu « ${p17verrouOn} »)`);
+// Le message d'effacement énumère en langage unifié — capturé sans rien
+// effacer : confirm est intercepté et répond « non ».
+const p17confirm = await page.evaluate(() => {
+  let premier = null;
+  const orig = window.confirm;
+  window.confirm = m => { if (premier === null) premier = m; return false; };
+  document.querySelector("[data-deleteall]").click();
+  window.confirm = orig;
+  return premier;
+});
+check(p17confirm && p17confirm.includes("dépenses, revenus, mises de côté") && !p17confirm.includes("mouvements,"),
+  `l'effacement énumère en langage unifié (obtenu « ${(p17confirm || "").slice(0, 60)}… »)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7205,4 +7264,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 125 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 126 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
