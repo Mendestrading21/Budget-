@@ -23,31 +23,27 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P17 — Réglages et confidentialité** · « Comment protéger, exporter, restaurer ou effacer mes données ? »
+**P05 — Comptes** · « Où se trouve mon argent aujourd'hui ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p17-reglages`,
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p05-comptes`,
   CI Web+iOS à confirmer sur le HEAD exact, puis `WAITING_VISUAL`.
-- Classe : Présentation / Langage. **Audit sécurité préalable : sain, rien
-  modifié** — code haché, sauvegarde sans secret, restauration qui neutralise
-  un code étranger, doubles confirmations, annulation 6 s.
-- Livré :
-  - PWA : lignes de Réglages en Budget Glyphs (`person`, `globe`, `alert`,
-    `check` ajoutés au registre ; `income`, `transfer`, `recurring`, `saving`,
-    `investment` réutilisés) — seul le drapeau du pays reste un emoji, car il
-    EST l'information ; chevrons en glyphe ; état du verrou écrit en mots
-    seuls (« Activé »/« Désactivé ») ; « validez-les un à un » au lieu du
-    caractère ✓ ; « Exporter les opérations (CSV) » ; effacement énuméré en
-    langage unifié ; textes Confidentialité au vocabulaire canonique.
-  - iOS : cinq textes unifiés en « opération » (partage/export CSV,
-    effacement, résumé de restauration, confidentialité). Le nom de fichier
-    export reste technique (inchangé).
-- Preuves : e2e 125 → 126 parcours (zéro emoji fonctionnel, ≥7 glyphes,
-  verrou activé ET désactivé exercés, message d'effacement capté sans rien
-  effacer) ; contrôle négatif 2 échecs ciblés puis 126 verts ; 5 parités ;
-  design ; audit-total 320/390/430, audit-final, audit-visuel,
-  audit-coherence : aucun défaut ; captures avant/après 390/320 inspectées.
-- Périmètre tenu : 2 chevrons remplacés par erreur dans renderAssistant et
-  renderMore ont été détectés et REVERTÉS avant commit (pages P18/P07).
+- Classe : Présentation. Aucun calcul, solde, conversion ni fraîcheur modifié.
+- Livré (PWA ; iOS déjà sans emoji) :
+  - chaque ligne de compte porte un Budget Glyph selon sa nature (`accounts`,
+    `saving`, `investment`, `cash` ajouté au registre, `shield` partagé par
+    prévoyance et assurance vie — même famille, même section) ;
+  - le bouton d'ajout dit « Ajouter un compte », sans caractère ＋ ;
+  - héros « Argent disponible », répartition « Où est votre argent » et
+    lignes « Mis de côté cette année » inchangés (audités exacts — l'année
+    affichée est bien l'année courante, étiquette et donnée alignées).
+- Preuves : e2e 126 → 127 parcours (zéro emoji sur l'écran, glyphe sur
+  100 % des lignes, bouton en mots, héros présent) ; contrôle négatif
+  2 échecs ciblés puis 127 verts ; 5 parités ; design ; audit-total
+  320/390/430, audit-final, audit-visuel, audit-coherence : aucun défaut ;
+  captures avant/après 390/320 inspectées.
+- `ACCOUNT_KINDS.icon` n'a plus de consommateur (seul renderAccounts le
+  lisait) — conservé pour compatibilité, retrait candidat d'un futur
+  micro-lot Fondation.
 
 ## Incident P0 ouvert — « annee-consultee » (15.08.2026)
 
@@ -90,7 +86,9 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 7. Dépôt GitHub : la branche par défaut reste une ancienne branche Claude;
    ne pas l'utiliser pour baser une PR ou un artefact de release.
 
-## Prochaine page après P17
+## Prochaine page après P05
 
-`P05 Comptes` — « Où se trouve mon argent aujourd'hui ? » Inventaire complet
-requis. Ne pas la commencer avant validation explicite du lot P17.
+`P06 Fiche compte` — références et suppression à contrôler (risque connu
+n° 3 du registre : suppression d'un compte face aux destinations récurrentes
+et positions de prévoyance). Mode `audit` d'abord. Ne pas la commencer avant
+validation explicite du lot P05.

@@ -7255,6 +7255,32 @@ const p17confirm = await page.evaluate(() => {
 check(p17confirm && p17confirm.includes("dépenses, revenus, mises de côté") && !p17confirm.includes("mouvements,"),
   `l'effacement énumère en langage unifié (obtenu « ${(p17confirm || "").slice(0, 60)}… »)`);
 
+// ---------- Test 127 : P05 Comptes — glyphes par nature, écran sans emoji ----------
+// Budget Prisme, lot P05. Chaque ligne de compte porte un Budget Glyph
+// selon sa nature ; l'écran Comptes ne montre plus aucun emoji fonctionnel ;
+// le bouton d'ajout parle en mots.
+currentTest = "P05 comptes";
+await goHome();
+await page.click('#tabbar button[aria-label="Comptes"]');
+await page.waitForTimeout(300);
+const p05ecran = await page.evaluate(() => {
+  const s = document.getElementById("screen");
+  return {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    lignes: s.querySelectorAll(".card.row[data-accid]").length,
+    glyphes: s.querySelectorAll(".card.row[data-accid] .ico svg.budget-glyph").length,
+    bouton: (s.querySelector("[data-addacc]") || {}).textContent || "",
+    hero: s.innerText.includes("Argent disponible"),
+  };
+});
+check(p05ecran.emojis.length === 0,
+  `zéro emoji fonctionnel sur l'écran Comptes (restants : ${p05ecran.emojis.join(" ") || "aucun"})`);
+check(p05ecran.lignes > 0 && p05ecran.glyphes === p05ecran.lignes,
+  `chaque ligne de compte porte son Budget Glyph (${p05ecran.glyphes}/${p05ecran.lignes})`);
+check(p05ecran.bouton.trim() === "Ajouter un compte",
+  `le bouton d'ajout parle en mots (obtenu « ${p05ecran.bouton.trim()} »)`);
+check(p05ecran.hero, "le héros répond « Où se trouve mon argent » (Argent disponible)");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7264,4 +7290,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 126 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 127 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
