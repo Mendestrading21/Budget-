@@ -7684,6 +7684,39 @@ check(p12.rempli.bouton.trim() === "Ajouter un actif ou une dette",
   `le bouton d'ajout parle en mots (obtenu « ${p12.rempli.bouton.trim()} »)`);
 check(p12.videEtat, "l'état vide des biens est guidé avec son glyphe");
 
+// ---------- Test 138 : P15 Import & documents — glyphe document, mots, état vide guidé ----------
+// Budget Prisme, lot P15. La liste des documents porte le glyphe document
+// (plus de 📄), le bouton parle en mots, l'état vide est guidé et reste
+// honnête (les fichiers vivent dans l'app native, la PWA garde nom et type).
+currentTest = "P15 import documents";
+await goHome();
+const p15 = await page.evaluate(() => {
+  const sauvegarde = (S.documents || []).splice(0);
+  S.documents.push({ id: "p15-d", name: "Certificat LPP 2026", kind: "Prévoyance" });
+  activeTab = "more"; moreView = "importcsv"; render();
+  const s = document.getElementById("screen");
+  const rempli = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    glypheDoc: !!s.querySelector("[data-editdoc] .ico svg.budget-glyph"),
+    bouton: (s.querySelector("[data-adddoc]") || {}).textContent || "",
+  };
+  S.documents.length = 0; render();
+  const vide = {
+    glyphe: !!document.querySelector("#screen .empty-state .glyph svg.budget-glyph"),
+    texte: document.querySelector("#screen .empty-state")?.textContent || "",
+  };
+  S.documents.push(...sauvegarde);
+  activeTab = "home"; moreView = null; render();
+  return { rempli, vide };
+});
+check(p15.rempli.emojis.length === 0,
+  `zéro emoji sur Import & documents (restants : ${p15.rempli.emojis.join(" ") || "aucun"})`);
+check(p15.rempli.glypheDoc, "la ligne de document porte le glyphe document");
+check(p15.rempli.bouton.trim() === "Ajouter un document",
+  `le bouton d'ajout parle en mots (obtenu « ${p15.rempli.bouton.trim()} »)`);
+check(p15.vide.glyphe && /app native/.test(p15.vide.texte),
+  "l'état vide des documents est guidé et reste honnête sur le stockage");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7693,4 +7726,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 137 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 138 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

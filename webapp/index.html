@@ -2873,6 +2873,7 @@ const BUDGET_GLYPHS = Object.freeze({
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   cash: '<rect x="3.5" y="6.5" width="17" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/>',
   goal: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 11.9v.2"/>',
+  document: '<path d="M7 3.5h8l3 3v14H7z"/><path d="M15 3.5v3h3"/><path d="M10 10.5h5M10 14h5M10 17.5h3"/>',
   docImport: '<path d="M7 3.5h8l3 3v14H7z"/><path d="M15 3.5v3h3"/><path d="M12 9.5v5.5"/><path d="m9.5 12.5 2.5 2.5 2.5-2.5"/>',
   chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v6.5a2.5 2.5 0 0 1-2.5 2.5H9.5L4.5 20z"/><path d="M8 9h8M8 12.5h5"/>',
   gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"/>',
@@ -4771,13 +4772,17 @@ function renderImport() {
         <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
     </div>`).join("")}` : ""}` : ""}
     <p class="section-title">Documents (juste le nom)</p>
-    ${S.documents.length === 0 ? `<div class="card row"><span class="caption">Aucun document. Certificats, polices, décomptes — les fichiers eux-mêmes restent dans l'app native.</span></div>` : ""}
+    ${S.documents.length === 0 ? `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">${budgetGlyph("document")}</span>
+      <p class="t">Aucun document</p>
+      <p>Certificats, polices, décomptes — les fichiers eux-mêmes restent dans l'app native.</p>
+    </div>` : ""}
     ${S.documents.map(doc => `<div class="card row tx" data-editdoc="${esc(doc.id)}" role="button" tabindex="0" style="cursor:pointer" aria-label="Modifier ${esc(doc.name)}">
-      <div class="ico" aria-hidden="true">📄</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("document")}</div>
       <div class="meta"><div class="t">${esc(doc.name)}</div><div class="s">${esc(doc.kind)} · nom et type seulement</div></div>
       <button type="button" class="btn secondary" data-deldoc="${esc(doc.id)}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer ${esc(doc.name)}">Suppr.</button>
     </div>`).join("")}
-    <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">＋ Ajouter un document</button>
+    <button type="button" class="btn secondary" data-adddoc style="margin-top:8px">Ajouter un document</button>
     <p class="caption" style="padding:6px 4px 0">Réimporter le même fichier sur le même compte ne crée jamais de doublon : chaque ligne est reconnue à sa date, son compte, son intitulé et son montant.</p>`;
 }
 
