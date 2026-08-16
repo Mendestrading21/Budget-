@@ -7546,6 +7546,35 @@ check(!/Acomptes d'impôts, prime/.test(p09.vide.texte) && /écran Impôts/.test
 check(p09.vide.bouton.trim() === "Ajouter une facture ponctuelle",
   `le bouton de l'état vide parle en mots (obtenu « ${p09.vide.bouton.trim()} »)`);
 
+// ---------- Test 134 : P0 — payer un acompte d'impôts crée un taxPayment, pas une dépense de vie ----------
+// Incident P0 « acompte-impots » (découvert pendant l'audit P11). NÉ ROUGE :
+// materializeBill créait TOUJOURS type "expense" — payer une facture de
+// catégorie « Impôts » (l'écran Impôts liste précisément ces factures)
+// gonflait le coût de la vie et ne réduisait jamais « il vous reste à
+// payer » (taxSummary.paid ne compte que les taxPayment). Vert depuis le
+// correctif : la catégorie Impôts matérialise un taxPayment.
+currentTest = "P0 acompte impôts";
+await goHome();
+const p134 = await page.evaluate(() => {
+  const facture = { id: "p0-tax-bill", name: "Acompte cantonal P0", amount: 800,
+    dueY: NOW.y, dueM: NOW.m, dueD: Math.min(NOW.d, 28), cat: "Impôts", accountId: ACCOUNTS[0].id };
+  (S.bills = S.bills || []).push(facture);
+  const paidAvant = taxSummary(NOW.y).paid;
+  const { transaction } = materializeBill(facture);
+  const paidApres = taxSummary(NOW.y).paid;
+  // Nettoyage complet : le mouvement créé et la facture repartent.
+  const index = transactions.findIndex(t => t.id === transaction.id);
+  if (index >= 0) transactions.splice(index, 1);
+  S.bills.splice(S.bills.findIndex(b => b.id === "p0-tax-bill"), 1);
+  saveState(); render();
+  return { type: transaction.type, statut: transaction.status,
+    paidAvant, paidApres, comptabilise: transaction.status === "posted" };
+});
+check(p134.type === "taxPayment",
+  `payer un acompte de catégorie Impôts crée un taxPayment (obtenu « ${p134.type} »)`);
+check(!p134.comptabilise || Math.abs(p134.paidApres - p134.paidAvant - 800) < 0.005,
+  `l'acompte payé entre dans « Déjà payé » des impôts (avant ${p134.paidAvant}, après ${p134.paidApres})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7555,4 +7584,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 133 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 134 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
