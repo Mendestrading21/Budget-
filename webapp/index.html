@@ -2852,6 +2852,10 @@ const BUDGET_GLYPHS = Object.freeze({
   chevronRight: '<path d="m9.5 6 6 6-6 6"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m15.7 15.7 4.3 4.3"/>',
   shield: '<path d="M12 3.5 19 6.2v5c0 4.5-2.9 7.6-7 9.3-4.1-1.7-7-4.8-7-9.3v-5z"/>',
+  person: '<circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.9 2.4 2.9 14.6 0 17"/><path d="M12 3.5c-2.9 2.4-2.9 14.6 0 17"/>',
+  alert: '<path d="M12 4.5 20.5 19h-17z"/><path d="M12 10.5v4"/><path d="M12 16.9v.1"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   tag: '<path d="M4 5.5v6.2L12.3 20 20 12.3 11.7 4H5.5A1.5 1.5 0 0 0 4 5.5"/><circle cx="8" cy="8" r="1"/>',
 });
 
@@ -4793,8 +4797,8 @@ const PRIVACY = [
   "Le code cache vos montants sur cet appareil. Ce n'est pas un coffre-fort. L'app iPhone, elle, utilise Face ID et la protection d'iOS.",
   "Des documents, l'app ne garde que le nom et le type : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
-  "« Effacer les opérations » efface vos mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
-  "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, mouvements, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
+  "« Effacer les opérations » efface vos opérations, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
+  "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, opérations, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
   "« Charger la démonstration » remplace vos données actuelles par des données fictives après confirmation ; votre prénom est conservé.",
 ]
 const METHODOLOGY = [
@@ -4802,7 +4806,7 @@ const METHODOLOGY = [
   "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
   "Les virements internes ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
   "On prend vos revenus et on applique le taux que vous avez choisi. Le total, c'est ce que vous avez déjà payé plus ce qu'il reste.",
-  "Le planifié et le réel ne sont jamais mélangés : un mouvement prévu n'entre dans aucun solde tant qu'il n'est pas enregistré.",
+  "Le planifié et le réel ne sont jamais mélangés : une opération prévue n'entre dans aucun solde tant qu'elle n'est pas enregistrée.",
 ];
 function salaryRecurring() {
   return RECURRINGS.find(r => r.id === "r-salaire")
@@ -4815,13 +4819,13 @@ function renderSettings() {
   return backBar("Réglages") + `
     <p class="section-title">Mon ménage</p>
     <div class="card row tx read-row" data-editname role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">👋</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("person")}</div>
       <div class="meta"><div class="t">Mon prénom</div>
         <div class="s">${S.profile.name ? esc(S.profile.name) : "Pas encore défini"}</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>
     <div class="card row tx read-row" data-editsalary role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">💰</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("income")}</div>
       <div class="meta"><div class="t">Mon salaire</div>
         <div class="s">${salary ? "Chaque mois" : "Pas encore défini — tapez pour le configurer"}</div></div>
       <span class="amount pos">${salary ? "+" + chf(salary.amount) : "—"}</span>
@@ -4830,27 +4834,27 @@ function renderSettings() {
       <div class="ico" aria-hidden="true">${COUNTRIES[S.country || "CH"].flag}</div>
       <div class="meta"><div class="t">Mon pays</div>
         <div class="s">${COUNTRIES[S.country || "CH"].name}</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>
     <div class="card row tx read-row" data-editbase role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🌐</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("globe")}</div>
       <div class="meta"><div class="t">Votre monnaie</div>
         <div class="s">${baseCurrency()} — ${CURRENCY_NAMES[baseCurrency()]}</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>
     <div class="card row tx read-row" data-editfx role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">💱</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("transfer")}</div>
       <div class="meta"><div class="t">Taux de change manuels</div>
         <div class="s">${CURRENCIES.filter(c => c !== baseCurrency()).map(c =>
           `1 ${CURRENCY_SYMBOL[c]} = ${(fx[c] || FX_DEFAULTS[baseCurrency()][c]).toFixed(2)} ${baseCurrency()}`).join(" · ")} — aucune connexion réseau</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>
     <p class="section-title">Sécurité</p>
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:14px;font-weight:600">Verrouillage par code</div>
         <div class="caption">Cache vos montants sur ce téléphone. Ce n'est pas un coffre-fort : le code est demandé pour activer comme pour désactiver.</div></div>
       <button class="btn secondary" data-togglelock style="width:auto;padding:8px 14px;font-size:13px">
-        ${S.faceIDEnabled ? "Activé ✓" : "Désactivé"}</button>
+        ${S.faceIDEnabled ? "Activé" : "Désactivé"}</button>
     </div>
     ${S.faceIDEnabled ? `<button class="btn" data-locknow style="margin-bottom:10px">Passer en arrière-plan (verrouille)</button>` : ""}
     <p class="section-title">Vos données</p>
@@ -4866,12 +4870,12 @@ function renderSettings() {
       // `read-row` : cette phrase est un CONSEIL, pas une métadonnée de
       // liste — elle se lit en entier, comme les autres lignes de Réglages.
       return `<div class="card row tx read-row" style="${overdue ? "border-color:var(--line-strong)" : ""}">
-        <div class="ico" aria-hidden="true">${overdue ? "⚠️" : "✅"}</div>
+        <div class="ico" aria-hidden="true">${budgetGlyph(overdue ? "alert" : "check")}</div>
         <div class="meta"><div class="t">Dernière sauvegarde : ${label}</div>
           <div class="s">${overdue ? "Vos données ne vivent que dans ce navigateur — téléchargez une sauvegarde." : "Pensez-y après chaque grosse saisie."}</div></div>
       </div>`;
     })()}
-    <button class="btn secondary" data-exportcsv>Exporter les mouvements (CSV)</button>
+    <button class="btn secondary" data-exportcsv>Exporter les opérations (CSV)</button>
     <button class="btn secondary" data-exportjson style="margin-top:8px">Télécharger la sauvegarde (JSON)</button>
     <button class="btn secondary" data-restorepick style="margin-top:8px">Restaurer une sauvegarde…</button>
     <input type="file" id="restoreFile" accept=".json,application/json" style="display:none" aria-hidden="true" />
@@ -4881,11 +4885,11 @@ function renderSettings() {
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
     <button class="btn secondary" data-displaydiag style="margin-top:8px">Diagnostic d'affichage</button>
     <p class="section-title">Comment ça marche</p>
-    ${[["🔁", "Chaque mois : validez, bouclez.", "Salaire, factures, versements — un ✓ chacun, et le mois est bouclé."],
-       ["📤", "Un envoi n'est pas une dépense.", "L'argent envoyé vers l'épargne ou la bourse reste à vous — il s'additionne."],
-       ["📈", "Votre chemin se dessine.", "Cumuls à vie, patrimoine sur 12 mois, projection à 20 ans."]]
-      .map(([icon, title, sub]) => `<div class="card row tx read-row">
-      <div class="ico" aria-hidden="true">${icon}</div>
+    ${[["recurring", "Chaque mois : validez, bouclez.", "Salaire, factures, versements — validez-les un à un, et le mois est bouclé."],
+       ["saving", "Un envoi n'est pas une dépense.", "L'argent envoyé vers l'épargne ou la bourse reste à vous — il s'additionne."],
+       ["investment", "Votre chemin se dessine.", "Cumuls à vie, patrimoine sur 12 mois, projection à 20 ans."]]
+      .map(([glyph, title, sub]) => `<div class="card row tx read-row">
+      <div class="ico" aria-hidden="true">${budgetGlyph(glyph)}</div>
       <div class="meta"><div class="t">${title}</div><div class="s">${sub}</div></div>
     </div>`).join("")}
     <p class="section-title">Transparence</p>
@@ -7072,7 +7076,7 @@ function restoreFromFile(file) {
   reader.readAsText(file);
 }
 function deleteAllData() {
-  if (!confirm("Effacer vos OPÉRATIONS : mouvements, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures, documents ? Les comptes, budgets, taux et réglages restent.")) return;
+  if (!confirm("Effacer vos OPÉRATIONS : dépenses, revenus, mises de côté, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ? Les comptes, budgets, taux et réglages restent.")) return;
   if (!confirm("Vraiment ? (annulable pendant 6 secondes après coup)")) return;
   pushUndo();
   transactions.length = 0;

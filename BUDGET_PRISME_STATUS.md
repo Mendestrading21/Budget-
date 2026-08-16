@@ -23,27 +23,31 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P14 — Année** · « Qu'est-ce qui est entré, sorti et mis de côté cette année ? »
+**P17 — Réglages et confidentialité** · « Comment protéger, exporter, restaurer ou effacer mes données ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p14-annee`,
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p17-reglages`,
   CI Web+iOS à confirmer sur le HEAD exact, puis `WAITING_VISUAL`.
-- Classe : Présentation / Langage. Aucun calcul modifié (la vérité de l'année
-  consultée a été rétablie séparément par l'incident P0, fusionné et publié).
+- Classe : Présentation / Langage. **Audit sécurité préalable : sain, rien
+  modifié** — code haché, sauvegarde sans secret, restauration qui neutralise
+  un code étranger, doubles confirmations, annulation 6 s.
 - Livré :
-  - PWA : carte « par type » en Budget Glyphs (glyphe `shield` ajouté au
-    registre) — plus d'emojis 🏛️📈🛡️ ; héros « Mis de côté » en blanc Prisme
-    (l'épargne n'est ni un gain vert ni une perte rouge — matrice) ;
-    navigation d'année en glyphes chevron avec bornes 2000/2100 réellement
-    désactivées ; « Aucune opération ce mois » ; chevrons de ligne en glyphe.
-  - iOS : contributionsCard en BudgetIcon (.setAside/.investment/.pension),
-    héros et versements au ton neutre de l'accueil — plus de vert.
-- Preuves : e2e 124 → 125 parcours (glyphes, zéro emoji, couleur calculée du
-  héros, bornes, montant de l'année consultée toujours exact) ; contrôle
-  négatif 2 échecs ciblés puis 125 verts ; 5 parités ; design ; audit-total
-  320/390/430, audit-final (13 contrôles), audit-visuel, audit-coherence :
-  aucun défaut ; captures avant/après 390/320 inspectées.
-- Non-objectif consigné : cible tactile du lien « cette année » (motif
-  partagé avec « aujourd'hui » du Mois — appartient à P00/P01).
+  - PWA : lignes de Réglages en Budget Glyphs (`person`, `globe`, `alert`,
+    `check` ajoutés au registre ; `income`, `transfer`, `recurring`, `saving`,
+    `investment` réutilisés) — seul le drapeau du pays reste un emoji, car il
+    EST l'information ; chevrons en glyphe ; état du verrou écrit en mots
+    seuls (« Activé »/« Désactivé ») ; « validez-les un à un » au lieu du
+    caractère ✓ ; « Exporter les opérations (CSV) » ; effacement énuméré en
+    langage unifié ; textes Confidentialité au vocabulaire canonique.
+  - iOS : cinq textes unifiés en « opération » (partage/export CSV,
+    effacement, résumé de restauration, confidentialité). Le nom de fichier
+    export reste technique (inchangé).
+- Preuves : e2e 125 → 126 parcours (zéro emoji fonctionnel, ≥7 glyphes,
+  verrou activé ET désactivé exercés, message d'effacement capté sans rien
+  effacer) ; contrôle négatif 2 échecs ciblés puis 126 verts ; 5 parités ;
+  design ; audit-total 320/390/430, audit-final, audit-visuel,
+  audit-coherence : aucun défaut ; captures avant/après 390/320 inspectées.
+- Périmètre tenu : 2 chevrons remplacés par erreur dans renderAssistant et
+  renderMore ont été détectés et REVERTÉS avant commit (pages P18/P07).
 
 ## Incident P0 ouvert — « annee-consultee » (15.08.2026)
 
@@ -86,8 +90,7 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 7. Dépôt GitHub : la branche par défaut reste une ancienne branche Claude;
    ne pas l'utiliser pour baser une PR ou un artefact de release.
 
-## Prochaine page après P14
+## Prochaine page après P17
 
 `P05 Comptes` — « Où se trouve mon argent aujourd'hui ? » Inventaire complet
-requis (groupes, fraîcheur, devise, archivés, formulaire). Ne pas la commencer
-avant validation explicite du lot P14.
+requis. Ne pas la commencer avant validation explicite du lot P17.
