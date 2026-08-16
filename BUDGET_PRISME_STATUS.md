@@ -33,23 +33,19 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P11 — Impôts** · « Combien prévoir, payer et mettre réellement de côté ? »
+**P12 — Patrimoine** · « Combien est-ce que je possède après mes dettes ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p11-impots`.
-- Livré :
-  - **Le parcours acompte devient réel** : la feuille facture propose enfin
-    la catégorie « Impôts » (genre `tax`) — l'écran Impôts listait ces
-    factures comme acomptes sans qu'on puisse les créer ; depuis le P0
-    « acompte-impots », les payer crée un `taxPayment`.
-  - Glyphe calendrier sur les acomptes (plus de 🗓).
-  - **Risque n°4 corrigé** : la borne du taux d'onboarding (100 %) s'aligne
-    sur la page Impôts (60 %) — même règle partout.
-- Preuves : e2e 135 → 136 parcours ; contrôle négatif à 2 échecs ciblés ;
-  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
-  aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p11/`.
-- iOS : TaxesView utilise TaxService natif avec ses propres bornes — aucun
-  changement requis par ce lot (pas de factures ponctuelles côté natif).
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p12-patrimoine`.
+- Livré : étiquettes « Mis de côté par classe » en glyphes (épargne,
+  investissement, bouclier — plus de 🏛️📈🛡️) ; lignes biens et dettes en
+  glyphes de sens `asset`/`liability` (les icônes stockées ne sont plus
+  jamais rendues — test de sécurité 120 durci : networth exigé à 0) ;
+  « Remboursée » sans coche ; bouton en mots ; état vide des biens guidé.
+- Preuves : e2e 136 → 137 parcours ; contrôle négatif à 4 échecs ciblés
+  (dont la sécurité durcie) ; 5 parités ; design ; audit-final,
+  audit-coherence, audit-total 320/390 : aucun défaut ; captures
+  avant/après dans `docs/neon-ultra/budget-prisme/p12/`.
+- iOS : NetWorthView natif déjà en SF Symbols — aucun changement.
 
 ## Lots fusionnés récents
 

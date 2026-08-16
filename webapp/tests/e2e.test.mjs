@@ -6704,14 +6704,14 @@ for (const view of ["networth", "insurance", "recurring", "subs"]) {
 }
 check(iconViews120.every(result => result.injectedIcons === 0 && result.executed === 0),
   `les icônes restaurées restent du texte inerte (${JSON.stringify(iconViews120)})`);
-// P13/P08 : Assurances & prévoyance puis Ce qui revient (et sa lecture
-// Abonnements) ne rendent plus AUCUNE icône stockée (glyphe sémantique
-// systématique) — la chaîne hostile restaurée n'apparaît plus du tout,
-// pas même en texte : propriété plus forte, exigée à 0.
-const minimumLiteralIcons120 = { networth: 2, insurance: 0, recurring: 0, subs: 0 };
+// P13/P08/P12 : Assurances & prévoyance, Ce qui revient (et sa lecture
+// Abonnements) puis Patrimoine ne rendent plus AUCUNE icône stockée
+// (glyphe sémantique systématique) — la chaîne hostile restaurée
+// n'apparaît plus du tout, pas même en texte : exigée à 0 partout.
+const minimumLiteralIcons120 = { networth: 0, insurance: 0, recurring: 0, subs: 0 };
 check(iconViews120.every(result => result.literalIcons >= minimumLiteralIcons120[result.view]),
   `chaque vue prouve ses propres icônes inertes (${JSON.stringify(iconViews120)})`);
-for (const vueSansIcone of ["insurance", "recurring", "subs"]) {
+for (const vueSansIcone of ["insurance", "recurring", "subs", "networth"]) {
   const resultat = iconViews120.find(result => result.view === vueSansIcone);
   check(resultat.literalIcons === 0,
     `l'écran ${vueSansIcone} ne rend plus jamais une icône restaurée (${JSON.stringify(resultat)})`);
@@ -7649,6 +7649,41 @@ const borne136 = await page.evaluate(() =>
   bindOnboarding.toString().includes("pct >= 0 && pct <= 60"));
 check(borne136, "l'onboarding borne le taux d'impôts à 60 % comme la page Impôts");
 
+// ---------- Test 137 : P12 Patrimoine — glyphes de sens, dettes honnêtes, mots ----------
+// Budget Prisme, lot P12. Étiquettes « par classe » et lignes biens/dettes
+// en glyphes (plus d'icônes stockées ni de 🏛️📈🛡️🏷📄) ; « Remboursée »
+// sans coche ; bouton en mots ; état vide des biens guidé.
+currentTest = "P12 patrimoine";
+await goHome();
+const p12 = await page.evaluate(() => {
+  const sauvA = ASSETS.splice(0), sauvL = LIABILITIES.splice(0);
+  ASSETS.push({ id: "p12-a", name: "Vélo cargo P12", value: 4500, include: true, icon: "🏷" });
+  LIABILITIES.push({ id: "p12-l", name: "Prêt P12", value: 0, monthly: 200, include: true, icon: "📄" });
+  activeTab = "more"; moreView = "networth"; render();
+  const s = document.getElementById("screen");
+  const rempli = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✔✓]/gu) || []),
+    glypheBien: !!s.querySelector("[data-assetid] .ico svg.budget-glyph"),
+    glypheDette: !!s.querySelector("[data-liabid] .ico svg.budget-glyph"),
+    rembourseeSansCoche: /Remboursée(?!\s*✓)/.test(s.innerText) && !s.innerText.includes("✓"),
+    etiquettesGlyphes: s.querySelectorAll(".breakdown .bd-label svg.budget-glyph").length,
+    bouton: (s.querySelector("[data-additem]") || {}).textContent || "",
+  };
+  ASSETS.length = 0; LIABILITIES.length = 0; render();
+  const videEtat = !!document.querySelector("#screen .empty-state .glyph svg.budget-glyph");
+  ASSETS.push(...sauvA); LIABILITIES.push(...sauvL);
+  activeTab = "home"; moreView = null; render();
+  return { rempli, videEtat };
+});
+check(p12.rempli.emojis.length === 0,
+  `zéro emoji ni coche sur Patrimoine (restants : ${p12.rempli.emojis.join(" ") || "aucun"})`);
+check(p12.rempli.glypheBien && p12.rempli.glypheDette,
+  "les lignes bien et dette portent leur glyphe de sens (jamais l'icône stockée)");
+check(p12.rempli.rembourseeSansCoche, "« Remboursée » se dit sans coche décorative");
+check(p12.rempli.bouton.trim() === "Ajouter un actif ou une dette",
+  `le bouton d'ajout parle en mots (obtenu « ${p12.rempli.bouton.trim()} »)`);
+check(p12.videEtat, "l'état vide des biens est guidé avec son glyphe");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7658,4 +7693,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 136 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 137 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

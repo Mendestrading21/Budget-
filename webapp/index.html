@@ -4142,9 +4142,9 @@ function renderNetWorth() {
     </div>
     ${(() => {
       const rows = [
-        ["🏛️ Épargne", contributionsFor(["savings"])],
-        ["📈 Bourse / titres", contributionsFor(["brokerage"])],
-        [`🛡️ ${L("pensionGroup")}`, contributionsFor(["pension", "lifeinsurance"])],
+        [`<span class="bd-label">${budgetGlyph("saving")}Épargne</span>`, contributionsFor(["savings"])],
+        [`<span class="bd-label">${budgetGlyph("investment")}Bourse / titres</span>`, contributionsFor(["brokerage"])],
+        [`<span class="bd-label">${budgetGlyph("shield")}${L("pensionGroup")}</span>`, contributionsFor(["pension", "lifeinsurance"])],
       ].filter(([, agg]) => agg.total > 0);
       if (!rows.length) return "";
       const yearSum = rows.reduce((a, [, agg]) => a + agg.year, 0);
@@ -4189,9 +4189,13 @@ function renderNetWorth() {
       </div>
     </div>
     <p class="section-title">Vos biens</p>
-    ${ASSETS.length === 0 ? `<div class="card row"><span class="caption">Aucun bien ajouté pour l'instant.</span></div>` : ""}
+    ${ASSETS.length === 0 ? `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">${budgetGlyph("asset")}</span>
+      <p class="t">Aucun bien pour l'instant</p>
+      <p>Voiture, logement, objets de valeur… ajoutez ce qui est à vous.</p>
+    </div>` : ""}
     ${ASSETS.map(a => `<div class="card row tx read-row" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${esc(a.icon || "🏷")}</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("asset")}</div>
       <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation${a.include === false ? " · pas compté ici" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
     <p class="section-title">Ce que vous devez</p>
@@ -4201,13 +4205,13 @@ function renderNetWorth() {
       const monthsLeft = (l.monthly > 0 && bal > 0) ? Math.ceil(bal / l.monthly) : null;
       const end = monthsLeft !== null ? shiftMonth(NOW, monthsLeft) : null;
       return `<div class="card row tx read-row" data-liabid="${esc(l.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">${esc(l.icon || "📄")}</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("liability")}</div>
       <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Pas comptée ici"
-        : bal <= 0 ? "Remboursée ✓"
+        : bal <= 0 ? "Remboursée"
         : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"}</div></div>
       <span class="amount ${l.include === false ? "" : bal <= 0 ? "pos" : "neg"}">${bal <= 0 ? chf(0) : "−" + chf(bal)}</span></div>`;
     }).join("")}
-    <button class="btn secondary" data-additem style="margin-top:8px">＋ Ajouter un actif ou une dette</button>
+    <button class="btn secondary" data-additem style="margin-top:8px">Ajouter un actif ou une dette</button>
     <p class="caption" style="padding:0 4px">Déplacer de l'argent entre vos comptes ne change jamais ce total.</p>`;
 }
 
