@@ -33,11 +33,30 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P13 — Assurances et prévoyance** · présentation, langage, états
+**P07 — Gérer** · « Où trouver ce que je gère moins souvent ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
-  `agent/prisme-p13-assurances-prevoyance`, CI Web+iOS à confirmer sur le
-  HEAD exact, puis `WAITING_VISUAL`.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p07-gerer`,
+  CI Web+iOS à confirmer sur le HEAD exact.
+- Autorisation propriétaire du 16.08.2026 : « Continue continue tout les
+  lots restant » — chaque lot est fusionné puis publié dès sa CI verte,
+  l'exécution enchaîne les pages du registre sans pause de validation.
+- Livré : les dix lignes du hub portent un Budget Glyph (quatre glyphes
+  ajoutés au registre : objectif, import de document, bulle assistant,
+  réglages) ; chevron peint et `aria-hidden` à la place du « › » texte ;
+  « Tout est payé » sans emoji ; aucun lien mort (chaque destination
+  existe dans `MORE_RENDERERS`, vérifié par test).
+- Preuves : e2e 130 → 131 parcours ; contrôle négatif (emoji + « › »
+  réintroduits → 2 échecs ciblés, le rendu par glyphe est robuste au
+  retour d'un emoji dans les données) ; 5 parités ; design ; audit-final,
+  audit-coherence, audit-total 320/390 : aucun défaut ; captures
+  avant/après dans `docs/neon-ultra/budget-prisme/p07/`.
+- iOS : `MoreTab` déjà en SF Symbols, textes justes — aucun changement.
+
+## Lot fusionné — P13 Assurances et prévoyance
+
+- **`APPROVED` + `PUBLISHED`** : fusion squash PR #17 au SHA de merge
+  `5f8ffecd79957e51d00c70e80c01f724b0dd94ec`, CI push verte, déployé sur
+  Pages par dispatch au SHA exact (run `31967270427`, succès) le 16.08.2026.
 - Classe : Visuel + Langage (le défaut financier de la page a été corrigé
   AVANT ce lot, par l'incident P0 ci-dessous — aucune formule touchée ici).
 - Livré :
@@ -123,9 +142,10 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 
 ## Prochaine action exacte
 
-1. Attendre la CI Web+iOS de la PR du lot P13 sur son HEAD exact, puis
-   passer le lot en `WAITING_VISUAL` et s'arrêter pour validation.
-2. Après validation propriétaire : fusion squash, CI push, publication du
-   SHA de merge par dispatch Pages, P13 → `APPROVED`+`PUBLISHED`.
-3. Page suivante selon le registre : `P07 — Gérer` en mode `audit` d'abord.
-   Ne pas la commencer avant validation explicite du lot P13.
+Programme autorisé en continu (16.08.2026). Ordre restant :
+P07 (en cours) → P08 → P09 → P10 → P11 → P12 → P15 → P16 → P18 →
+P00 → P01 → P02 → P04. Pour chaque lot : audit, développement, tests
+(rouge d'abord pour toute vérité), contrôle négatif, suites + audits,
+captures inspectées, PR, CI verte sur le HEAD exact, fusion squash,
+publication Pages au SHA de merge. Tout défaut financier découvert ouvre
+un incident P0 séparé avant le lot visuel.
