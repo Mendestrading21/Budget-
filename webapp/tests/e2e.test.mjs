@@ -7310,6 +7310,39 @@ check(p06gardes.dest !== null && /régulier|destination/i.test(p06gardes.dest ||
 check(p06gardes.pension !== null && /prévoyance/i.test(p06gardes.pension || ""),
   `supprimer un compte lié à une prévoyance est bloqué et expliqué (obtenu ${JSON.stringify(p06gardes.pension)})`);
 
+// ---------- Test 129 : P0 Prévoyance — un compte lié n'est jamais compté deux fois ----------
+// Budget Prisme, incident P0 (risque n°1 du registre). NÉ ROUGE : la carte
+// « Déjà mis de côté » additionnait pensionDisplayTotal() (qui vaut déjà le
+// solde du compte pour une position liée) PLUS les soldes des comptes de
+// prévoyance — un compte lié à 10 000 CHF s'affichait donc 20 000. Vert
+// depuis le correctif : positions non liées + soldes des comptes, une fois.
+currentTest = "P0 prévoyance double compte";
+await goHome();
+const p129 = await page.evaluate(() => {
+  ACCOUNTS.push({ id: "p129pen", name: "Caisse LPP P129", inst: "Fondation Fictive",
+    kind: "pension", opening: 10000, cash: false, currency: "CHF" });
+  PENSIONS.push({ id: "p129-liee", name: "Certificat LPP P129", icon: "🛡️",
+    value: 0, projection: null, accountId: "p129pen" });
+  PENSIONS.push({ id: "p129-libre", name: "AVS estimée P129", icon: "🛡️",
+    value: 5000, projection: null, accountId: null });
+  activeTab = "more"; moreView = "insurance"; render();
+  const soldes = ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
+    .reduce((s, a) => s + toCHF(balance(a.id), a.currency), 0);
+  const honnete = round2(pensionPositionsTotal() + soldes);
+  const card = [...document.querySelectorAll("#screen .card")]
+    .find(c => c.querySelector(".card-label")?.textContent === "Déjà mis de côté");
+  const affiche = card ? (card.querySelector(".amount")?.textContent || "") : null;
+  // Nettoyage : la fixture repart, l'app revient à l'accueil.
+  PENSIONS.splice(PENSIONS.findIndex(p => p.id === "p129-liee"), 1);
+  PENSIONS.splice(PENSIONS.findIndex(p => p.id === "p129-libre"), 1);
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "p129pen"), 1);
+  activeTab = "home"; moreView = null; render();
+  return { affiche, attendu: chf(honnete) };
+});
+check(p129.affiche !== null, "la carte « Déjà mis de côté » est visible avec une position liée");
+check(p129.affiche === p129.attendu,
+  `le total prévoyance compte le compte lié UNE seule fois (affiché ${JSON.stringify(p129.affiche)}, honnête ${p129.attendu})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7319,4 +7352,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 128 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 129 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
