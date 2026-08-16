@@ -33,24 +33,29 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P07 — Gérer** · « Où trouver ce que je gère moins souvent ? »
+**P08 — Ce qui revient** · « Qu'est-ce qui revient, quand, et est-ce déjà fait ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p07-gerer`,
-  CI Web+iOS à confirmer sur le HEAD exact.
-- Autorisation propriétaire du 16.08.2026 : « Continue continue tout les
-  lots restant » — chaque lot est fusionné puis publié dès sa CI verte,
-  l'exécution enchaîne les pages du registre sans pause de validation.
-- Livré : les dix lignes du hub portent un Budget Glyph (quatre glyphes
-  ajoutés au registre : objectif, import de document, bulle assistant,
-  réglages) ; chevron peint et `aria-hidden` à la place du « › » texte ;
-  « Tout est payé » sans emoji ; aucun lien mort (chaque destination
-  existe dans `MORE_RENDERERS`, vérifié par test).
-- Preuves : e2e 130 → 131 parcours ; contrôle négatif (emoji + « › »
-  réintroduits → 2 échecs ciblés, le rendu par glyphe est robuste au
-  retour d'un emoji dans les données) ; 5 parités ; design ; audit-final,
-  audit-coherence, audit-total 320/390 : aucun défaut ; captures
-  avant/après dans `docs/neon-ultra/budget-prisme/p07/`.
-- iOS : `MoreTab` déjà en SF Symbols, textes justes — aucun changement.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
+  `agent/prisme-p08-ce-qui-revient`, CI Web+iOS à confirmer sur le HEAD exact.
+- Livré : le glyphe d'une ligne suit le SENS du mouvement (revenu, mise de
+  côté, investissement, facture, abonnement) — plus jamais une icône
+  stockée, sur la liste ET la lecture Abonnements (test de sécurité 120
+  durci : recurring et subs exigés à 0 icône restaurée rendue) ; filtres
+  en mots ; boutons sans « ＋ » ; état vide guidé avec glyphe ; carte
+  « Vos charges du foyer » en glyphe maison.
+- Preuves : e2e 131 → 132 parcours ; contrôle négatif à 6 échecs ciblés
+  (dont le test de sécurité durci) — première tentative de sabotage mal
+  ancrée (occurrence de l'accueil) détectée par crash et refaite
+  proprement ; 5 parités ; design ; audit-final, audit-coherence,
+  audit-total 320/390 : aucun défaut ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/p08/`.
+- iOS : liste et formulaire récurrents déjà en SF Symbols — aucun changement.
+
+## Lot fusionné — P07 Gérer
+
+- **`APPROVED` + `PUBLISHED`** : fusion squash PR #18 au SHA de merge
+  `ce55dfc11032ee2dc9f220fabd1d373f16dc07b5`, CI push verte, déployé sur
+  Pages par dispatch au SHA exact (run `31968446608`, succès) le 16.08.2026.
 
 ## Lot fusionné — P13 Assurances et prévoyance
 

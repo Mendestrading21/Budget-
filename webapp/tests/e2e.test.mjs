@@ -6704,15 +6704,18 @@ for (const view of ["networth", "insurance", "recurring", "subs"]) {
 }
 check(iconViews120.every(result => result.injectedIcons === 0 && result.executed === 0),
   `les icônes restaurées restent du texte inerte (${JSON.stringify(iconViews120)})`);
-// P13 : l'écran Assurances & prévoyance ne rend plus AUCUNE icône stockée
-// (glyphe bouclier systématique) — la chaîne hostile restaurée n'apparaît
-// donc plus du tout, pas même en texte : propriété plus forte, exigée à 0.
-const minimumLiteralIcons120 = { networth: 2, insurance: 0, recurring: 2, subs: 1 };
+// P13/P08 : Assurances & prévoyance puis Ce qui revient (et sa lecture
+// Abonnements) ne rendent plus AUCUNE icône stockée (glyphe sémantique
+// systématique) — la chaîne hostile restaurée n'apparaît plus du tout,
+// pas même en texte : propriété plus forte, exigée à 0.
+const minimumLiteralIcons120 = { networth: 2, insurance: 0, recurring: 0, subs: 0 };
 check(iconViews120.every(result => result.literalIcons >= minimumLiteralIcons120[result.view]),
   `chaque vue prouve ses propres icônes inertes (${JSON.stringify(iconViews120)})`);
-const insuranceIcons120 = iconViews120.find(result => result.view === "insurance");
-check(insuranceIcons120.literalIcons === 0,
-  `l'écran assurance ne rend plus jamais une icône restaurée (${JSON.stringify(insuranceIcons120)})`);
+for (const vueSansIcone of ["insurance", "recurring", "subs"]) {
+  const resultat = iconViews120.find(result => result.view === vueSansIcone);
+  check(resultat.literalIcons === 0,
+    `l'écran ${vueSansIcone} ne rend plus jamais une icône restaurée (${JSON.stringify(resultat)})`);
+}
 check(errors120.length === 0,
   `zéro erreur console pendant le scénario hostile (${errors120.join(" | ") || "aucune"})`);
 await context120.close();
@@ -7441,6 +7444,63 @@ check(p07.liensMorts.length === 0,
   `aucun lien mort — chaque destination existe (${p07.liensMorts.join(", ") || "toutes"})`);
 check(!p07.ancienChevronTexte, "le chevron texte « › » a disparu du hub");
 
+// ---------- Test 132 : P08 Ce qui revient — glyphes par sens, filtres en mots ----------
+// Budget Prisme, lot P08. Le glyphe d'une ligne suit le SENS du mouvement
+// (revenu, mise de côté, investissement, facture, abonnement), jamais une
+// icône stockée ; les filtres parlent en mots ; les boutons aussi ; l'état
+// vide est guidé avec son glyphe.
+currentTest = "P08 ce qui revient";
+await goHome();
+const p08 = await page.evaluate(() => {
+  const sauvegarde = RECURRINGS.splice(0);
+  const acc = ACCOUNTS[0].id;
+  RECURRINGS.push(
+    { id: "p08-fac", title: "Loyer P08", type: "expense", cat: "Logement", amount: 1500, day: 1, accountId: acc },
+    { id: "p08-abo", title: "Streaming P08", type: "expense", cat: "Loisirs", nature: "abonnement", amount: 15, day: 5, accountId: acc },
+    { id: "p08-res", title: "Pilier 3a P08", type: "expense", cat: "Pilier 3a", nature: "reserve", amount: 250, day: 25, accountId: acc },
+    { id: "p08-rev", title: "Salaire P08", type: "income", cat: "Salaire", amount: 5200, day: 25, accountId: acc },
+  );
+  recFilter = "tout"; activeTab = "more"; moreView = "recurring"; render();
+  const s = document.getElementById("screen");
+  const lignes = [...s.querySelectorAll("[data-recid]")];
+  const parId = id => lignes.find(l => l.dataset.recid === id);
+  const rempli = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    lignes: lignes.length,
+    glyphes: lignes.filter(l => l.querySelector(".ico svg.budget-glyph")).length,
+    revenuTinte: !!parId("p08-rev")?.querySelector(".ico.t-income svg.budget-glyph"),
+    reserveInvestit: !!parId("p08-res")?.querySelector(".ico svg.budget-glyph path[d^='M4 19']"),
+    bouton: (s.querySelector("[data-addrec]") || {}).textContent || "",
+  };
+  recFilter = "abonnement"; render();
+  const sAbo = document.getElementById("screen");
+  const abo = {
+    emojis: (sAbo.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    glyphes: sAbo.querySelectorAll("[data-recid] .ico svg.budget-glyph").length,
+    bouton: (sAbo.querySelector("[data-addrec]") || {}).textContent || "",
+  };
+  recFilter = "tout"; RECURRINGS.length = 0; render();
+  const videEtat = {
+    glyphe: !!document.querySelector("#screen .empty-state .glyph svg.budget-glyph"),
+  };
+  RECURRINGS.push(...sauvegarde);
+  recFilter = "tout"; activeTab = "home"; moreView = null; render();
+  return { rempli, abo, videEtat };
+});
+check(p08.rempli.emojis.length === 0,
+  `zéro emoji sur « Ce qui revient » (restants : ${p08.rempli.emojis.join(" ") || "aucun"})`);
+check(p08.rempli.lignes === 4 && p08.rempli.glyphes === 4,
+  `chaque ligne porte un glyphe sémantique (${p08.rempli.glyphes}/${p08.rempli.lignes})`);
+check(p08.rempli.revenuTinte, "le revenu régulier porte son glyphe dans la pastille revenus");
+check(p08.rempli.reserveInvestit, "la réserve Pilier 3a porte le glyphe investissement (le sens, pas l'icône stockée)");
+check(p08.rempli.bouton.trim() === "Ajouter ce qui revient",
+  `le bouton d'ajout parle en mots (obtenu « ${p08.rempli.bouton.trim()} »)`);
+check(p08.abo.emojis.length === 0 && p08.abo.glyphes >= 1,
+  `la lecture Abonnements est aussi en glyphes, sans emoji (${p08.abo.glyphes} glyphe(s))`);
+check(p08.abo.bouton.trim() === "Ajouter un abonnement",
+  `le bouton Abonnements parle en mots (obtenu « ${p08.abo.bouton.trim()} »)`);
+check(p08.videEtat.glyphe, "l'état vide de « Ce qui revient » est guidé avec son glyphe");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7450,4 +7510,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 131 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 132 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
