@@ -2865,6 +2865,10 @@ const BUDGET_GLYPHS = Object.freeze({
   alert: '<path d="M12 4.5 20.5 19h-17z"/><path d="M12 10.5v4"/><path d="M12 16.9v.1"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   cash: '<rect x="3.5" y="6.5" width="17" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/>',
+  goal: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 11.9v.2"/>',
+  docImport: '<path d="M7 3.5h8l3 3v14H7z"/><path d="M15 3.5v3h3"/><path d="M12 9.5v5.5"/><path d="m9.5 12.5 2.5 2.5 2.5-2.5"/>',
+  chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v6.5a2.5 2.5 0 0 1-2.5 2.5H9.5L4.5 20z"/><path d="M8 9h8M8 12.5h5"/>',
+  gear: '<circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9"/>',
   tag: '<path d="M4 5.5v6.2L12.3 20 20 12.3 11.7 4H5.5A1.5 1.5 0 0 0 4 5.5"/><circle cx="8" cy="8" r="1"/>',
 });
 
@@ -5002,9 +5006,11 @@ function renderAssistant() {
 }
 
 // Hub « Gérer » par intentions (ADR-026).
+/* P07 : chaque ligne du hub porte un Budget Glyph (plus d'emoji fonctionnel)
+   et un sous-titre qui annonce honnêtement ce que contient sa destination. */
 const MORE_GROUPS = [
   ["À organiser", [
-    ["recurring", "🔁", "Ce qui revient", () => {
+    ["recurring", "recurring", "Ce qui revient", () => {
       const actives = RECURRINGS.filter(recurringIsActive);
       const sorties = actives.filter(r => !["income", "refund"].includes(r.type));
       if (!actives.length) return "Loyer, abonnements, mises de côté et revenus";
@@ -5013,30 +5019,30 @@ const MORE_GROUPS = [
       return `${actives.length} ligne${actives.length > 1 ? "s" : ""}`
         + (sorties.length ? ` · ${chf(parMois)} à prévoir par mois` : "");
     }],
-    ["bills", "🧾", "Factures ponctuelles", () => {
+    ["bills", "bill", "Factures ponctuelles", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
       const open = (S.bills || []).filter(b => !billIsCovered(b)).length;
-      return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé 🎉");
+      return late ? `${late} en retard` : (open ? `${open} à payer` : "Tout est payé");
     }],
   ]],
   ["À prévoir", [
-    ["taxes", "📮", "Impôts", "Ce qu'il reste à payer, et ce que vous avez mis de côté"],
-    ["insurance", "🛡️", "Assurances & prévoyance", "Primes, LPP et 3e pilier"],
+    ["taxes", "taxPayment", "Impôts", "Ce qu'il reste à payer, et ce que vous avez mis de côté"],
+    ["insurance", "shield", "Assurances & prévoyance", "Primes, LPP et 3e pilier"],
   ]],
   ["À construire", [
-    ["networth", "🏛️", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
-    ["goals", "🎯", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
-    ["year", "📅", "Année", () => {
+    ["networth", "asset", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
+    ["goals", "goal", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
+    ["year", "calendar", "Année", () => {
       const done = Object.keys(S.monthChecks || {}).filter(k => k.startsWith(NOW.y + "-")).length;
       return `Les douze mois de ${NOW.y} · ${done} bouclé${done > 1 ? "s" : ""}`;
     }],
   ]],
   ["Mes données", [
-    ["importcsv", "📥", "Import CSV & documents", "Notion, relevés, polices"],
+    ["importcsv", "docImport", "Import CSV & documents", "Notion, relevés, polices"],
   ]],
   ["Application", [
-    ["assistant", "💬", "Assistant", "Vos questions, vos données, des réponses expliquées"],
-    ["settings", "⚙️", "Réglages", "Apparence, code, export, sauvegarde"],
+    ["assistant", "chat", "Assistant", "Vos questions, vos données, des réponses expliquées"],
+    ["settings", "gear", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
 const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
@@ -5047,12 +5053,12 @@ const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().repla
 
 function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
-  const row = ([id, icon, title, sub]) => {
+  const row = ([id, glyph, title, sub]) => {
     const s = typeof sub === "function" ? sub() : sub;
     return `<div class="card row tx read-row" data-more="${id}" style="cursor:pointer" role="button" tabindex="0">
-      <div class="ico" aria-hidden="true">${icon}</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph(glyph)}</div>
       <div class="meta"><div class="t">${title}</div><div class="s">${s}</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>`;
   };
   return `<h2 class="screen-title">Gérer</h2>` + MORE_GROUPS.map(([label, items]) =>

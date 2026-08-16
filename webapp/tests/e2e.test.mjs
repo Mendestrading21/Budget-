@@ -7405,6 +7405,42 @@ check(!/Soit CHF 0\.00 par an/.test(p13.vide.heroCaption) && /Ajoutez/.test(p13.
 check(!/selon certificat/.test(p13.labelProjection) && /selon votre certificat/.test(p13.labelProjection),
   `le libellé du montant prévu à la retraite est dit une seule fois (obtenu « ${p13.labelProjection} »)`);
 
+// ---------- Test 131 : P07 Gérer — hub en glyphes, aucun lien mort ----------
+// Budget Prisme, lot P07. Le hub porte un Budget Glyph par ligne (plus
+// d'emoji fonctionnel, plus de « › » texte), un chevron PEINT, un sous-titre
+// jamais vide, et chaque destination existe réellement dans MORE_RENDERERS.
+currentTest = "P07 gérer";
+await goHome();
+await page.click('#tabbar button[aria-label="Gérer"]');
+await page.waitForTimeout(300);
+const p07 = await page.evaluate(() => {
+  moreView = null; render();
+  const s = document.getElementById("screen");
+  const lignes = [...s.querySelectorAll("[data-more]")];
+  return {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    lignes: lignes.length,
+    glyphes: lignes.filter(r => r.querySelector(".ico svg.budget-glyph")).length,
+    chevronsPeints: lignes.filter(r => {
+      const fleche = r.querySelector("span[aria-hidden] svg.budget-glyph path[d^='m9.5 6']");
+      return fleche && fleche.closest("svg").getBoundingClientRect().width >= 12;
+    }).length,
+    sousTitresVides: lignes.filter(r => !(r.querySelector(".s")?.textContent || "").trim()).length,
+    liensMorts: lignes.map(r => r.dataset.more).filter(id => typeof MORE_RENDERERS[id] !== "function"),
+    ancienChevronTexte: s.innerText.includes("›"),
+  };
+});
+check(p07.emojis.length === 0,
+  `zéro emoji fonctionnel sur le hub Gérer (restants : ${p07.emojis.join(" ") || "aucun"})`);
+check(p07.lignes === 10 && p07.glyphes === 10,
+  `les dix lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+check(p07.chevronsPeints === p07.lignes,
+  `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
+check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
+check(p07.liensMorts.length === 0,
+  `aucun lien mort — chaque destination existe (${p07.liensMorts.join(", ") || "toutes"})`);
+check(!p07.ancienChevronTexte, "le chevron texte « › » a disparu du hub");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7414,4 +7450,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 130 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 131 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
