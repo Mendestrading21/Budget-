@@ -33,19 +33,21 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P12 — Patrimoine** · « Combien est-ce que je possède après mes dettes ? »
+**P15 — Import et documents** · « Puis-je importer et garder mes justificatifs sans surprise ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p12-patrimoine`.
-- Livré : étiquettes « Mis de côté par classe » en glyphes (épargne,
-  investissement, bouclier — plus de 🏛️📈🛡️) ; lignes biens et dettes en
-  glyphes de sens `asset`/`liability` (les icônes stockées ne sont plus
-  jamais rendues — test de sécurité 120 durci : networth exigé à 0) ;
-  « Remboursée » sans coche ; bouton en mots ; état vide des biens guidé.
-- Preuves : e2e 136 → 137 parcours ; contrôle négatif à 4 échecs ciblés
-  (dont la sécurité durcie) ; 5 parités ; design ; audit-final,
-  audit-coherence, audit-total 320/390 : aucun défaut ; captures
-  avant/après dans `docs/neon-ultra/budget-prisme/p12/`.
-- iOS : NetWorthView natif déjà en SF Symbols — aucun changement.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
+  `agent/prisme-p15-import-documents`.
+- Livré : glyphe `document` (nouvelle entrée du registre, doc à coin plié)
+  sur les lignes et l'état vide ; bouton « Ajouter un document » en mots ;
+  état vide guidé, toujours honnête sur le stockage (fichiers dans l'app
+  native, la PWA garde nom et type). Aucun changement au parseur CSV, au
+  mapping, aux empreintes de doublons ni au rollback.
+- Preuves : e2e 137 → 138 parcours ; contrôle négatif à 3 échecs ciblés ;
+  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
+  aucun défaut ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/p15/`.
+- iOS : ImportWizardView et DocumentsListView natifs déjà propres — aucun
+  changement.
 
 ## Lots fusionnés récents
 
