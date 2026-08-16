@@ -2544,9 +2544,14 @@ function materializeBill(bill) {
   const y = bill.dueY, m = bill.dueM;
   const lastDay = new Date(y, m, 0).getDate();
   const day = Math.min(bill.dueD || lastDay, lastDay);
+  // P0 « acompte-impots » : un acompte d'impôts payé est un PAIEMENT
+  // D'IMPÔTS, pas une dépense de vie — sinon il gonfle le coût de la vie
+  // et ne réduit jamais « il vous reste à payer » (taxSummary.paid ne
+  // compte que les taxPayment).
   const transaction = {
     id: ++txSeq, y, m, d: day,
-    title: bill.name, amount: bill.amount, type: "expense",
+    title: bill.name, amount: bill.amount,
+    type: bill.cat === "Impôts" ? "taxPayment" : "expense",
     cat: bill.cat || null, acc: billAccountId(bill), dest: null,
     status: statusForDate(y, m, day), billId: bill.id,
   };

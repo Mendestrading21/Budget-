@@ -89,6 +89,25 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
   captures avant/après (pleines et vides) réellement inspectées dans
   `docs/neon-ultra/budget-prisme/p13/`.
 
+## Incident P0 clos — « acompte-impots » (16.08.2026)
+
+Découvert pendant l'audit P11 (écran Impôts). `taxBills` liste les factures
+de catégorie « Impôts » (données importées ou restaurées — l'écran les
+affiche comme « Vos prochains acomptes »), mais `materializeBill` créait
+TOUJOURS `type: "expense"` : payer un acompte gonflait le coût de la vie
+et ne réduisait jamais « il vous reste à payer » (`taxSummary.paid` ne
+compte que les `taxPayment`).
+
+- **Fixture rouge → verte** : parcours e2e 134, né rouge (« obtenu
+  expense », payé 0 → 0), vert avec le correctif : la catégorie Impôts
+  matérialise un `taxPayment`. Une ligne changée, aucun autre calcul.
+- iOS non concerné (les factures ponctuelles sont PWA uniquement).
+- 134 parcours + 5 parités + design + audit-final + audit-coherence +
+  audit-total : verts.
+- Suite : le lot P11 rendra le parcours réel (catégorie « Impôts »
+  proposable dans la feuille facture) — aujourd'hui seules des données
+  restaurées/importées portent cette catégorie.
+
 ## Incident P0 clos — « prevoyance-double-compte » (16.08.2026)
 
 Ouvert pendant l'audit P13, conformément à la règle « défaut financier →
