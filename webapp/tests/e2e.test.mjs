@@ -7614,6 +7614,41 @@ check(p10.rempli.bouton.trim() === "Ajouter un objectif",
   `le bouton d'ajout parle en mots (obtenu « ${p10.rempli.bouton.trim()} »)`);
 check(p10.videEtat, "l'état vide des objectifs est guidé avec son glyphe");
 
+// ---------- Test 136 : P11 Impôts — parcours acompte réel, bornes cohérentes, glyphes ----------
+// Budget Prisme, lot P11. La feuille facture propose enfin « Impôts »
+// (l'écran Impôts listait ces factures sans qu'on puisse les créer) ;
+// l'acompte porte le glyphe calendrier ; la borne du taux d'onboarding
+// (avant : 100 %) s'aligne sur la page Impôts (60 %) ; zéro emoji.
+currentTest = "P11 impôts";
+await goHome();
+const p11 = await page.evaluate(() => {
+  openBillSheet(null);
+  const options = [...document.querySelectorAll("#bCat option")].map(o => o.textContent);
+  closeSheet();
+  const facture = { id: "p11-ac", name: "Acompte cantonal P11", amount: 900,
+    dueY: NOW.y, dueM: NOW.m, dueD: 28, cat: "Impôts", accountId: ACCOUNTS[0].id };
+  (S.bills = S.bills || []).push(facture);
+  activeTab = "more"; moreView = "taxes"; render();
+  const s = document.getElementById("screen");
+  const ecran = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    glypheAcompte: !!s.querySelector("[data-billid] .ico svg.budget-glyph"),
+  };
+  S.bills.splice(S.bills.findIndex(b => b.id === "p11-ac"), 1);
+  activeTab = "home"; moreView = null; render();
+  return { options, ecran };
+});
+check(p11.options.includes("Impôts"),
+  `la feuille facture propose la catégorie Impôts (obtenu : ${p11.options.join(", ")})`);
+check(p11.ecran.emojis.length === 0,
+  `zéro emoji sur l'écran Impôts (restants : ${p11.ecran.emojis.join(" ") || "aucun"})`);
+check(p11.ecran.glypheAcompte, "l'acompte listé porte le glyphe calendrier");
+// Borne d'onboarding : la source doit refuser au-delà de 60 % (même règle
+// que la page Impôts) — vérifiée sur le code réellement servi.
+const borne136 = await page.evaluate(() =>
+  bindOnboarding.toString().includes("pct >= 0 && pct <= 60"));
+check(borne136, "l'onboarding borne le taux d'impôts à 60 % comme la page Impôts");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7623,4 +7658,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 135 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 136 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

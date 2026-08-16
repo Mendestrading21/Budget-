@@ -33,22 +33,23 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P10 — Objectifs** · « Mon projet avance-t-il assez vite ? »
+**P11 — Impôts** · « Combien prévoir, payer et mettre réellement de côté ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p10-objectifs`.
-- PWA : l'emoji d'un objectif est un CHOIX de l'utilisateur — il reste ;
-  le repli 🎯 imposé par l'app devient le glyphe objectif. « ⚠️ passée »
-  → « · passée » (la pilule rouge le dit déjà) ; ✓/⚠️ du rythme → glyphes
-  coche/alerte ; « ＋ » pleine chasse → « + » typographique et bouton en
-  mots ; état vide guidé avec glyphe.
-- iOS (**risque n°5 corrigé**) : le formulaire propose « Archivé » mais la
-  liste ne l'affichait jamais — un objectif archivé devenait introuvable.
-  `GoalsTab` gagne une section « Archivés » (opacité réduite) ; « Atteints
-  🎉 » perd son emoji. Garde de vue, aucun modèle touché.
-- Preuves : e2e 134 → 135 parcours ; contrôle négatif à 3 échecs ciblés ;
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p11-impots`.
+- Livré :
+  - **Le parcours acompte devient réel** : la feuille facture propose enfin
+    la catégorie « Impôts » (genre `tax`) — l'écran Impôts listait ces
+    factures comme acomptes sans qu'on puisse les créer ; depuis le P0
+    « acompte-impots », les payer crée un `taxPayment`.
+  - Glyphe calendrier sur les acomptes (plus de 🗓).
+  - **Risque n°4 corrigé** : la borne du taux d'onboarding (100 %) s'aligne
+    sur la page Impôts (60 %) — même règle partout.
+- Preuves : e2e 135 → 136 parcours ; contrôle négatif à 2 échecs ciblés ;
   5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
   aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p10/`.
+  `docs/neon-ultra/budget-prisme/p11/`.
+- iOS : TaxesView utilise TaxService natif avec ses propres bornes — aucun
+  changement requis par ce lot (pas de factures ponctuelles côté natif).
 
 ## Lots fusionnés récents
 

@@ -3877,7 +3877,7 @@ function renderTaxes() {
     </div>` : ""}
     <p class="section-title">Vos prochains acomptes</p>
     ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico" aria-hidden="true">🗓</div>
+      <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">À payer ${billDueLabel(b)}</div></div>
       <span class="amount">${chf(billAmountInBase(b))}</span></div>`).join("")
       : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez un acompte comme une facture, dans la catégorie « Impôts » : il apparaîtra ici et dans votre mois.</span></div>`}
@@ -5338,7 +5338,8 @@ function bindOnboarding() {
     const field = document.getElementById("obTaxPct");
     if (!field) return;
     const pct = parseInt(field.value, 10);
-    if (Number.isFinite(pct) && pct >= 0 && pct <= 100) obTaxRate = pct / 100;
+    // P11 (risque n°4) : même borne que la page Impôts — 0 à 60 %.
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 60) obTaxRate = pct / 100;
   };
   // Retour : revient d'une étape en CONSERVANT toutes les saisies.
   document.querySelectorAll("[data-obback]").forEach(btn => btn.addEventListener("click", () => {
@@ -8077,8 +8078,11 @@ function openBillSheet(bill) {
   document.getElementById("bAccount").disabled = covered;
   document.getElementById("bLockedNote").style.display = covered ? "" : "none";
   const catSelectBill = document.getElementById("bCat");
+  // P11 : « Impôts » (genre tax) est proposable — l'écran Impôts liste ces
+  // factures comme acomptes, et depuis le P0 « acompte-impots » les payer
+  // crée un taxPayment, jamais une dépense de vie.
   catSelectBill.innerHTML = Object.entries(CATEGORIES)
-    .filter(([, k]) => k === "expense")
+    .filter(([, k]) => k === "expense" || k === "tax")
     .map(([c]) => `<option>${esc(c)}</option>`).join("");
   fillAccountOptions("bAccount", bill && bill.accountId);
   if (bill) {
