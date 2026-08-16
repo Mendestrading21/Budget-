@@ -436,6 +436,8 @@
      de ligne) n'avait AUCUNE taille et restait invisible. La règle ne vise
      que ce motif — les glyphes déjà dimensionnés (pastilles .ico, tabbar,
      boutons de navigation, états vides) ne changent pas. */
+  .goal-title .budget-glyph { width: 16px; height: 16px; vertical-align: -2px; display: inline-block; }
+  .pace-glyph .budget-glyph { width: 14px; height: 14px; vertical-align: -2px; display: inline-block; }
   .tx > span[aria-hidden="true"]:not(.glyph) > .budget-glyph,
   .card > span[aria-hidden="true"]:not(.glyph) > .budget-glyph {
     width: 16px; height: 16px; flex: none; display: block;
@@ -3739,7 +3741,7 @@ function renderGoals() {
     const onTrack = paceMonthly >= required;
     return `<div class="card" data-goalid="${esc(g.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="bar-head" style="margin-bottom:8px">
-        <span style="font-size:15px;font-weight:700">${esc(g.emoji || "🎯")} ${esc(g.name)}
+        <span class="goal-title" style="font-size:15px;font-weight:700">${g.emoji ? esc(g.emoji) + " " : `<span aria-hidden="true">${budgetGlyph("goal")}</span> `}${esc(g.name)}
           ${g.achieved ? '<span class="pill pos">C\'est fait !</span>'
             : monthsLeft === 0 ? '<span class="pill neg">La date est passée</span>'
             : onTrack ? '<span class="pill pos">En bonne voie</span>'
@@ -3751,11 +3753,11 @@ function renderGoals() {
         <div><span>${g.linked
           ? `Sur « ${esc((ACCOUNTS.find(a => a.id === g.linked) || {}).name || "le compte")} »`
           : "Montant que vous avez saisi"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
-        <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " ⚠️ passée" : ""}</span></div>
+        <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " · passée" : ""}</span></div>
         ${g.achieved ? "" : `
-        <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}" aria-label="${chf(paceMonthly)} par mois — ${onTrack ? "dans les temps" : "en dessous du rythme nécessaire"}">${chf(paceMonthly)} / mois <span aria-hidden="true">${onTrack ? "✓" : "⚠️"}</span></span></div>
+        <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}" aria-label="${chf(paceMonthly)} par mois — ${onTrack ? "dans les temps" : "en dessous du rythme nécessaire"}">${chf(paceMonthly)} / mois <span class="pace-glyph" aria-hidden="true">${budgetGlyph(onTrack ? "check" : "alert")}</span></span></div>
         ${eta ? `<div><span>Prêt vers</span><span style="font-weight:700">${MONTH_NAMES[eta.m - 1]} ${eta.y}</span></div>` : ""}
-        ${extraNeeded > 0.005 ? `<div><span>Pour y être à temps</span><span class="warn">＋ ${chf(extraNeeded)} / mois</span></div>` : ""}
+        ${extraNeeded > 0.005 ? `<div><span>Pour y être à temps</span><span class="warn">+ ${chf(extraNeeded)} / mois</span></div>` : ""}
         ${(() => {
           // Scénario simple (L6) : que change ＋50/mois ? Jamais une promesse.
           if (monthsToGo === null || remaining <= 0) return "";
@@ -3775,10 +3777,14 @@ function renderGoals() {
       <p class="hero-amount${totalCurrent >= 1000000 ? " long" : ""}">${chf(totalCurrent)}</p>
       <span class="caption">sur ${chf(totalTarget)} au total</span>
     </div>
-    ${active.length === 0 && achieved.length === 0 ? `<div class="card"><span class="caption">Pas encore d'objectif. Un fonds d'urgence, des vacances, le 3e pilier… Commencez avec le bouton ci-dessous.</span></div>` : ""}
+    ${active.length === 0 && achieved.length === 0 ? `<div class="card empty-state">
+      <span class="glyph" aria-hidden="true">${budgetGlyph("goal")}</span>
+      <p class="t">Pas encore d'objectif</p>
+      <p>Un fonds d'urgence, des vacances, le 3e pilier… Commencez avec le bouton ci-dessous.</p>
+    </div>` : ""}
     ${active.map(goalCard).join("")}
     ${achieved.length ? `<p class="section-title">C'est fait</p>` + achieved.map(goalCard).join("") : ""}
-    <button class="btn secondary" data-addgoal style="margin-top:8px">＋ Ajouter un objectif</button>
+    <button class="btn secondary" data-addgoal style="margin-top:8px">Ajouter un objectif</button>
     <p class="caption" style="padding:6px 4px 0">Le montant par mois : ce qu'il reste, divisé par les mois restants.</p>`;
 }
 

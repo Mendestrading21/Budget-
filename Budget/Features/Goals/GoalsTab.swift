@@ -33,6 +33,10 @@ struct GoalsListView: View {
 
     private var achievedGoals: [FinancialGoal] { goals.filter { $0.status == .achieved } }
     private var pausedGoals: [FinancialGoal] { goals.filter { $0.status == .paused } }
+    // P10 (risque n°5) : le formulaire propose « Archivé » — sans cette
+    // section, un objectif archivé disparaissait de la liste et devenait
+    // impossible à rouvrir. Un statut atteignable reste toujours visible.
+    private var archivedGoals: [FinancialGoal] { goals.filter { $0.status == .archived } }
 
     private var totalSaved: Decimal {
         (activeGoals + achievedGoals).reduce(.zero) { partial, goal in
@@ -94,10 +98,14 @@ struct GoalsListView: View {
                     section("En cours", goals: activeGoals)
                 }
                 if !achievedGoals.isEmpty {
-                    section("Atteints 🎉", goals: achievedGoals)
+                    section("Atteints", goals: achievedGoals)
                 }
                 if !pausedGoals.isEmpty {
                     section("En pause", goals: pausedGoals)
+                }
+                if !archivedGoals.isEmpty {
+                    section("Archivés", goals: archivedGoals)
+                        .opacity(0.6)
                 }
             }
             .padding(BudgetSpacing.screenMargin)

@@ -33,61 +33,30 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P09 — Factures ponctuelles** · « Qu'est-ce qui reste à payer une seule fois ? »
+**P10 — Objectifs** · « Mon projet avance-t-il assez vite ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
-  `agent/prisme-p09-factures-ponctuelles`.
-- Livré : glyphe facture sur les lignes et l'état vide (plus de 🧾 ni de
-  🎉) ; « payée » sans coche décorative ; boutons en mots ; l'état vide ne
-  promet plus « Acomptes d'impôts » — la feuille facture ne propose que
-  des catégories de dépense (`Impôts` est de genre `tax`), le texte renvoie
-  honnêtement à l'écran Impôts. Le parcours fonctionnel « facture d'acompte
-  d'impôts » reste une dette consciente (lot fonctionnel séparé).
-- Preuves : e2e 132 → 133 parcours ; contrôle négatif à 2 échecs ciblés ;
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p10-objectifs`.
+- PWA : l'emoji d'un objectif est un CHOIX de l'utilisateur — il reste ;
+  le repli 🎯 imposé par l'app devient le glyphe objectif. « ⚠️ passée »
+  → « · passée » (la pilule rouge le dit déjà) ; ✓/⚠️ du rythme → glyphes
+  coche/alerte ; « ＋ » pleine chasse → « + » typographique et bouton en
+  mots ; état vide guidé avec glyphe.
+- iOS (**risque n°5 corrigé**) : le formulaire propose « Archivé » mais la
+  liste ne l'affichait jamais — un objectif archivé devenait introuvable.
+  `GoalsTab` gagne une section « Archivés » (opacité réduite) ; « Atteints
+  🎉 » perd son emoji. Garde de vue, aucun modèle touché.
+- Preuves : e2e 134 → 135 parcours ; contrôle négatif à 3 échecs ciblés ;
   5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
   aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p09/`.
-- iOS : page volontairement PWA uniquement (registre) — aucun équivalent.
+  `docs/neon-ultra/budget-prisme/p10/`.
 
-## Lot fusionné — P08 Ce qui revient
+## Lots fusionnés récents
 
-- **`APPROVED` + `PUBLISHED`** : fusion squash PR #19 au SHA de merge
-  `c214e64db904f4e1d27f014c0f15bb11a47c0562`, CI push verte, publication
-  Pages par dispatch au SHA exact (en cours de confirmation).
-
-## Lot fusionné — P07 Gérer
-
-- **`APPROVED` + `PUBLISHED`** : fusion squash PR #18 au SHA de merge
-  `ce55dfc11032ee2dc9f220fabd1d373f16dc07b5`, CI push verte, déployé sur
-  Pages par dispatch au SHA exact (run `31968446608`, succès) le 16.08.2026.
-
-## Lot fusionné — P13 Assurances et prévoyance
-
-- **`APPROVED` + `PUBLISHED`** : fusion squash PR #17 au SHA de merge
-  `5f8ffecd79957e51d00c70e80c01f724b0dd94ec`, CI push verte, déployé sur
-  Pages par dispatch au SHA exact (run `31967270427`, succès) le 16.08.2026.
-- Classe : Visuel + Langage (le défaut financier de la page a été corrigé
-  AVANT ce lot, par l'incident P0 ci-dessous — aucune formule touchée ici).
-- Livré :
-  - Budget Glyphs : plus aucun emoji fonctionnel — bouclier sur les lignes
-    assurance, prévoyance et la carte Pilier 3a (les icônes stockées ne
-    sont plus jamais rendues : le test de sécurité 120 exige désormais 0).
-  - Chevrons de navigation sur chaque ligne cliquable — et correction d'un
-    défaut latent : un chevron en span libre n'avait AUCUNE taille CSS et
-    restait invisible (0×0 mesuré, y compris ceux posés par P14/P17) ; la
-    nouvelle règle ne vise que ce motif, tailles des autres contextes
-    prouvées inchangées (pastilles 44, tabbar 22, boutons nav 30, vide 28).
-  - Boutons en mots : « Ajouter une assurance », « Ajouter une prévoyance ».
-  - États vides guidés avec glyphe ; héros honnête sans contrat (plus de
-    « Soit CHF 0.00 par an »).
-  - Feuille prévoyance : libellé du montant à la retraite dit une seule fois.
-  - iOS : sain, aucun changement (SF Symbols natifs, textes déjà justes).
-- Preuves : e2e 129 → 130 parcours (le 130 exige des chevrons PEINTS
-  ≥ 12 px, pas seulement présents) ; contrôle négatif : sabotage → 4 échecs
-  ciblés dont le test de sécurité renforcé ; 5 parités ; design ;
-  audit-final, audit-coherence, audit-total 320/390 : aucun défaut ;
-  captures avant/après (pleines et vides) réellement inspectées dans
-  `docs/neon-ultra/budget-prisme/p13/`.
+- **P0 « acompte-impots »** : fusion PR #21 au SHA
+  `0e4043c554a30cffb799840a65d2c669da50e50b`, CI push verte, publication
+  Pages lancée au SHA exact.
+- **P09 — Factures ponctuelles** : fusion PR #20 au SHA `b2da904…`,
+  publié (run `31970756595`).
 
 ## Incident P0 clos — « acompte-impots » (16.08.2026)
 
