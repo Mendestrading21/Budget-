@@ -4216,12 +4216,19 @@ function renderInsurance() {
     <p class="section-title">Prévoyance</p>
     ${(() => {
       // L6 : total constitué + versements de l'année — valeurs existantes.
-      const positionsTotal = pensionDisplayTotal();
+      // P0 Prisme : une position LIÉE vaut déjà le solde de son compte —
+      // on additionne donc les positions NON liées et les soldes des
+      // comptes de prévoyance, chaque franc une seule fois.
+      const nonLiees = pensionPositionsTotal();
+      const soldesComptes = round2(ACCOUNTS
+        .filter(a => ["pension", "lifeinsurance"].includes(a.kind))
+        .reduce((somme, a) => somme + toCHF(balance(a.id), a.currency), 0));
+      const positionsTotal = round2(nonLiees + soldesComptes);
       const acc = contributionsFor(["pension", "lifeinsurance"]);
       if (positionsTotal <= 0 && acc.total <= 0) return "";
       return `<div class="card">
         <p class="card-label">Déjà mis de côté</p>
-        <p class="amount acct-total" style="margin:2px 0">${chf(positionsTotal + (ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind)).reduce((a2, x) => a2 + toCHF(balance(x.id), x.currency), 0)))}</p>
+        <p class="amount acct-total" style="margin:2px 0">${chf(positionsTotal)}</p>
         <span class="caption">Ce que vous avez noté depuis vos certificats, plus vos comptes de prévoyance${acc.year > 0 ? ` · mis de côté cette année : ${chf(acc.year)}` : ""}. L'app ne calcule rien ici.</span>
       </div>`;
     })()}
