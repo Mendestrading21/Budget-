@@ -2856,6 +2856,7 @@ const BUDGET_GLYPHS = Object.freeze({
   globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.9 2.4 2.9 14.6 0 17"/><path d="M12 3.5c-2.9 2.4-2.9 14.6 0 17"/>',
   alert: '<path d="M12 4.5 20.5 19h-17z"/><path d="M12 10.5v4"/><path d="M12 16.9v.1"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  cash: '<rect x="3.5" y="6.5" width="17" height="11" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5h.01M17.5 14.5h.01"/>',
   tag: '<path d="M4 5.5v6.2L12.3 20 20 12.3 11.7 4H5.5A1.5 1.5 0 0 0 4 5.5"/><circle cx="8" cy="8" r="1"/>',
 });
 
@@ -3604,6 +3605,10 @@ function renderAccounts() {
       <p class="section-title">${title}</p>
       ${accs.map(a => {
         const kind = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.current;
+        // Budget Glyphs (ADR-032) : prévoyance et assurance vie partagent le
+        // bouclier — même famille, même section.
+        const ACCOUNT_GLYPH = { current: "accounts", savings: "saving", brokerage: "investment",
+          cash: "cash", pension: "shield", lifeinsurance: "shield" };
         const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
         const c = isPlacement ? contributions(a.id) : null;
         const perf = (a.kind === "brokerage" && c)
@@ -3613,13 +3618,13 @@ function renderAccounts() {
               perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
           : "";
         return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico" aria-hidden="true">${kind.icon}</div>
+        <div class="ico" aria-hidden="true">${budgetGlyph(ACCOUNT_GLYPH[a.kind] || "accounts")}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
           <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · pas dans l'argent disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + esc(f) : ""; })()}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
-    <button class="btn secondary" data-addacc style="margin-top:10px">＋ Ajouter un compte</button>`;
+    <button class="btn secondary" data-addacc style="margin-top:10px">Ajouter un compte</button>`;
 }
 
 /* CE QUE LE GESTE VIENT DE FAIRE AVANCER.
