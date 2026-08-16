@@ -7575,6 +7575,45 @@ check(p134.type === "taxPayment",
 check(!p134.comptabilise || Math.abs(p134.paidApres - p134.paidAvant - 800) < 0.005,
   `l'acompte payé entre dans « Déjà payé » des impôts (avant ${p134.paidAvant}, après ${p134.paidApres})`);
 
+// ---------- Test 135 : P10 Objectifs — emoji choisi conservé, repli en glyphe, mots ----------
+// Budget Prisme, lot P10. L'emoji d'un objectif est un CHOIX de
+// l'utilisateur : il reste. Le repli 🎯 de l'app, lui, devient le glyphe
+// objectif. « ⚠️ passée » et « ✓/⚠️ » du rythme deviennent texte et
+// glyphes ; « ＋ » disparaît des montants et du bouton ; état vide guidé.
+currentTest = "P10 objectifs";
+await goHome();
+const p10 = await page.evaluate(() => {
+  const sauvegarde = GOALS.splice(0);
+  GOALS.push(
+    { id: "p10-avec", name: "Voyage P10", emoji: "✈️", target: 3000, manualCurrent: 500,
+      dueM: NOW.m, dueY: NOW.y + 1, monthly: 100, linked: null, achieved: false },
+    { id: "p10-sans", name: "Fonds d'urgence P10", emoji: null, target: 10000, manualCurrent: 2000,
+      dueM: NOW.m, dueY: NOW.y + 2, monthly: 50, linked: null, achieved: false },
+  );
+  activeTab = "more"; moreView = "goals"; render();
+  const s = document.getElementById("screen");
+  const carte = id => [...s.querySelectorAll("[data-goalid]")].find(c => c.dataset.goalid === id);
+  const rempli = {
+    emojiChoisi: (carte("p10-avec")?.querySelector(".goal-title")?.textContent || "").includes("✈️"),
+    replisGlyphe: !!carte("p10-sans")?.querySelector(".goal-title svg.budget-glyph"),
+    glypheRythme: s.querySelectorAll(".pace-glyph svg.budget-glyph").length >= 2,
+    plusPleineChasse: s.innerText.includes("＋"),
+    bouton: (s.querySelector("[data-addgoal]") || {}).textContent || "",
+  };
+  GOALS.length = 0; render();
+  const videEtat = !!document.querySelector("#screen .empty-state .glyph svg.budget-glyph");
+  GOALS.push(...sauvegarde);
+  activeTab = "home"; moreView = null; render();
+  return { rempli, videEtat };
+});
+check(p10.rempli.emojiChoisi, "l'emoji choisi par l'utilisateur reste affiché sur son objectif");
+check(p10.rempli.replisGlyphe, "sans emoji choisi, l'app affiche le glyphe objectif (jamais un 🎯 imposé)");
+check(p10.rempli.glypheRythme, "le rythme porte des glyphes coche/alerte, pas ✓/⚠️");
+check(!p10.rempli.plusPleineChasse, "le « ＋ » pleine chasse a disparu de l'écran Objectifs");
+check(p10.rempli.bouton.trim() === "Ajouter un objectif",
+  `le bouton d'ajout parle en mots (obtenu « ${p10.rempli.bouton.trim()} »)`);
+check(p10.videEtat, "l'état vide des objectifs est guidé avec son glyphe");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7584,4 +7623,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 134 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 135 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
