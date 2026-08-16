@@ -7501,6 +7501,51 @@ check(p08.abo.bouton.trim() === "Ajouter un abonnement",
   `le bouton Abonnements parle en mots (obtenu « ${p08.abo.bouton.trim()} »)`);
 check(p08.videEtat.glyphe, "l'état vide de « Ce qui revient » est guidé avec son glyphe");
 
+// ---------- Test 133 : P09 Factures ponctuelles — glyphes, mots, promesse honnête ----------
+// Budget Prisme, lot P09. Les lignes et l'état vide portent le glyphe
+// facture (plus de 🧾 ni de 🎉), « payée » se dit sans coche décorative,
+// les boutons parlent en mots, et l'état vide ne promet plus une catégorie
+// « Acomptes d'impôts » que la feuille ne propose pas (les impôts vivent
+// dans leur écran).
+currentTest = "P09 factures ponctuelles";
+await goHome();
+const p09 = await page.evaluate(() => {
+  const sauvegarde = (S.bills || []).splice(0);
+  S.bills.push(
+    { id: "p09-a", name: "Dentiste P09", amount: 320, dueY: NOW.y, dueM: NOW.m, dueD: 28, cat: "Alimentation", accountId: ACCOUNTS[0].id },
+    { id: "p09-b", name: "Garage P09", amount: 540, dueY: NOW.y, dueM: NOW.m, dueD: 2, cat: "Transports", accountId: ACCOUNTS[0].id, paidTx: null },
+  );
+  activeTab = "more"; moreView = "bills"; render();
+  const s = document.getElementById("screen");
+  const rempli = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✔✓]/gu) || []),
+    lignes: s.querySelectorAll("[data-billid]").length,
+    glyphes: s.querySelectorAll("[data-billid] .ico svg.budget-glyph").length,
+    bouton: (s.querySelector("[data-addbill]") || {}).textContent || "",
+  };
+  S.bills.length = 0; render();
+  const sVide = document.getElementById("screen");
+  const vide = {
+    glyphe: !!sVide.querySelector(".empty-state .glyph svg.budget-glyph"),
+    texte: sVide.querySelector(".empty-state")?.textContent || "",
+    bouton: (sVide.querySelector("[data-addbill]") || {}).textContent || "",
+  };
+  S.bills.push(...sauvegarde);
+  activeTab = "home"; moreView = null; render();
+  return { rempli, vide };
+});
+check(p09.rempli.emojis.length === 0,
+  `zéro emoji ni coche décorative sur Factures ponctuelles (restants : ${p09.rempli.emojis.join(" ") || "aucun"})`);
+check(p09.rempli.lignes === 2 && p09.rempli.glyphes === 2,
+  `chaque facture porte le glyphe facture (${p09.rempli.glyphes}/${p09.rempli.lignes})`);
+check(p09.rempli.bouton.trim() === "Ajouter une facture ponctuelle",
+  `le bouton d'ajout parle en mots (obtenu « ${p09.rempli.bouton.trim()} »)`);
+check(p09.vide.glyphe, "l'état vide est guidé avec le glyphe facture");
+check(!/Acomptes d'impôts, prime/.test(p09.vide.texte) && /écran Impôts/.test(p09.vide.texte),
+  "l'état vide ne promet plus une catégorie Impôts introuvable et renvoie à l'écran Impôts");
+check(p09.vide.bouton.trim() === "Ajouter une facture ponctuelle",
+  `le bouton de l'état vide parle en mots (obtenu « ${p09.vide.bouton.trim()} »)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7510,4 +7555,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 132 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 133 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

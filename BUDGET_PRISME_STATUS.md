@@ -33,23 +33,27 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P08 — Ce qui revient** · « Qu'est-ce qui revient, quand, et est-ce déjà fait ? »
+**P09 — Factures ponctuelles** · « Qu'est-ce qui reste à payer une seule fois ? »
 
 - État : `VERIFYING_AUTOMATED` — PR ouverte depuis
-  `agent/prisme-p08-ce-qui-revient`, CI Web+iOS à confirmer sur le HEAD exact.
-- Livré : le glyphe d'une ligne suit le SENS du mouvement (revenu, mise de
-  côté, investissement, facture, abonnement) — plus jamais une icône
-  stockée, sur la liste ET la lecture Abonnements (test de sécurité 120
-  durci : recurring et subs exigés à 0 icône restaurée rendue) ; filtres
-  en mots ; boutons sans « ＋ » ; état vide guidé avec glyphe ; carte
-  « Vos charges du foyer » en glyphe maison.
-- Preuves : e2e 131 → 132 parcours ; contrôle négatif à 6 échecs ciblés
-  (dont le test de sécurité durci) — première tentative de sabotage mal
-  ancrée (occurrence de l'accueil) détectée par crash et refaite
-  proprement ; 5 parités ; design ; audit-final, audit-coherence,
-  audit-total 320/390 : aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p08/`.
-- iOS : liste et formulaire récurrents déjà en SF Symbols — aucun changement.
+  `agent/prisme-p09-factures-ponctuelles`.
+- Livré : glyphe facture sur les lignes et l'état vide (plus de 🧾 ni de
+  🎉) ; « payée » sans coche décorative ; boutons en mots ; l'état vide ne
+  promet plus « Acomptes d'impôts » — la feuille facture ne propose que
+  des catégories de dépense (`Impôts` est de genre `tax`), le texte renvoie
+  honnêtement à l'écran Impôts. Le parcours fonctionnel « facture d'acompte
+  d'impôts » reste une dette consciente (lot fonctionnel séparé).
+- Preuves : e2e 132 → 133 parcours ; contrôle négatif à 2 échecs ciblés ;
+  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
+  aucun défaut ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/p09/`.
+- iOS : page volontairement PWA uniquement (registre) — aucun équivalent.
+
+## Lot fusionné — P08 Ce qui revient
+
+- **`APPROVED` + `PUBLISHED`** : fusion squash PR #19 au SHA de merge
+  `c214e64db904f4e1d27f014c0f15bb11a47c0562`, CI push verte, publication
+  Pages par dispatch au SHA exact (en cours de confirmation).
 
 ## Lot fusionné — P07 Gérer
 

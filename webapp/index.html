@@ -4781,9 +4781,9 @@ function renderBills() {
   const scheduled = bills.filter(billIsScheduled);
   const paid = bills.filter(billIsPaid);
   const row = (b, cls) => `<div class="card row tx read-row" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
-    <div class="ico" aria-hidden="true">🧾</div>
+    <div class="ico" aria-hidden="true">${budgetGlyph("bill")}</div>
     <div class="meta"><div class="t"><span class="t-label">${esc(b.name)}</span>${billIsOverdue(b) ? '<span class="badge">En retard</span>' : ""}</div>
-      <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${billIsPaid(b) ? " · payée ✓" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
+      <div class="s">Échéance ${billDueLabel(b)}${b.cat ? " · " + esc(b.cat) : ""}${billIsPaid(b) ? " · payée" : (billIsScheduled(b) ? " · planifiée" : "")}</div></div>
     <span class="amount ${cls}">${chf(billAmountInBase(b))}</span>
   </div>`;
   // L5 — vue annuelle : factures de l'année + primes d'assurance, et la
@@ -4822,18 +4822,18 @@ function renderBills() {
       <span class="caption">${nextDue ? `À payer bientôt : ${esc(nextDue.name)} le ${billDueLabel(nextDue)}` : "Rien à payer pour l'instant"}${paidThisMonth > 0 ? ` · payé ce mois : ${chf(paidThisMonth)}` : ""}</span>
     </div>`;
   const billsEmpty = bills.length === 0 ? `<div class="card empty-state">
-      <span class="glyph" aria-hidden="true">🧾</span>
+      <span class="glyph" aria-hidden="true">${budgetGlyph("bill")}</span>
       <p class="t">Aucune facture</p>
-      <p>Acomptes d'impôts, prime de voiture, facture du dentiste… Ajoutez ce qui doit être payé pour ne rien oublier.</p>
-      <button class="btn" data-addbill style="max-width:280px;margin:12px auto 0">＋ Ajouter une facture ponctuelle</button>
+      <p>Prime de voiture, facture du dentiste, commande à régler… Ajoutez ce qui doit être payé une fois pour ne rien oublier. Les acomptes d'impôts, eux, vivent dans l'écran Impôts.</p>
+      <button class="btn" data-addbill style="max-width:280px;margin:12px auto 0">Ajouter une facture ponctuelle</button>
     </div>` : "";
   return backBar("Factures ponctuelles") + billsHero + billsEmpty + annualCard + `
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
     ${bills.length ? `<p class="section-title">À payer</p>` : ""}
-    ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte. 🎉</span></div>`) : ""}
+    ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte.</span></div>`) : ""}
     ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
     ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
-    ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">＋ Ajouter une facture ponctuelle</button>` : ""}
+    ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">Ajouter une facture ponctuelle</button>` : ""}
     <p class="caption" style="padding:6px 4px 0">Marquez une facture payée : la dépense est créée pour vous. Les factures en attente sont déjà retirées du disponible.</p>`;
 }
 
