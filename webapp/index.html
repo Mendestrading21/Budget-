@@ -3550,7 +3550,7 @@ function renderAccountDetail(a) {
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
     <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
     <p class="section-title">Historique</p>
-    ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucun mouvement sur ce compte.</span></div>`}`;
+    ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucune opération sur ce compte.</span></div>`}`;
 }
 
 function renderAccounts() {
@@ -7182,11 +7182,21 @@ function accountDeleteBlocker(id) {
   if (RECURRINGS.some(recurring => recurring.accountId === id)) {
     return "Un paiement régulier utilise ce compte — choisissez d'abord un autre compte pour ce paiement.";
   }
+  // P06 : la DESTINATION d'un versement régulier compte autant que sa
+  // source — sans cette garde, la destination choisie était redirigée en
+  // silence vers l'épargne par défaut après la suppression.
+  if (RECURRINGS.some(recurring => recurring.destAccountId === id)) {
+    return "Un versement régulier arrive sur ce compte — choisissez d'abord une autre destination pour ce versement.";
+  }
   if ((S.bills || []).some(bill => bill.accountId === id)) {
     return "Une facture utilise ce compte — choisissez d'abord un autre compte pour cette facture.";
   }
   if ((S.goals || []).some(g => g.linked === id)) {
     return "Un objectif suit ce compte — déliez-le d'abord, sinon sa progression retomberait à zéro.";
+  }
+  // P06 : une position de prévoyance liée perdait son compte sans un mot.
+  if (PENSIONS.some(p => p.accountId === id)) {
+    return "Une position de prévoyance est liée à ce compte — déliez-la d'abord dans Prévoyance.";
   }
   return null;
 }

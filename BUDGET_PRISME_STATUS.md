@@ -23,27 +23,26 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P05 — Comptes** · « Où se trouve mon argent aujourd'hui ? »
+**P06 — Fiche compte** · « Ce compte, en détail : solde, historique, options »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p05-comptes`,
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p06-fiche-compte`,
   CI Web+iOS à confirmer sur le HEAD exact, puis `WAITING_VISUAL`.
-- Classe : Présentation. Aucun calcul, solde, conversion ni fraîcheur modifié.
-- Livré (PWA ; iOS déjà sans emoji) :
-  - chaque ligne de compte porte un Budget Glyph selon sa nature (`accounts`,
-    `saving`, `investment`, `cash` ajouté au registre, `shield` partagé par
-    prévoyance et assurance vie — même famille, même section) ;
-  - le bouton d'ajout dit « Ajouter un compte », sans caractère ＋ ;
-  - héros « Argent disponible », répartition « Où est votre argent » et
-    lignes « Mis de côté cette année » inchangés (audités exacts — l'année
-    affichée est bien l'année courante, étiquette et donnée alignées).
-- Preuves : e2e 126 → 127 parcours (zéro emoji sur l'écran, glyphe sur
-  100 % des lignes, bouton en mots, héros présent) ; contrôle négatif
-  2 échecs ciblés puis 127 verts ; 5 parités ; design ; audit-total
-  320/390/430, audit-final, audit-visuel, audit-coherence : aucun défaut ;
-  captures avant/après 390/320 inspectées.
-- `ACCOUNT_KINDS.icon` n'a plus de consommateur (seul renderAccounts le
-  lisait) — conservé pour compatibilité, retrait candidat d'un futur
-  micro-lot Fondation.
+- Classe : Données (gardes de suppression) + Langage. Aucun calcul ni schéma
+  modifié — gardes de VUE uniquement, aucune règle SwiftData touchée.
+- **Risque n° 3 du registre confirmé par sonde puis corrigé, test rouge d'abord** :
+  - PWA : `accountDeleteBlocker` ignorait la DESTINATION d'un versement
+    régulier (suppression → redirection silencieuse vers l'épargne par
+    défaut, prouvée en direct) et la position de prévoyance liée (lien
+    orphelin). Deux gardes ajoutées, messages honnêtes du même ton.
+  - iOS : la suppression ne vérifiait que les opérations — `deletionBlocker`
+    couvre désormais récurrent source, récurrent destination et objectif
+    lié (les relations récurrentes n'ont pas de règle .deny ; garde de vue,
+    pas de migration).
+  - Langue : « Aucune opération sur ce compte. » ; dialogue iOS réécrit.
+- Preuves : e2e 127 → 128 parcours — le 128 est NÉ ROUGE (deux gardes à
+  null) et passe au vert avec le correctif ; 5 parités ; design ;
+  audit-total 320/390/430, audit-final, audit-coherence : aucun défaut ;
+  capture du blocage réellement inspectée (message coral dans la feuille).
 
 ## Incident P0 ouvert — « annee-consultee » (15.08.2026)
 
@@ -77,8 +76,8 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 1. P13 PWA : héros Prévoyance susceptible de recompter un compte lié.
 2. P14 PWA : contributions « par type » susceptibles d'utiliser l'année courante
    au lieu de l'année consultée.
-3. P06 : suppression d'un compte à vérifier contre toutes les références,
-   notamment destination récurrente et position de prévoyance.
+3. P06 : **confirmé et corrigé** — gardes destination récurrente et position
+   de prévoyance ajoutées (PWA + iOS), test 128 rouge→vert.
 4. P11 : bornes de taux différentes selon onboarding et page Impôts.
 5. P10 iOS : un objectif archivé peut devenir inaccessible dans la liste.
 6. Publication web : règle d'environnement `github-pages` à corriger par le
@@ -86,9 +85,8 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 7. Dépôt GitHub : la branche par défaut reste une ancienne branche Claude;
    ne pas l'utiliser pour baser une PR ou un artefact de release.
 
-## Prochaine page après P05
+## Prochaine page après P06
 
-`P06 Fiche compte` — références et suppression à contrôler (risque connu
-n° 3 du registre : suppression d'un compte face aux destinations récurrentes
-et positions de prévoyance). Mode `audit` d'abord. Ne pas la commencer avant
-validation explicite du lot P05.
+`P13 Assurances et prévoyance` en mode `audit` d'abord — risque n° 1 du
+registre : le héros Prévoyance PWA soupçonné de recompter un compte lié.
+Ne pas la commencer avant validation explicite du lot P06.

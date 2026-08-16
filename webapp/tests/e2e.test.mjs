@@ -7281,6 +7281,35 @@ check(p05ecran.bouton.trim() === "Ajouter un compte",
   `le bouton d'ajout parle en mots (obtenu « ${p05ecran.bouton.trim()} »)`);
 check(p05ecran.hero, "le héros répond « Où se trouve mon argent » (Argent disponible)");
 
+// ---------- Test 128 : P06 Fiche compte — la suppression protège TOUTES les références ----------
+// Budget Prisme, lot P06. NÉ ROUGE : le bloqueur ignorait la destination
+// d'un versement régulier et la position de prévoyance liée — la
+// suppression redirigeait la destination en silence et laissait un lien
+// orphelin. Vert depuis le correctif : deux gardes de plus, mêmes messages
+// honnêtes que les gardes existantes.
+currentTest = "P06 fiche compte";
+await goHome();
+const p06gardes = await page.evaluate(() => {
+  const cur = ACCOUNTS.find(a => a.cash) || ACCOUNTS[0];
+  ACCOUNTS.push({ id: "p06savA", name: "Épargne destination", kind: "savings", opening: 0, cash: false, currency: "CHF" });
+  ACCOUNTS.push({ id: "p06savB", name: "Épargne liée prévoyance", kind: "savings", opening: 0, cash: false, currency: "CHF" });
+  RECURRINGS.push({ id: "p06-rec", title: "Épargne mensuelle P06", type: "saving", cat: "Épargne",
+    amount: 200, day: 1, accountId: cur.id, destAccountId: "p06savA", icon: "🏦" });
+  PENSIONS.push({ id: "p06-pen", name: "Pilier 3a P06", value: 12000, accountId: "p06savB", icon: "🛡️" });
+  const dest = accountDeleteBlocker("p06savA");
+  const pension = accountDeleteBlocker("p06savB");
+  // Nettoyage : rien n'est réellement supprimé, la fixture repart.
+  RECURRINGS.splice(RECURRINGS.findIndex(r => r.id === "p06-rec"), 1);
+  PENSIONS.splice(PENSIONS.findIndex(p => p.id === "p06-pen"), 1);
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "p06savA"), 1);
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "p06savB"), 1);
+  return { dest, pension };
+});
+check(p06gardes.dest !== null && /régulier|destination/i.test(p06gardes.dest || ""),
+  `supprimer la destination d'un versement régulier est bloqué et expliqué (obtenu ${JSON.stringify(p06gardes.dest)})`);
+check(p06gardes.pension !== null && /prévoyance/i.test(p06gardes.pension || ""),
+  `supprimer un compte lié à une prévoyance est bloqué et expliqué (obtenu ${JSON.stringify(p06gardes.pension)})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7290,4 +7319,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 127 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 128 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

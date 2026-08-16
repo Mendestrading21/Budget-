@@ -45,6 +45,29 @@ struct AccountDetailView: View {
 
     private var hasMovements: Bool { !movements.isEmpty }
 
+    // P06 : la suppression protège TOUTES les références — un récurrent qui
+    // part de ce compte OU y arrive, et un objectif qui le suit. Sans cette
+    // garde, SwiftData nullifiait le lien en silence (les relations
+    // récurrentes n'ont pas de règle .deny).
+    @Query private var allRecurrings: [RecurringTransaction]
+    @Query private var allGoals: [FinancialGoal]
+
+    private var deletionBlocker: String? {
+        if hasMovements {
+            return "Ce compte porte des opérations — l'historique ne disparaît jamais en silence."
+        }
+        if allRecurrings.contains(where: { $0.account?.id == account.id }) {
+            return "Un paiement régulier utilise ce compte — choisissez d'abord un autre compte."
+        }
+        if allRecurrings.contains(where: { $0.destinationAccount?.id == account.id }) {
+            return "Un versement régulier arrive sur ce compte — choisissez d'abord une autre destination."
+        }
+        if allGoals.contains(where: { $0.linkedAccount?.id == account.id }) {
+            return "Un objectif suit ce compte — déliez-le d'abord, sinon sa progression retomberait à zéro."
+        }
+        return nil
+    }
+
     var body: some View {
         ZStack {
             BudgetScreenBackground()
@@ -87,7 +110,7 @@ struct AccountDetailView: View {
                     } else {
                         Button("Réactiver", systemImage: "arrow.uturn.backward") { setActive(true) }
                     }
-                    if !hasMovements {
+                    if deletionBlocker == nil {
                         Button("Supprimer", systemImage: "trash", role: .destructive) { isConfirmingDelete = true }
                     }
                 } label: {
@@ -120,7 +143,7 @@ struct AccountDetailView: View {
         ) {
             Button("Supprimer définitivement", role: .destructive) { deleteAccount() }
         } message: {
-            Text("Ce compte n'a aucun mouvement ; la suppression est définitive.")
+            Text("Ce compte n'est utilisé nulle part — aucune opération, aucun paiement régulier, aucun objectif. La suppression est définitive.")
         }
     }
 
@@ -295,7 +318,7 @@ struct AccountDetailView: View {
     }
 
     private func deleteAccount() {
-        guard !hasMovements else { return }
+        guard deletionBlocker == nil else { return }
         modelContext.delete(account)
         if modelContext.saveOrRollback(onError: { _ in
             actionErrorMessage = "La suppression a échoué. Réessayez."
