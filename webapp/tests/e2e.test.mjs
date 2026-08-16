@@ -6704,9 +6704,15 @@ for (const view of ["networth", "insurance", "recurring", "subs"]) {
 }
 check(iconViews120.every(result => result.injectedIcons === 0 && result.executed === 0),
   `les icônes restaurées restent du texte inerte (${JSON.stringify(iconViews120)})`);
-const minimumLiteralIcons120 = { networth: 2, insurance: 2, recurring: 2, subs: 1 };
+// P13 : l'écran Assurances & prévoyance ne rend plus AUCUNE icône stockée
+// (glyphe bouclier systématique) — la chaîne hostile restaurée n'apparaît
+// donc plus du tout, pas même en texte : propriété plus forte, exigée à 0.
+const minimumLiteralIcons120 = { networth: 2, insurance: 0, recurring: 2, subs: 1 };
 check(iconViews120.every(result => result.literalIcons >= minimumLiteralIcons120[result.view]),
   `chaque vue prouve ses propres icônes inertes (${JSON.stringify(iconViews120)})`);
+const insuranceIcons120 = iconViews120.find(result => result.view === "insurance");
+check(insuranceIcons120.literalIcons === 0,
+  `l'écran assurance ne rend plus jamais une icône restaurée (${JSON.stringify(insuranceIcons120)})`);
 check(errors120.length === 0,
   `zéro erreur console pendant le scénario hostile (${errors120.join(" | ") || "aucune"})`);
 await context120.close();
@@ -7343,6 +7349,62 @@ check(p129.affiche !== null, "la carte « Déjà mis de côté » est visible av
 check(p129.affiche === p129.attendu,
   `le total prévoyance compte le compte lié UNE seule fois (affiché ${JSON.stringify(p129.affiche)}, honnête ${p129.attendu})`);
 
+// ---------- Test 130 : P13 Assurances & prévoyance — glyphes, mots, états vides ----------
+// Budget Prisme, lot P13 (le défaut financier du risque n°1 est corrigé par
+// l'incident P0, test 129). Ici : présentation et langue — Budget Glyphs à
+// la place des emojis fonctionnels, chevrons de navigation, boutons en mots,
+// états vides guidés, héros honnête sans contrat, libellé de la feuille
+// prévoyance sans doublon.
+currentTest = "P13 assurances prévoyance";
+await goHome();
+const p13 = await page.evaluate(() => {
+  const sauvegarde = { ins: INSURANCES.splice(0), pen: PENSIONS.splice(0) };
+  INSURANCES.push({ id: "p13-ins", name: "Caisse maladie P13", insurer: "Assureur Fictif",
+    premium: 745.6, unit: "month", dueM: null, dueD: null, icon: "🛡️" });
+  PENSIONS.push({ id: "p13-pen", name: "Caisse LPP P13", icon: "🛡️",
+    value: 42000, projection: 245000, accountId: null });
+  activeTab = "more"; moreView = "insurance"; render();
+  const s = document.getElementById("screen");
+  const rempli = {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu) || []),
+    glyphesLignes: s.querySelectorAll("[data-insid] .ico svg.budget-glyph, [data-penid] .ico svg.budget-glyph").length,
+    // Un chevron présent dans le DOM mais large de 0 px est un mensonge
+    // visuel (défaut réel trouvé en sonde) : on exige une taille peinte.
+    chevrons: [...s.querySelectorAll("[data-insid], [data-penid], [data-accid]")]
+      .filter(r => {
+        const fleche = r.querySelector("svg.budget-glyph path[d^='m9.5 6']");
+        return fleche && fleche.closest("svg").getBoundingClientRect().width >= 12;
+      }).length,
+    lignes: s.querySelectorAll("[data-insid], [data-penid], [data-accid]").length,
+    boutonIns: (s.querySelector("[data-addins]") || {}).textContent || "",
+    boutonPen: (s.querySelector("[data-addpen]") || {}).textContent || "",
+  };
+  INSURANCES.length = 0; PENSIONS.length = 0; render();
+  const sVide = document.getElementById("screen");
+  const vide = {
+    etatsVides: sVide.querySelectorAll(".empty-state .glyph svg.budget-glyph").length,
+    heroCaption: (sVide.querySelector(".card.hero .caption") || {}).textContent || "",
+  };
+  const labelProjection = document.querySelector('label[for="penProjection"]').textContent;
+  INSURANCES.push(...sauvegarde.ins); PENSIONS.push(...sauvegarde.pen);
+  activeTab = "home"; moreView = null; render();
+  return { rempli, vide, labelProjection };
+});
+check(p13.rempli.emojis.length === 0,
+  `zéro emoji fonctionnel sur l'écran Assurances & prévoyance (restants : ${p13.rempli.emojis.join(" ") || "aucun"})`);
+check(p13.rempli.glyphesLignes >= 2,
+  `les lignes assurance et prévoyance portent le glyphe bouclier (${p13.rempli.glyphesLignes})`);
+check(p13.rempli.lignes > 0 && p13.rempli.chevrons === p13.rempli.lignes,
+  `chaque ligne cliquable porte son chevron de navigation (${p13.rempli.chevrons}/${p13.rempli.lignes})`);
+check(p13.rempli.boutonIns.trim() === "Ajouter une assurance" && p13.rempli.boutonPen.trim() === "Ajouter une prévoyance",
+  `les boutons d'ajout parlent en mots (obtenus « ${p13.rempli.boutonIns.trim()} », « ${p13.rempli.boutonPen.trim()} »)`);
+check(p13.vide.etatsVides === 2,
+  `les deux états vides sont guidés avec leur glyphe (${p13.vide.etatsVides}/2)`);
+check(!/Soit CHF 0\.00 par an/.test(p13.vide.heroCaption) && /Ajoutez/.test(p13.vide.heroCaption),
+  `sans contrat, le héros invite au lieu d'annoncer « CHF 0.00 par an » (obtenu « ${p13.vide.heroCaption.slice(0, 60)}… »)`);
+check(!/selon certificat/.test(p13.labelProjection) && /selon votre certificat/.test(p13.labelProjection),
+  `le libellé du montant prévu à la retraite est dit une seule fois (obtenu « ${p13.labelProjection} »)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7352,4 +7414,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 129 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 130 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

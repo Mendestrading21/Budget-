@@ -31,11 +31,42 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 - P03 Historique, P14 Année, P17 Confidentialité, P05 Comptes : `APPROVED`,
   publiés (SHA respectifs 931128a / b9e52a1 / bc9d3ae / db22b2b).
 
-## Incident P0 actif — « prevoyance-double-compte » (16.08.2026)
+## Lot actif
+
+**P13 — Assurances et prévoyance** · présentation, langage, états
+
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
+  `agent/prisme-p13-assurances-prevoyance`, CI Web+iOS à confirmer sur le
+  HEAD exact, puis `WAITING_VISUAL`.
+- Classe : Visuel + Langage (le défaut financier de la page a été corrigé
+  AVANT ce lot, par l'incident P0 ci-dessous — aucune formule touchée ici).
+- Livré :
+  - Budget Glyphs : plus aucun emoji fonctionnel — bouclier sur les lignes
+    assurance, prévoyance et la carte Pilier 3a (les icônes stockées ne
+    sont plus jamais rendues : le test de sécurité 120 exige désormais 0).
+  - Chevrons de navigation sur chaque ligne cliquable — et correction d'un
+    défaut latent : un chevron en span libre n'avait AUCUNE taille CSS et
+    restait invisible (0×0 mesuré, y compris ceux posés par P14/P17) ; la
+    nouvelle règle ne vise que ce motif, tailles des autres contextes
+    prouvées inchangées (pastilles 44, tabbar 22, boutons nav 30, vide 28).
+  - Boutons en mots : « Ajouter une assurance », « Ajouter une prévoyance ».
+  - États vides guidés avec glyphe ; héros honnête sans contrat (plus de
+    « Soit CHF 0.00 par an »).
+  - Feuille prévoyance : libellé du montant à la retraite dit une seule fois.
+  - iOS : sain, aucun changement (SF Symbols natifs, textes déjà justes).
+- Preuves : e2e 129 → 130 parcours (le 130 exige des chevrons PEINTS
+  ≥ 12 px, pas seulement présents) ; contrôle négatif : sabotage → 4 échecs
+  ciblés dont le test de sécurité renforcé ; 5 parités ; design ;
+  audit-final, audit-coherence, audit-total 320/390 : aucun défaut ;
+  captures avant/après (pleines et vides) réellement inspectées dans
+  `docs/neon-ultra/budget-prisme/p13/`.
+
+## Incident P0 clos — « prevoyance-double-compte » (16.08.2026)
 
 Ouvert pendant l'audit P13, conformément à la règle « défaut financier →
-incident séparé, test rouge d'abord ». Branche
-`agent/prisme-p0-prevoyance-double-compte`.
+incident séparé, test rouge d'abord ». **Corrigé, fusionné (PR #16, SHA de
+merge `ec3661a6ba7dfb9d3172cfd13f74e2d774989c82`, CI push verte) et publié
+sur Pages par dispatch au SHA exact (run `31963328553`, succès).**
 
 - **Scénario fictif** : un compte de prévoyance à 10 000 CHF, une position de
   prévoyance LIÉE à ce compte (elle suit son solde), une position non liée
@@ -63,9 +94,8 @@ incident séparé, test rouge d'abord ». Branche
   audit-final (13 contrôles), audit-coherence, audit-total 390 : aucun
   défaut ; captures avant (25'000) / après (15'000) réellement inspectées
   dans `docs/neon-ultra/budget-prisme/p0-prevoyance/`.
-- **Critères de reprise** : CI Web+iOS verte sur le HEAD exact de la PR,
-  fusion approuvée par le propriétaire, CI push verte du SHA de merge,
-  publication. La refonte P13 reste en pause jusque-là.
+- Critères de reprise remplis : CI de la PR #16 verte sur le HEAD exact,
+  fusion approuvée par le propriétaire, CI push verte, publication faite.
 
 ## Incident P0 clos — « annee-consultee » (15.08.2026)
 
@@ -93,10 +123,9 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 
 ## Prochaine action exacte
 
-1. Valider puis fusionner la PR de l'incident P0
-   « prevoyance-double-compte » (CI complète sur le HEAD exact d'abord).
-2. Publier le SHA de merge par dispatch Pages.
-3. Reprendre `P13 Assurances et prévoyance` en mode `audit` là où il s'est
-   arrêté : le défaut du risque n° 1 est corrigé ; reste l'audit complet de
-   présentation/langage de la page (boutons, états, formulaires, a11y),
-   puis le Page Work Order et le lot visuel.
+1. Attendre la CI Web+iOS de la PR du lot P13 sur son HEAD exact, puis
+   passer le lot en `WAITING_VISUAL` et s'arrêter pour validation.
+2. Après validation propriétaire : fusion squash, CI push, publication du
+   SHA de merge par dispatch Pages, P13 → `APPROVED`+`PUBLISHED`.
+3. Page suivante selon le registre : `P07 — Gérer` en mode `audit` d'abord.
+   Ne pas la commencer avant validation explicite du lot P13.
