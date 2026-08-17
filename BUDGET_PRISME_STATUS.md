@@ -166,6 +166,28 @@ par dispatch au SHA exact (run `32040114211`, succès) le 17.08.2026.
   vert ; captures avant/après 390+320 dans
   `docs/neon-ultra/budget-prisme/a4/`.
 
+**A5 — Trio en deux lignes** · `VERIFYING_AUTOMATED` — PR depuis
+`agent/prisme-a5-trio-deux-lignes`.
+
+- Demande du 17.08.2026 : « T'arrive pas à faire plus jolie en deux
+  lignes ? ». Chaque cellule du trio tient désormais en DEUX lignes : le
+  libellé, puis « CHF » en petit (10 px, plancher de lisibilité) devant
+  les chiffres, sur la même ligne de base — l'ordre suisse
+  « CHF 18'200.00 », devise discrète. Sous 381 px la colonne se renverse
+  (chiffres puis « CHF » dessous) : rien ne se coupe, trois cellules
+  identiques à chaque largeur. Flancs de cellule 8 → 6 px et paliers
+  recalés : chiffres « wide » mesurés 13,3 px à 390 px et 14,6 px à
+  430 px (iPhone du propriétaire), marge droite ≥ 14,5 px partout. Dans
+  le trio, le point violet ne double plus « CHF » (le libellé porte le
+  sens) ; il reste partout ailleurs. Plancher 10 px appliqué aussi au
+  palier xwide à 320 px (violation latente corrigée).
+- Preuves : test 146 réécrit (même ligne de base + chip devant à 390,
+  bascule dessous à 320, hauteur identique, plancher 12 px, aucun
+  débordement, point supprimé) — 146 parcours verts ; contrôle négatif à
+  2 sabotages → 3 échecs ciblés ; 5 parités ; design vert ; sondes et
+  captures avant/après 320/390/430 dans
+  `docs/neon-ultra/budget-prisme/a5/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

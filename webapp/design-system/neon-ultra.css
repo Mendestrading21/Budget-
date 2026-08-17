@@ -478,7 +478,9 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
 }
 #screen.nu-pilot-screen .home-simple .home-metrics .stat {
   min-width: 0;
-  padding: 10px 8px;
+  /* A5 : flancs resserrés (8 → 6 px) — la ligne « CHF 102'210.00 »
+     garde de grands chiffres sans jamais déborder. */
+  padding: 10px 6px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -510,16 +512,33 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   align-items: flex-start;
   gap: 3px;
 }
-/* A4 : « CHF » se lit EN BAS de la cellule, sous les chiffres — même
-   place dans les trois cellules. */
+/* A5 : DEUX lignes par cellule — la ligne de valeur porte « CHF » en
+   petit devant les chiffres, alignés sur la même ligne de base. Sous
+   381 px la colonne se renverse (chiffres, puis « CHF » dessous) : rien
+   ne se coupe et les trois cellules restent identiques à chaque largeur. */
+#screen.nu-pilot-screen .home-metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
 #screen.nu-pilot-screen .home-metric-currency {
-  display: block;
-  margin-top: 4px;
+  flex: none;
   color: var(--nu-text-tertiary);
-  font-size: 10px;
+  font-size: 10px; /* plancher lisibilité : jamais sous 10 px */
   font-weight: 700;
   line-height: 1;
 }
+@media (max-width: 380px) {
+  #screen.nu-pilot-screen .home-metric-value {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+}
+/* A5 : dans le trio, le point violet doublerait « CHF » sur la ligne de
+   valeur — le libellé « Mis de côté » porte déjà le sens. Le point reste
+   partout ailleurs (Historique, bilan). */
+#screen.nu-pilot-screen .home-metrics .amount.info::before { content: none; }
 /* Sous 381 px (même seuil que les lignes du bilan), « MIS DE CÔTÉ » passe
    sur deux lignes : les TROIS cellules réservent alors la même hauteur de
    libellé, pour que « CHF » et les chiffres restent exactement à la même
@@ -530,7 +549,9 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
 #screen.nu-pilot-screen .home-simple .home-metrics .amount {
   display: block;
   max-width: 100%;
-  font-size: clamp(13px, 4.2vw, 19px);
+  /* A5 : la ligne partagée avec le chip « CHF » cède ~20 px — paliers
+     recalés pour tenir à 390 px comme à 440 px sans jamais se couper. */
+  font-size: clamp(12px, 3.35vw, 17px);
   line-height: 1.2;
   white-space: nowrap;
   /* A3 : chiffres du trio affirmés — même graisse que les montants de
@@ -547,12 +568,12 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
    A4 : le chip devise ayant quitté la ligne du libellé pour le bas de la
    cellule, les chiffres profitent de toute la largeur — palier agrandi. */
 #screen.nu-pilot-screen .home-simple .home-metrics .amount.wide {
-  font-size: clamp(12px, 3.6vw, 16px);
+  font-size: clamp(10px, 3.4vw, 15px);
 }
 /* Sept chiffres et plus (« 1'234'567.89 ») : encore un cran, toujours les
    trois cellules ensemble. */
 #screen.nu-pilot-screen .home-simple .home-metrics .amount.xwide {
-  font-size: clamp(10px, 3.0vw, 13px);
+  font-size: clamp(10px, 2.55vw, 12px);
 }
 #screen.nu-pilot-screen .card.hero {
   background: var(--nu-surface-elevated);
@@ -621,7 +642,9 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   #screen.nu-pilot-screen .hero-amount.long { font-size: 5.2vw; }
   #screen.nu-pilot-screen .stat .amount { font-size: min(15px, 4.7vw); }
   #screen.nu-pilot-screen .home-simple .home-metrics .amount.wide { font-size: min(11px, 3.4vw); }
-  #screen.nu-pilot-screen .home-simple .home-metrics .amount.xwide { font-size: min(10px, 2.6vw); }
+  /* Plancher lisibilité 10 px — un montant à sept chiffres et plus sur
+     iPhone SE peut effleurer le bord plutôt que passer sous le plancher. */
+  #screen.nu-pilot-screen .home-simple .home-metrics .amount.xwide { font-size: 10px; }
 }
 #screen.nu-pilot-screen .pos,
 #screen.nu-pilot-screen .amount.pos { color: var(--nu-positive); }

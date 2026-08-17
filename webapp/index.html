@@ -3103,15 +3103,18 @@ function renderSimpleHome() {
     `<span class="amount ${cls}${metricTier}">${metricCompact(value)}</span>`;
   const metricLabel = label =>
     `<div class="home-metric-label"><span class="card-label">${label}</span></div>`;
-  // A4 (demande propriétaire) : « CHF » se lit EN BAS de la cellule, sous
-  // les chiffres — même ordre dans les trois cellules : libellé, montant,
-  // devise. Le chip libéré de la ligne du libellé laisse aussi les
-  // chiffres s'agrandir.
+  // A5 (demande propriétaire) : DEUX lignes par cellule — le libellé,
+  // puis « CHF » en petit DEVANT les chiffres, sur la même ligne de base
+  // (l'ordre suisse « CHF 18'200.00 », devise discrète). Sous 381 px, la
+  // colonne se renverse : chiffres puis « CHF » dessous — rien ne se
+  // coupe, et les trois cellules restent identiques à chaque largeur.
   const metricChip = `<span class="home-metric-currency">${esc(metricCurrency)}</span>`;
+  const metricCell = (label, value, cls) =>
+    `<div class="stat">${metricLabel(label)}<div class="home-metric-value">${metricChip}${metricAmount(value, cls)}</div></div>`;
   const metrics = `<div class="stat-grid home-metrics" aria-label="Résumé du mois">
-    <div class="stat">${metricLabel("Reçu")}${metricAmount(s.income, "pos")}${metricChip}</div>
-    <div class="stat">${metricLabel("Dépensé")}${metricAmount(s.living, "neg")}${metricChip}</div>
-    <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}${metricChip}</div>
+    ${metricCell("Reçu", s.income, "pos")}
+    ${metricCell("Dépensé", s.living, "neg")}
+    ${metricCell("Mis de côté", s.savings + s.invest, "info")}
   </div>`;
 
   const incomeDue = RECURRINGS

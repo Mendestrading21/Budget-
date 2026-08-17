@@ -1,0 +1,23 @@
+[
+ {
+  "label": "Reçu",
+  "police": "14.62px",
+  "memeLigne": true,
+  "chipAvant": true,
+  "margeDroite": 31.7
+ },
+ {
+  "label": "Dépensé",
+  "police": "14.62px",
+  "memeLigne": true,
+  "chipAvant": true,
+  "margeDroite": 31.5
+ },
+ {
+  "label": "Mis de côté",
+  "police": "14.62px",
+  "memeLigne": true,
+  "chipAvant": true,
+  "margeDroite": 22.7
+ }
+]
