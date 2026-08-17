@@ -5681,6 +5681,38 @@ await goHome();
   await goHome();
 }
 
+// ---------- Test 143 : A1 Année imprimable — bouton réel, document propre ----------
+// Améliorations continues. La page Année porte un bouton « Imprimer ou
+// enregistrer en PDF » qui appelle réellement window.print() ; la feuille
+// d'impression existe (fond blanc, navigation masquée) ; rien n'est
+// recalculé — le document reprend la page telle quelle.
+currentTest = "A1 année imprimable";
+await goHome();
+const a1 = await page.evaluate(() => {
+  activeTab = "more"; moreView = "year"; render();
+  const s = document.getElementById("screen");
+  const bouton = s.querySelector("[data-printyear]");
+  let appels = 0;
+  const original = window.print;
+  window.print = () => { appels += 1; };
+  bouton?.click();
+  window.print = original;
+  const regles = [...document.styleSheets].flatMap(f => {
+    try { return [...f.cssRules]; } catch { return []; }
+  }).filter(r => r.media && [...r.media].some(m => m.includes("print")));
+  const encre = regles.some(r => (r.cssText || "").includes("background: rgb(255, 255, 255)")
+    || (r.cssText || "").includes("#fff"));
+  const navMasquee = regles.some(r => (r.cssText || "").includes("#tabbar"));
+  activeTab = "home"; moreView = null; render();
+  return { present: !!bouton, texte: bouton?.textContent?.trim() || "", appels,
+    reglesImpression: regles.length, encre, navMasquee };
+});
+check(a1.present && a1.texte === "Imprimer ou enregistrer en PDF",
+  `le bouton d'impression existe et parle en mots (obtenu « ${a1.texte} »)`);
+check(a1.appels === 1, `le bouton appelle réellement window.print() (${a1.appels} appel)`);
+check(a1.reglesImpression >= 1 && a1.encre && a1.navMasquee,
+  `la feuille d'impression existe : fond blanc et navigation masquée (${a1.reglesImpression} règle(s))`);
+
 await browser.close();
 
 // ---------- Rapport ----------

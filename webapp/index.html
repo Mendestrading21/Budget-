@@ -1044,6 +1044,20 @@
     list-style: none;
     min-height: 24px;
   }
+  /* A1 — Année imprimable. À l'impression, l'écran courant devient un
+     document : fond blanc, encre noire, navigation et actions masquées.
+     Les montants restent tabulaires ; rien n'est recalculé. */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    #tabbar, .tabbar, .ob-back, button, .btn, .sheet-backdrop, #toast,
+    .rec-filters, .month-nav button, .filter-chip { display: none !important; }
+    .card, .card.hero, .stat { background: #fff !important; border: 1px solid #bbb !important;
+      box-shadow: none !important; color: #000 !important; break-inside: avoid; }
+    .card *, .stat *, .screen-title, .section-title, .caption, .amount,
+    .hero-amount, .card-label, .bd-label, .breakdown span { color: #000 !important; }
+    .budget-glyph { stroke: #000 !important; }
+    #screen { padding: 0 !important; }
+  }
 </style>
 
 <div class="phone" id="phone">
@@ -4003,6 +4017,9 @@ function yearMonthRow(y, m) {
    obliger à feuilleter l'écran Mois un mois à la fois. */
 function renderYearReview() {
   const y = yearCursor;
+  // A1 : window.print() ouvre le dialogue du navigateur — l'utilisateur
+  // choisit « Enregistrer en PDF » ou une imprimante. Aucune donnée ne
+  // quitte l'appareil autrement.
   const now = yearStats(y);
   const prev = yearStats(y - 1);
   const rows = Array.from({ length: 12 }, (_, i) => yearMonthRow(y, i + 1));
@@ -4097,7 +4114,9 @@ function renderYearReview() {
           || '<div><span class="caption">Aucun versement cette année pour l\'instant.</span></div>'}
       </div>
     </div>
-    <p class="caption" style="padding:0 4px">Ce que vous avez noté cette année, converti dans votre monnaie.</p>`;
+    <p class="caption" style="padding:0 4px">Ce que vous avez noté cette année, converti dans votre monnaie.</p>
+    <button class="btn secondary" data-printyear style="margin-top:8px">Imprimer ou enregistrer en PDF</button>
+    <p class="caption" style="padding:6px 4px 0">Le document reprend exactement cette page, en noir sur blanc. Rien ne quitte votre appareil autrement.</p>`;
 }
 
 function renderNetWorth() {
@@ -5705,6 +5724,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
   const penEl = e.target.closest("[data-penid]");
   if (penEl) { const p = PENSIONS.find(x => x.id === penEl.dataset.penid); if (p) openPenSheet(p); return; }
   if (e.target.closest("[data-addpen]")) { openPenSheet(null); return; }
+  if (e.target.closest("[data-printyear]")) { window.print(); return; }
   if (e.target.closest("[data-adjusttax]")) { openTaxSheet(); return; }
   const postRecBtn = e.target.closest("[data-postrec]");
   if (postRecBtn) {
