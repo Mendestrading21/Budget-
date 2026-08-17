@@ -7820,6 +7820,41 @@ check(!p18.chevronTexte, "plus aucun « › » ni « ˅ » texte à l'écran");
 check(p18.sourceSansCoche, "la réserve couverte se dit sans coche décorative");
 await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
 
+// ---------- Test 141 : P04 Budget — boutons en mots, langue des opérations ----------
+// Budget Prisme, lot P04. Les trois boutons « Ajouter une ligne
+// budgétaire » parlent en mots (état vide avec ou sans mois précédent,
+// et bas de liste) ; le mode d'emploi dit « opérations réelles »,
+// conformément à la matrice de langue.
+currentTest = "P04 budget";
+await goHome();
+const p04 = await page.evaluate(() => {
+  const budgetVide = { y: 2031, m: 6 };
+  cursor = { ...budgetVide };
+  activeTab = "budget"; moreView = null; render();
+  const sVide = document.getElementById("screen");
+  const vide = {
+    bouton: (sVide.querySelector("[data-addline]") || {}).textContent || "",
+    plus: sVide.innerText.includes("＋"),
+    operations: /opérations réelles/.test(sVide.innerText),
+    mouvements: /mouvements réels/.test(sVide.innerText),
+  };
+  cursor = { y: NOW.y, m: NOW.m };
+  render();
+  const sPlein = document.getElementById("screen");
+  const plein = {
+    bouton: (sPlein.querySelector("[data-addline]") || {}).textContent || "",
+    plus: sPlein.innerText.includes("＋"),
+  };
+  activeTab = "home"; render();
+  return { vide, plein };
+});
+check(p04.vide.bouton.trim() === "Ajouter une ligne budgétaire" && !p04.vide.plus,
+  `l'état vide du budget parle en mots (obtenu « ${p04.vide.bouton.trim()} »)`);
+check(p04.vide.operations && !p04.vide.mouvements,
+  "le mode d'emploi dit « opérations réelles », plus « mouvements réels »");
+check(p04.plein.bouton.trim() === "Ajouter une ligne budgétaire" && !p04.plein.plus,
+  `le bas de liste parle en mots (obtenu « ${p04.plein.bouton.trim()} »)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7829,4 +7864,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 140 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 141 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

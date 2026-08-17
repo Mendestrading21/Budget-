@@ -33,22 +33,28 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P18 — Assistant local** · « Quelle action financière simple puis-je comprendre maintenant ? »
+**P04 — Budget** · « Combien puis-je encore dépenser par rapport à mon plan ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p18-assistant`.
-- Livré : les quatre questions portent un glyphe sémantique (budget, loupe,
-  impôts, objectif) dans leur pastille neutre ; chevrons de dépliage PEINTS
-  (le « › » texte des lignes fermées et le « ˅ » de la ligne ouverte
-  disparaissent) ; boutons d'action sans « › » ; « couverte » sans coche.
-  Les réponses restent déterministes et locales — aucun calcul touché.
-- Preuves : e2e 139 → 140 parcours ; contrôle négatif à 2 échecs ciblés ;
-  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
-  aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p18/`.
-- iOS : page volontairement PWA uniquement (registre) — aucun équivalent.
-- Dettes notées pour la Fondation : `monthPriority().icon` jamais rendu
-  (emojis morts en données) ; pseudo-chevron CSS « ˅ » de
-  `details[open] summary::after` ; flèches texte du pageur Historique.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p04-budget`.
+- Livré : les trois boutons « Ajouter une ligne budgétaire » parlent en
+  mots (état vide avec/sans mois précédent, bas de liste) ; le mode
+  d'emploi dit « opérations réelles » (matrice de langue, migration par
+  page). L'écran était déjà propre par ailleurs (aucun emoji, anneaux et
+  jauges en place) — aucun calcul touché.
+- Preuves : e2e 140 → 141 parcours ; contrôle négatif à 3 assertions
+  mordantes (deux passes de sabotage, langue + les deux variantes de
+  bouton réellement rendues) ; 5 parités ; design ; audit-final,
+  audit-coherence, audit-total 320/390 : aucun défaut ; captures
+  avant/après dans `docs/neon-ultra/budget-prisme/p04/`.
+- iOS : BudgetTab natif déjà propre — aucun changement.
+
+## Lots fusionnés récents
+
+- **P18 — Assistant** : fusion PR #27 au SHA
+  `2cb0d0abfa085ab4cb97823d57d909791e4fa31c`, CI push verte, publication
+  Pages lancée au SHA exact.
+- **P16 — Onboarding** : fusion PR #26 au SHA `5f94d92…`, publié
+  (run `31999921186`).
 
 ## Lots fusionnés récents
 
