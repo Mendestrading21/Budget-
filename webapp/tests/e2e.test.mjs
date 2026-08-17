@@ -8143,43 +8143,63 @@ check(a3.jaugePresente && a3.jaugeExacte && a3.largeurExacte && a3.texteJauge,
   `le héros du mois courant dit « Jour ${new Date().getDate()} sur N » avec la largeur exacte`);
 check(a3.jaugeAbsenteAilleurs, "aucune jauge d'avancement sur un autre mois que le mois courant");
 
-// ---------- Test 146 : A4 Trio — « CHF » en bas, chiffres agrandis ----------
-// Demande propriétaire (capture annotée du 17.08, 16:02) : dans chaque
-// cellule du trio, l'ordre est libellé → montant → « CHF » (le chip vit
-// EN BAS, au même endroit dans les trois cellules) ; les chiffres du
-// palier « wide » (six chiffres) profitent de la largeur libérée.
-currentTest = "A4 trio CHF en bas";
+// ---------- Test 146 : A5 Trio en deux lignes — « CHF » devant les chiffres ----------
+// Demande propriétaire (17.08) : « T'arrive pas à faire plus jolie en
+// deux lignes ? ». Chaque cellule du trio tient en DEUX lignes : le
+// libellé, puis « CHF » en petit devant les chiffres, sur la même ligne
+// de base (ordre suisse « CHF 18'200.00 »). Sous 381 px, la colonne se
+// renverse (chiffres, puis « CHF » dessous) — rien ne se coupe, et les
+// trois cellules restent identiques à chaque largeur. Dans le trio, le
+// point violet ne double plus « CHF » (le libellé porte le sens).
+currentTest = "A5 trio deux lignes";
 await goHome();
-const a4 = await page.evaluate(() => {
+const a5 = await page.evaluate(() => {
   cursor = { y: NOW.y, m: NOW.m };
   activeTab = "home"; moreView = null; render();
   const cells = [...document.querySelectorAll(".home-metrics .stat")].map(stat => {
-    const label = stat.querySelector(".card-label").getBoundingClientRect();
     const amount = stat.querySelector(".amount");
     const amountR = amount.getBoundingClientRect();
     const cur = stat.querySelector(".home-metric-currency").getBoundingClientRect();
     const cell = stat.getBoundingClientRect();
     return {
-      ordre: label.y < amountR.y && amountR.y + amountR.height <= cur.y + 1,
+      memeLigne: Math.abs((cur.y + cur.height) - (amountR.y + amountR.height)) < 6,
+      chipAvant: cur.x < amountR.x,
       curYRel: Math.round(cur.y - cell.y),
       police: parseFloat(getComputedStyle(amount).fontSize),
       classe: amount.className,
       deborde: amountR.right > cell.right + 0.5,
+      pointDouble: getComputedStyle(amount, "::before").content !== "none",
     };
   });
-  // Le détecteur du test 144 vit sur window et disparaît au rechargement
-  // de la page (goHome) — garde par typeof. Les chiffres du trio sont en
-  // `nowrap`, le contrôle porte donc surtout sur le débordement.
   return { cells, wraps: typeof window.__amountWraps === "function" ? window.__amountWraps(document.querySelector(".home-metrics")) : [] };
 });
-check(a4.cells.length === 3 && a4.cells.every(c => c.ordre),
-  `chaque cellule du trio lit libellé → montant → CHF (obtenu ${JSON.stringify(a4.cells.map(c => c.ordre))})`);
-check(new Set(a4.cells.map(c => c.curYRel)).size === 1,
-  "le « CHF » est exactement à la même hauteur dans les trois cellules");
-check(a4.cells.every(c => !c.deborde) && a4.wraps.length === 0,
-  "les chiffres agrandis restent entiers et contenus");
-check(a4.cells.every(c => !c.classe.split(" ").includes("wide") || c.police >= 13),
-  `le palier wide affiche au moins 13 px à 390 px (obtenu ${a4.cells.map(c => c.police).join(", ")})`);
+check(a5.cells.length === 3 && a5.cells.every(c => c.memeLigne && c.chipAvant),
+  `à 390 px, chaque cellule tient en DEUX lignes : « CHF » devant les chiffres, même ligne de base (obtenu ${JSON.stringify(a5.cells.map(c => [c.memeLigne, c.chipAvant]))})`);
+check(new Set(a5.cells.map(c => c.curYRel)).size === 1,
+  "le « CHF » est à la même hauteur dans les trois cellules");
+check(a5.cells.every(c => !c.deborde) && a5.wraps.length === 0,
+  "les chiffres restent entiers et contenus");
+check(a5.cells.every(c => !c.classe.split(" ").includes("wide") || c.police >= 12),
+  `le palier wide garde au moins 12 px à 390 px (obtenu ${a5.cells.map(c => c.police).join(", ")})`);
+check(a5.cells.every(c => !c.pointDouble),
+  "dans le trio, le point violet ne double plus « CHF » sur la ligne de valeur");
+// Sous 381 px : la colonne se renverse — chiffres, puis « CHF » dessous.
+await page.setViewportSize({ width: 320, height: 844 });
+await page.evaluate(() => { activeTab = "home"; render(); });
+const a5etroit = await page.evaluate(() => {
+  const cells = [...document.querySelectorAll(".home-metrics .stat")].map(stat => {
+    const amountR = stat.querySelector(".amount").getBoundingClientRect();
+    const cur = stat.querySelector(".home-metric-currency").getBoundingClientRect();
+    const cell = stat.getBoundingClientRect();
+    return { chfDessous: cur.y >= amountR.y + amountR.height - 1,
+      curYRel: Math.round(cur.y - cell.y),
+      deborde: amountR.right > cell.right + 1 };
+  });
+  return { cells, unis: new Set(cells.map(c => c.curYRel)).size === 1 };
+});
+await page.setViewportSize({ width: 390, height: 844 });
+check(a5etroit.cells.every(c => c.chfDessous && !c.deborde) && a5etroit.unis,
+  `à 320 px, les chiffres restent entiers et « CHF » passe dessous, pareil dans les trois cellules (obtenu ${JSON.stringify(a5etroit.cells)})`);
 
 await browser.close();
 
