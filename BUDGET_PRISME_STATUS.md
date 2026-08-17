@@ -127,8 +127,10 @@ d'environnement, comme toujours), publié par dispatch au SHA exact
   avant le lot) ; iOS non concerné (les photos sont la PWA ; les vues
   SwiftUI utilisent leurs propres piles `AmountText`).
 
-**A3 — Beauté des cartes (« encore plus beau »)** · `VERIFYING_AUTOMATED`
-— PR depuis `agent/prisme-a3-beaute-cartes`.
+**A3 — Beauté des cartes (« encore plus beau »)** · `MERGED` +
+`PUBLISHED` — PR #34 fusionnée en squash, `main` =
+`7ff7c6eb9f68ec473e9003a29c838bb26b15c7f0`, CI de fusion verte, publié
+par dispatch au SHA exact (run `32036956303`, succès) le 17.08.2026.
 
 - Demande du 17.08.2026 (capture post-A2) : « Améliore encore plus beau…
   plus jolie les carrés ». Raffinement mat, sans un seul glow :
