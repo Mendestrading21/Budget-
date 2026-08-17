@@ -33,26 +33,22 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P16 — Onboarding** · « Comment démarrer sans connaître la comptabilité ? »
+**P18 — Assistant local** · « Quelle action financière simple puis-je comprendre maintenant ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p16-onboarding`.
-- Livré : pictos d'étape 44 px en grands glyphes (maison, personne, revenu,
-  facture, récurrent, objectif, comptes) ; choix du foyer en glyphes
-  personne/couple/famille (deux glyphes ajoutés au registre) ; toggles de
-  comptes en glyphe de nature + coche/plus peints ; « C'est parti » sans
-  emoji ; lignes charges/abonnements lues par leur libellé seul.
-  Restent volontairement : les drapeaux de pays (sens géographique) et les
-  emojis des objectifs proposés (ils deviennent l'emoji personnel de
-  l'objectif — précédent P10).
-- Preuves : e2e 138 → 139 parcours (parcours d'onboarding réel dans un
-  contexte neuf, coche vérifiée dans les DEUX états d'un toggle) ; contrôle
-  négatif à 3 échecs ciblés ; 5 parités ; design ; audit-final,
-  audit-coherence, audit-total 320/390 : aucun défaut ; captures
-  avant/après (étapes foyer et comptes) dans
-  `docs/neon-ultra/budget-prisme/p16/`.
-- iOS : OnboardingFlowView natif propre — aucun changement.
-- Incident conteneur : le lot avait été perdu par un redémarrage avant
-  commit ; rejoué à l'identique, poussé immédiatement (leçon appliquée).
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p18-assistant`.
+- Livré : les quatre questions portent un glyphe sémantique (budget, loupe,
+  impôts, objectif) dans leur pastille neutre ; chevrons de dépliage PEINTS
+  (le « › » texte des lignes fermées et le « ˅ » de la ligne ouverte
+  disparaissent) ; boutons d'action sans « › » ; « couverte » sans coche.
+  Les réponses restent déterministes et locales — aucun calcul touché.
+- Preuves : e2e 139 → 140 parcours ; contrôle négatif à 2 échecs ciblés ;
+  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
+  aucun défaut ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/p18/`.
+- iOS : page volontairement PWA uniquement (registre) — aucun équivalent.
+- Dettes notées pour la Fondation : `monthPriority().icon` jamais rendu
+  (emojis morts en données) ; pseudo-chevron CSS « ˅ » de
+  `details[open] summary::after` ; flèches texte du pageur Historique.
 
 ## Lots fusionnés récents
 

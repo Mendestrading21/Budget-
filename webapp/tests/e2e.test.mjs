@@ -7787,6 +7787,39 @@ currentTest = "P16 onboarding";
   await ctx139.close();
 }
 
+// ---------- Test 140 : P18 Assistant — questions en glyphes, réponses sobres ----------
+// Budget Prisme, lot P18. Les quatre questions portent un glyphe sémantique
+// (budget, loupe, impôts, objectif) dans leur pastille neutre ; le chevron
+// de dépliage est peint ; les boutons d'action n'ont plus de « › » texte ;
+// « couverte » se dit sans coche ; zéro emoji à l'écran.
+currentTest = "P18 assistant";
+await goHome();
+const p18 = await page.evaluate(() => {
+  activeTab = "more"; moreView = "assistant"; render();
+  const s = document.getElementById("screen");
+  const lignes = [...s.querySelectorAll("[data-assistq]")];
+  return {
+    emojis: (s.innerText.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}✔✓˅]/gu) || []),
+    questions: lignes.length,
+    glyphes: lignes.filter(l => l.querySelector(".ico svg.budget-glyph")).length,
+    chevronsPeints: lignes.filter(l => {
+      const c = l.querySelector("span[aria-hidden] svg.budget-glyph");
+      return c && c.getBoundingClientRect().width >= 12;
+    }).length,
+    chevronTexte: s.innerText.includes("›") || s.innerText.includes("˅"),
+    sourceSansCoche: !renderAssistant.toString().includes("couverte ✓"),
+  };
+});
+check(p18.emojis.length === 0,
+  `zéro emoji ni chevron texte sur l'Assistant (restants : ${p18.emojis.join(" ") || "aucun"})`);
+check(p18.questions >= 3 && p18.glyphes === p18.questions,
+  `chaque question fermée porte son glyphe sémantique (${p18.glyphes}/${p18.questions})`);
+check(p18.chevronsPeints === p18.questions,
+  `chaque question fermée porte un chevron peint (${p18.chevronsPeints}/${p18.questions})`);
+check(!p18.chevronTexte, "plus aucun « › » ni « ˅ » texte à l'écran");
+check(p18.sourceSansCoche, "la réserve couverte se dit sans coche décorative");
+await page.evaluate(() => { activeTab = "home"; moreView = null; render(); });
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7796,4 +7829,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 139 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 140 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
