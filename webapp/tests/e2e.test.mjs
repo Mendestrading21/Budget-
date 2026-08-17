@@ -2006,7 +2006,7 @@ const summary58 = await page.evaluate(() => restoreSummaryText({
   version: 1, exportedAt: "2026-07-24T10:00:00Z",
   state: { transactions: [1, 2], accounts: [1], goals: [], recurrings: [1], documents: [] },
 }));
-check(summary58.includes("24.07.2026") && summary58.includes("2 mouvements") && summary58.includes("1 comptes"),
+check(summary58.includes("24.07.2026") && summary58.includes("2 opérations") && summary58.includes("1 comptes"),
   "le résumé de restauration montre la date et le contenu RÉELS");
 check(summary58.includes("REMPLACE") && summary58.includes("code de verrouillage") && summary58.includes("fichiers de documents"),
   "le résumé annonce la portée exacte et ce que la sauvegarde ne contient PAS");
@@ -7855,6 +7855,54 @@ check(p04.vide.operations && !p04.vide.mouvements,
 check(p04.plein.bouton.trim() === "Ajouter une ligne budgétaire" && !p04.plein.plus,
   `le bas de liste parle en mots (obtenu « ${p04.plein.bouton.trim()} »)`);
 
+// ---------- Test 142 : Fondation — la langue des opérations partout, champs morts retirés ----------
+// Micro-lot Fondation. « Opération » est le mot canonique (matrice de
+// langue) : plus aucun écran ne dit « mouvement », la feuille de saisie
+// non plus ; les champs morts (ACCOUNT_KINDS.icon, monthPriority().icon)
+// ont disparu de la source.
+currentTest = "Fondation langue";
+await goHome();
+const fondation = await page.evaluate(() => {
+  const VUES = [["home", null], ["movements", null], ["budget", null], ["accounts", null],
+    ["more", null], ["more", "year"], ["more", "subs"], ["more", "bills"], ["more", "recurring"],
+    ["more", "goals"], ["more", "taxes"], ["more", "networth"], ["more", "insurance"],
+    ["more", "settings"], ["more", "importcsv"], ["more", "assistant"]];
+  const fautifs = [];
+  for (const [tab, vue] of VUES) {
+    activeTab = tab; moreView = vue; render();
+    const txt = document.getElementById("screen").innerText;
+    if (/[Mm]ouvements?/.test(txt)) fautifs.push(`${tab}${vue ? ":" + vue : ""}`);
+  }
+  activeTab = "home"; moreView = null; render();
+  openTxSheet(null);
+  const titreFeuille = document.getElementById("sheetTitle").textContent;
+  const boutonSuppr = document.getElementById("fDelete")?.textContent || "";
+  closeSheet();
+  return {
+    fautifs,
+    titreFeuille,
+    boutonSuppr,
+    kindsSansIcone: Object.values(ACCOUNT_KINDS).every(k => !("icon" in k)),
+    prioSansIcone: !monthPriority.toString().includes("icon:"),
+  };
+});
+check(fondation.fautifs.length === 0,
+  `aucun écran ne dit plus « mouvement » (fautifs : ${fondation.fautifs.join(", ") || "aucun"})`);
+check(!/mouvement/i.test(fondation.titreFeuille),
+  `le titre de la feuille ne dit plus « mouvement » (obtenu « ${fondation.titreFeuille} » — les titres par intention restent)`);
+check(/cette opération/.test(fondation.boutonSuppr),
+  `le bouton de suppression parle d'opération (obtenu « ${fondation.boutonSuppr} »)`);
+check(fondation.kindsSansIcone, "ACCOUNT_KINDS ne porte plus de champ icon mort");
+check(fondation.prioSansIcone, "monthPriority ne porte plus de champ icon mort");
+// Garde au niveau de la SOURCE servie : les toasts et confirmations (textes
+// transitoires que la sonde d'écrans ne voit pas) parlent aussi en
+// opérations. Les identifiants techniques (clé legacy, nom de fichier CSV)
+// et les commentaires de code sont volontairement hors périmètre.
+const source142 = (await import("node:fs")).readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const transitoires142 = (source142.match(/toast\("[^"]*[Mm]ouvement[^"]*"|confirm\("[^"]*[Mm]ouvement[^"]*"|"(?:Nouveau|Modifier le) mouvement/g) || []);
+check(transitoires142.length === 0,
+  `aucun toast ni confirmation ne dit plus « mouvement » (restants : ${transitoires142.slice(0, 3).join(" · ") || "aucun"})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7864,4 +7912,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 141 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 142 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

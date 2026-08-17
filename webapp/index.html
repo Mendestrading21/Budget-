@@ -1137,7 +1137,7 @@
 
   <div class="sheet-backdrop" id="sheetBackdrop">
     <form class="sheet nu-pilot-sheet" id="txForm">
-      <h3 id="sheetTitle">Nouveau mouvement</h3>
+      <h3 id="sheetTitle">Nouvelle opération</h3>
       <p class="quick-intent-note" id="fIntentNote">J'ai dépensé</p>
       <!-- Les types comptables rares restent disponibles, mais ne sont plus
            imposés avant une saisie courante. Le choix humain du menu Ajouter
@@ -1194,7 +1194,7 @@
       <button type="button" class="btn secondary" id="fDuplicate"
               style="display:none;margin-top:10px">Dupliquer (copie datée d'aujourd'hui)</button>
       <button type="button" class="btn destructive" id="fDelete"
-              style="display:none;margin-top:10px">Supprimer ce mouvement</button>
+              style="display:none;margin-top:10px">Supprimer cette opération</button>
       <div class="error" id="fError" role="alert"></div>
       <!-- 8. Bouton principal persistant : jamais caché par le clavier. -->
       <div class="actions sticky">
@@ -1242,7 +1242,7 @@
 
     <form class="sheet nu-pilot-sheet" id="reconForm" style="display:none">
       <h3>Mettre le solde à jour</h3>
-      <p class="caption" style="margin:0 0 6px">Indiquez le solde que votre banque affiche aujourd'hui. L'app ajoute un mouvement de correction à la date du jour : votre historique n'est jamais réécrit, et cette correction ne compte ni comme un revenu ni comme une dépense.</p>
+      <p class="caption" style="margin:0 0 6px">Indiquez le solde que votre banque affiche aujourd'hui. L'app ajoute une opération de correction à la date du jour : votre historique n'est jamais réécrit, et cette correction ne compte ni comme un revenu ni comme une dépense.</p>
       <label for="reconAmount">Le solde affiché par votre banque</label>
       <input id="reconAmount" data-primary-amount inputmode="decimal" placeholder="4200.00" autocomplete="off" />
       <!-- Même traitement que les autres cases à cocher : une phrase, pas une
@@ -1995,13 +1995,15 @@ const ACCOUNTS_SEED = [
   { id: "p3a", name: "Pilier 3a", inst: "Fondation Exemple", kind: "pension", opening: 18190, cash: false, currency: "CHF" },
   { id: "cash", name: "Espèces", inst: "", kind: "cash", opening: 150, cash: true, currency: "CHF" },
 ];
+/* Fondation : le champ `icon` n'avait plus aucun consommateur depuis P05 —
+   les écrans choisissent leur Budget Glyph par nature de compte. */
 const ACCOUNT_KINDS = {
-  current: { label: "Compte courant", icon: "💳" },
-  savings: { label: "Compte épargne", icon: "🏛️" },
-  brokerage: { label: "Bourse / titres", icon: "📈" },
-  cash: { label: "Espèces", icon: "💵" },
-  pension: { label: "Prévoyance (3a, LPP)", icon: "🛡️" },
-  lifeinsurance: { label: "Assurance vie (3b)", icon: "📜" },
+  current: { label: "Compte courant" },
+  savings: { label: "Compte épargne" },
+  brokerage: { label: "Bourse / titres" },
+  cash: { label: "Espèces" },
+  pension: { label: "Prévoyance (3a, LPP)" },
+  lifeinsurance: { label: "Assurance vie (3b)" },
 };
 
 const BUDGET_TEMPLATE = [
@@ -2984,11 +2986,11 @@ function monthPriority(y, m, s, report) {
   const lateBills = (S.bills || []).filter(billIsOverdue);
   const overCats = report.lines.filter(l => l.kind === "expense" && l.over);
   const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
-  if (prevOpen) return { icon: "⏪", text: `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`, nav: `data-gotomonth="${prev.y}-${prev.m}"`, why: "le mois précédent contient des éléments non validés" };
-  if (lateBills.length) return { icon: "🧾", text: `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`, nav: 'data-more="bills"', why: "une facture en retard coûte des rappels et de la charge mentale" };
-  if (s.taxGap > 0) return { icon: "📮", text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts ${y}.`, nav: 'data-more="taxes"', why: `la réserve d'impôts ${y} n'est pas encore couverte` };
-  if (overCats.length) return { icon: "⚖️", text: `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`, nav: 'data-gototab="budget"', why: "une enveloppe dépasse son montant planifié" };
-  if (goal) return { icon: "🎯", text: `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`, nav: 'data-more="goals"', why: "rien d'urgent : le surplus peut nourrir votre objectif prioritaire" };
+  if (prevOpen) return { text: `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`, nav: `data-gotomonth="${prev.y}-${prev.m}"`, why: "le mois précédent contient des éléments non validés" };
+  if (lateBills.length) return { text: `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`, nav: 'data-more="bills"', why: "une facture en retard coûte des rappels et de la charge mentale" };
+  if (s.taxGap > 0) return { text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts ${y}.`, nav: 'data-more="taxes"', why: `la réserve d'impôts ${y} n'est pas encore couverte` };
+  if (overCats.length) return { text: `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`, nav: 'data-gototab="budget"', why: "une enveloppe dépasse son montant planifié" };
+  if (goal) return { text: `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`, nav: 'data-more="goals"', why: "rien d'urgent : le surplus peut nourrir votre objectif prioritaire" };
   return null;
 }
 
@@ -3555,7 +3557,7 @@ function renderAccountDetail(a) {
     <div class="card hero">
       <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
       <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
-      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${esc(f)} — calculé depuis votre solde de départ et vos mouvements</span>` : ""; })()}
+      ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${esc(f)} — calculé depuis votre solde de départ et vos opérations</span>` : ""; })()}
       ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
@@ -4704,7 +4706,7 @@ function renderImport() {
   const batchStillPresent = report && transactions.some(t => t.importBatch === report.batchId);
   return backBar("Import CSV & documents") + `
     <div class="card">
-      <p class="card-label">Importer des mouvements</p>
+      <p class="card-label">Importer des opérations</p>
       <p class="caption" style="margin:4px 0 10px">Un fichier CSV ou un copier-coller. On y cherche la date, le montant, l'intitulé et la catégorie. Vous voyez le résultat avant de confirmer.</p>
       <button type="button" class="btn secondary" data-importpick>Choisir un fichier CSV…</button>
       <input type="file" id="importFile" accept=".csv,text/csv,text/plain" style="display:none" aria-hidden="true" />
@@ -4754,7 +4756,7 @@ function renderImport() {
           ${r.tx ? `<span class="amount ${r.tx.type === "income" ? "pos" : "neg"}">${r.tx.type === "income" ? "+" : "−"}${chf(r.tx.amount)}</span>` : ""}
         </div>`).join("")}
         ${analysis.rows.length > 6 ? `<p class="caption">… et ${analysis.rows.length - 6} autres lignes analysées.</p>` : ""}
-        <button type="button" class="btn" data-impconfirm ${ready === 0 ? "disabled" : ""} style="margin-top:10px">Confirmer l'import (${ready} mouvement${ready > 1 ? "s" : ""})</button>
+        <button type="button" class="btn" data-impconfirm ${ready === 0 ? "disabled" : ""} style="margin-top:10px">Confirmer l'import (${ready} opération${ready > 1 ? "s" : ""})</button>
         <button type="button" class="btn secondary" data-impcancel style="margin-top:8px">Annuler — rien n'est écrit</button>
       </div>`;
     })()}
@@ -4767,7 +4769,7 @@ function renderImport() {
         <div><span class="info">Doublons ignorés (empreinte)</span><span>${report.duplicates}</span></div>
         <div><span class="neg">Invalides</span><span>${report.invalids.length}</span></div>
       </div>
-      ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} mouvements)</button>` : ""}
+      ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} opérations)</button>` : ""}
     </div>
     ${report.invalids.length ? `
     <p class="section-title">File de réparation</p>
@@ -5083,7 +5085,7 @@ const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().repla
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
                          year: renderYearReview,
                          subs: () => { recFilter = "abonnement"; return renderRecurring(); },
-                         movements: () => backBar("Mouvements") + renderMovements().replace('<h2 class="screen-title">Mouvements</h2>', "") };
+                         movements: () => backBar("Historique") + renderMovements().replace('<h2 class="screen-title">Historique</h2>', "") };
 
 function renderMore() {
   if (moreView && MORE_RENDERERS[moreView]) return MORE_RENDERERS[moreView]();
@@ -5920,10 +5922,10 @@ document.getElementById("screen").addEventListener("click", (e) => {
   }
   if (e.target.closest("[data-rollbackimport]")) {
     if (!S.lastImport) return;
-    if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} mouvements) ? Le reste survit.`)) return;
+    if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} opérations) ? Le reste survit.`)) return;
     pushUndo();
     rollbackLastImport();
-    toast("Import annulé. Vos autres mouvements sont intacts.", true);
+    toast("Import annulé. Vos autres opérations sont intactes.", true);
     render();
     return;
   }
@@ -5988,7 +5990,7 @@ document.getElementById("screen").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-fullreset]")) {
-    if (!confirm("Réinitialiser COMPLÈTEMENT : comptes, mouvements, budgets, taux, prénom, code de verrouillage — tout est effacé de ce navigateur et l'app revient à l'écran de bienvenue. Continuer ?")) return;
+    if (!confirm("Réinitialiser COMPLÈTEMENT : comptes, opérations, budgets, taux, prénom, code de verrouillage — tout est effacé de ce navigateur et l'app revient à l'écran de bienvenue. Continuer ?")) return;
     if (!confirm("Dernière confirmation : cette action est définitive et non annulable.")) return;
     try {
       localStorage.removeItem(APP_STATE_KEY);
@@ -6438,7 +6440,7 @@ function syncTypeChips() {
     taxPayment: ["J'ai payé mes impôts", "Nouveau paiement d'impôts"],
     refund: ["J'ai reçu un remboursement", "Nouveau remboursement"],
     adjustment: ["J'ai corrigé un solde", "Ajustement de solde"],
-  }[type] || ["Nouveau mouvement", "Nouveau mouvement"];
+  }[type] || ["Nouvelle opération", "Nouvelle opération"];
   document.getElementById("fIntentNote").textContent = copy[0];
   if (!editingTxId) document.getElementById("sheetTitle").textContent = copy[1];
 }
@@ -6565,7 +6567,7 @@ function openTxSheet(tx, presetType) {
   editingTxId = tx ? tx.id : null;
   document.getElementById("txForm").reset();
   refreshAccountOptions(tx ? tx.acc : (ACCOUNTS.some(a => a.id === "cur") ? "cur" : (ACCOUNTS[0] || {}).id));
-  document.getElementById("sheetTitle").textContent = tx ? "Modifier le mouvement" : "Nouveau mouvement";
+  document.getElementById("sheetTitle").textContent = tx ? "Modifier l'opération" : "Nouvelle opération";
   document.getElementById("fDelete").style.display = tx ? "block" : "none";
   document.getElementById("fDuplicate").style.display = tx ? "block" : "none";
   const typeSelect = document.getElementById("fType");
@@ -6628,7 +6630,7 @@ document.addEventListener("keydown", (e) => {
 
 document.getElementById("fDelete").addEventListener("click", () => {
   if (editingTxId == null) return;
-  if (!confirm("Supprimer définitivement ce mouvement ?")) return;
+  if (!confirm("Supprimer définitivement cette opération ?")) return;
   pushUndo();
   const index = transactions.findIndex(t => t.id === editingTxId);
   const deleted = index >= 0 ? transactions[index] : null;
@@ -6640,7 +6642,7 @@ document.getElementById("fDelete").addEventListener("click", () => {
   }
   saveState();
   closeSheet();
-  toast("Mouvement supprimé", true);
+  toast("Opération supprimée", true);
   render();
 });
 
@@ -6682,7 +6684,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   }
   // Intitulé facultatif (parcours fréquent en trois gestes) : défaut =
   // catégorie, sinon le libellé du type. Jamais de mouvement sans nom.
-  const title = rawTitle || cat || TYPE_LABEL[type] || "Mouvement";
+  const title = rawTitle || cat || TYPE_LABEL[type] || "Opération";
   const status = statusForDate(y, m, d);
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   try {
@@ -6697,7 +6699,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
       });
       const index = transactions.indexOf(existing);
       if (index >= 0) transactions[index] = candidate;
-      toast("Mouvement modifié");
+      toast("Opération modifiée");
     } else {
       addTx({
         id: ++txSeq, y, m, d,
@@ -6705,7 +6707,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
         type, cat, acc: sourceId, dest, status,
       });
       const avance = status === "planned" ? null : progresObjectif(dest, photoAvant);
-      toast(avance || (status === "planned" ? "Mouvement planifié" : "Mouvement ajouté"));
+      toast(avance || (status === "planned" ? "Opération planifiée" : "Opération ajoutée"));
     }
   } catch (error) {
     fieldError("fAccount", error && error.message ? error.message : "Taux de change manquant pour ce compte.");
@@ -6792,7 +6794,7 @@ function restoreSummaryText(payload) {
     : "date inconnue";
   const n = k => (Array.isArray(st[k]) ? st[k].length : 0);
   return `Sauvegarde du ${date} (version ${payload.version}).\n\n`
-    + `Contenu : ${n("transactions")} mouvements, ${n("accounts")} comptes, ${n("goals")} objectifs, `
+    + `Contenu : ${n("transactions")} opérations, ${n("accounts")} comptes, ${n("goals")} objectifs, `
     + `${n("recurrings")} paiements réguliers, ${n("documents")} documents (métadonnées seulement).\n\n`
     + `La restauration REMPLACE toutes les données actuelles de ce navigateur.\n`
     + `Non contenu dans la sauvegarde : le code de verrouillage (il sera désactivé) `
@@ -6834,7 +6836,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   const state = JSON.parse(JSON.stringify(input));
   if (state.version !== 1) throw new Error("version d'état incompatible");
   if (!Array.isArray(state.transactions) || !Array.isArray(state.accounts)) {
-    throw new Error("comptes ou mouvements absents");
+    throw new Error("comptes ou opérations absents");
   }
   for (const key of RESTORE_ARRAY_KEYS) {
     if (state[key] == null && key !== "transactions" && key !== "accounts") state[key] = [];
@@ -6888,7 +6890,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
         || !validCalendarDate(transaction.y, transaction.m, transaction.d)
         || typeof transaction.acc !== "string" || !accountIds.has(transaction.acc)
         || (transaction.dest != null && (!accountIds.has(transaction.dest) || transaction.dest === transaction.acc))) {
-      throw new Error("mouvement invalide, dupliqué ou orphelin");
+      throw new Error("opération invalide, dupliquée ou orpheline");
     }
     if (transaction.fx != null && (!Number.isFinite(transaction.fx) || transaction.fx <= 0)) {
       throw new Error("taux historique invalide");
@@ -6899,7 +6901,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     }
     if (transaction.importBatch != null
         && (typeof transaction.importBatch !== "string" || !transaction.importBatch)) {
-      throw new Error("lot d'import du mouvement invalide");
+      throw new Error("lot d'import de l'opération invalide");
     }
     transaction.sourceCurrency = CURRENCIES.includes(transaction.sourceCurrency)
       ? transaction.sourceCurrency : state.accounts.find(a => a.id === transaction.acc).currency;
@@ -6963,7 +6965,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     if (bill.paidTxId != null && bill.paidTxId !== -1) {
       if (!validTransactionID(bill.paidTxId)
           || !transactionIds.has(String(bill.paidTxId))) {
-        throw new Error("mouvement de paiement de facture introuvable");
+        throw new Error("opération de paiement de facture introuvable");
       }
     }
   }
@@ -7089,7 +7091,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   for (const transaction of state.transactions) {
     if (transaction.sourceCurrency !== state.baseCurrency
         && !(transaction.fx > 0 && transaction.fxBase === state.baseCurrency)) {
-      throw new Error("mouvement étranger sans taux historique");
+      throw new Error("opération étrangère sans taux historique");
     }
     if (transaction.dest) {
       const destination = state.accounts.find(a => a.id === transaction.dest);
@@ -7167,7 +7169,7 @@ function deleteAllData() {
   S.monthChecks = {}; // plus d'opérations → plus de mois « bouclés »
   saveState();
   moreView = null;
-  toast("Mouvements effacés. Vos comptes, budgets et réglages sont gardés.", true);
+  toast("Opérations effacées. Vos comptes, budgets et réglages sont gardés.", true);
   render();
 }
 
@@ -7246,7 +7248,7 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
 function accountDeleteBlocker(id) {
   // Règle .deny du natif : aucune donnée liée ne doit se retrouver orpheline.
   if (transactions.some(t => t.acc === id || t.dest === id)) {
-    return "Ce compte porte des mouvements — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
+    return "Ce compte porte des opérations — supprimez-les d'abord (l'historique ne disparaît jamais en silence).";
   }
   if (RECURRINGS.some(recurring => recurring.accountId === id)) {
     return "Un paiement régulier utilise ce compte — choisissez d'abord un autre compte pour ce paiement.";
@@ -7334,7 +7336,7 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
 });
 document.getElementById("lDelete").addEventListener("click", () => {
   if (!editingLineCat) return;
-  if (!confirm(`Retirer « ${editingLineCat} » du budget de ce mois ? (les mouvements restent)`)) return;
+  if (!confirm(`Retirer « ${editingLineCat} » du budget de ce mois ? (les opérations restent)`)) return;
   pushUndo();
   const { y, m } = cursor;
   const lines = S.budgets[`${y}-${m}`] || [];
@@ -7654,7 +7656,7 @@ document.getElementById("rEnd").addEventListener("click", () => {
   const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
   if (!rec) return;
   if (recurringIsActive(rec)) {
-    if (!confirm(`Résilier « ${rec.title} » à partir de ${MONTH_NAMES[NOW.m - 1]} ${NOW.y} ? Les mouvements déjà enregistrés ne changent pas ; il disparaît seulement des prévisions à venir.`)) return;
+    if (!confirm(`Résilier « ${rec.title} » à partir de ${MONTH_NAMES[NOW.m - 1]} ${NOW.y} ? Les opérations déjà enregistrées ne changent pas ; il disparaît seulement des prévisions à venir.`)) return;
     rec.endedOn = { y: NOW.y, m: NOW.m };
     toast(`« ${rec.title} » résilié — retiré des prévisions`);
   } else {
@@ -7755,7 +7757,7 @@ document.getElementById("rPost").addEventListener("click", () => {
   render();
 });
 document.getElementById("rDelete").addEventListener("click", () => {
-  if (!editingRecId || !confirm("Supprimer cette ligne ? (les mouvements déjà saisis restent)")) return;
+  if (!editingRecId || !confirm("Supprimer cette ligne ? (les opérations déjà saisies restent)")) return;
   pushUndo();
   const index = RECURRINGS.findIndex(r => r.id === editingRecId);
   if (index >= 0) RECURRINGS.splice(index, 1);
@@ -8154,8 +8156,8 @@ document.getElementById("bPay").addEventListener("click", () => {
   saveState();
   closeSheet();
   toast(result.transaction.status === "planned"
-    ? "Facture planifiée — mouvement prévu créé"
-    : "Facture payée — mouvement créé", true);
+    ? "Facture planifiée — opération prévue créée"
+    : "Facture payée — opération créée", true);
   render();
 });
 document.getElementById("bUnpay").addEventListener("click", () => {
@@ -8172,7 +8174,7 @@ document.getElementById("bUnpay").addEventListener("click", () => {
   render();
 });
 document.getElementById("bDelete").addEventListener("click", () => {
-  if (!editingBillId || !confirm("Supprimer cette facture ? (un éventuel mouvement de paiement reste)")) return;
+  if (!editingBillId || !confirm("Supprimer cette facture ? (une éventuelle opération de paiement reste)")) return;
   pushUndo();
   const index = S.bills.findIndex(b => b.id === editingBillId);
   if (index >= 0) S.bills.splice(index, 1);
@@ -8200,7 +8202,7 @@ document.getElementById("quickMenu").addEventListener("click", (e) => {
 document.getElementById("fDuplicate").addEventListener("click", () => {
   // Bascule la feuille en mode création, champs conservés, datée d'aujourd'hui.
   editingTxId = null;
-  document.getElementById("sheetTitle").textContent = "Nouveau mouvement (copie)";
+  document.getElementById("sheetTitle").textContent = "Nouvelle opération (copie)";
   document.getElementById("fDelete").style.display = "none";
   document.getElementById("fDuplicate").style.display = "none";
   document.getElementById("fDate").value =
@@ -8260,7 +8262,7 @@ document.getElementById("baseForm").addEventListener("submit", (e) => {
   if (!CURRENCIES.includes(chosen)) return;
   if (chosen !== baseCurrency()) {
     if (transactions.length > 0) {
-      toast("Votre monnaie ne change plus dès le premier mouvement enregistré. Créez un nouveau profil pour en changer.");
+      toast("Votre monnaie ne change plus dès la première opération enregistrée. Créez un nouveau profil pour en changer.");
       return;
     }
     S.baseCurrency = chosen;

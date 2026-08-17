@@ -33,42 +33,55 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P04 — Budget** · « Combien puis-je encore dépenser par rapport à mon plan ? »
+**Fondation finale** · langue des opérations + champs morts
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p04-budget`.
-- Livré : les trois boutons « Ajouter une ligne budgétaire » parlent en
-  mots (état vide avec/sans mois précédent, bas de liste) ; le mode
-  d'emploi dit « opérations réelles » (matrice de langue, migration par
-  page). L'écran était déjà propre par ailleurs (aucun emoji, anneaux et
-  jauges en place) — aucun calcul touché.
-- Preuves : e2e 140 → 141 parcours ; contrôle négatif à 3 assertions
-  mordantes (deux passes de sabotage, langue + les deux variantes de
-  bouton réellement rendues) ; 5 parités ; design ; audit-final,
-  audit-coherence, audit-total 320/390 : aucun défaut ; captures
-  avant/après dans `docs/neon-ultra/budget-prisme/p04/`.
-- iOS : BudgetTab natif déjà propre — aucun changement.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
+  `agent/prisme-fondation-finale`. **Dernier lot du programme.**
+- Livré :
+  - **Balayage « mouvement → opération »** guidé par sonde : 34 chaînes
+    utilisateur migrées (titres de feuille, boutons, toasts,
+    confirmations, raisons de refus de restauration, export, reset).
+    Restent volontairement : identifiants techniques (clé legacy, nom du
+    fichier CSV), commentaires de code, et les titres par intention
+    (« Nouvelle dépense »… — plus précis que le mot générique).
+  - **Champs morts retirés** : `ACCOUNT_KINDS.icon` (aucun consommateur
+    depuis P05) et `monthPriority().icon` (jamais rendu).
+  - Décision consignée : les flèches typographiques « ‹ › » (retour et
+    pageur) sont un choix propriétaire documenté — conservées.
+- Preuves : e2e 141 → 142 parcours — le 142 balaie les SEIZE écrans
+  (aucun ne dit plus « mouvement ») ET la source servie (toasts,
+  confirmations, titres) ; contrôle négatif à 2 sabotages mordants ;
+  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
+  aucun défaut.
+- P00/P01/P02 : audits consignés — écrans déjà propres (accueil en
+  glyphes de sens, feuilles en `data-budget-glyph`, tabbar en glyphes),
+  aucun commit artificiel.
 
-## Lots fusionnés récents
+## Bilan du programme Budget Prisme (16–17.08.2026)
 
-- **P18 — Assistant** : fusion PR #27 au SHA
-  `2cb0d0abfa085ab4cb97823d57d909791e4fa31c`, CI push verte, publication
-  Pages lancée au SHA exact.
-- **P16 — Onboarding** : fusion PR #26 au SHA `5f94d92…`, publié
-  (run `31999921186`).
+Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
+quand il le fallait, testées, fusionnées et publiées au SHA exact.
 
-## Lots fusionnés récents
-
-- **P15 — Import et documents** : fusion PR #25 au SHA
-  `270577f30b943277c751b172182f5a519c203635`, CI push verte, publication
-  Pages relancée au SHA exact après redémarrage du conteneur.
-
-## Lots fusionnés récents
-
-- **P0 « acompte-impots »** : fusion PR #21 au SHA
-  `0e4043c554a30cffb799840a65d2c669da50e50b`, CI push verte, publication
-  Pages lancée au SHA exact.
-- **P09 — Factures ponctuelles** : fusion PR #20 au SHA `b2da904…`,
-  publié (run `31970756595`).
+- **3 incidents P0** ouverts test-rouge-d'abord, corrigés, fusionnés,
+  publiés : « annee-consultee » (P14), « prevoyance-double-compte » (P13),
+  « acompte-impots » (P11 — un acompte payé est un taxPayment, jamais une
+  dépense de vie).
+- **5 risques du registre** tous corrigés (n°1 à n°5), dont deux côté
+  iOS (objectif archivé retrouvable ; gardes de suppression de compte).
+- **Suite e2e : 123 → 142 parcours** ; test de sécurité des icônes
+  restaurées durci à 0 rendu sur quatre vues ; chevrons exigés PEINTS.
+- **Budget Glyphs** : registre étendu (search, shield, person, couple,
+  family, globe, alert, check, cash, goal, docImport, document, chat,
+  gear) — plus aucun emoji fonctionnel sur les 16 écrans ; restent les
+  drapeaux (sens géographique), les emojis choisis par l'utilisateur
+  (objectifs) et le palier réel de Comptes.
+- **Langue** : « opération » canonique partout, épargne en ton neutre,
+  boutons en mots, états vides guidés, promesses honnêtes (catégorie
+  Impôts réelle, stockage des documents dit vrai).
+- Chaque lot : test né rouge quand une vérité était en jeu, contrôle
+  négatif, 4 audits outillés, captures avant/après inspectées, PR
+  française, CI Web+iOS verte sur le HEAD exact, fusion squash,
+  publication Pages au SHA de merge.
 
 ## Incident P0 clos — « acompte-impots » (16.08.2026)
 
