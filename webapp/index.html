@@ -3415,13 +3415,13 @@ function renderBudget() {
         <p style="font-size:15px;color:var(--nu-text-secondary);margin:6px 0 14px;line-height:1.45">Fixez un montant planifié par catégorie : le réel viendra s'y comparer, sans jamais s'y mélanger.</p>
         ${prevHasLines
           ? `<button class="btn nu-cta" data-copybudget style="margin-bottom:8px">Copier le budget de ${monthLabel(prevMonth)}</button>
-             <button class="btn secondary" data-addline>＋ Ajouter une ligne budgétaire</button>`
-          : `<button class="btn nu-cta" data-addline>＋ Ajouter une ligne budgétaire</button>`}
+             <button class="btn secondary" data-addline>Ajouter une ligne budgétaire</button>`
+          : `<button class="btn nu-cta" data-addline>Ajouter une ligne budgétaire</button>`}
       </div>
       <div class="card">
         <p class="card-label">Comment ça marche</p>
         <p class="caption" style="margin:0 0 6px">1. Vous choisissez un montant <strong>planifié</strong> par catégorie.</p>
-        <p class="caption" style="margin:0 0 6px">2. Vos mouvements réels s'y comparent tout seuls, mois par mois.</p>
+        <p class="caption" style="margin:0 0 6px">2. Vos opérations réelles s'y comparent toutes seules, mois par mois.</p>
         <p class="caption" style="margin:0">3. L'épargne et les impôts restent suivis à part — jamais mélangés aux dépenses.</p>
       </div>`;
   }
@@ -3472,7 +3472,7 @@ function renderBudget() {
       </div>
     </div>
     ${groups.map(lineHTML).join("")}
-    <button class="btn secondary" data-addline style="margin-top:8px">＋ Ajouter une ligne budgétaire</button>
+    <button class="btn secondary" data-addline style="margin-top:8px">Ajouter une ligne budgétaire</button>
     ${outHTML}
     <p class="section-title">Année ${cursor.y}</p>
     ${budgetYearChart()}`;
