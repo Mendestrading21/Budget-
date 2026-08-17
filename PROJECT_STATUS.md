@@ -1,13 +1,13 @@
 # Budget project status
 
-> **État opérationnel actuel (14.08.2026)** — le programme actif est
-> **Budget Neon Ultra** sur `main`. La simplification mensuelle ADR-030 est
-> fusionnée ; le correctif de rendu des données restaurées puis le bilan
-> mensuel ADR-031 sont en validation sur deux branches isolées. Leur état
-> précis vit dans `NEON_ULTRA_STATUS.md`. ADR-025 remplace la formule fiscale
-> mensuelle historique d'ADR-018. Les sections Obsidian ci-dessous sont
-> conservées uniquement comme historique et ne sont plus une source de vérité
-> courante.
+> **État opérationnel actuel (17.08.2026)** — le programme
+> **Budget Prisme est TERMINÉ** : les 19 pages du registre P00–P18 sont
+> auditées, corrigées, testées, fusionnées et publiées au SHA exact
+> (dernier : `2fbd354`). Trois incidents P0 corrigés test-rouge-d'abord,
+> cinq risques du registre soldés, suite e2e portée à 142 parcours.
+> La source de vérité courante est `BUDGET_PRISME_STATUS.md`.
+> Les sections Neon Ultra et Obsidian ci-dessous sont conservées
+> uniquement comme historique.
 
 ## Branche `refonte/budget-obsidian-glass-v1` — Obsidian Glass L9 (2026-07-25)
 
