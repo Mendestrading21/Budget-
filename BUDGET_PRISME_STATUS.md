@@ -1,6 +1,6 @@
 # Budget Prisme — statut vivant
 
-Mis à jour le 16.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
+Mis à jour le 17.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
 la CI, ni les ADR, ni le code. Ne pas y recopier un journal de commits.
 
 ## Source vérifiée
@@ -33,10 +33,12 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
+Le lot actif est **A2 — Formatage et alignement** (voir « Améliorations
+continues » ci-dessous).
+
 **Fondation finale** · langue des opérations + champs morts
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
-  `agent/prisme-fondation-finale`. **Dernier lot du programme.**
+- État : `MERGED` + `PUBLISHED`. **Dernier lot du registre P00–P18.**
 - Livré :
   - **Balayage « mouvement → opération »** guidé par sonde : 34 chaînes
     utilisateur migrées (titres de feuille, boutons, toasts,
@@ -59,8 +61,8 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Améliorations continues
 
-**A1 — Année imprimable** · `VERIFYING_AUTOMATED` — PR depuis
-`agent/prisme-a1-annee-imprimable-v2`.
+**A1 — Année imprimable** · `MERGED` + `PUBLISHED` — PR #31, `main` =
+`fb31859`, publié par dispatch au SHA exact (run `32024859933`).
 
 - Bouton « Imprimer ou enregistrer en PDF » sur la page Année
   (`window.print()` — rien ne quitte l'appareil autrement) ; feuille
@@ -80,6 +82,46 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
   suppression distante) — ajoutée au ménage propriétaire.
 - Règle renforcée : après chaque redémarrage, vérifier `git log -1` de la
   base avant de créer une branche.
+
+**A2 — Formatage et alignement (5 photos annotées du propriétaire)** ·
+`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a2-formatage-montants`.
+
+- Demande du 17.08.2026 : « il y a un CHF qui est en bas, les autres non…
+  ça déborde… toujours les mêmes espacements, toujours pareil, même quand
+  il y a des montants ». Chaque photo reproduite par sonde géométrique
+  (fixture : salaire 18'200, mises de côté 2'000/210/100'000, Logement
+  258 prévu / 11'570 dépensé, Épargne 199'800, Bourse 44'000) avant tout
+  correctif.
+- Livré :
+  - **Montants insécables partout** : l'espace du préfixe devise est
+    U+00A0 (`CURRENCY_PREFIX`) — « CHF 102'210.00 » ne se coupe plus en
+    deux lignes (photo 2 Comptes, photo 5 Bilan du mois). La largeur du
+    montant des lignes du bilan passe à 132 px pour contenir
+    « CHF 100'000.00 » entier.
+  - **Trio du Mois uniforme** (photo 5) : trois cellules IDENTIQUES —
+    libellé, « CHF », chiffres, aux mêmes positions ; une seule taille de
+    chiffres pour les trois (paliers `wide` ≥ 6 chiffres, `xwide` ≥ 7,
+    décidés sur le montant le plus long) ; sous 381 px les libellés
+    réservent la même hauteur pour garder l'alignement exact.
+  - **Historique** (photo 4) : la liste groupée n'imprime plus la date
+    dans chaque ligne (l'en-tête de jour la porte déjà) ; « mis de côté »
+    ne se répète plus quand la destination est affichée (« Épargne →
+    Compte épargne ») — plus aucune ellipse en plein mot ; le détail d'un
+    compte garde ses dates.
+  - **Budget** (photo 3) : l'anneau réduit sa police dès 4 chiffres
+    (« 4484% » lisible dedans) ; « Prévu … · dépensé … » sur sa propre
+    ligne.
+  - **quickMenu** (photo 1) : `grid-auto-rows: 1fr` — quatre tuiles
+    d'intention à hauteur strictement égale, icônes identiques.
+- Preuves : e2e 143 → 144 parcours (test 144 : détecteur Range de montant
+  coupé, uniformité du trio à 390 ET 320 px, en-têtes de date uniques,
+  tuiles égales, anneau extrême) ; contrôle négatif à 4 sabotages →
+  13 échecs ciblés ; 5 parités ; design NU1+NU2+Obsidian verts ; captures
+  avant/après 390+320 et rapports de sonde JSON inspectés dans
+  `docs/neon-ultra/budget-prisme/a2/`.
+- Hors périmètre assumé : montants ≥ 10 M dans le trio (déjà imparfaits
+  avant le lot) ; iOS non concerné (les photos sont la PWA ; les vues
+  SwiftUI utilisent leurs propres piles `AmountText`).
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
