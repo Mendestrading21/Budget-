@@ -5365,8 +5365,9 @@ currentTest = "charges et abonnements dès la bienvenue";
     `rien n'est comptabilisé : ce sont des dépenses PRÉVUES (${cree.mouvements} mouvement(s))`);
 
   // La preuve utile : le premier écran sait déjà ce qui doit sortir, sans
-  // réintroduire une carte de total dans l'accueil simplifié. Les trois
-  // lignes restent lisibles et leur somme nourrit bien le disponible.
+  // réintroduire une carte de total dans l'accueil simplifié. A6 : le
+  // bilan montre jusqu'à six lignes — les trois charges ET le salaire
+  // sont donc tous visibles dès la première ouverture, sans repli.
   const accueil104 = await p104.evaluate(() => ({
     texte: document.getElementById("screen").innerText,
     engage: snapshot(NOW.y, NOW.m).recurringCharges,
@@ -5376,11 +5377,11 @@ currentTest = "charges et abonnements dès la bienvenue";
   const chargesVisibles104 = cree.charges
     .filter(charge => accueil104.texte.includes(charge.t)).length;
   check(Math.abs(accueil104.engage - 2081.90) < 0.01
-      && chargesVisibles104 === 2
-      && accueil104.lignesVisibles === 3
-      && /Et 1 autre à faire/.test(accueil104.overflow)
+      && chargesVisibles104 === 3
+      && accueil104.lignesVisibles === 4
+      && accueil104.overflow === ""
       && /Bilan du mois/i.test(accueil104.texte),
-    `dès la première ouverture, les trois charges sont engagées et le bilan garde trois priorités (${JSON.stringify({ ...accueil104, chargesVisibles104 })})`);
+    `dès la première ouverture, les trois charges sont engagées et toutes visibles au bilan avec le salaire (${JSON.stringify({ ...accueil104, chargesVisibles104 })})`);
   check(erreurs104.length === 0, `aucune erreur JS pendant le parcours (${erreurs104.join(" | ")})`);
   await ctx104.close();
 }
@@ -8201,6 +8202,90 @@ await page.setViewportSize({ width: 390, height: 844 });
 check(a5etroit.cells.every(c => c.chfDessous && !c.deborde) && a5etroit.unis,
   `à 320 px, les chiffres restent entiers et « CHF » passe dessous, pareil dans les trois cellules (obtenu ${JSON.stringify(a5etroit.cells)})`);
 
+// ---------- Test 147 : A6 Bilan ordonné — Salaire, Factures, Abonnements, Mis de côté ----------
+// Demande propriétaire (capture 22:28) : le Bilan du mois se lit dans
+// l'ordre de son Notion — Salaire, puis Factures, puis Abonnements, puis
+// Mis de côté (le retard reste devant DANS son groupe) ; un abonnement
+// mensuel apparaît dans son mois ; chaque bouton d'action porte la
+// couleur de son sens (Reçu vert, Payé corail, Mis de côté violet
+// neutre) ; un seul appui enregistre l'opération automatiquement.
+currentTest = "A6 bilan ordonné";
+await goHome();
+const a6 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  if (!RECURRINGS.some(r => r.id === "r-a6-sub")) {
+    RECURRINGS.push(
+      { id: "r-a6-pay", title: "Salaire A6", amount: 1000, type: "income",
+        cat: "Revenus", accountId: cash.id, every: "month" },
+      { id: "r-a6-sub", title: "Abonnement streaming A6", amount: 19.9, type: "expense",
+        family: "sub", cat: "Loisirs", accountId: cash.id, every: "month" },
+      { id: "r-a6-save", title: "Réserve mensuelle A6", amount: 300, type: "expense",
+        nature: "reserve", cat: "Épargne", accountId: cash.id, every: "month" },
+      { id: "r-a6-bill", title: "Électricité A6", amount: 90, type: "expense",
+        family: "charge", cat: "Logement", accountId: cash.id, every: "month" },
+    );
+  }
+  cursor = { y: NOW.y, m: NOW.m };
+  activeTab = "home"; moreView = null; render();
+  const lignes = [...document.querySelectorAll(".home-bills-list:not(.home-done-list) .home-bill-row")].map(row => {
+    const bouton = row.querySelector(".home-bill-action");
+    return {
+      titre: row.querySelector(".t").textContent,
+      sousTitre: row.querySelector(".s").textContent,
+      acte: bouton ? bouton.textContent.trim() : "",
+      classes: bouton ? bouton.className : "",
+      couleur: bouton ? getComputedStyle(bouton).color : "",
+    };
+  });
+  const groupeDe = ligne => /recevoir/i.test(ligne.sousTitre) ? 0
+    : /streaming/i.test(ligne.titre) ? 2
+    : /mettre de côté|investir/i.test(ligne.sousTitre) ? 3 : 1;
+  const groupes = lignes.map(groupeDe);
+  return {
+    lignes: lignes.map(l => `${l.titre} [${l.acte}]`),
+    groupes,
+    croissant: groupes.every((g, i) => i === 0 || g >= groupes[i - 1]),
+    salairePremier: groupes.length > 0 && groupes[0] === 0,
+    abonnementVisible: lignes.some(l => /streaming/i.test(l.titre)),
+    reserveVisible: lignes.some(l => /mettre de côté/i.test(l.sousTitre)),
+    couleurs: {
+      recevoir: (lignes.find(l => l.classes.includes("act-income")) || {}).couleur || "",
+      payer: (lignes.find(l => l.classes.includes("act-expense")) || {}).couleur || "",
+      reserver: (lignes.find(l => l.classes.includes("act-save")) || {}).couleur || "",
+    },
+  };
+});
+check(a6.salairePremier && a6.croissant,
+  `le Bilan se lit Salaire → Factures → Abonnements → Mis de côté (obtenu ${JSON.stringify(a6.lignes)} → groupes ${JSON.stringify(a6.groupes)})`);
+check(a6.abonnementVisible, "l'abonnement MENSUEL apparaît dans le bilan de son mois");
+check(a6.reserveVisible, "la mise de côté du mois apparaît dans le bilan");
+check(a6.couleurs.recevoir && a6.couleurs.payer && a6.couleurs.reserver
+  && new Set(Object.values(a6.couleurs)).size === 3,
+  `chaque bouton porte la couleur de son sens — trois couleurs distinctes (obtenu ${JSON.stringify(a6.couleurs)})`);
+// Le bouton LONG (« Mis de côté ») descend sous la ligne : le titre garde
+// sa largeur et ne se coupe jamais en plein mot.
+const a6long = await page.evaluate(() => {
+  const row = [...document.querySelectorAll(".home-bill-row")].find(r => r.querySelector(".home-bill-action--long"));
+  if (!row) return null;
+  const bouton = row.querySelector(".home-bill-action--long").getBoundingClientRect();
+  const montant = row.querySelector(".amount").getBoundingClientRect();
+  const titre = row.querySelector(".t");
+  return { dessous: bouton.y >= montant.y + montant.height - 2,
+    titreLarge: titre.getBoundingClientRect().width > 150 };
+});
+check(a6long && a6long.dessous && a6long.titreLarge,
+  `le bouton long descend sous la ligne et le titre garde sa largeur (obtenu ${JSON.stringify(a6long)})`);
+// Un appui = l'opération s'enregistre toute seule (rien d'autre à faire).
+const a6avant = await page.evaluate(() => transactions.filter(t => t.recurringId === "r-a6-save").length);
+await page.click('[data-postrec="r-a6-save"]');
+await page.waitForTimeout(300);
+const a6apres = await page.evaluate(() => ({
+  postees: transactions.filter(t => t.recurringId === "r-a6-save" && t.status === "posted").length,
+  faits: [...document.querySelectorAll(".home-done-list .home-bill-row .t")].map(e => e.textContent),
+}));
+check(a6avant === 0 && a6apres.postees === 1 && a6apres.faits.some(t => /Réserve mensuelle A6/.test(t)),
+  `un appui sur « Mis de côté » enregistre l'opération et la ligne passe dans « Fait ce mois » (${a6apres.postees} postée)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8210,4 +8295,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 146 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 147 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
