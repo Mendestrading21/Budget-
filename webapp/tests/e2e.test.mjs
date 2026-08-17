@@ -8143,6 +8143,44 @@ check(a3.jaugePresente && a3.jaugeExacte && a3.largeurExacte && a3.texteJauge,
   `le héros du mois courant dit « Jour ${new Date().getDate()} sur N » avec la largeur exacte`);
 check(a3.jaugeAbsenteAilleurs, "aucune jauge d'avancement sur un autre mois que le mois courant");
 
+// ---------- Test 146 : A4 Trio — « CHF » en bas, chiffres agrandis ----------
+// Demande propriétaire (capture annotée du 17.08, 16:02) : dans chaque
+// cellule du trio, l'ordre est libellé → montant → « CHF » (le chip vit
+// EN BAS, au même endroit dans les trois cellules) ; les chiffres du
+// palier « wide » (six chiffres) profitent de la largeur libérée.
+currentTest = "A4 trio CHF en bas";
+await goHome();
+const a4 = await page.evaluate(() => {
+  cursor = { y: NOW.y, m: NOW.m };
+  activeTab = "home"; moreView = null; render();
+  const cells = [...document.querySelectorAll(".home-metrics .stat")].map(stat => {
+    const label = stat.querySelector(".card-label").getBoundingClientRect();
+    const amount = stat.querySelector(".amount");
+    const amountR = amount.getBoundingClientRect();
+    const cur = stat.querySelector(".home-metric-currency").getBoundingClientRect();
+    const cell = stat.getBoundingClientRect();
+    return {
+      ordre: label.y < amountR.y && amountR.y + amountR.height <= cur.y + 1,
+      curYRel: Math.round(cur.y - cell.y),
+      police: parseFloat(getComputedStyle(amount).fontSize),
+      classe: amount.className,
+      deborde: amountR.right > cell.right + 0.5,
+    };
+  });
+  // Le détecteur du test 144 vit sur window et disparaît au rechargement
+  // de la page (goHome) — garde par typeof. Les chiffres du trio sont en
+  // `nowrap`, le contrôle porte donc surtout sur le débordement.
+  return { cells, wraps: typeof window.__amountWraps === "function" ? window.__amountWraps(document.querySelector(".home-metrics")) : [] };
+});
+check(a4.cells.length === 3 && a4.cells.every(c => c.ordre),
+  `chaque cellule du trio lit libellé → montant → CHF (obtenu ${JSON.stringify(a4.cells.map(c => c.ordre))})`);
+check(new Set(a4.cells.map(c => c.curYRel)).size === 1,
+  "le « CHF » est exactement à la même hauteur dans les trois cellules");
+check(a4.cells.every(c => !c.deborde) && a4.wraps.length === 0,
+  "les chiffres agrandis restent entiers et contenus");
+check(a4.cells.every(c => !c.classe.split(" ").includes("wide") || c.police >= 13),
+  `le palier wide affiche au moins 13 px à 390 px (obtenu ${a4.cells.map(c => c.police).join(", ")})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8152,4 +8190,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 145 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 146 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
