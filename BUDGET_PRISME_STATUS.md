@@ -190,8 +190,10 @@ succès) le 17.08.2026.
   captures avant/après 320/390/430 dans
   `docs/neon-ultra/budget-prisme/a5/`.
 
-**A6 — Bilan du mois ordonné + boutons de sens** · `VERIFYING_AUTOMATED`
-— PR depuis `agent/prisme-a6-bilan-ordonne`.
+**A6 — Bilan du mois ordonné + boutons de sens** · `MERGED` +
+`PUBLISHED` — PR #40 fusionnée en squash, `main` =
+`39fec44039df009302d4e183934b57e07b94e928`, CI de fusion verte, publié
+par dispatch au SHA exact (run `32070087322`, succès) le 17.08.2026.
 
 - Demande du 17.08.2026 (capture 22:28, logique Notion du propriétaire) :
   - **Ordre du Bilan** : Salaire (revenus), puis Factures et charges,
