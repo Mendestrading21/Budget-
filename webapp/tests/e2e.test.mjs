@@ -7717,6 +7717,76 @@ check(p15.rempli.bouton.trim() === "Ajouter un document",
 check(p15.vide.glyphe && /app native/.test(p15.vide.texte),
   "l'état vide des documents est guidé et reste honnête sur le stockage");
 
+// ---------- Test 139 : P16 Onboarding — glyphes d'étape, choix en glyphes, promesse sobre ----------
+// Budget Prisme, lot P16. Les pictos d'étape 44 px et les choix (foyer,
+// comptes) parlent en Budget Glyphs ; les drapeaux de pays restent (sens
+// géographique) ; les emojis des objectifs proposés restent (ils deviennent
+// l'emoji personnel de l'objectif, précédent P10) ; « C'est parti » sans
+// emoji ; les lignes charges/abonnements se lisent par leur libellé seul.
+currentTest = "P16 onboarding";
+{
+  const ctx139 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p139 = await ctx139.newPage();
+  p139.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[P16] ${msg.text()}`); });
+  await p139.goto(APP_URL);
+  await p139.waitForSelector('[data-obcountry="CH"]');
+  await p139.click('[data-obcountry="CH"]');
+  await p139.waitForTimeout(250);
+  const foyer = await p139.evaluate(() => ({
+    heroPeint: (() => {
+      const g = document.querySelector(".ob-hero-glyph svg.budget-glyph");
+      return g ? Math.round(g.getBoundingClientRect().width) : 0;
+    })(),
+    choixGlyphes: document.querySelectorAll(".ob-choice .ob-inline-glyph svg.budget-glyph").length,
+    emojis: (document.body.innerText.match(/[\u{1F300}-\u{1FAFF}]/gu) || []).filter(e => !/[\u{1F1E6}-\u{1F1FF}]/u.test(e)),
+  }));
+  check(foyer.heroPeint === 44, `le picto d'étape est un glyphe peint en 44 px (obtenu ${foyer.heroPeint})`);
+  check(foyer.choixGlyphes === 3, `les trois choix de foyer portent leur glyphe (${foyer.choixGlyphes}/3)`);
+  check(foyer.emojis.length === 0, `zéro emoji hors drapeaux sur l'étape foyer (restants : ${foyer.emojis.join(" ") || "aucun"})`);
+  await p139.click('[data-obhh="solo"]');
+  await p139.fill("#obName", "Léo"); await p139.click('#obForm1 button[type="submit"]');
+  await p139.fill("#obSalary", "5000"); await p139.click('#obForm2 button[type="submit"]');
+  await p139.waitForSelector("#obOpening", { state: "visible" });
+  const comptes = await p139.evaluate(() => {
+    const toggles = [...document.querySelectorAll("[data-obacc]")];
+    return {
+      glyphesParToggle: toggles.map(t => t.querySelectorAll("svg.budget-glyph").length),
+      // « Épargne » est proposé activé : sa coche doit déjà être un glyphe.
+      cocheInitiale: !!toggles[0].querySelector("svg.budget-glyph path[d^='m5 12.5']"),
+      bouton: document.querySelector('#obForm3 button[type="submit"]')?.textContent || "",
+    };
+  });
+  await p139.click('[data-obacc="pension"]');
+  await p139.waitForTimeout(250);
+  comptes.coche = await p139.evaluate(() =>
+    !!document.querySelector("[data-obacc='pension'] svg.budget-glyph path[d^='m5 12.5']"));
+  check(comptes.glyphesParToggle.every(n => n === 2),
+    `chaque compte proposé porte glyphe de nature + état (${comptes.glyphesParToggle.join("/")})`);
+  check(comptes.cocheInitiale, "le compte proposé activé porte déjà sa coche en glyphe");
+  check(comptes.coche, "activer un compte peint la coche en glyphe");
+  check(comptes.bouton.trim() === "C'est parti",
+    `le bouton final est sobre (obtenu « ${comptes.bouton.trim()} »)`);
+  await p139.fill("#obOpening", "2000"); await p139.click('#obForm3 button[type="submit"]');
+  await p139.waitForSelector("#obFormCharges", { state: "visible" });
+  const charges = await p139.evaluate(() => ({
+    lignesSansIcone: [...document.querySelectorAll(".ob-line-name")]
+      .every(l => !/[\u{1F300}-\u{1FAFF}]/u.test(l.textContent)),
+  }));
+  check(charges.lignesSansIcone, "les lignes de charges se lisent par leur libellé seul, sans emoji");
+  await p139.click("[data-obskipcharges]");
+  await p139.waitForSelector("#obFormSubs", { state: "visible" });
+  await p139.click("[data-obskipsubs]");
+  await p139.waitForSelector('[data-obgoal="urgence"]', { state: "visible" });
+  const objectifs = await p139.evaluate(() => ({
+    emojisPresets: (document.body.innerText.match(/🛟|✈️|🛡️/gu) || []).length,
+  }));
+  check(objectifs.emojisPresets >= 3,
+    "les emojis des objectifs proposés restent (ils deviennent l'emoji personnel, précédent P10)");
+  await p139.click('[data-obgoal="urgence"]');
+  await p139.waitForSelector("#tabbar button");
+  await ctx139.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7726,4 +7796,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 138 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 139 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

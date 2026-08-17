@@ -436,6 +436,8 @@
      de ligne) n'avait AUCUNE taille et restait invisible. La règle ne vise
      que ce motif — les glyphes déjà dimensionnés (pastilles .ico, tabbar,
      boutons de navigation, états vides) ne changent pas. */
+  .ob-hero-glyph .budget-glyph { width: 44px; height: 44px; margin: 0 auto; display: block; }
+  .ob-inline-glyph .budget-glyph { width: 18px; height: 18px; vertical-align: -3px; display: inline-block; }
   .goal-title .budget-glyph { width: 16px; height: 16px; vertical-align: -2px; display: inline-block; }
   .pace-glyph .budget-glyph { width: 14px; height: 14px; vertical-align: -2px; display: inline-block; }
   .tx > span[aria-hidden="true"]:not(.glyph) > .budget-glyph,
@@ -2868,6 +2870,8 @@ const BUDGET_GLYPHS = Object.freeze({
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m15.7 15.7 4.3 4.3"/>',
   shield: '<path d="M12 3.5 19 6.2v5c0 4.5-2.9 7.6-7 9.3-4.1-1.7-7-4.8-7-9.3v-5z"/>',
   person: '<circle cx="12" cy="8" r="3.5"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/>',
+  couple: '<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="16.5" cy="9.5" r="2.5"/><path d="M14.8 19.5a4.3 4.3 0 0 1 5.7-4"/>',
+  family: '<circle cx="8.5" cy="8" r="2.8"/><path d="M3.5 19.5a5 5 0 0 1 10 0"/><circle cx="16" cy="8.5" r="2.4"/><path d="M14.6 19.5a4.2 4.2 0 0 1 5.9-3.7"/><path d="M12 15.5v4"/>',
   globe: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.9 2.4 2.9 14.6 0 17"/><path d="M12 3.5c-2.9 2.4-2.9 14.6 0 17"/>',
   alert: '<path d="M12 4.5 20.5 19h-17z"/><path d="M12 10.5v4"/><path d="M12 16.9v.1"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
@@ -5214,7 +5218,7 @@ function obMoneyLine(item, prefix, valeurs) {
   const nom = obChargeLabel(item);
   const v = valeurs[item.key];
   return `<div class="ob-line">
-    <label class="ob-line-name" for="${prefix}-${item.key}"><span aria-hidden="true">${item.icon}</span> ${esc(nom)}</label>
+    <label class="ob-line-name" for="${prefix}-${item.key}">${esc(nom)}</label>
     <input class="ob-line-amount" id="${prefix}-${item.key}" inputmode="decimal" autocomplete="off"
       placeholder="—" aria-label="${esc(nom)}, montant par mois en ${obBase}" value="${v ? String(v) : ""}" />
   </div>`;
@@ -5243,16 +5247,16 @@ function renderOnboarding() {
     </button>`).join("")}`);
   if (obStep === 2) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:44px" aria-hidden="true">🏠</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("home")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Qui utilise Budget ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Pour parler de « nous » quand vous êtes deux — rien d'autre.</p>
     </div>
-    <button type="button" class="btn secondary ob-choice" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Moi</strong></span><span style="font-size:18px">🙋</span></button>
-    <button type="button" class="btn secondary ob-choice" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Nous deux</strong></span><span style="font-size:18px">💑</span></button>
-    <button type="button" class="btn secondary ob-choice" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>La famille</strong></span><span style="font-size:18px">👨‍👩‍👧</span></button>`);
+    <button type="button" class="btn secondary ob-choice" data-obhh="solo" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Moi</strong></span><span class="ob-inline-glyph" aria-hidden="true">${budgetGlyph("person")}</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obhh="couple" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Nous deux</strong></span><span class="ob-inline-glyph" aria-hidden="true">${budgetGlyph("couple")}</span></button>
+    <button type="button" class="btn secondary ob-choice" data-obhh="family" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>La famille</strong></span><span class="ob-inline-glyph" aria-hidden="true">${budgetGlyph("family")}</span></button>`);
   if (obStep === 3) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:44px" aria-hidden="true">👋</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("person")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obHousehold === "solo" ? "Votre prénom" : "Vos prénoms"}</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Uniquement pour vous saluer — ça reste sur cet appareil.</p>
     </div>
@@ -5267,7 +5271,7 @@ function renderOnboarding() {
     </form>`);
   if (obStep === 4) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:44px" aria-hidden="true">💼</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("income")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">${obSalaryPhase === 2 ? `Le salaire de ${esc(obPartner)} ?` : `Votre salaire, ${esc(obName)} ?`}</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Chaque mois on vous le rappelle. Un geste, et c'est validé.</p>
     </div>
@@ -5287,7 +5291,7 @@ function renderOnboarding() {
   // salaire entier comme s'il était libre.
   if (obStep === 6) return shell(`
     <div style="text-align:center;margin-bottom:8px">
-      <div style="font-size:44px" aria-hidden="true">🏠</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("bill")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Ce qui part chaque mois</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Remplissez ce que vous savez. Laissez vide le reste — vous l'ajouterez quand vous voudrez.</p>
     </div>
@@ -5299,7 +5303,7 @@ function renderOnboarding() {
     </form>`, { top: true });
   if (obStep === 7) return shell(`
     <div style="text-align:center;margin-bottom:8px">
-      <div style="font-size:44px" aria-hidden="true">📺</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("recurring")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Vos abonnements</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Les petits montants qui reviennent tous les mois. C'est souvent là que l'argent file sans qu'on le voie.</p>
     </div>
@@ -5311,7 +5315,7 @@ function renderOnboarding() {
     </form>`, { top: true });
   if (obStep === 8) return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:44px" aria-hidden="true">🎯</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("goal")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Un premier objectif ?</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">Facultatif — il vous donne un cap dès le premier jour. Modifiable à tout moment.</p>
     </div>
@@ -5319,24 +5323,24 @@ function renderOnboarding() {
     <button type="button" class="btn secondary ob-choice" data-obgoal="voyage" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>Voyage</strong> · un beau projet</span><span style="font-size:18px">✈️</span></button>
     <button type="button" class="btn secondary ob-choice" data-obgoal="pension" style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:14px 16px"><span><strong>${L2("pensionKind", obCountry)}</strong> · l'avenir</span><span style="font-size:18px">🛡️</span></button>
     <button type="button" class="btn" data-obskipgoal style="margin-top:14px">Terminer sans objectif</button>`);
-  const accToggle = (key, label, icon) => `
+  const accToggle = (key, label, glyph) => `
     <button type="button" class="btn ${obAccounts[key] ? "" : "secondary"}" data-obacc="${key}"
       style="display:flex;justify-content:space-between;align-items:center;text-align:left;margin-top:10px;padding:13px 16px">
-      <span>${icon} ${label}</span><span>${obAccounts[key] ? "✓" : "＋"}</span>
+      <span><span class="ob-inline-glyph" aria-hidden="true">${budgetGlyph(glyph)}</span> ${label}</span><span class="ob-inline-glyph" aria-hidden="true">${budgetGlyph(obAccounts[key] ? "check" : "add")}</span>
     </button>`;
   return shell(`
     <div style="text-align:center;margin-bottom:14px">
-      <div style="font-size:44px" aria-hidden="true">💳</div>
+      <div class="ob-hero-glyph" aria-hidden="true">${budgetGlyph("accounts")}</div>
       <h2 style="margin:10px 0 6px;font-size:22px">Vos comptes</h2>
       <p class="caption" style="max-width:290px;margin:0 auto">On commence par votre compte de tous les jours. Vous ajouterez le reste quand vous voudrez.</p>
     </div>
     <form id="obForm3" class="ob-form">
       <input id="obOpening" inputmode="decimal" placeholder="Solde actuel (${obBase})"
         aria-label="Solde actuel du compte courant (${obBase})" autocomplete="off" style="margin-top:10px" />
-      ${accToggle("savings", "Épargne", "🏛️")}
-      ${accToggle("pension", L("pensionKind"), "🛡️")}
-      ${accToggle("brokerage", "Bourse / titres", "📈")}
-      <button class="btn" type="submit" style="margin-top:14px">C'est parti 🎉</button>
+      ${accToggle("savings", "Épargne", "saving")}
+      ${accToggle("pension", L("pensionKind"), "shield")}
+      ${accToggle("brokerage", "Bourse / titres", "investment")}
+      <button class="btn" type="submit" style="margin-top:14px">C'est parti</button>
     </form>`);
 }
 
