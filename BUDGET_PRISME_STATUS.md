@@ -33,21 +33,32 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-**P15 — Import et documents** · « Puis-je importer et garder mes justificatifs sans surprise ? »
+**P16 — Onboarding** · « Comment démarrer sans connaître la comptabilité ? »
 
-- État : `VERIFYING_AUTOMATED` — PR ouverte depuis
-  `agent/prisme-p15-import-documents`.
-- Livré : glyphe `document` (nouvelle entrée du registre, doc à coin plié)
-  sur les lignes et l'état vide ; bouton « Ajouter un document » en mots ;
-  état vide guidé, toujours honnête sur le stockage (fichiers dans l'app
-  native, la PWA garde nom et type). Aucun changement au parseur CSV, au
-  mapping, aux empreintes de doublons ni au rollback.
-- Preuves : e2e 137 → 138 parcours ; contrôle négatif à 3 échecs ciblés ;
-  5 parités ; design ; audit-final, audit-coherence, audit-total 320/390 :
-  aucun défaut ; captures avant/après dans
-  `docs/neon-ultra/budget-prisme/p15/`.
-- iOS : ImportWizardView et DocumentsListView natifs déjà propres — aucun
-  changement.
+- État : `VERIFYING_AUTOMATED` — PR ouverte depuis `agent/prisme-p16-onboarding`.
+- Livré : pictos d'étape 44 px en grands glyphes (maison, personne, revenu,
+  facture, récurrent, objectif, comptes) ; choix du foyer en glyphes
+  personne/couple/famille (deux glyphes ajoutés au registre) ; toggles de
+  comptes en glyphe de nature + coche/plus peints ; « C'est parti » sans
+  emoji ; lignes charges/abonnements lues par leur libellé seul.
+  Restent volontairement : les drapeaux de pays (sens géographique) et les
+  emojis des objectifs proposés (ils deviennent l'emoji personnel de
+  l'objectif — précédent P10).
+- Preuves : e2e 138 → 139 parcours (parcours d'onboarding réel dans un
+  contexte neuf, coche vérifiée dans les DEUX états d'un toggle) ; contrôle
+  négatif à 3 échecs ciblés ; 5 parités ; design ; audit-final,
+  audit-coherence, audit-total 320/390 : aucun défaut ; captures
+  avant/après (étapes foyer et comptes) dans
+  `docs/neon-ultra/budget-prisme/p16/`.
+- iOS : OnboardingFlowView natif propre — aucun changement.
+- Incident conteneur : le lot avait été perdu par un redémarrage avant
+  commit ; rejoué à l'identique, poussé immédiatement (leçon appliquée).
+
+## Lots fusionnés récents
+
+- **P15 — Import et documents** : fusion PR #25 au SHA
+  `270577f30b943277c751b172182f5a519c203635`, CI push verte, publication
+  Pages relancée au SHA exact après redémarrage du conteneur.
 
 ## Lots fusionnés récents
 
