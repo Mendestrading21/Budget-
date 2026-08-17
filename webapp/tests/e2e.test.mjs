@@ -8103,6 +8103,46 @@ await page.setViewportSize({ width: 390, height: 844 });
 check(a2etroit.unis && !a2etroit.deborde && a2etroit.wraps.length === 0,
   `à 320 px : trio toujours identique, montants entiers et contenus (${JSON.stringify(a2etroit.cells)} wraps=${a2etroit.wraps.join("·")})`);
 
+// ---------- Test 145 : A3 Beauté des cartes — biseau, cadran, avancement du mois ----------
+// Améliorations continues, lot A3 (« encore plus beau »). Le biseau haut
+// des cartes est un cheveu plus clair que le contour (jamais un glow) ;
+// les séparateurs du trio sont en retrait (dégradé mat) ; le héros du
+// mois COURANT porte une jauge honnête « Jour X sur Y » (jour calendaire
+// réel) — absente sur les autres mois ; les chiffres du trio sont en
+// graisse d'affirmation.
+currentTest = "A3 beauté";
+await goHome();
+const a3 = await page.evaluate(() => {
+  cursor = { y: NOW.y, m: NOW.m };
+  activeTab = "home"; moreView = null; render();
+  const carte = document.querySelector("#screen .card:not(.hero)");
+  const style = carte && getComputedStyle(carte);
+  const trio = document.querySelectorAll(".home-metrics .stat")[1];
+  const jauge = document.querySelector(".home-hero .hero-mois-avance");
+  const joursDuMois = new Date(NOW.y, NOW.m, 0).getDate();
+  const fill = jauge && jauge.querySelector(".fill");
+  const resultat = {
+    biseau: !!style && style.borderTopColor !== style.borderBottomColor,
+    separateurEnRetrait: trio ? getComputedStyle(trio).borderImageSource.includes("gradient") : false,
+    chiffresAffirmes: [...document.querySelectorAll(".home-metrics .amount")]
+      .every(a => parseInt(getComputedStyle(a).fontWeight, 10) >= 700),
+    jaugePresente: !!jauge,
+    jaugeExacte: jauge ? jauge.getAttribute("aria-label") === `Jour ${NOW.d} sur ${joursDuMois}` : false,
+    largeurExacte: fill ? Math.abs(parseFloat(fill.style.width) - NOW.d / joursDuMois * 100) < 1 : false,
+    texteJauge: jauge ? /Jour \d+ sur \d+/.test(jauge.textContent) : false,
+  };
+  cursor = shiftMonth({ y: NOW.y, m: NOW.m }, -1); render();
+  resultat.jaugeAbsenteAilleurs = !document.querySelector(".hero-mois-avance");
+  cursor = { y: NOW.y, m: NOW.m }; render();
+  return resultat;
+});
+check(a3.biseau, "le biseau haut des cartes est plus clair que le reste du contour");
+check(a3.separateurEnRetrait, "les séparateurs du trio sont en retrait (dégradé mat)");
+check(a3.chiffresAffirmes, "les chiffres du trio sont en graisse 700");
+check(a3.jaugePresente && a3.jaugeExacte && a3.largeurExacte && a3.texteJauge,
+  `le héros du mois courant dit « Jour ${new Date().getDate()} sur N » avec la largeur exacte`);
+check(a3.jaugeAbsenteAilleurs, "aucune jauge d'avancement sur un autre mois que le mois courant");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8112,4 +8152,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 144 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 145 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

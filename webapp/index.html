@@ -3073,11 +3073,21 @@ function renderSimpleHome() {
       ? "Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois."
       : "Revenus moins sorties sur ce mois.");
   const heroLong = Math.abs(heroValue) >= 1000000 ? " long" : "";
+  // A3 : où en est le mois — jour courant sur nombre de jours réels du
+  // mois. Donnée exacte du calendrier, uniquement sur le mois en cours ;
+  // rien n'est estimé, rien ne clignote.
+  const joursDuMois = new Date(y, m, 0).getDate();
+  const avanceMois = s.isCurrent ? `<div class="hero-mois-avance" role="img"
+      aria-label="Jour ${NOW.d} sur ${joursDuMois}">
+    <div class="track"><div class="fill" style="width:${(NOW.d / joursDuMois * 100).toFixed(0)}%"></div></div>
+    <span class="caption">Jour ${NOW.d} sur ${joursDuMois}</span>
+  </div>` : "";
   const hero = `<section class="card hero home-hero"
       aria-label="${esc(heroTitle)} : ${chf(heroValue, pastMonth)}">
     <p class="card-label">${esc(heroTitle)}</p>
     <p class="hero-amount ${heroValue < 0 ? "neg" : ""}${heroLong}">${chf(heroValue, pastMonth)}</p>
     <p class="caption hero-note">${esc(heroNote)}</p>
+    ${avanceMois}
     <button class="btn nu-cta home-add" data-addtx>${budgetGlyph("add")}<span>Ajouter</span></button>
   </section>`;
 
