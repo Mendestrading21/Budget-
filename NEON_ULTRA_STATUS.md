@@ -1,5 +1,10 @@
 # Budget — Neon Ultra : état d'avancement
 
+> **Note (17.08.2026)** : Neon Ultra a été suivi du programme
+> **Budget Prisme**, aujourd'hui terminé (pages P00–P18 publiées, dernier
+> SHA `2fbd354`). Ce fichier est conservé comme historique ; l'état courant
+> vit dans `BUDGET_PRISME_STATUS.md`.
+
 Programme actif (ADR-024) · branche `main` (v1 unifiée le 13.08.2026 ;
 historique : tags `archive/…`) · créée
 depuis `26d186e8e31bbdf1bc41651afcaf7a1699988644` (dernier HEAD Obsidian à CI
