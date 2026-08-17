@@ -148,6 +148,22 @@ par dispatch au SHA exact (run `32036956303`, succès) le 17.08.2026.
   Obsidian+NU1+NU2 verts ; captures avant/après 390+320 dans
   `docs/neon-ultra/budget-prisme/a3/`.
 
+**A4 — Trio : « CHF » en bas, chiffres agrandis** · `VERIFYING_AUTOMATED`
+— PR depuis `agent/prisme-a4-trio-chf-bas`.
+
+- Demande du 17.08.2026 (capture annotée, 16:02) : « mettre le CHF en bas
+  et augmenter plus grand la police ». Dans chaque cellule du trio,
+  l'ordre devient libellé → montant → « CHF » (chip en bas, au même
+  endroit dans les trois cellules — mesuré 48,9 px du haut de cellule
+  partout) ; le palier `wide` (six chiffres) passe de 3.1vw à 3.6vw
+  (12,1 → 14 px à 390 px), `xwide` de 2.8vw à 3.0vw — la ligne des
+  chiffres profite de la largeur libérée par le chip.
+- Preuves : e2e 145 → 146 parcours (ordre vérifié par géométrie, hauteur
+  du chip identique, plancher 13 px du palier wide, aucun débordement) ;
+  contrôle négatif à 2 sabotages → 2 échecs ciblés ; 5 parités ; design
+  vert ; captures avant/après 390+320 dans
+  `docs/neon-ultra/budget-prisme/a4/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

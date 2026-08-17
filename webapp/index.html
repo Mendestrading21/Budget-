@@ -3102,11 +3102,16 @@ function renderSimpleHome() {
   const metricAmount = (value, cls) =>
     `<span class="amount ${cls}${metricTier}">${metricCompact(value)}</span>`;
   const metricLabel = label =>
-    `<div class="home-metric-label"><span class="card-label">${label}</span><span class="home-metric-currency">${esc(metricCurrency)}</span></div>`;
+    `<div class="home-metric-label"><span class="card-label">${label}</span></div>`;
+  // A4 (demande propriétaire) : « CHF » se lit EN BAS de la cellule, sous
+  // les chiffres — même ordre dans les trois cellules : libellé, montant,
+  // devise. Le chip libéré de la ligne du libellé laisse aussi les
+  // chiffres s'agrandir.
+  const metricChip = `<span class="home-metric-currency">${esc(metricCurrency)}</span>`;
   const metrics = `<div class="stat-grid home-metrics" aria-label="Résumé du mois">
-    <div class="stat">${metricLabel("Reçu")}${metricAmount(s.income, "pos")}</div>
-    <div class="stat">${metricLabel("Dépensé")}${metricAmount(s.living, "neg")}</div>
-    <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}</div>
+    <div class="stat">${metricLabel("Reçu")}${metricAmount(s.income, "pos")}${metricChip}</div>
+    <div class="stat">${metricLabel("Dépensé")}${metricAmount(s.living, "neg")}${metricChip}</div>
+    <div class="stat">${metricLabel("Mis de côté")}${metricAmount(s.savings + s.invest, "info")}${metricChip}</div>
   </div>`;
 
   const incomeDue = RECURRINGS

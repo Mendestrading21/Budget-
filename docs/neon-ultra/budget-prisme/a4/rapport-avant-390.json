@@ -1,0 +1,300 @@
+{
+ "mois": {
+  "gridCols": "112px 112px 112px",
+  "stats": [
+   {
+    "label": "Reçu",
+    "cell": {
+     "x": 27,
+     "y": 379.5,
+     "w": 112,
+     "h": 65.5
+    },
+    "labelR": {
+     "x": 35,
+     "y": 389.5,
+     "w": 37.4,
+     "h": 14
+    },
+    "curR": {
+     "x": 35,
+     "y": 410.5,
+     "w": 20.6,
+     "h": 10
+    },
+    "amountR": {
+     "x": 35,
+     "y": 420.5,
+     "w": 96,
+     "h": 14.5
+    },
+    "chfSousLeLibelle": true,
+    "wraps": []
+   },
+   {
+    "label": "Dépensé",
+    "cell": {
+     "x": 139,
+     "y": 379.5,
+     "w": 112,
+     "h": 65.5
+    },
+    "labelR": {
+     "x": 148,
+     "y": 389.5,
+     "w": 63.3,
+     "h": 14
+    },
+    "curR": {
+     "x": 148,
+     "y": 410.5,
+     "w": 20.6,
+     "h": 10
+    },
+    "amountR": {
+     "x": 148,
+     "y": 420.5,
+     "w": 95,
+     "h": 14.5
+    },
+    "chfSousLeLibelle": true,
+    "wraps": []
+   },
+   {
+    "label": "Mis de côté",
+    "cell": {
+     "x": 251,
+     "y": 379.5,
+     "w": 112,
+     "h": 65.5
+    },
+    "labelR": {
+     "x": 260,
+     "y": 389.5,
+     "w": 86.8,
+     "h": 14
+    },
+    "curR": {
+     "x": 260,
+     "y": 410.5,
+     "w": 20.6,
+     "h": 10
+    },
+    "amountR": {
+     "x": 260,
+     "y": 420.5,
+     "w": 95,
+     "h": 14.5
+    },
+    "chfSousLeLibelle": true,
+    "wraps": []
+   }
+  ],
+  "bilanAmounts": [
+   {
+    "text": "CHF 18'200.00",
+    "h": 15,
+    "lineH": 18,
+    "wrapped": false,
+    "wraps": []
+   }
+  ]
+ },
+ "historique": [
+  {
+   "titre": "Loyer et charges annuelles",
+   "sousTitre": "Dépense",
+   "sousTitreCoupe": false,
+   "titreCoupe": true,
+   "largeurMontant": 98.2,
+   "largeurMeta": 157.8,
+   "wraps": []
+  },
+  {
+   "titre": "Versement bourse",
+   "sousTitre": "Investissement → Bourse",
+   "sousTitreCoupe": false,
+   "titreCoupe": false,
+   "largeurMontant": 98.9,
+   "largeurMeta": 157.1,
+   "wraps": []
+  },
+  {
+   "titre": "Gros virement épargne",
+   "sousTitre": "Épargne → Compte épargne",
+   "sousTitreCoupe": false,
+   "titreCoupe": false,
+   "largeurMontant": 106.4,
+   "largeurMeta": 149.6,
+   "wraps": []
+  },
+  {
+   "titre": "Arrondi épargne",
+   "sousTitre": "Épargne → Compte épargne",
+   "sousTitreCoupe": false,
+   "titreCoupe": false,
+   "largeurMontant": 80.7,
+   "largeurMeta": 175.3,
+   "wraps": []
+  },
+  {
+   "titre": "Mise de côté mensuelle",
+   "sousTitre": "Épargne → Compte épargne",
+   "sousTitreCoupe": false,
+   "titreCoupe": false,
+   "largeurMontant": 91.4,
+   "largeurMeta": 164.6,
+   "wraps": []
+  },
+  {
+   "titre": "Salaire",
+   "sousTitre": "Revenu",
+   "sousTitreCoupe": false,
+   "titreCoupe": false,
+   "largeurMontant": 98.9,
+   "largeurMeta": 157.1,
+   "wraps": []
+  }
+ ],
+ "budget": {
+  "heroTexte": "-CHF 10'562.00",
+  "heroR": {
+   "x": 43,
+   "y": 165.8,
+   "w": 204,
+   "h": 29
+  },
+  "anneau": {
+   "x": 263,
+   "y": 192,
+   "w": 84,
+   "h": 84
+  },
+  "pctTexte": "1148%",
+  "pctLargeur": 35.3,
+  "pctDebordeAnneau": false,
+  "captionTexte": "Vous avez utilisé 1148 % de votre budget — l'épargne et les impôts sont comptés ",
+  "wrapsHero": [],
+  "heroDeborde": false,
+  "barres": [
+   {
+    "vals": "CHF 11'570.00 dépensé sur CHF 258.00 prévu",
+    "valsCoupe": false,
+    "wraps": []
+   },
+   {
+    "vals": "CHF 0.00 dépensé sur CHF 600.00 prévu",
+    "valsCoupe": false,
+    "wraps": []
+   },
+   {
+    "vals": "CHF 0.00 dépensé sur CHF 150.00 prévu",
+    "valsCoupe": false,
+    "wraps": []
+   }
+  ]
+ },
+ "comptes": [
+  {
+   "nom": "Compte courant",
+   "hauteur": 73.9,
+   "montant": "CHF 40'420.00",
+   "wraps": [],
+   "legendes": []
+  },
+  {
+   "nom": "Épargne",
+   "hauteur": 73.9,
+   "montant": "CHF 0.00",
+   "wraps": [],
+   "legendes": []
+  },
+  {
+   "nom": "Compte épargne",
+   "hauteur": 111.9,
+   "montant": "CHF 199'800.00",
+   "wraps": [],
+   "legendes": [
+    "Mis de côté cette année : CHF 102'210.00 · en tout : CHF 102'210.00"
+   ]
+  },
+  {
+   "nom": "Bourse",
+   "hauteur": 123.9,
+   "montant": "CHF 44'000.00",
+   "wraps": [],
+   "legendes": [
+    "Mis de côté cette année : CHF 20'000.00 · en tout : CHF 20'000.00 · pe"
+   ]
+  }
+ ],
+ "quickMenu": {
+  "tiles": [
+   {
+    "titre": "J'ai dépensé",
+    "tuile": {
+     "x": 20,
+     "y": 527.4,
+     "w": 170.5,
+     "h": 111.8
+    },
+    "icone": {
+     "x": 34,
+     "y": 541.4,
+     "w": 38,
+     "h": 38
+    },
+    "lignesSousTitre": 2
+   },
+   {
+    "titre": "J'ai reçu",
+    "tuile": {
+     "x": 199.5,
+     "y": 527.4,
+     "w": 170.5,
+     "h": 111.8
+    },
+    "icone": {
+     "x": 213.5,
+     "y": 541.4,
+     "w": 38,
+     "h": 38
+    },
+    "lignesSousTitre": 2
+   },
+   {
+    "titre": "J'ai mis de côté",
+    "tuile": {
+     "x": 20,
+     "y": 648.2,
+     "w": 170.5,
+     "h": 111.8
+    },
+    "icone": {
+     "x": 34,
+     "y": 662.2,
+     "w": 38,
+     "h": 38
+    },
+    "lignesSousTitre": 2
+   },
+   {
+    "titre": "Ça revient régulièrement",
+    "tuile": {
+     "x": 199.5,
+     "y": 648.2,
+     "w": 170.5,
+     "h": 111.8
+    },
+    "icone": {
+     "x": 213.5,
+     "y": 662.2,
+     "w": 38,
+     "h": 38
+    },
+    "lignesSousTitre": 3
+   }
+  ],
+  "hauteursEgales": true
+ }
+}
