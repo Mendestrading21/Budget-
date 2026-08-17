@@ -293,8 +293,8 @@ check(screenHTML.includes("Compte E2E") && screenHTML.includes("1'500.00"), "com
 // ---------- Test 6b : cumuls Finary — chaque versement s'additionne ----------
 currentTest = "cumuls";
 screenHTML = await page.$eval("#screen", el => el.innerHTML); // toujours sur Comptes
-check(screenHTML.includes("Mis de côté cette année : CHF 100.00"), "cumul annuel absent sur le compte Épargne");
-check(screenHTML.includes("en tout : CHF 100.00"), "cumul total absent sur le compte Épargne");
+check(screenHTML.includes("Mis de côté cette année : CHF&nbsp;100.00"), "cumul annuel absent sur le compte Épargne");
+check(screenHTML.includes("en tout : CHF&nbsp;100.00"), "cumul total absent sur le compte Épargne");
 // Fiche de compte : historique, courbe, cumuls, retour
 await page.click('#screen [data-accid]:has-text("Épargne")');
 await page.waitForTimeout(200);
@@ -503,7 +503,7 @@ await page.click("[data-obskipgoal]");
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Bonjour Eva"), "prénom absent après un départ en euros");
-check(screenHTML.includes("€ 1'000.00"), "le solde de départ doit s'afficher en euros");
+check(screenHTML.includes("€&nbsp;1'000.00"), "le solde de départ doit s'afficher en euros");
 check(!screenHTML.includes("CHF "), "plus aucun total en CHF quand la référence est l'euro");
 
 // ---------- Test 14 : Réglages essentiels — guide, pays, devise ----------
@@ -1464,7 +1464,8 @@ await page.waitForTimeout(200);
 // Épargne marquée « mis de côté ».
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 if (screenHTML.includes("Épargne")) {
-  check(screenHTML.includes("mis de côté"), "l'épargne est écrite « mis de côté »");
+  check(/mis de côté|Épargne[^<]*→/.test(screenHTML),
+    "l'épargne est écrite « mis de côté » (ou « Épargne → compte » quand la destination est affichée)");
 }
 // Montant extrême : ligne intacte, aucun débordement.
 await page.evaluate(() => {
@@ -2303,9 +2304,9 @@ const drag63c = await page.evaluate(() => ({
 check(drag63a === "1", `l'appui initial sélectionne le mois visé (obtenu ${drag63a}, attendu 1)`);
 check(drag63b === "6", `le glissement met à jour PENDANT le geste (obtenu ${drag63b}, attendu 6)`);
 check(drag63c.now === "11", `la fin du glissement atteint le dernier mois (obtenu ${drag63c.now})`);
-check(drag63c.cap.includes("CHF 1'000.00") && drag63c.cap.includes("solde"),
+check(drag63c.cap.includes("CHF 1'000.00") && drag63c.cap.includes("solde"),
   `l'étiquette du mois courant vaut la FIXTURE 1'234.56 − 234.56 = CHF 1'000.00 (obtenu « ${drag63c.cap} »)`);
-check(drag63c.valuetext.includes("CHF 1'000.00"), "aria-valuetext annonce la même valeur de fixture");
+check(drag63c.valuetext.includes("CHF 1'000.00"), "aria-valuetext annonce la même valeur de fixture");
 // Marqueur : règle et point EXACTEMENT aux coordonnées du mois choisi.
 const marker63 = await page.evaluate(() => {
   const wrap = document.querySelector('[data-chart="acc"]');
@@ -2329,7 +2330,7 @@ const key63a = await page.evaluate(() => ({
   cap: document.querySelector('[data-chartcaption="acc"]').textContent,
 }));
 check(key63a.now === "0", "Origine (Home) choisit le premier mois");
-check(key63a.cap.includes("CHF 1'234.56"),
+check(key63a.cap.includes("CHF 1'234.56"),
   `avant la dépense, l'étiquette vaut l'ouverture de la fixture (obtenu « ${key63a.cap} »)`);
 const edge63a = await page.evaluate(() => {
   const wrap = document.querySelector('[data-chart="acc"]');
@@ -2357,7 +2358,7 @@ const key63d = await page.evaluate(() => ({
 check(key63d.now === "11", "Fin (End) choisit le dernier mois");
 check(key63d.focused, "le focus clavier reste sur le scrubber après toutes les interactions");
 check(key63d.liveSame, "la région live est MISE À JOUR en place — jamais recréée");
-check(key63d.cap.includes("CHF 1'000.00"), "l'étiquette clavier lit la même valeur de fixture");
+check(key63d.cap.includes("CHF 1'000.00"), "l'étiquette clavier lit la même valeur de fixture");
 const edge63b = await page.evaluate(() => {
   const wrap = document.querySelector('[data-chart="acc"]');
   return { cx: parseFloat(wrap.querySelector("[data-scrubdot]").getAttribute("cx")),
@@ -2419,7 +2420,7 @@ const negSel64 = await page.evaluate(() => {
   };
 });
 check(negSel64.visible && negSel64.inFrame, "point sélectionné VISIBLE et dans le cadre sur une série constante négative");
-check(negSel64.cap.includes("-CHF 100.00"), `l'étiquette lit −100 exactement (obtenu « ${negSel64.cap} »)`);
+check(negSel64.cap.includes("-CHF 100.00"), `l'étiquette lit −100 exactement (obtenu « ${negSel64.cap} »)`);
 
 // ---------- Test 65 : isolation par compte, 320/390, transparence et mouvement réduits ----------
 currentTest = "isolation et états L8";
@@ -7410,7 +7411,7 @@ check(p13.rempli.boutonIns.trim() === "Ajouter une assurance" && p13.rempli.bout
   `les boutons d'ajout parlent en mots (obtenus « ${p13.rempli.boutonIns.trim()} », « ${p13.rempli.boutonPen.trim()} »)`);
 check(p13.vide.etatsVides === 2,
   `les deux états vides sont guidés avec leur glyphe (${p13.vide.etatsVides}/2)`);
-check(!/Soit CHF 0\.00 par an/.test(p13.vide.heroCaption) && /Ajoutez/.test(p13.vide.heroCaption),
+check(!/Soit CHF[\s\u00A0]0\.00 par an/.test(p13.vide.heroCaption) && /Ajoutez/.test(p13.vide.heroCaption),
   `sans contrat, le héros invite au lieu d'annoncer « CHF 0.00 par an » (obtenu « ${p13.vide.heroCaption.slice(0, 60)}… »)`);
 check(!/selon certificat/.test(p13.labelProjection) && /selon votre certificat/.test(p13.labelProjection),
   `le libellé du montant prévu à la retraite est dit une seule fois (obtenu « ${p13.labelProjection} »)`);
@@ -7939,6 +7940,169 @@ check(a1.appels === 1, `le bouton appelle réellement window.print() (${a1.appel
 check(a1.reglesImpression >= 1 && a1.encre && a1.navMasquee,
   `la feuille d'impression existe : fond blanc et navigation masquée (${a1.reglesImpression} règle(s))`);
 
+// ---------- Test 144 : A2 Formatage — montants insécables, trio uniforme, tuiles égales ----------
+// Améliorations continues, lot A2 (5 photos annotées du propriétaire).
+// Un montant est un mot : « CHF 102'210.00 » ne se coupe jamais en deux
+// lignes, nulle part. Le trio du Mois a trois cellules IDENTIQUES (libellé,
+// CHF, chiffres — mêmes décalages). L'Historique groupé ne répète pas la
+// date de l'en-tête dans les lignes. Les tuiles du menu d'ajout sont
+// égales. L'anneau du Budget reste lisible même à 4484 %.
+currentTest = "A2 formatage";
+await goHome();
+await page.evaluate(() => {
+  // Fixture des photos — EN MÉMOIRE seulement (dernier test, pas de saveState).
+  const cash = ACCOUNTS.find(a => a.cash);
+  if (!ACCOUNTS.some(a => a.id === "acc-a2-ep")) {
+    ACCOUNTS.push(
+      { id: "acc-a2-ep", name: "Compte épargne", kind: "savings", inst: "BCV", currency: "CHF", opening: 97590, cash: false },
+      { id: "acc-a2-bourse", name: "Bourse", kind: "brokerage", inst: "IBKR", currency: "CHF", opening: 24000, cash: false },
+    );
+  }
+  const { y, m } = NOW;
+  let id = 987000;
+  const mk = (d, title, amount, type, cat, dest, extra) => ({
+    id: id++, y, m, d, title, amount, type, cat, acc: cash.id, ...(dest ? { dest } : {}),
+    status: "posted", createdAt: 1, updatedAt: 1, ...(extra || {}),
+  });
+  transactions.push(
+    mk(2, "Salaire A2", 18200, "income", "Revenus"),
+    mk(3, "Mise de côté mensuelle", 2000, "saving", "Épargne", "acc-a2-ep"),
+    mk(4, "Arrondi épargne", 210, "saving", "Épargne", "acc-a2-ep"),
+    mk(5, "Gros virement épargne", 100000, "saving", "Épargne", "acc-a2-ep"),
+    mk(6, "Versement bourse", 20000, "investment", "Investissements", "acc-a2-bourse"),
+    mk(7, "Loyer et charges annuelles", 11570, "expense", "Logement"),
+    mk(8, "Provision impôts géante", 100000, "saving", "Épargne", "acc-a2-ep", { status: "planned", recurringId: "r-a2-fantome" }),
+  );
+  S.budgets = S.budgets || {};
+  S.budgets[`${y}-${m}`] = [{ cat: "Logement", amount: 258, kind: "expense" }];
+  cursor = { y, m };
+  activeTab = "home"; moreView = null; render();
+  // Détecteur : un montant (« CHF 1'234.56 ») rendu sur PLUSIEURS lignes.
+  window.__amountWraps = root => {
+    const out = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const re = /[-+−]?(?:CHF|€|\$)[\s ]?\d[\d'’]*\.\d\d/g;
+      let match;
+      while ((match = re.exec(node.textContent))) {
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        const tops = [...new Set([...range.getClientRects()].filter(r => r.width > 1).map(r => Math.round(r.top)))];
+        if (tops.length > 1) out.push(match[0]);
+      }
+    }
+    return out;
+  };
+});
+const a2 = { wraps: {} };
+// Mois : trio identique + bilan sur une ligne
+Object.assign(a2, await page.evaluate(() => {
+  const cells = [...document.querySelectorAll(".home-metrics .stat")].map(stat => {
+    const cell = stat.getBoundingClientRect();
+    const cur = stat.querySelector(".home-metric-currency").getBoundingClientRect();
+    const amount = stat.querySelector(".amount").getBoundingClientRect();
+    return { curY: Math.round(cur.y - cell.y), curX: Math.round(cur.x - cell.x),
+      amtY: Math.round(amount.y - cell.y), amtDeborde: amount.right > cell.right + 0.5,
+      taille: getComputedStyle(stat.querySelector(".amount")).fontSize };
+  });
+  const bilan = [...document.querySelectorAll(".home-bill-row .amount")].map(a => {
+    const r = a.getBoundingClientRect();
+    const lh = parseFloat(getComputedStyle(a).lineHeight) || 18;
+    return { texte: a.textContent, uneLigne: r.height < lh * 1.6 };
+  });
+  return { cells, bilan, wrapsMois: __amountWraps(document.getElementById("screen")) };
+}));
+check(a2.cells.length === 3
+  && new Set(a2.cells.map(c => c.curY)).size === 1
+  && new Set(a2.cells.map(c => c.amtY)).size === 1
+  && Math.max(...a2.cells.map(c => c.curX)) - Math.min(...a2.cells.map(c => c.curX)) <= 1,
+  `trio du Mois : trois cellules identiques — CHF et chiffres aux mêmes positions (obtenu ${JSON.stringify(a2.cells)})`);
+check(new Set(a2.cells.map(c => c.taille)).size === 1 && !a2.cells.some(c => c.amtDeborde),
+  "trio du Mois : une seule taille de chiffres pour les trois cellules, sans débordement");
+check(a2.wrapsMois.length === 0, `aucun montant coupé sur l'écran Mois (${a2.wrapsMois.join(" · ")})`);
+const bilanLong = a2.bilan.find(b => b.texte.includes("100'000.00"));
+check(!!bilanLong && bilanLong.uneLigne && a2.bilan.every(b => b.uneLigne),
+  `le bilan du mois écrit chaque montant sur UNE ligne, même CHF 100'000.00 (${JSON.stringify(a2.bilan.map(b => b.texte))})`);
+// Historique groupé : la date vit dans l'en-tête, pas dans les lignes
+await goMovements();
+const a2histo = await page.evaluate(() => ({
+  enTetes: document.querySelectorAll(".day-header").length,
+  sousTitresDates: [...document.querySelectorAll(".tx .meta .s")].filter(s => /\d{2}\.\d{2}\.\d{4}/.test(s.textContent)).length,
+  coupes: [...document.querySelectorAll(".tx .meta .s")].filter(s => s.scrollWidth > s.clientWidth + 1).length,
+  wraps: __amountWraps(document.getElementById("screen")),
+}));
+check(a2histo.enTetes >= 2 && a2histo.sousTitresDates === 0,
+  `l'Historique groupé écrit la date UNE fois (en-têtes : ${a2histo.enTetes}, lignes datées : ${a2histo.sousTitresDates})`);
+check(a2histo.coupes === 0, `aucun sous-titre coupé en plein mot dans l'Historique (${a2histo.coupes} coupé(s))`);
+check(a2histo.wraps.length === 0, "aucun montant coupé dans l'Historique");
+// Le détail d'un compte garde ses dates (pas d'en-têtes de jour là-bas)
+const a2detail = await page.evaluate(() => {
+  accountView = "acc-a2-ep"; activeTab = "accounts"; moreView = null; render();
+  const dates = [...document.querySelectorAll(".tx .meta .s")].filter(s => /\d{2}\.\d{2}\.\d{4}/.test(s.textContent)).length;
+  const wraps = __amountWraps(document.getElementById("screen"));
+  accountView = null; render();
+  return { dates, wraps };
+});
+check(a2detail.dates >= 3, `le détail d'un compte garde la date sur chaque ligne (${a2detail.dates})`);
+check(a2detail.wraps.length === 0, "aucun montant coupé sur les légendes des Comptes (« Mis de côté cette année »)");
+// Budget : anneau extrême lisible, caption structurée
+const a2budget = await page.evaluate(() => {
+  activeTab = "budget"; render();
+  const hero = document.querySelector(".card.hero");
+  const svgText = hero.querySelector("svg text");
+  const svg = hero.querySelector("svg");
+  return {
+    pct: svgText ? svgText.textContent : "",
+    petitePolice: svgText ? parseFloat(svgText.style.fontSize) : 0,
+    pctTient: svgText && svg ? svgText.getBoundingClientRect().width <= svg.getBoundingClientRect().width * 0.72 : false,
+    prevuSepare: /Prévu CHF[\s ][\d'.]+ · dépensé CHF[\s ][\d'.]+\./.test(hero.innerText),
+    wraps: __amountWraps(document.getElementById("screen")),
+    deborde: hero.scrollWidth > hero.clientWidth + 1,
+  };
+});
+check(/\d{4,}%/.test(a2budget.pct) && a2budget.petitePolice <= 11 && a2budget.pctTient,
+  `l'anneau à ${a2budget.pct} réduit sa police (${a2budget.petitePolice}px) et le texte tient dans l'anneau`);
+check(a2budget.prevuSepare, "le héros Budget écrit « Prévu … · dépensé … » sur sa propre ligne");
+check(a2budget.wraps.length === 0 && !a2budget.deborde, "aucun montant coupé ni débordement sur l'écran Budget");
+// quickMenu : quatre tuiles égales, icônes identiques
+await page.evaluate(() => { activeTab = "home"; render(); });
+await page.click("[data-addtx]");
+await page.waitForSelector("#quickMenu", { state: "visible" });
+const a2menu = await page.evaluate(() => {
+  const tuiles = [...document.querySelectorAll("#quickMenu .quick-intent")].map(t => t.getBoundingClientRect().height);
+  const icones = [...document.querySelectorAll("#quickMenu .quick-intent-icon")].map(i => {
+    const r = i.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}`;
+  });
+  return { tuiles, icones };
+});
+await page.click("#quickCancel");
+check(a2menu.tuiles.length === 4 && Math.max(...a2menu.tuiles) - Math.min(...a2menu.tuiles) < 1,
+  `les quatre tuiles d'intention ont la même hauteur (${a2menu.tuiles.map(h => Math.round(h)).join(", ")})`);
+check(new Set(a2menu.icones).size === 1, `les icônes des tuiles sont identiques (${[...new Set(a2menu.icones)].join(" ")})`);
+// 320 px : le trio reste identique et contenu
+await page.setViewportSize({ width: 320, height: 844 });
+await page.evaluate(() => { activeTab = "home"; render(); });
+const a2etroit = await page.evaluate(() => {
+  const cells = [...document.querySelectorAll(".home-metrics .stat")].map(stat => {
+    const cell = stat.getBoundingClientRect();
+    const cur = stat.querySelector(".home-metric-currency").getBoundingClientRect();
+    const amount = stat.querySelector(".amount");
+    const r = amount.getBoundingClientRect();
+    return { curY: Math.round(cur.y - cell.y),
+      texte: amount.textContent, classe: amount.className,
+      police: getComputedStyle(amount).fontSize,
+      depasse: +(r.right - cell.right).toFixed(1),
+      deborde: r.right > cell.right + 1 };
+  });
+  return { cells, unis: new Set(cells.map(c => c.curY)).size === 1, deborde: cells.some(c => c.deborde),
+    wraps: __amountWraps(document.getElementById("screen")) };
+});
+await page.setViewportSize({ width: 390, height: 844 });
+check(a2etroit.unis && !a2etroit.deborde && a2etroit.wraps.length === 0,
+  `à 320 px : trio toujours identique, montants entiers et contenus (${JSON.stringify(a2etroit.cells)} wraps=${a2etroit.wraps.join("·")})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7948,4 +8112,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 143 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 144 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
