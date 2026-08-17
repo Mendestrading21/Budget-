@@ -148,8 +148,10 @@ par dispatch au SHA exact (run `32036956303`, succès) le 17.08.2026.
   Obsidian+NU1+NU2 verts ; captures avant/après 390+320 dans
   `docs/neon-ultra/budget-prisme/a3/`.
 
-**A4 — Trio : « CHF » en bas, chiffres agrandis** · `VERIFYING_AUTOMATED`
-— PR depuis `agent/prisme-a4-trio-chf-bas`.
+**A4 — Trio : « CHF » en bas, chiffres agrandis** · `MERGED` +
+`PUBLISHED` — PR #36 fusionnée en squash, `main` =
+`bebd90c4cc249ea595207bb99f549ce1abfda1d4`, CI de fusion verte, publié
+par dispatch au SHA exact (run `32040114211`, succès) le 17.08.2026.
 
 - Demande du 17.08.2026 (capture annotée, 16:02) : « mettre le CHF en bas
   et augmenter plus grand la police ». Dans chaque cellule du trio,
