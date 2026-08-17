@@ -4986,7 +4986,7 @@ function renderAssistant() {
   const QA = {
     week: {
       q: "Combien puis-je dépenser cette semaine ?",
-      icon: "🛒",
+      icon: "budget",
       result: s.available > 0 ? `≈ ${chf(weekBudget)} sur ${weekDays} jour${weekDays > 1 ? "s" : ""}` : "Prudence : le disponible du mois est à zéro ou négatif",
       why: `Votre argent disponible (${chf(s.available)}) réparti sur les ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""} restants du mois donne ${chf(s.daily)} par jour.`,
       hyp: "Compte les revenus attendus, les charges prévues, les paiements réguliers à venir et la réserve d'impôts manquante — pas l'épargne ni le patrimoine.",
@@ -4994,7 +4994,7 @@ function renderAssistant() {
     },
     why: {
       q: "Pourquoi ai-je ce montant disponible ?",
-      icon: "🔍",
+      icon: "search",
       result: chf(s.available),
       why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − réserve d'impôts manquante ${chf(-s.taxGap, true)}.`,
       hyp: "L'épargne et les investissements ne sont pas des dépenses ; les virements internes sont neutres.",
@@ -5002,15 +5002,15 @@ function renderAssistant() {
     },
     tax: {
       q: "Combien garder pour mes impôts ?",
-      icon: "📮",
-      result: tax.reserveGap > 0 ? `Encore ${chf(tax.reserveGap)} pour ${NOW.y}` : `Votre réserve ${NOW.y} est couverte ✓`,
+      icon: "taxPayment",
+      result: tax.reserveGap > 0 ? `Encore ${chf(tax.reserveGap)} pour ${NOW.y}` : `Votre réserve ${NOW.y} est couverte`,
       why: `Estimation ${NOW.y} : ${chf(tax.estimated)} (${pct(tax.rate)} des revenus observés) · déjà payé : ${chf(tax.paid)} · réserve constituée : ${chf(tax.reserved)}.`,
       hyp: "Estimation d'organisation personnelle basée sur votre taux réglable — pas un conseil fiscal.",
       action: ["Ouvrir Impôts", 'data-more="taxes"'],
     },
     prio: {
       q: "Quelle est ma priorité ce mois-ci ?",
-      icon: "🧭",
+      icon: "goal",
       result: prio ? prio.text : "Tout est en ordre — rien d'urgent ce mois.",
       why: prio ? `Parce que ${prio.why}.` : "Aucun retard, réserve d'impôts couverte, budget respecté.",
       hyp: "Une seule priorité à la fois : rattrapage > factures en retard > impôts > dépassement > objectif.",
@@ -5020,19 +5020,19 @@ function renderAssistant() {
   const card = (key, qa) => assistantQ === key ? `
     <div class="card">
       <div class="tx read-row" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
+        <div class="ico t-neutral" aria-hidden="true">${budgetGlyph(qa.icon)}</div>
         <div class="meta"><div class="t">${qa.q}</div></div>
-        <span style="color:var(--coolgray)">˅</span>
+        <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
       </div>
       <p style="font-size:16px;font-weight:800;margin:12px 0 6px">${qa.result}</p>
       <p style="font-size:13px;margin:0 0 6px;line-height:1.5">${qa.why}</p>
       <p class="caption" style="margin:0 0 10px">${qa.hyp}</p>
-      <button class="btn secondary" ${qa.action[1]} style="width:auto;padding:9px 14px;font-size:13px">${qa.action[0]} ›</button>
+      <button class="btn secondary" ${qa.action[1]} style="width:auto;padding:9px 14px;font-size:13px">${qa.action[0]}</button>
     </div>` : `
     <div class="card row tx read-row" data-assistq="${key}" role="button" tabindex="0" style="cursor:pointer">
-      <div class="ico t-neutral" aria-hidden="true">${qa.icon}</div>
+      <div class="ico t-neutral" aria-hidden="true">${budgetGlyph(qa.icon)}</div>
       <div class="meta"><div class="t">${qa.q}</div></div>
-      <span style="color:var(--coolgray)">›</span>
+      <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>`;
   return backBar("Assistant") + `
     <p class="caption" style="margin:0 0 10px">Des réponses calculées depuis vos données, sur votre téléphone. On vous explique toujours d'où vient le chiffre.</p>
