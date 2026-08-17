@@ -84,7 +84,11 @@ continues » ci-dessous).
   base avant de créer une branche.
 
 **A2 — Formatage et alignement (5 photos annotées du propriétaire)** ·
-`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a2-formatage-montants`.
+`MERGED` + `PUBLISHED` — PR #32 fusionnée en squash, `main` =
+`04df82b5d4982e13e36172f4d7fa33ea7990f2a5`, CI de fusion verte (SHA, iOS,
+web — l'étape « Déployer l'app web » reste bloquée par la règle
+d'environnement, comme toujours), publié par dispatch au SHA exact
+(run `32032950436`, succès) le 17.08.2026.
 
 - Demande du 17.08.2026 : « il y a un CHF qui est en bas, les autres non…
   ça déborde… toujours les mêmes espacements, toujours pareil, même quand
