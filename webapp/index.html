@@ -3154,10 +3154,20 @@ function renderSimpleHome() {
       : transactions.find(transaction => String(transaction.id) === String(item.linkedTxId));
     const completedLabel = linked ? completedMovementLabel(linked.type)
       : (recurring ? completedMovementLabel(recurringMovementType(recurring)) : "Payé");
+    // A6 (demande propriétaire, « comme sur Notion ») : le bouton porte la
+    // couleur de son SENS — vert pour recevoir, corail pour payer, violet
+    // neutre pour mettre de côté. Un appui : l'opération s'enregistre.
+    const movementType = linked ? linked.type
+      : (recurring ? recurringMovementType(recurring) : "expense");
+    const actClass = ["income", "refund"].includes(movementType) ? " act-income"
+      : ["saving", "investment"].includes(movementType) ? " act-save" : " act-expense";
+    // Un libellé long (« Mis de côté », « Planifier ») descend sous la
+    // ligne : il n'écrase plus le titre, qui ne se coupe plus en plein mot.
+    const longClass = label => label.length >= 8 ? " home-bill-action--long" : "";
     if (futureMonth) return "";
     if (item.state === "scheduled") {
       return item.linkedTxId != null
-        ? `<button class="btn secondary home-bill-action" data-confirmtx="${esc(item.linkedTxId)}">${completedLabel}</button>`
+        ? `<button class="btn secondary home-bill-action${actClass}${longClass(completedLabel)}" data-confirmtx="${esc(item.linkedTxId)}">${completedLabel}</button>`
         : "";
     }
     if (!["late", "upcoming"].includes(item.state)) return "";
@@ -3169,7 +3179,7 @@ function renderSimpleHome() {
       : futureMonth)
       ? "Planifier"
       : completedLabel;
-    return `<button class="btn secondary home-bill-action" ${attribute}>${label}</button>`;
+    return `<button class="btn secondary home-bill-action${actClass}${longClass(label)}" ${attribute}>${label}</button>`;
   };
   const outgoingRow = item => {
     const itemStatus = status(item);
@@ -3200,8 +3210,12 @@ function renderSimpleHome() {
   const renderedIncomeDue = incomeDue.filter(({ occurrence }) =>
     !occurrence || ["income", "refund"].includes(occurrence.type)
   );
+  // A6 : l'ordre du Bilan est celui du Notion du propriétaire — Salaire
+  // (revenus), puis Factures et charges, puis Abonnements, puis Mis de
+  // côté. Le retard passe devant à l'intérieur de chaque groupe.
   const incomeRows = pastMonth ? [] : renderedIncomeDue.map(({ r, occurrence, amount }) => ({
-    priority: 1,
+    groupe: 0,
+    urgence: 0,
     html: `<div class="home-bill-row home-income-row">
       <div class="ico t-income" aria-hidden="true">${budgetGlyph("income")}</div>
       <div class="meta" data-recid="${esc(r.id)}" role="button" tabindex="0">
@@ -3209,14 +3223,22 @@ function renderSimpleHome() {
       </div>
       <span class="amount pos">${chf(amount)}</span>
       ${futureMonth ? "" : (occurrence
-        ? `<button class="btn secondary home-bill-action" data-confirmtx="${esc(occurrence.id)}">${completedMovementLabel(occurrence.type)}</button>`
-        : `<button class="btn secondary home-bill-action" data-postrec="${esc(r.id)}">Reçu</button>`)}
+        ? `<button class="btn secondary home-bill-action act-income" data-confirmtx="${esc(occurrence.id)}">${completedMovementLabel(occurrence.type)}</button>`
+        : `<button class="btn secondary home-bill-action act-income" data-postrec="${esc(r.id)}">Reçu</button>`)}
     </div>`,
   }));
-  const outgoingRows = open.map(item => ({
-    priority: item.state === "late" ? 0 : 2,
-    html: outgoingRow(item),
-  }));
+  const outgoingRows = open.map(item => {
+    const recurring = item.source === "recurring" && RECURRINGS.find(r => r.id === item.id);
+    const movementType = recurring ? recurringMovementType(recurring) : "expense";
+    const groupe = ["income", "refund"].includes(movementType) ? 0
+      : ["saving", "investment"].includes(movementType) ? 3
+      : recurring && recurringNature(recurring) === "abonnement" ? 2 : 1;
+    return {
+      groupe,
+      urgence: item.state === "late" ? 0 : 1,
+      html: outgoingRow(item),
+    };
+  });
   // Une définition supprimée, arrêtée ou déplacée dans le calendrier ne
   // supprime jamais son mouvement déjà prévu. Tout mouvement qui n'est plus
   // représenté par l'agenda calculé reste donc visible avec son type réel.
@@ -3231,8 +3253,10 @@ function renderSimpleHome() {
       && !representedPlannedIDs.has(String(transaction.id)))
     .map(transaction => {
       const income = ["income", "refund"].includes(transaction.type);
+      const reserve = ["saving", "investment"].includes(transaction.type);
       return {
-        priority: 2,
+        groupe: income ? 0 : reserve ? 3 : 1,
+        urgence: 1,
         html: `<div class="home-bill-row" data-unrepresented-planned="${esc(transaction.id)}">
           <div class="${icoClass(transaction.type)}" aria-hidden="true">${budgetGlyph(movementGlyphName(transaction.type))}</div>
           <div class="meta" data-txid="${esc(transaction.id)}" role="button" tabindex="0">
@@ -3240,13 +3264,15 @@ function renderSimpleHome() {
             <div class="s">${pendingMovementLabel(transaction.type)} ce mois · Prévu</div>
           </div>
           <span class="amount ${income ? "pos" : ""}">${chf(txCHF(transaction))}</span>
-          ${futureMonth ? "" : `<button class="btn secondary home-bill-action" data-confirmtx="${esc(transaction.id)}">${completedMovementLabel(transaction.type)}</button>`}
+          ${futureMonth ? "" : `<button class="btn secondary home-bill-action${income ? " act-income" : reserve ? " act-save" : " act-expense"}${completedMovementLabel(transaction.type).length >= 8 ? " home-bill-action--long" : ""}" data-confirmtx="${esc(transaction.id)}">${completedMovementLabel(transaction.type)}</button>`}
         </div>`,
       };
     });
   const agenda = [...incomeRows, ...outgoingRows, ...unrepresentedPlannedRows]
-    .sort((a, b) => a.priority - b.priority);
-  const shown = agenda.slice(0, 3);
+    .sort((a, b) => a.groupe - b.groupe || a.urgence - b.urgence);
+  // A6 : six lignes visibles — avec trois, le salaire et les mises de côté
+  // du mois restaient invisibles derrière « Et N autres à faire ».
+  const shown = agenda.slice(0, 6);
 
   const completedTransactions = transactions
     .filter(transaction => transaction.status === "posted"

@@ -774,11 +774,34 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   padding: 8px 12px;
   white-space: nowrap;
 }
+/* A6 (« comme sur Notion ») : le bouton d'action porte la couleur de son
+   SENS — vert pour recevoir, corail pour payer, violet neutre pour mettre
+   de côté. Sémantique stricte, jamais décorative ; un appui suffit,
+   l'opération s'enregistre automatiquement. */
+#screen.nu-pilot-screen .btn.secondary.home-bill-action.act-income {
+  background: var(--nu-tint-positive);
+  color: var(--nu-positive);
+}
+#screen.nu-pilot-screen .btn.secondary.home-bill-action.act-expense {
+  background: var(--nu-tint-negative);
+  color: var(--nu-negative);
+}
+#screen.nu-pilot-screen .btn.secondary.home-bill-action.act-save {
+  background: var(--nu-tint-violet);
+  color: var(--nu-text-primary);
+}
 @media (min-width: 381px) {
   #screen.nu-pilot-screen .home-bill-row:has(.home-bill-action) {
     grid-template-columns: 44px minmax(0, 1fr) auto auto;
   }
   #screen.nu-pilot-screen .home-bill-action { grid-column: auto; }
+  /* A6 : un bouton au libellé LONG (« Mis de côté », « Planifier »)
+     redescend sous la ligne — le titre garde sa largeur et ne se coupe
+     plus en plein mot (« mensue / lle » mesuré avant correctif). */
+  #screen.nu-pilot-screen .home-bill-row:has(.home-bill-action--long) {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+  #screen.nu-pilot-screen .home-bill-action--long { grid-column: 2 / -1; }
 }
 #screen.nu-pilot-screen .home-more-link {
   min-height: 44px;

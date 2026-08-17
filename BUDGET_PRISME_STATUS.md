@@ -190,6 +190,31 @@ succès) le 17.08.2026.
   captures avant/après 320/390/430 dans
   `docs/neon-ultra/budget-prisme/a5/`.
 
+**A6 — Bilan du mois ordonné + boutons de sens** · `VERIFYING_AUTOMATED`
+— PR depuis `agent/prisme-a6-bilan-ordonne`.
+
+- Demande du 17.08.2026 (capture 22:28, logique Notion du propriétaire) :
+  - **Ordre du Bilan** : Salaire (revenus), puis Factures et charges,
+    puis Abonnements, puis Mis de côté — le retard reste devant DANS son
+    groupe. Un abonnement MENSUEL apparaît bien dans son mois (mécanique
+    `recurringNature` existante, désormais garantie par test).
+  - **Six lignes visibles** (au lieu de trois) : le salaire et les mises
+    de côté ne restent plus cachés derrière « Et N autres à faire ».
+  - **Boutons de sens (« comme sur Notion »)** : Reçu en vert, Payé en
+    corail, Mis de côté en violet neutre — sémantique stricte, un appui
+    enregistre l'opération automatiquement (mécanique un-geste existante,
+    couleur ajoutée).
+  - **Bouton long sous la ligne** : « Mis de côté »/« Planifier »
+    descendent sous la ligne — le titre ne se coupe plus en plein mot
+    (« mensue / lle » mesuré avant correctif).
+- Test 104 ajusté honnêtement : les trois charges de bienvenue sont
+  désormais TOUTES visibles au bilan avec le salaire (plafond 6).
+- Preuves : e2e 146 → 147 parcours (ordre mesuré, abonnement mensuel
+  visible, trois couleurs distinctes calculées, un appui → opération
+  postée et ligne dans « Fait ce mois », bouton long dessous) ; contrôle
+  négatif à 2 sabotages → 2 échecs ciblés ; 5 parités ; design vert ;
+  captures avant/après dans `docs/neon-ultra/budget-prisme/a6/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

@@ -1,0 +1,32 @@
+[
+ {
+  "t": "Salaire",
+  "s": "À recevoir ce mois",
+  "b": "Reçu",
+  "c": "rgb(53, 211, 154)"
+ },
+ {
+  "t": "Caisse maladie (LAMal)",
+  "s": "En retard",
+  "b": "Payé",
+  "c": "rgb(255, 101, 119)"
+ },
+ {
+  "t": "Électricité",
+  "s": "À payer ce mois",
+  "b": "Payé",
+  "c": "rgb(255, 101, 119)"
+ },
+ {
+  "t": "Streaming vidéo",
+  "s": "À payer ce mois",
+  "b": "Payé",
+  "c": "rgb(255, 101, 119)"
+ },
+ {
+  "t": "Mise de côté mensuelle",
+  "s": "À mettre de côté ce mois",
+  "b": "Mis de côté",
+  "c": "rgb(245, 247, 250)"
+ }
+]
