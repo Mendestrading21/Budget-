@@ -22,6 +22,13 @@ function check(condition, message) {
 const browser = await chromium.launch({ executablePath: CHROMIUM, args: ["--no-sandbox"] });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await context.newPage();
+// A1 : en Chromium headless, un vrai window.print() gèle le rendu — un
+// balayage qui clique les boutons le déclencherait. La page de suite le
+// remplace par un compteur ; le test A1 vérifie ce compteur.
+await page.addInitScript(() => {
+  window.__printCalls = 0;
+  window.print = () => { window.__printCalls += 1; };
+});
 
 const consoleErrors = [];
 page.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[${currentTest}] ${msg.text()}`); });
@@ -7903,6 +7910,35 @@ const transitoires142 = (source142.match(/toast\("[^"]*[Mm]ouvement[^"]*"|confir
 check(transitoires142.length === 0,
   `aucun toast ni confirmation ne dit plus « mouvement » (restants : ${transitoires142.slice(0, 3).join(" · ") || "aucun"})`);
 
+// ---------- Test 143 : A1 Année imprimable — bouton réel, document propre ----------
+// Améliorations continues. La page Année porte un bouton « Imprimer ou
+// enregistrer en PDF » qui appelle réellement window.print() (compté par
+// le stub de la suite) ; la feuille d'impression existe (fond blanc,
+// navigation masquée) ; rien n'est recalculé.
+currentTest = "A1 année imprimable";
+await goHome();
+const a1 = await page.evaluate(() => {
+  activeTab = "more"; moreView = "year"; render();
+  const s = document.getElementById("screen");
+  const bouton = s.querySelector("[data-printyear]");
+  const avantClics = window.__printCalls || 0;
+  bouton?.click();
+  const appels = (window.__printCalls || 0) - avantClics;
+  const regles = [...document.styleSheets].flatMap(f => {
+    try { return [...f.cssRules]; } catch { return []; }
+  }).filter(r => r.media && [...r.media].some(m => m.includes("print")));
+  const encre = regles.some(r => (r.cssText || "").includes("#fff") || (r.cssText || "").includes("255, 255, 255"));
+  const navMasquee = regles.some(r => (r.cssText || "").includes("#tabbar"));
+  activeTab = "home"; moreView = null; render();
+  return { present: !!bouton, texte: bouton?.textContent?.trim() || "", appels,
+    reglesImpression: regles.length, encre, navMasquee };
+});
+check(a1.present && a1.texte === "Imprimer ou enregistrer en PDF",
+  `le bouton d'impression existe et parle en mots (obtenu « ${a1.texte} »)`);
+check(a1.appels === 1, `le bouton appelle réellement window.print() (${a1.appels} appel)`);
+check(a1.reglesImpression >= 1 && a1.encre && a1.navMasquee,
+  `la feuille d'impression existe : fond blanc et navigation masquée (${a1.reglesImpression} règle(s))`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -7912,4 +7948,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 142 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 143 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

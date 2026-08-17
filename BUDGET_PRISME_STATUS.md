@@ -57,6 +57,30 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
   glyphes de sens, feuilles en `data-budget-glyph`, tabbar en glyphes),
   aucun commit artificiel.
 
+## Améliorations continues
+
+**A1 — Année imprimable** · `VERIFYING_AUTOMATED` — PR depuis
+`agent/prisme-a1-annee-imprimable-v2`.
+
+- Bouton « Imprimer ou enregistrer en PDF » sur la page Année
+  (`window.print()` — rien ne quitte l'appareil autrement) ; feuille
+  `@media print` : document blanc à l'encre noire, navigation, boutons et
+  légende du bouton masqués, cartes insécables, pilules grisées. Aucun
+  calcul touché.
+- Preuves : e2e 142 → 143 parcours (le stub `window.print` de la suite
+  compte les appels — un vrai print gèle Chromium headless) ; contrôle
+  négatif à 2 échecs ciblés ; 5 parités ; design ; 4 audits verts ;
+  captures avant / après / rendu d'impression émulé inspectées dans
+  `docs/neon-ultra/budget-prisme/a1/`.
+- Incident de base consigné : une première branche A1 avait été créée sur
+  un clone périmé après un redémarrage de conteneur (parent `102cbd0`,
+  ancien Neon Ultra) — détectée par l'échec d'un test disparu du vrai
+  `main`, rejouée proprement. La branche distante périmée
+  `agent/prisme-a1-annee-imprimable` reste à supprimer (403 sur la
+  suppression distante) — ajoutée au ménage propriétaire.
+- Règle renforcée : après chaque redémarrage, vérifier `git log -1` de la
+  base avant de créer une branche.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
