@@ -166,8 +166,10 @@ par dispatch au SHA exact (run `32040114211`, succès) le 17.08.2026.
   vert ; captures avant/après 390+320 dans
   `docs/neon-ultra/budget-prisme/a4/`.
 
-**A5 — Trio en deux lignes** · `VERIFYING_AUTOMATED` — PR depuis
-`agent/prisme-a5-trio-deux-lignes`.
+**A5 — Trio en deux lignes** · `MERGED` + `PUBLISHED` — PR #38
+fusionnée en squash, `main` = `ffb72d551e321904f5dfd71538e4836a285faff9`,
+CI de fusion verte, publié par dispatch au SHA exact (run `32055712814`,
+succès) le 17.08.2026.
 
 - Demande du 17.08.2026 : « T'arrive pas à faire plus jolie en deux
   lignes ? ». Chaque cellule du trio tient désormais en DEUX lignes : le
