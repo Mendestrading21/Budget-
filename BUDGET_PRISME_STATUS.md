@@ -242,6 +242,29 @@ succès) le 18.08.2026.
   design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a7/`.
 
+**A8 — Les quatre familles : plan + Historique** · `VERIFYING_AUTOMATED`
+— PR depuis `agent/prisme-a8-familles-plan`.
+
+- Demande du 18.08.2026 : « réorganise tout le concept… dépenses, reçues,
+  investissement, abonnements… les logos, la structure du dossier ».
+  - **`BUDGET_FAMILLES_PLAN.md`** : la matrice du nouveau concept — une
+    seule grille (Rentrées · Dépenses · Abonnements · Mis de côté), même
+    ordre, mêmes logos, mêmes couleurs partout ; état → cible pour chaque
+    écran, lots A8→A12 planifiés (quickMenu, hub Gérer, Budget, dossier,
+    iOS).
+  - **Historique par familles** : chips « Tous · Rentrées · Dépenses ·
+    Abonnements · Mis de côté · Virements », **partition stricte** via
+    `txFamille()` — une dépense d'abonnement vit sous « Abonnements »,
+    plus sous « Dépenses » ; chaque franc dans UNE famille ; virements et
+    ajustements transversaux inchangés.
+  - **« Ce qui revient »** : chips réordonnées à l'ordre canonique
+    (Tout · Rentrées · Factures · Abonnements · Mis de côté).
+- Preuves : e2e 148 → 149 parcours (ordre exact des chips, abonnement payé
+  sous « Abonnements » seulement, partition vérifiée opération par
+  opération, ordre de « Ce qui revient ») ; contrôle négatif à 2 sabotages
+  → 3 échecs ciblés ; 5 parités ; design vert ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/a8/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

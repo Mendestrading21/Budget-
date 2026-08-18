@@ -3426,8 +3426,8 @@ function renderMovements() {
     <input id="moreSearchInput" type="search" class="search-field"
       placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
       aria-label="Rechercher une opération" autocomplete="off" />
-    <div class="filter-row" role="group" aria-label="Filtrer par type">
-      ${[["all", "Tous"], ["expense", "Dépenses"], ["income", "Revenus"], ["saving", "Mis de côté"], ["transfer", "Virements"]]
+    <div class="filter-row" role="group" aria-label="Filtrer par famille">
+      ${[["all", "Tous"], ["income", "Rentrées"], ["expense", "Dépenses"], ["sub", "Abonnements"], ["saving", "Mis de côté"], ["transfer", "Virements"]]
         .map(([id, label]) => `<button type="button" class="filter-chip" data-morefilter="${id}"
           aria-pressed="${moreFilter === id}">${label}</button>`).join("")}
     </div>
@@ -4517,13 +4517,29 @@ function renderRecurring() {
     <p class="caption" style="padding:6px 4px 0">Une facture reste à payer tant qu'aucune dépense ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
 /* Les cinq lectures de la même liste. L'ordre suit la fréquence d'usage. */
+/* A8 (« Les quatre familles partout ») : l'ordre canonique des familles —
+   Rentrées, Dépenses (factures), Abonnements, Mis de côté. */
 const REC_FILTRES = [
   ["tout", "Tout"],
+  ["revenu", "Rentrées"],
   ["facture", "Factures"],
   ["abonnement", "Abonnements"],
   ["reserve", "Mis de côté"],
-  ["revenu", "Revenus"],
 ];
+
+/* A8 : LA famille d'une opération — partition stricte, chaque franc dans
+   UNE famille (la grille du Notion du propriétaire). Un abonnement est
+   une dépense née d'une récurrence de nature « abonnement » ; les
+   virements et ajustements restent transversaux (visibles sous « Tous »
+   et « Virements »), jamais comptés dans une famille. */
+function txFamille(t) {
+  if (["income", "refund"].includes(t.type)) return "income";
+  if (["saving", "investment"].includes(t.type)) return "saving";
+  if (t.type === "transfer") return "transfer";
+  if (t.type === "adjustment") return "adjustment";
+  const r = t.recurringId && RECURRINGS.find(x => x.id === t.recurringId);
+  return r && recurringNature(r) === "abonnement" ? "sub" : "expense";
+}
 
 /* ---------- Abonnements ----------
    Même donnée que les charges régulières, lue par le rythme : ce que je
@@ -5233,14 +5249,10 @@ function renderMore() {
 
 function renderMoreTxList() {
   const { y, m } = cursor;
-  const FILTER_TYPES = {
-    expense: ["expense", "taxPayment"], income: ["income", "refund"],
-    saving: ["saving", "investment"], transfer: ["transfer"],
-  };
   const needle = fold(moreSearch.trim());
   const monthTx = transactions
     .filter(t => inMonth(t, y, m))
-    .filter(t => moreFilter === "all" || FILTER_TYPES[moreFilter].includes(t.type))
+    .filter(t => moreFilter === "all" || txFamille(t) === moreFilter)
     .filter(t => !needle || fold(t.title).includes(needle) || (t.cat && fold(t.cat).includes(needle)))
     .sort((a, b) => b.d - a.d || b.id - a.id);
   const total = monthTx.reduce((a, t) => {
