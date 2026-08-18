@@ -267,8 +267,10 @@ par dispatch au SHA exact (run `32116582990`, succès) le 18.08.2026.
   → 3 échecs ciblés ; 5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a8/`.
 
-**A9 — Menu d'ajout et hub Gérer aux familles** · `VERIFYING_AUTOMATED`
-— PR depuis `agent/prisme-a9-menu-familles`.
+**A9 — Menu d'ajout et hub Gérer aux familles** · `MERGED` +
+`PUBLISHED` — PR #46 fusionnée en squash, `main` =
+`f3b61c6c0a425fdf511885e5554d9f3503c6685f`, CI de fusion verte, publié
+par dispatch au SHA exact le 18.08.2026.
 
 - Les quatre familles, suite (BUDGET_FAMILLES_PLAN.md) :
   - **Menu « Ajouter »** : intentions dans l'ordre canonique — J'ai reçu,
