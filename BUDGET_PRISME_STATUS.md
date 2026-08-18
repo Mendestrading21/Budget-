@@ -438,6 +438,11 @@ au SHA exact (run `32142897362`, succès) le 18.08.2026.
   mois » sont supprimées (diff net-négatif).
 - Test natif étendu : cas `isFuture` de `blockSummary` dans
   `testHomeFamilyGridIsAStrictPartitionInCanonicalOrder`.
+- Workflow Demo relancé sur `main` (A16 inclus) : run `32143463083`,
+  succès — artifact simulateur `budget-demo` (142 Mo) téléchargeable
+  depuis la page du run. Le réseau de l'agent ne peut pas télécharger
+  les artifacts Actions (blob Azure refusé par la politique) : captures
+  simulateur NON inspectées par l'agent, à regarder côté propriétaire.
 
 **A17 — Borne unique du taux d'impôts natif (risque n° 4)** · `MERGED`
 — PR #59 fusionnée en squash, `main` =
