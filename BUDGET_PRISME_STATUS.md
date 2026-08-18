@@ -463,7 +463,45 @@ coup, publié par dispatch au SHA exact (run `32144828974`, succès) le
   donnée persistée réécrite.
 - Test : `testTaxRateStepSharesTheSingleSixtyPercentBoundWithThePWA`
   (constante, 61 % refusé avec le bon message, 60 % accepté, négatif
-  refusé).
+  refusé). NB : remplacé au lot A19 par
+  `testOnboardingNoLongerAsksForATaxRate` — l'étape d'onboarding a
+  disparu, la constante et la borne de la feuille Impôts restent.
+
+**A18 — L'onboarding PWA ne demande plus de taux d'impôts** · `MERGED`
++ `PUBLISHED` — PR #60 fusionnée en squash, `main` =
+`012eb4f5e77a7e48ac0624d8a0e9b62fc9a0bc53`, publié avec A19 par
+dispatch au SHA `7b9c49f7` (run `32154103046`, succès) le 18.08.2026.
+
+- Demande propriétaire (18.08.2026, capture annotée pendant SON test) :
+  « Déjà enlevé le taux d'impôts, on s'en fout. » L'étape salaire ne
+  pose plus que la question du salaire ; le champ « Part mise de côté
+  pour les impôts (%) », sa légende et la mécanique
+  `captureTaxRate`/`obTaxRate` disparaissent.
+- Le taux prend le défaut du pays (30 % en Suisse) et se règle dans
+  Gérer → Impôts, toujours borné 0–60 % — borne désormais testée EN
+  VRAI (parcours 136 : 61 refusé avec message sans rien changer, 25
+  accepté, état rendu).
+- Preuves : parcours 56 mis à jour (champ absent, salaire conservé au
+  Retour, défaut 0.30 appliqué) ; 152 e2e + 5 parités + design verts ;
+  deux contrôles négatifs mordants (champ réintroduit → 1 échec ciblé ;
+  borne retirée → 1 échec ciblé) ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/a18/`.
+
+**A19 — L'onboarding natif ne demande plus de taux d'impôts** ·
+`MERGED` + `PUBLISHED` — PR #61 fusionnée en squash, `main` =
+`7b9c49f71e265a5cdee3d2c9caa96504e84e4d5e`, CI verte du premier coup,
+publié par dispatch au SHA exact (run `32154103046`, succès) le 18.08.2026.
+
+- Parité iOS du lot A18 : l'étape « Provision d'impôts » (slider)
+  disparaît de `OnboardingStep` et d'`OnboardingFlowView` — la
+  localisation mène directement au premier compte. Le taux garde son
+  défaut 30 % et continue d'alimenter le ménage à la finalisation ; la
+  seule saisie reste la feuille Impôts (borne A17 intacte). La visite
+  guidée UITest saute l'écran supprimé.
+- Test : `testOnboardingNoLongerAsksForATaxRate` (plus de cas
+  `taxRate`, défaut 0.30, constante 0.60) ;
+  `testFinishCreatesProfileCategoriesAndAccount` prouve toujours le
+  30 % du ménage.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
