@@ -78,38 +78,31 @@ final class TransactionValidationTests: XCTestCase {
         XCTAssertEqual(policy.automaticStatus(for: newYear, now: newYearsEve), .planned)
     }
 
-    func testDuePlannedTransactionsPromoteOnceAndFutureStaysNeutral() {
+    /// FE2 : la politique de statut ne sert plus qu'à la SAISIE — le statut
+    /// initial d'un mouvement daté. Aucune promotion par date n'existe.
+    func testPostingPolicyOnlyDecidesTheInitialStatusOfAnEntry() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let policy = TransactionPostingPolicy(calendar: calendar)
         let today = calendar.date(from: DateComponents(year: 2026, month: 7, day: 29, hour: 12))!
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-        let dueBefore = BudgetTransaction(
+
+        // Saisir un mouvement daté d'hier ou d'aujourd'hui : comptabilisé —
+        // dater, c'est le geste. Daté de demain : prévu.
+        XCTAssertEqual(policy.automaticStatus(for: yesterday, now: today), .posted)
+        XCTAssertEqual(policy.automaticStatus(for: today, now: today), .posted)
+        XCTAssertEqual(policy.automaticStatus(for: tomorrow, now: today), .planned)
+
+        // Et un mouvement DÉJÀ prévu dont la date passe reste prévu : plus
+        // aucune promotion n'existe dans la politique.
+        let due = BudgetTransaction(
             date: yesterday, amount: 40, type: .expense,
             status: .planned, title: "Échue", account: activeAccount
         )
-        let dueToday = BudgetTransaction(
-            date: today, amount: 50, type: .expense,
-            status: .planned, title: "Aujourd'hui", account: activeAccount
-        )
-        let future = BudgetTransaction(
-            date: tomorrow, amount: 60, type: .expense,
-            status: .planned, title: "Demain", account: activeAccount
-        )
-
-        XCTAssertEqual(
-            policy.promoteDueTransactions([dueBefore, dueToday, future], now: today),
-            2
-        )
-        XCTAssertEqual(dueBefore.status, .posted)
-        XCTAssertEqual(dueToday.status, .posted)
-        XCTAssertEqual(future.status, .planned)
-        XCTAssertEqual(
-            policy.promoteDueTransactions([dueBefore, dueToday, future], now: today),
-            0,
-            "Une échéance déjà promue ne doit jamais être recomptée"
-        )
+        _ = policy.automaticStatus(for: due.date, now: today)
+        XCTAssertEqual(due.status, .planned,
+                       "consulter la politique ne comptabilise jamais un mouvement existant")
     }
 
     func testPostingPolicyUsesZurichCalendarDayAcrossDST() {
@@ -130,8 +123,12 @@ final class TransactionValidationTests: XCTestCase {
         XCTAssertEqual(policy.automaticStatus(for: nextDay, now: now), .planned)
     }
 
+    /// FE2 (décision propriétaire, 18.08.2026) : AUCUNE comptabilisation
+    /// automatique par date. Une échéance prévue dont la date est passée
+    /// reste prévue — dans le contexte principal ET sur disque — tant
+    /// qu'aucun geste ne la confirme. L'ancienne promotion n'existe plus.
     @MainActor
-    func testAppContainerPromotesTheMainContextAndPersistsIt() throws {
+    func testDuePlannedTransactionsStayPlannedWithoutAGesture() throws {
         let fixedNow = Date(timeIntervalSince1970: 1_785_278_400)
         let appContainer = try AppContainer(
             dateProvider: FixedDateProvider(now: fixedNow),
@@ -144,7 +141,7 @@ final class TransactionValidationTests: XCTestCase {
             amount: 75,
             type: .expense,
             status: .planned,
-            title: "Échéance à promouvoir",
+            title: "Échéance passée",
             account: account
         )
         let future = BudgetTransaction(
@@ -159,65 +156,23 @@ final class TransactionValidationTests: XCTestCase {
         mainContext.insert(due)
         mainContext.insert(future)
         try mainContext.save()
-        let alreadyLoaded = try mainContext.fetch(FetchDescriptor<BudgetTransaction>())
-        let loadedDue = try XCTUnwrap(
-            alreadyLoaded.first { $0.title == "Échéance à promouvoir" }
-        )
-        let loadedFuture = try XCTUnwrap(
-            alreadyLoaded.first { $0.title == "Échéance future" }
-        )
 
-        appContainer.postDuePlannedTransactions()
-
-        XCTAssertNil(appContainer.duePostingErrorMessage)
-        XCTAssertEqual(loadedDue.status, .posted)
-        XCTAssertEqual(loadedFuture.status, .planned)
+        // Rien ne tourne au lancement : les deux mouvements restent prévus,
+        // en mémoire comme sur un contexte de lecture séparé.
         let readContext = ModelContext(appContainer.modelContainer)
         let persisted = try readContext.fetch(FetchDescriptor<BudgetTransaction>())
-        XCTAssertEqual(
-            persisted.first { $0.title == "Échéance à promouvoir" }?.status,
-            .posted
-        )
-        XCTAssertEqual(
-            persisted.first { $0.title == "Échéance future" }?.status,
-            .planned
-        )
-    }
-
-    @MainActor
-    func testPromotionNeverCommitsOrRollsBackPendingMainContextEdits() throws {
-        let fixedNow = Date(timeIntervalSince1970: 1_785_278_400)
-        let appContainer = try AppContainer(
-            dateProvider: FixedDateProvider(now: fixedNow),
-            inMemory: true
-        )
-        let mainContext = appContainer.modelContainer.mainContext
-        let account = Account(name: "Courant", type: .current)
-        let due = BudgetTransaction(
-            date: appContainer.calendar.date(byAdding: .day, value: -1, to: fixedNow)!,
-            amount: 75,
-            type: .expense,
-            status: .planned,
-            title: "Échéance protégée",
-            account: account
-        )
-        mainContext.insert(account)
-        mainContext.insert(due)
-        try mainContext.save()
-
-        account.name = "Édition non enregistrée"
-        XCTAssertTrue(mainContext.hasChanges)
-        appContainer.postDuePlannedTransactions()
-
-        XCTAssertTrue(mainContext.hasChanges, "La maintenance ne doit pas annuler l'édition en cours")
-        XCTAssertEqual(account.name, "Édition non enregistrée")
         XCTAssertEqual(due.status, .planned)
-        XCTAssertNotNil(appContainer.duePostingErrorMessage)
-        mainContext.rollback()
+        XCTAssertEqual(future.status, .planned)
+        XCTAssertEqual(persisted.first { $0.title == "Échéance passée" }?.status, .planned)
+        XCTAssertEqual(persisted.first { $0.title == "Échéance future" }?.status, .planned)
 
-        let readContext = ModelContext(appContainer.modelContainer)
-        let persisted = try readContext.fetch(FetchDescriptor<BudgetTransaction>())
-        XCTAssertEqual(persisted.first?.status, .planned)
+        // Le geste, lui, comptabilise — et seulement le mouvement visé.
+        due.status = .posted
+        try mainContext.save()
+        let apresGeste = try ModelContext(appContainer.modelContainer)
+            .fetch(FetchDescriptor<BudgetTransaction>())
+        XCTAssertEqual(apresGeste.first { $0.title == "Échéance passée" }?.status, .posted)
+        XCTAssertEqual(apresGeste.first { $0.title == "Échéance future" }?.status, .planned)
     }
 
     func testPlannedFutureDateIsAllowed() {

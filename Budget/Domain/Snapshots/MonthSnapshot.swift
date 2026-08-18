@@ -31,15 +31,20 @@ struct MonthSnapshot: Equatable {
     let taxProvision: TaxProvisionSummary
 
     /// Sum of balances of accounts included in net worth (signed
-    /// convention: debt balances are negative).
+    /// convention: debt balances are negative). FE2 : ce n'est PAS la
+    /// fortune totale — biens, prévoyance manuelle et dettes hors comptes
+    /// vivent dans NetWorthService, l'unique source du patrimoine. Aucun
+    /// écran ne doit présenter ce champ comme « fortune ».
     let netWorth: Decimal
 
     let previousMonth: MonthComparison?
 }
 
-/// The "truly available" amount with its full, visible decomposition:
+/// The end-of-month projection with its full, visible decomposition:
 /// total = liquidBalance + expectedIncome + recurringIncome
-///         − committedCharges − recurringCharges − taxReserveGap.
+///         − committedCharges − recurringCharges − taxMonthlyEffort.
+/// FE2 : l'écart fiscal ANNUEL (`taxReserveGap`) reste exposé pour
+/// l'écran Impôts, mais seul l'effort DU MOIS pèse sur la projection.
 struct AvailableBreakdown: Equatable {
     /// Current balance of accounts flagged include-in-available-cash.
     let liquidBalance: Decimal
@@ -57,11 +62,16 @@ struct AvailableBreakdown: Equatable {
     let recurringCharges: Decimal
     /// Remaining recommended reserve for the selected calendar year, after
     /// posted tax payments and cash explicitly reserved by the user.
+    /// FE2 : information annuelle — n'entre PLUS dans le total.
     let taxReserveGap: Decimal
+    /// FE2 : l'effort d'impôts DU MOIS — taux × revenus du mois
+    /// (comptabilisés + attendus), moins ce qui est déjà mis ou engagé de
+    /// côté pour les impôts ce mois, plafonné par l'écart annuel anticipé.
+    let taxMonthlyEffort: Decimal
 
     var total: Decimal {
         liquidBalance + expectedIncome + recurringIncome
-            - committedCharges - recurringCharges - taxReserveGap
+            - committedCharges - recurringCharges - taxMonthlyEffort
     }
 }
 

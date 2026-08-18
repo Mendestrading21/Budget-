@@ -132,6 +132,15 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
+    /// FE2 : la grande carte du Mois a deux positions — le réel et la
+    /// projection — avec les mots du cahier propriétaire.
+    func testHeroCardOffersExactlyTwoHonestPositions() {
+        XCTAssertEqual(
+            HomeTab.HeroPosition.allCases.map(\.title),
+            ["Maintenant", "Fin du mois"]
+        )
+    }
+
     func testMonthlyProgressAlwaysSaysWhatRemainsAndWhatIsDone() {
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 0), "Rien à faire")
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 0), "2 à faire")

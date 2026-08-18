@@ -35,26 +35,12 @@ struct BudgetApp: App {
                     PrivacyShieldView()
                 }
             }
-            .alert(
-                "Échéances non mises à jour",
-                isPresented: Binding(
-                    get: { appContainer.duePostingErrorMessage != nil },
-                    set: { if !$0 { appContainer.dismissDuePostingError() } }
-                )
-            ) {
-                Button("Réessayer") {
-                    appContainer.postDuePlannedTransactions()
-                }
-                Button("Plus tard", role: .cancel) {
-                    appContainer.dismissDuePostingError()
-                }
-            } message: {
-                Text(appContainer.duePostingErrorMessage ?? "")
-            }
+            // FE2 (décision propriétaire, 18.08.2026) : plus AUCUNE
+            // comptabilisation automatique par date au lancement ou au
+            // retour au premier plan — une échéance arrivée devient
+            // « à confirmer », seul le geste enregistre.
             .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active {
-                    appContainer.postDuePlannedTransactions()
-                } else if newPhase == .background {
+                if newPhase == .background {
                     appContainer.lockManager.lockIfEnabled()
                 }
             }
@@ -87,7 +73,6 @@ struct BudgetApp: App {
                                 container.goalProgressMessage = "☔️ Fonds d'urgence : 68 % → 71 %"
                             }
                         }
-                        container.postDuePlannedTransactions()
                         appContainer = container
                     } catch {
                         startupError = error
