@@ -3167,9 +3167,12 @@ function renderSimpleHome() {
     // Un libellé long (« Mis de côté », « Planifier ») descend sous la
     // ligne : il n'écrase plus le titre, qui ne se coupe plus en plein mot.
     const longClass = label => label.length >= 8 ? " home-bill-action--long" : "";
-    if (futureMonth) return "";
+    // A15 (demande propriétaire) : un mois FUTUR garde les mêmes boutons
+    // un appui — mais le geste honnête y est « Planifier » : le mouvement
+    // est créé PRÉVU, jamais comptabilisé avant sa date. Une ligne déjà
+    // planifiée n'a donc plus de bouton : confirmer l'avenir serait mentir.
     if (item.state === "scheduled") {
-      return item.linkedTxId != null
+      return !futureMonth && item.linkedTxId != null
         ? `<button class="btn secondary home-bill-action${actClass}${longClass(completedLabel)}" data-confirmtx="${esc(item.linkedTxId)}">${completedLabel}</button>`
         : "";
     }
@@ -3225,9 +3228,9 @@ function renderSimpleHome() {
         <div class="t">${esc(occurrence ? occurrence.title : r.title)}</div><div class="s">À recevoir ce mois${futureMonth ? " · Prévu" : ""}</div>
       </div>
       <span class="amount pos">${chf(amount)}</span>
-      ${futureMonth ? "" : (occurrence
-        ? `<button class="btn secondary home-bill-action act-income" data-confirmtx="${esc(occurrence.id)}">${completedMovementLabel(occurrence.type)}</button>`
-        : `<button class="btn secondary home-bill-action act-income" data-postrec="${esc(r.id)}">Reçu</button>`)}
+      ${occurrence
+        ? (futureMonth ? "" : `<button class="btn secondary home-bill-action act-income" data-confirmtx="${esc(occurrence.id)}">${completedMovementLabel(occurrence.type)}</button>`)
+        : `<button class="btn secondary home-bill-action act-income${futureMonth ? " home-bill-action--long" : ""}" data-postrec="${esc(r.id)}">${futureMonth ? "Planifier" : "Reçu"}</button>`}
     </div>`,
   }));
   const outgoingRows = open.map(item => {
@@ -3348,16 +3351,18 @@ function renderSimpleHome() {
   // A7 (demande propriétaire) : QUATRE blocs, pas tout dans un seul —
   // Rentrées, Dépenses, Abonnements, Mis de côté. Chaque bloc porte ses
   // lignes à faire (bouton un appui) ET ses lignes déjà faites, qui
-  // restent dans leur bloc marquées reçues/payées. Un mois FUTUR garde sa
-  // présentation « Prévu ce mois » : c'est une prévision, pas une liste
-  // de cases à cocher.
+  // restent dans leur bloc marquées reçues/payées. A15 : un mois FUTUR a
+  // les MÊMES quatre blocs — ses lignes disent « prévu », son bouton dit
+  // « Planifier », et rien n'y est jamais comptabilisé d'avance.
   const bloc = (titre, g) => {
     const attente = agenda.filter(item => item.groupe === g);
     const faits = completed.filter(item => item.groupe === g);
     const attenteMontree = attente.slice(0, 5);
     const faitsMontres = faits.slice(0, 3);
     const compte = [
-      attente.length ? `${attente.length} à faire` : "",
+      attente.length ? (futureMonth
+        ? `${attente.length} prévu${attente.length > 1 ? "s" : ""}`
+        : `${attente.length} à faire`) : "",
       faits.length ? `${faits.length} fait${faits.length > 1 ? "s" : ""}` : "",
     ].filter(Boolean).join(" · ");
     return `<section class="card home-bills-card home-agenda-card home-bloc"
@@ -3366,9 +3371,9 @@ function renderSimpleHome() {
         <p class="card-label">${titre}</p>
         ${compte ? `<span class="caption home-bloc-count">${compte}</span>` : ""}
       </div>
-      ${attente.length ? `<div class="home-bills-list" data-home-section="todo">${attenteMontree.map(item => item.html).join("")}</div>
+      ${attente.length ? `<div class="home-bills-list" data-home-section="${futureMonth ? "future" : "todo"}">${attenteMontree.map(item => item.html).join("")}</div>
         ${attente.length > attenteMontree.length
-          ? `<p class="caption home-done-more">Et ${attente.length - attenteMontree.length} autre${attente.length - attenteMontree.length > 1 ? "s" : ""} à faire.</p>` : ""}` : ""}
+          ? `<p class="caption home-done-more">Et ${attente.length - attenteMontree.length} autre${attente.length - attenteMontree.length > 1 ? "s" : ""}${futureMonth ? ` prévu${attente.length - attenteMontree.length > 1 ? "s" : ""}` : " à faire"}.</p>` : ""}` : ""}
       ${faits.length ? `<div class="home-bills-list home-done-list">${faitsMontres.map(completedRow).join("")}</div>
         ${faits.length > faitsMontres.length
           ? `<p class="caption home-done-more">Et ${faits.length - faitsMontres.length} autre${faits.length - faitsMontres.length > 1 ? "s" : ""} ce mois.</p>` : ""}` : ""}
@@ -3376,7 +3381,7 @@ function renderSimpleHome() {
     </section>`;
   };
   const completedShown = completed.slice(0, 3);
-  const tasks = !futureMonth && (agenda.length || completed.length)
+  const tasks = (agenda.length || completed.length)
     ? `<div class="home-bilan" role="group" aria-labelledby="monthlyTasksTitle">
         ${bilanHead}
         ${bloc("Rentrées", 0)}

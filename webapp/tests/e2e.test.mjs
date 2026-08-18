@@ -6367,15 +6367,20 @@ currentTest = "ce qui revient, partout le même mot";
     const outgoing = document.querySelector(
       ".home-bills-list:not(.home-done-list) .home-bill-row:not(.home-income-row)"
     );
+    // A15 : le mois futur a les mêmes quatre blocs ; le seul geste offert
+    // est « Planifier » (mouvement prévu), jamais une confirmation.
     const result = {
       hero: document.querySelector(".home-hero .card-label")?.textContent || "",
       progress: document.querySelector(".home-agenda-count")?.textContent || "",
-      section: document.querySelector('[data-home-section="future"]')?.textContent || "",
+      blocs: document.querySelectorAll(".home-bloc").length,
+      section: !!document.querySelector('[data-home-section="future"]'),
+      comptes: [...document.querySelectorAll(".home-bloc-count")].map(c => c.textContent.trim()),
       overflow: document.querySelector('[data-home-section="future"] ~ .home-done-more')?.textContent || "",
+      confirmables: document.querySelectorAll("[data-confirmtx]").length,
       salary: salary?.textContent || "",
-      actionable: !!salary?.querySelector(".home-bill-action"),
+      salaryAction: salary?.querySelector(".home-bill-action")?.textContent.trim() || "",
       outgoing: outgoing?.textContent || "",
-      outgoingActionable: !!outgoing?.querySelector(".home-bill-action"),
+      outgoingAction: outgoing?.querySelector(".home-bill-action")?.textContent.trim() || "",
     };
     cursor = shiftMonth(NOW, -1);
     render();
@@ -6391,15 +6396,19 @@ currentTest = "ce qui revient, partout le même mot";
   });
   check(futur.hero === "Estimation du mois"
       && /prévu/i.test(futur.progress)
-      && futur.section.trim() === "Prévu ce mois"
-      && /prévu/i.test(futur.overflow)
-      && !/à faire/i.test(futur.overflow)
+      && futur.blocs === 4
+      && futur.section
+      && futur.comptes.length > 0
+      && futur.comptes.every(c => !/à faire/i.test(c))
+      && futur.comptes.some(c => /prévu/i.test(c))
+      && (!futur.overflow || (/prévu/i.test(futur.overflow) && !/à faire/i.test(futur.overflow)))
+      && futur.confirmables === 0
       && /À recevoir ce mois · Prévu/.test(futur.salary)
-      && !futur.actionable
+      && futur.salaryAction === "Planifier"
       && /Prévu/.test(futur.outgoing)
-      && !futur.outgoingActionable
+      && futur.outgoingAction === "Planifier"
       && futur.pastIncomeRows === 0,
-    `un salaire futur reste visible comme prévu, jamais comme résultat ou reçu (${JSON.stringify(futur)})`);
+    `un mois futur garde les quatre blocs, dit « prévu » et n'offre que « Planifier » (${JSON.stringify(futur)})`);
   await goHome();
 }
 
@@ -8298,8 +8307,7 @@ check(a6avant === 0 && a6apres.postees === 1 && a6apres.faits.some(t => /Réserv
 // Le Bilan du mois courant est un groupe de quatre cartes nommées, chacune
 // avec ses lignes à faire (bouton un appui) ET ses lignes faites — la
 // ligne validée reste dans SON bloc, marquée reçue/payée. Un mois futur
-// garde sa carte unique « Prévu ce mois » ; un mois sans rien garde son
-// invitation.
+// a les MÊMES quatre blocs (A15) ; un mois sans rien garde son invitation.
 currentTest = "A7 quatre blocs";
 const a7 = await page.evaluate(() => {
   cursor = { y: NOW.y, m: NOW.m };
@@ -8315,7 +8323,7 @@ const a7 = await page.evaluate(() => {
   };
   cursor = shiftMonth({ y: NOW.y, m: NOW.m }, 1); render();
   const futurBlocs = document.querySelectorAll(".home-bloc").length;
-  const futurSection = document.querySelector('[data-home-section="future"]')?.textContent.trim() || "";
+  const futurSection = !!document.querySelector('.home-bloc [data-home-section="future"]');
   cursor = { y: NOW.y, m: NOW.m }; render();
   return {
     titres: blocs.map(b => b.titre),
@@ -8332,8 +8340,8 @@ check(a7.salairePlace && a7.facturePlace && a7.abonnementPlace,
   `chaque ligne vit dans SON bloc — salaire, facture, abonnement (${JSON.stringify([a7.salairePlace, a7.facturePlace, a7.abonnementPlace])})`);
 check(a7.reserveFaite,
   "la mise de côté validée au test A6 est restée dans le bloc « Mis de côté », marquée faite");
-check(a7.futurBlocs === 0 && a7.futurSection === "Prévu ce mois",
-  `un mois futur garde sa carte unique « Prévu ce mois » (${a7.futurBlocs} bloc(s), section « ${a7.futurSection} »)`);
+check(a7.futurBlocs === 4 && a7.futurSection,
+  `un mois futur a les mêmes quatre blocs, marqués « prévu » (${a7.futurBlocs} bloc(s), section future ${a7.futurSection})`);
 // Un appui : le salaire passe reçu SANS quitter son bloc. (Présence
 // vérifiée par assertion — un sabotage doit échouer proprement, pas en
 // timeout.)
@@ -8478,6 +8486,62 @@ check(a10.titres.includes("Mis de côté") && !a10.titres.some(t => /Épargne et
 check(a10.geo.length >= 6 && new Set(a10.geo).size === 1,
   `les pastilles de logos ont la MÊME géométrie sur Mois, Historique et Gérer (obtenu ${[...new Set(a10.geo)].join(" ; ")})`);
 
+// ---------- Test 152 : A15 Mois futur — quatre blocs et bouton « Planifier » ----------
+// Demande propriétaire (18.08.2026) : « ajoute aussi la même mise en page
+// que les autres et il manque toujours le bouton où j'appuie ». Un mois
+// FUTUR a les MÊMES quatre blocs que le mois courant, et chaque ligne non
+// planifiée porte un bouton un appui — mais le geste honnête y est
+// « Planifier » : le mouvement est créé PRÉVU, jamais reçu ou payé
+// d'avance, et une ligne déjà planifiée n'offre aucune confirmation.
+currentTest = "A15 mois futur";
+await goHome();
+const a15 = await page.evaluate(() => {
+  cursor = shiftMonth({ y: NOW.y, m: NOW.m }, 1);
+  activeTab = "home"; moreView = null; render();
+  const blocs = [...document.querySelectorAll(".home-bloc")].map(b => ({
+    titre: b.querySelector(".card-label").textContent.trim(),
+    compte: b.querySelector(".home-bloc-count")?.textContent.trim() || "",
+  }));
+  return {
+    titres: blocs.map(b => b.titre),
+    comptes: blocs.map(b => b.compte).filter(Boolean),
+    confirmables: document.querySelectorAll("[data-confirmtx]").length,
+    salaireLabel: document.querySelector('.home-bloc [data-postrec="r-a6-pay"]')?.textContent.trim() || "",
+  };
+});
+check(a15.titres.join(",") === "Rentrées,Dépenses,Abonnements,Mis de côté",
+  `le mois FUTUR a les mêmes quatre blocs nommés (obtenu ${a15.titres.join(",")})`);
+check(a15.comptes.length > 0 && a15.comptes.every(c => !/à faire/.test(c)) && a15.comptes.some(c => /prévu/.test(c)),
+  `les compteurs du mois futur disent « prévu », jamais « à faire » (obtenu ${JSON.stringify(a15.comptes)})`);
+check(a15.confirmables === 0,
+  "aucun bouton de confirmation dans un mois futur — on ne comptabilise jamais d'avance");
+check(a15.salaireLabel === "Planifier",
+  `le salaire futur porte un bouton un appui « Planifier » (obtenu « ${a15.salaireLabel} »)`);
+const a15btn = await page.$('.home-bloc [data-postrec="r-a6-pay"]');
+check(!!a15btn, "le bouton « Planifier » du salaire futur est cliquable dans son bloc");
+if (a15btn) { await a15btn.click(); await page.waitForTimeout(300); }
+const a15apres = await page.evaluate(() => {
+  const futur = shiftMonth({ y: NOW.y, m: NOW.m }, 1);
+  const creees = transactions.filter(t => t.recurringId === "r-a6-pay" && t.y === futur.y && t.m === futur.m);
+  const ligne = [...document.querySelectorAll(".home-bloc .home-bill-row")]
+    .find(r => /Salaire A6/.test(r.querySelector(".t")?.textContent || ""));
+  const resultat = {
+    planifiees: creees.filter(t => t.status === "planned").length,
+    postees: creees.filter(t => t.status === "posted").length,
+    statut: ligne?.querySelector(".s")?.textContent || "",
+    boutonRestant: !!ligne?.querySelector(".home-bill-action"),
+  };
+  // Nettoyage : le mouvement prévu créé pour le test est retiré, puis on
+  // revient au mois courant — l'état persistant reste celui d'avant.
+  for (const t of creees) transactions.splice(transactions.indexOf(t), 1);
+  cursor = { y: NOW.y, m: NOW.m }; saveState(); render();
+  return resultat;
+});
+check(a15apres.planifiees === 1 && a15apres.postees === 0,
+  `un appui sur « Planifier » crée le mouvement PRÉVU du mois futur — jamais comptabilisé d'avance (${JSON.stringify(a15apres)})`);
+check(/Prévu/.test(a15apres.statut) && !a15apres.boutonRestant,
+  `la ligne planifiée dit « Prévu » et n'offre plus aucun bouton (${JSON.stringify(a15apres)})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8487,4 +8551,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 151 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 152 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
