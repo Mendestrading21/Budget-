@@ -442,8 +442,8 @@ au SHA exact (run `32142897362`, succès) le 18.08.2026.
 **A17 — Borne unique du taux d'impôts natif (risque n° 4)** · `MERGED`
 — PR #59 fusionnée en squash, `main` =
 `58b74986694ad5a2b28d030554c26df04b5fa7bc`, CI de la PR verte du premier
-coup, le 18.08.2026. Publication par dispatch au SHA exact dès la CI de
-`main` verte — run id consigné ici au commit suivant.
+coup, publié par dispatch au SHA exact (run `32144828974`, succès) le
+18.08.2026 — statut `MERGED` + `PUBLISHED`.
 
 - Mesure d'abord : la PWA borne le taux à 0–60 % aux deux endroits
   (commentaires « P11 (risque n°4) » en place) ; côté iOS la feuille
