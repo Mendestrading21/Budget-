@@ -62,6 +62,36 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
+    /// A13 — Les quatre familles (parité PWA) : partition stricte, ordre
+    /// canonique et résumé de bloc.
+    func testHomeFamilyGridIsAStrictPartitionInCanonicalOrder() {
+        XCTAssertEqual(
+            HomeFamily.allCases.map(\.title),
+            ["Rentrées", "Dépenses", "Abonnements", "Mis de côté"]
+        )
+        XCTAssertEqual(HomePilotDisplay.family(for: .income, isSubscription: false), .income)
+        XCTAssertEqual(HomePilotDisplay.family(for: .refund, isSubscription: false), .income)
+        XCTAssertEqual(HomePilotDisplay.family(for: .saving, isSubscription: false), .setAside)
+        XCTAssertEqual(HomePilotDisplay.family(for: .investment, isSubscription: false), .setAside)
+        XCTAssertEqual(HomePilotDisplay.family(for: .expense, isSubscription: false), .expense)
+        // Un abonnement vit dans SA famille, plus dans « Dépenses ».
+        XCTAssertEqual(HomePilotDisplay.family(for: .expense, isSubscription: true), .subscription)
+        // Une rentrée ou une réserve ne devient jamais « abonnement ».
+        XCTAssertEqual(HomePilotDisplay.family(for: .income, isSubscription: true), .income)
+        XCTAssertEqual(HomePilotDisplay.family(for: .saving, isSubscription: true), .setAside)
+        // Chaque type vit dans exactement une famille.
+        for type in TransactionType.allCases {
+            XCTAssertEqual(
+                HomeFamily.allCases.filter { HomePilotDisplay.family(for: type, isSubscription: false) == $0 }.count,
+                1
+            )
+        }
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 0, completed: 0), "Rien ce mois.")
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 2, completed: 0), "2 à faire")
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 0, completed: 1), "1 fait")
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 1, completed: 3), "1 à faire · 3 faits")
+    }
+
     func testMonthlyProgressAlwaysSaysWhatRemainsAndWhatIsDone() {
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 0), "Rien à faire")
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 0), "2 à faire")

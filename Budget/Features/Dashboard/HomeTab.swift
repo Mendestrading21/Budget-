@@ -104,6 +104,47 @@ enum HomePilotDisplay {
     static func canConfirm(date: Date, now: Date, calendar: Calendar) -> Bool {
         calendar.startOfDay(for: date) <= calendar.startOfDay(for: now)
     }
+
+    /// A13 (Les quatre familles, parité PWA) : la famille d'un mouvement du
+    /// Bilan. Partition stricte — un abonnement vit dans SA famille, plus
+    /// dans « Dépenses » ; chaque franc est compté une seule fois.
+    static func family(for type: TransactionType, isSubscription: Bool) -> HomeFamily {
+        switch type {
+        case .income, .refund: .income
+        case .saving, .investment: .setAside
+        case .expense, .taxPayment, .debtPayment, .transfer, .adjustment:
+            isSubscription ? .subscription : .expense
+        }
+    }
+}
+
+/// Les quatre familles du Bilan — même grille, même ordre et mêmes mots que
+/// la PWA (BUDGET_FAMILLES_PLAN.md) : Rentrées, Dépenses, Abonnements,
+/// Mis de côté.
+enum HomeFamily: Int, CaseIterable, Identifiable {
+    case income = 0
+    case expense = 1
+    case subscription = 2
+    case setAside = 3
+
+    var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .income: "Rentrées"
+        case .expense: "Dépenses"
+        case .subscription: "Abonnements"
+        case .setAside: "Mis de côté"
+        }
+    }
+
+    /// Résumé du bloc : « 2 à faire · 1 fait », ou « Rien ce mois. »
+    static func blockSummary(pending: Int, completed: Int) -> String {
+        var parts: [String] = []
+        if pending > 0 { parts.append("\(pending) à faire") }
+        if completed > 0 { parts.append("\(completed) fait\(completed > 1 ? "s" : "")") }
+        return parts.isEmpty ? "Rien ce mois." : parts.joined(separator: " · ")
+    }
 }
 
 /// Une ligne encore attendue vient soit du forecast, soit d'un mouvement
@@ -364,6 +405,22 @@ struct HomeTab: View {
                     .font(NeonUltraTypography.meta)
                     .foregroundStyle(amount < 0 ? NeonUltraColor.warning : NeonUltraColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                    // A13 (parité PWA, lot A3) : où en est le mois — jour
+                    // calendaire réel sur le nombre de jours du mois.
+                    // Donnée exacte, aucune animation permanente.
+                    let now = appContainer.dateProvider.now
+                    let dayOfMonth = appContainer.calendar.component(.day, from: now)
+                    let daysInMonth = appContainer.calendar.range(of: .day, in: .month, for: now)?.count ?? 30
+                    VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
+                        ProgressView(value: Double(dayOfMonth), total: Double(daysInMonth))
+                            .tint(NeonUltraColor.violet)
+                        Text("Jour \(dayOfMonth) sur \(daysInMonth)")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textTertiary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Jour \(dayOfMonth) sur \(daysInMonth)")
                 } else if isFutureMonth {
                     Text("Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois.")
                         .font(NeonUltraTypography.meta)
@@ -522,6 +579,35 @@ struct HomeTab: View {
         HomePilotDisplay.completedTransactions(in: interval, from: transactions)
     }
 
+    /// A13 : la famille d'une ligne du Bilan — un abonnement se reconnaît
+    /// par sa définition régulière (`isSubscription`), jamais deviné.
+    private func isSubscriptionRecurring(_ id: UUID?) -> Bool {
+        guard let id else { return false }
+        return recurrings.first(where: { $0.id == id })?.isSubscription == true
+    }
+
+    private func family(of item: HomeMonthPendingItem) -> HomeFamily {
+        switch item {
+        case .forecast(let occurrence):
+            HomePilotDisplay.family(
+                for: occurrence.type,
+                isSubscription: isSubscriptionRecurring(occurrence.recurringID)
+            )
+        case .planned(let transaction):
+            HomePilotDisplay.family(
+                for: transaction.type,
+                isSubscription: isSubscriptionRecurring(transaction.recurringID)
+            )
+        }
+    }
+
+    private func family(of transaction: BudgetTransaction) -> HomeFamily {
+        HomePilotDisplay.family(
+            for: transaction.type,
+            isSubscription: isSubscriptionRecurring(transaction.recurringID)
+        )
+    }
+
     @ViewBuilder
     private func monthlyActions(
         pending: [HomeMonthPendingItem],
@@ -564,7 +650,21 @@ struct HomeTab: View {
                 }
             }
 
-            if pending.isEmpty && completed.isEmpty {
+            // A13 (parité PWA, lot A7) : le mois COURANT ou PASSÉ se lit en
+            // QUATRE blocs — Rentrées, Dépenses, Abonnements, Mis de côté.
+            // Chaque bloc porte ses lignes à faire ET ses lignes faites, qui
+            // restent dans leur bloc. Un mois FUTUR garde sa liste unique
+            // « Prévu ce mois » : c'est une prévision, pas des cases à cocher.
+            if !isFutureMonth && !(pending.isEmpty && completed.isEmpty) {
+                ForEach(HomeFamily.allCases) { familyCase in
+                    familyBlock(
+                        familyCase,
+                        pending: pending.filter { family(of: $0) == familyCase },
+                        completed: completed.filter { family(of: $0) == familyCase },
+                        confirmableOccurrenceIDs: confirmableOccurrenceIDs
+                    )
+                }
+            } else if pending.isEmpty && completed.isEmpty {
                 NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                         HStack(spacing: BudgetSpacing.compact) {
@@ -628,7 +728,9 @@ struct HomeTab: View {
                 }
             }
 
-            if !completed.isEmpty {
+            // A13 : sur un mois courant ou passé, le « fait » vit déjà dans
+            // son bloc de famille — cette liste ne sert plus qu'au futur.
+            if isFutureMonth && !completed.isEmpty {
                 Text("Fait ce mois")
                     .font(NeonUltraTypography.label)
                     .foregroundStyle(NeonUltraColor.textSecondary)
@@ -654,6 +756,78 @@ struct HomeTab: View {
                 }
             }
         }
+    }
+
+    /// A13 : UN bloc de famille — son titre, son résumé, ses lignes à faire
+    /// (bouton un appui) et ses lignes déjà faites, qui restent chez lui.
+    @ViewBuilder
+    private func familyBlock(
+        _ familyCase: HomeFamily,
+        pending: [HomeMonthPendingItem],
+        completed: [BudgetTransaction],
+        confirmableOccurrenceIDs: Set<String>
+    ) -> some View {
+        let visiblePending = Array(pending.prefix(5))
+        let visibleCompleted = Array(completed.prefix(3))
+
+        NeonUltraCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(familyCase.title)
+                        .font(NeonUltraTypography.label)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    Text(HomeFamily.blockSummary(pending: pending.count, completed: completed.count))
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textTertiary)
+                }
+
+                if !visiblePending.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(visiblePending) { item in
+                            monthlyPendingRow(
+                                item,
+                                confirmableOccurrenceIDs: confirmableOccurrenceIDs
+                            )
+                            if item.id != visiblePending.last?.id {
+                                Divider().overlay(NeonUltraColor.border)
+                            }
+                        }
+                    }
+                    if pending.count > visiblePending.count {
+                        Text("Et \(pending.count - visiblePending.count) autre\(pending.count - visiblePending.count > 1 ? "s" : "") à faire.")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
+                    }
+                }
+
+                if !visibleCompleted.isEmpty {
+                    if !visiblePending.isEmpty {
+                        Divider().overlay(NeonUltraColor.border)
+                    }
+                    VStack(spacing: 0) {
+                        ForEach(visibleCompleted) { transaction in
+                            completedMonthlyRow(transaction)
+                            if transaction.id != visibleCompleted.last?.id {
+                                Divider().overlay(NeonUltraColor.border)
+                            }
+                        }
+                    }
+                    if completed.count > visibleCompleted.count {
+                        Text("Et \(completed.count - visibleCompleted.count) autre\(completed.count - visibleCompleted.count > 1 ? "s" : "") ce mois.")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textSecondary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            "\(familyCase.title) — \(HomeFamily.blockSummary(pending: pending.count, completed: completed.count))"
+        )
+        .accessibilityIdentifier("home.family.\(familyCase.rawValue)")
     }
 
     @ViewBuilder
@@ -846,15 +1020,17 @@ struct HomeTab: View {
     ) -> some View {
         if canConfirm {
             // Action de ligne : surface mate + bordure, jamais le dégradé —
-            // il reste réservé à l'action principale.
+            // il reste réservé à l'action principale. A13 (parité PWA, lot
+            // A6) : le bouton porte la couleur de son SENS — vert pour
+            // recevoir, corail pour payer, violet neutre pour mettre de côté.
             Button(verb) {
                 post(occurrence)
             }
             .font(NeonUltraTypography.label)
-            .foregroundStyle(NeonUltraColor.textPrimary)
+            .foregroundStyle(actionForeground(for: occurrence.type))
             .frame(minHeight: 44)
             .padding(.horizontal, BudgetSpacing.small)
-            .background(NeonUltraColor.surfaceFallback)
+            .background(actionTint(for: occurrence.type))
             .clipShape(
                 RoundedRectangle(
                     cornerRadius: NeonUltraRadius.control,
@@ -873,6 +1049,25 @@ struct HomeTab: View {
             Text(waitingLabel)
                 .font(NeonUltraTypography.meta)
                 .foregroundStyle(NeonUltraColor.textSecondary)
+        }
+    }
+
+    /// A13 : couleurs de SENS des boutons un-appui (sémantique stricte —
+    /// jamais décorative). L'abonnement est une sortie : corail comme
+    /// « Payé ».
+    private func actionTint(for type: TransactionType) -> Color {
+        switch HomePilotDisplay.family(for: type, isSubscription: false) {
+        case .income: NeonUltraColor.tintPositive
+        case .setAside: NeonUltraColor.tintViolet
+        case .expense, .subscription: NeonUltraColor.tintNegative
+        }
+    }
+
+    private func actionForeground(for type: TransactionType) -> Color {
+        switch HomePilotDisplay.family(for: type, isSubscription: false) {
+        case .income: NeonUltraColor.positive
+        case .setAside: NeonUltraColor.textPrimary
+        case .expense, .subscription: NeonUltraColor.negative
         }
     }
 

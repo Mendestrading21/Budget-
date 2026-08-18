@@ -339,6 +339,32 @@ A8→A12 des quatre familles est entièrement livré.**
   STRUCTURE parle familles, les libellés de mouvement restent.
 - Validation : build + tests iOS par la CI (pas de simulateur local).
 
+**A13 — Parité iOS du Bilan (quatre familles natives)** ·
+`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a13-ios-bilan`.
+
+- « Tout ce que tu peux faire, fais-le » : le chantier restant exécutable
+  sans propriétaire est la parité iOS. Ce lot porte au natif ce que la
+  PWA a gagné (lots A3, A6, A7) :
+  - **Bilan en quatre blocs** sur mois courant/passé — Rentrées,
+    Dépenses, Abonnements, Mis de côté — chaque bloc avec son résumé
+    (« 2 à faire · 1 fait » / « Rien ce mois. »), ses lignes à faire et
+    ses lignes faites qui RESTENT dans leur bloc ; bornes 5+3 et
+    « Et N autres » ; mois futur inchangé (liste « Prévu ce mois ») ;
+  - **Partition stricte** : `HomePilotDisplay.family(for:isSubscription:)`
+    + `HomeFamily` — un abonnement (champ `isSubscription` de la
+    récurrence) vit dans SA famille, plus dans « Dépenses » ;
+  - **Boutons de sens un-appui** : Reçu teinté vert, Payé corail,
+    Mis de côté violet neutre (tokens sémantiques existants) ;
+  - **Jauge du mois** dans le héros : « Jour X sur Y », jour calendaire
+    réel, violet de marque, aucune animation permanente.
+- Logique pure couverte par un test unitaire natif
+  (`testHomeFamilyGridIsAStrictPartitionInCanonicalOrder`) : ordre
+  canonique, partition exacte type par type, résumés de bloc.
+  L'identifiant `home.month-summary.title` (UITest du tour Demo) est
+  préservé.
+- Validation : build + ~260 tests iOS par la CI macOS (pas de simulateur
+  local sur ce runner Linux) ; la suite web n'est pas touchée.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
