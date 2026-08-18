@@ -503,6 +503,85 @@ publié par dispatch au SHA exact (run `32154103046`, succès) le 18.08.2026.
   `testFinishCreatesProfileCategoriesAndAccount` prouve toujours le
   30 % du ménage.
 
+**A20 — Le disponible provisionne d'avance l'impôt des revenus
+attendus** · `MERGED` + `PUBLISHED` — PR #63 fusionnée en squash,
+`main` = `1592d279`, publié par dispatch au SHA exact
+(run `32178827138`, succès) le 18.08.2026.
+
+- Défaut confirmé par le propriétaire pendant SON test : le disponible
+  chutait de tout l'écart fiscal seulement APRÈS la réception du
+  salaire (8'150 → 6'710). Correctif : l'impôt des revenus attendus est
+  anticipé — recevoir un revenu prévu ne fait plus bouger la projection.
+- Preuves : parcours 153 (continuité à travers le rituel Reçu/Payé) ;
+  contrôle négatif mordant ; suites complètes vertes.
+- NB : remplacé fonctionnellement par FE2-0 (l'écart annuel ne pèse
+  plus du tout sur le mois — seul l'effort mensuel compte), la
+  propriété de continuité reste testée telle quelle.
+
+**A22 — Grandes pastilles centrées sur le hub Gérer** · `MERGED` —
+PR #64 fusionnée en squash, `main` = `fea4b9f7`, publication portée
+par le dispatch FE2 (voir ci-dessous).
+
+- Demande propriétaire (capture annotée) : « augmente encore un peu
+  les emojis, plus grand, mais centre, un pool plus grand ». Pastilles
+  du hub 44 → 54 px, glyphe 20 → 26 px, centrés — hub Gérer uniquement,
+  les listes Mois/Historique restent inchangées.
+- Preuves : parcours 151 (listes Mois+Historique identiques, hub
+  uniforme « 54x54/26x26 ») ; contrôle négatif : règle CSS retirée →
+  le 151 remord (« 44x44 ») ; captures dans
+  `docs/neon-ultra/budget-prisme/a22/`.
+
+## Programme FE2 — Moteur financier V2 (18.08.2026)
+
+Cahier propriétaire transcrit dans `FINANCIAL_ENGINE_V2.md` (racine).
+Règle d'or : **ne jamais présenter une projection comme de l'argent
+possédé.** Cinq chiffres distincts (Disponible maintenant, Épargne
+accessible, Fortune liquide, Prévu fin de mois, Fortune totale), fin de
+la comptabilisation automatique par date (une date atteinte rend une
+opération « à confirmer », elle ne prouve jamais que l'argent a bougé),
+et séparation écart fiscal annuel / effort du mois (seul l'effort
+mensuel réduit la projection). Tests de l'ancien comportement réécrits
+EN MÊME TEMPS que le moteur, comme exigé.
+
+**FE2-0 — Moteur PWA** · `MERGED` — PR #65, `main` = `2dcb2acc`.
+`snapshot()` expose les agrégats explicites (`endOfMonthForecast`,
+`taxMonthlyEffort`, `taxGapForecast`, `taxSetAsideMonth`,
+`savingsAccessible`, `liquidWealth`) ; `promoteDuePlannedTransactions`
+supprimée (une échéance passée affiche « À confirmer ») ; parcours 84
+réécrit (un salaire prévu à date passée RESTE prévu, seul le geste
+comptabilise) ; parcours 154 (écart annuel de 25'000+ n'écrase pas le
+mois). Contrôles négatifs : promotion réintroduite → 84 mord ; écart
+annuel rebranché → 154 mord.
+
+**FE2-1 — Écrans PWA** · `MERGED` — PR #66, `main` = `ca837520`.
+Grande carte à deux positions « Maintenant / Fin du mois » avec
+décomposition écrite (X maintenant + Y à recevoir − Z à sortir) ;
+Comptes : cartes « Ma fortune » et « Épargne » (stock ≠ flux) ;
+Patrimoine : carte « Fortune liquide » à côté de la fortune totale.
+Parcours 155 ; captures `docs/neon-ultra/budget-prisme/fe2-1/` aux
+valeurs de l'exemple du cahier (5'000 / 6'710).
+
+**FE2-2 — Parité Swift** · `MERGED` — PR #67, `main` = `791661eb`.
+Mêmes formules dans `MonthlySnapshotService` (`taxMonthlyEffort`,
+anticipation des revenus attendus, plafond par l'écart anticipé) ;
+`TransactionPostingPolicy.promoteDueTransactions` et
+`AppContainer.postDuePlannedTransactions` supprimés (le statut
+automatique ne décide que du statut INITIAL d'une saisie datée) ; carte
+héros native à deux positions (`HeroPosition`). Tests réécrits :
+continuité (confirmer un revenu attendu ne change pas la projection),
+écart annuel borné, échéances passées inertes sans geste.
+
+**FE2-3 — Fixture de parité n° 6** · ce lot. Scénario
+`moteur-v2-effort-mensuel` (juin 2026) verrouillant d'un coup : un
+salaire prévu à date passée qui reste prévu (l'ancien moteur l'aurait
+promu au chargement), un écart annuel énorme (revenu de 100'000 en
+janvier, écart anticipé 31'140) qui ne pèse sur le mois que par
+l'effort mensuel (1'140 = 30 % × 4'800 − 300 déjà mis de côté), et les
+nouveaux agrégats (`savingsAccessible` 2'300, `liquidWealth` 107'000,
+`endOfMonthForecast` 107'160). Contrôle négatif : projection rebranchée
+sur l'écart annuel → la fixture 6 mord exactement (écart de 30'000).
+Suites : 6 parités + 155 e2e + design, vertes.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
@@ -615,10 +694,12 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 
 ## Prochaine action exacte
 
-Programme autorisé en continu (16.08.2026). Ordre restant :
-P07 (en cours) → P08 → P09 → P10 → P11 → P12 → P15 → P16 → P18 →
-P00 → P01 → P02 → P04. Pour chaque lot : audit, développement, tests
-(rouge d'abord pour toute vérité), contrôle négatif, suites + audits,
+Registre P00–P18 : terminé. Améliorations continues A1–A22 : livrées.
+Programme FE2 (moteur financier V2) : FE2-0/1/2 fusionnés, FE2-3 en PR.
+Après fusion de FE2-3 : un seul dispatch Pages au SHA de merge final
+(couvre A22 + FE2-0/1/2/3). Candidats suivants, sur demande du
+propriétaire : FE2-4 (vues natives Comptes/Épargne/Patrimoine alignées
+sur les cartes PWA), détail « où va l'épargne ». Discipline inchangée :
+audit, tests rouges d'abord, contrôle négatif, suites complètes,
 captures inspectées, PR, CI verte sur le HEAD exact, fusion squash,
-publication Pages au SHA de merge. Tout défaut financier découvert ouvre
-un incident P0 séparé avant le lot visuel.
+publication au SHA de merge.
