@@ -439,6 +439,27 @@ au SHA exact (run `32142897362`, succès) le 18.08.2026.
 - Test natif étendu : cas `isFuture` de `blockSummary` dans
   `testHomeFamilyGridIsAStrictPartitionInCanonicalOrder`.
 
+**A17 — Borne unique du taux d'impôts natif (risque n° 4)** · `MERGED`
+— PR #59 fusionnée en squash, `main` =
+`58b74986694ad5a2b28d030554c26df04b5fa7bc`, CI de la PR verte du premier
+coup, le 18.08.2026. Publication par dispatch au SHA exact dès la CI de
+`main` verte — run id consigné ici au commit suivant.
+
+- Mesure d'abord : la PWA borne le taux à 0–60 % aux deux endroits
+  (commentaires « P11 (risque n°4) » en place) ; côté iOS la feuille
+  « Votre taux » acceptait n'importe quel pourcentage (250 % stocké
+  comme 2.5 sans un mot) et la validation d'onboarding montait à 100 %
+  (slider limité à 50 %, mais le modèle est l'API).
+- Correctif : constante unique `TaxService.maximumProvisionRate = 0.60` ;
+  validation d'onboarding alignée (« entre 0 % et 60 % ») ;
+  `AmountEntrySheet` gagne une borne haute optionnelle — la feuille
+  Impôts refuse au-delà de 60 avec les mots de la PWA, jamais de
+  troncature silencieuse ; les trois autres feuilles inchangées ; aucune
+  donnée persistée réécrite.
+- Test : `testTaxRateStepSharesTheSingleSixtyPercentBoundWithThePWA`
+  (constante, 61 % refusé avec le bon message, 60 % accepté, négatif
+  refusé).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
@@ -536,8 +557,13 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 2. P14 PWA : **confirmé et corrigé** (incident P0 « annee-consultee », clos).
 3. P06 : **confirmé et corrigé** — gardes destination récurrente et position
    de prévoyance ajoutées (PWA + iOS), test 128 rouge→vert.
-4. P11 : bornes de taux différentes selon onboarding et page Impôts.
-5. P10 iOS : un objectif archivé peut devenir inaccessible dans la liste.
+4. P11 : **confirmé et corrigé.** PWA : bornes 0–60 % déjà alignées
+   pendant P11 (commentaires « risque n°4 » dans le code). Natif : la
+   feuille Impôts n'avait AUCUNE borne — corrigé par le lot A17
+   (constante unique `TaxService.maximumProvisionRate`).
+5. P10 iOS : **vérifié corrigé** — la section « Archivés » de
+   `GoalsTab` (commentaire « P10 (risque n°5) ») garde tout objectif
+   archivé visible et rouvrable.
 6. Publication web : règle d'environnement `github-pages` à corriger par le
    propriétaire avant de pouvoir marquer la version fusionnée `PUBLISHED`
    sans dispatch manuel.
