@@ -43,23 +43,16 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertNotNil(model.validationMessage)
     }
 
-    /// A17 (risque n° 4) : la même borne de taux que la PWA — 0 à 60 % —
-    /// partout où le taux se saisit nativement, via l'unique constante
-    /// `TaxService.maximumProvisionRate`.
-    func testTaxRateStepSharesTheSingleSixtyPercentBoundWithThePWA() {
+    /// A19 (parité PWA, lot A18) : l'onboarding ne demande PLUS de taux
+    /// d'impôts. Le défaut (30 %) s'applique, et la seule saisie du taux —
+    /// la feuille Impôts — reste bornée par l'unique constante 0–60 %
+    /// (`TaxService.maximumProvisionRate`, lot A17).
+    func testOnboardingNoLongerAsksForATaxRate() {
+        XCTAssertFalse(
+            OnboardingStep.allCases.map { String(describing: $0) }.contains("taxRate")
+        )
+        XCTAssertEqual(makeValidModel().taxProvisionRate, Decimal("0.30"))
         XCTAssertEqual(TaxService.maximumProvisionRate, Decimal("0.60"))
-
-        let model = makeValidModel()
-        model.step = .taxRate
-        model.taxProvisionRate = Decimal("0.61")
-        XCTAssertFalse(model.validateCurrentStep())
-        XCTAssertEqual(model.validationMessage, "Le taux doit être compris entre 0 % et 60 %.")
-
-        model.taxProvisionRate = Decimal("0.60")
-        XCTAssertTrue(model.validateCurrentStep())
-
-        model.taxProvisionRate = Decimal("-0.01")
-        XCTAssertFalse(model.validateCurrentStep())
     }
 
     func testEmptyBalanceDefaultsToZero() {

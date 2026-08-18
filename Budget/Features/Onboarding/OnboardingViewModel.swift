@@ -6,7 +6,9 @@ enum OnboardingStep: Int, CaseIterable {
     case welcome
     case household
     case location
-    case taxRate
+    // A19 (parité PWA, lot A18) : plus d'étape « Provision d'impôts » —
+    // le taux garde son défaut (30 %) et se règle dans Impôts, borné par
+    // TaxService.maximumProvisionRate.
     case firstAccount
     /// Facultatif : salaire et loyer via les RecurringTransaction
     /// existantes — aucune nouvelle structure, même save atomique.
@@ -83,14 +85,6 @@ final class OnboardingViewModel {
             }
             return true
         case .location:
-            return true
-        case .taxRate:
-            // A17 (risque n° 4) : même borne que la PWA — 0 à 60 %, la
-            // constante vit dans TaxService pour toutes les saisies.
-            if taxProvisionRate < 0 || taxProvisionRate > TaxService.maximumProvisionRate {
-                validationMessage = "Le taux doit être compris entre 0 % et 60 %."
-                return false
-            }
             return true
         case .firstAccount:
             if accountName.trimmingCharacters(in: .whitespaces).isEmpty {
