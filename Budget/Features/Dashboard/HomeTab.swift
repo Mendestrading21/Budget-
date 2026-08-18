@@ -6,7 +6,9 @@ import SwiftData
 /// amounts are still calculated by `MonthlySnapshotService`.
 enum HomePilotDisplay {
     static func toPay(_ available: AvailableBreakdown) -> Decimal {
-        available.committedCharges + available.recurringCharges + available.taxReserveGap
+        // FE2 : « à sortir » = engagements du mois + effort fiscal du mois —
+        // jamais l'écart annuel entier.
+        available.committedCharges + available.recurringCharges + available.taxMonthlyEffort
     }
 
     /// Vocabulaire de confirmation du rituel mensuel. Le type financier reste
@@ -242,6 +244,42 @@ struct HomeTab: View {
     @State private var monthAnchor: Date?
     @State private var saveErrorMessage: String?
     @State private var isPresentingQuickEntry = false
+    // FE2 : la position de la grande carte — le réel ou la projection.
+    @State private var heroPosition: HeroPosition = .now
+
+    enum HeroPosition: String, CaseIterable, Identifiable {
+        case now, endOfMonth
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .now: "Maintenant"
+            case .endOfMonth: "Fin du mois"
+            }
+        }
+    }
+
+    private var heroPositionPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(HeroPosition.allCases) { position in
+                Button(position.title) {
+                    heroPosition = position
+                }
+                .font(NeonUltraTypography.label)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(heroPosition == position ? NeonUltraColor.tintViolet : Color.clear)
+                .foregroundStyle(heroPosition == position ? NeonUltraColor.textPrimary : NeonUltraColor.textSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: NeonUltraRadius.control, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: NeonUltraRadius.control, style: .continuous)
+                        .stroke(heroPosition == position ? NeonUltraColor.violet : NeonUltraColor.border, lineWidth: 1)
+                )
+                .accessibilityAddTraits(heroPosition == position ? [.isSelected] : [])
+                .accessibilityIdentifier("home.hero.\(position.rawValue)")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Vue du mois")
+    }
 
     private var currentAnchor: Date {
         monthAnchor ?? appContainer.dateProvider.now
@@ -378,13 +416,22 @@ struct HomeTab: View {
     private func availableCard(_ snapshot: MonthSnapshot) -> some View {
         let isCurrentMonth = snapshot.interval.contains(appContainer.dateProvider.now)
         let isFutureMonth = snapshot.interval.start > appContainer.dateProvider.now
-        let amount = (isCurrentMonth || isFutureMonth)
-            ? snapshot.available.total : snapshot.cashFlow
-        let title = isCurrentMonth ? "Reste pour le mois"
+        // FE2 (cahier propriétaire) : sur le mois COURANT, la carte a deux
+        // positions — le RÉEL du moment et la PROJECTION de fin de mois.
+        // Une projection n'est jamais présentée comme de l'argent possédé.
+        let showNow = isCurrentMonth && heroPosition == .now
+        let amount = isCurrentMonth
+            ? (showNow ? snapshot.available.liquidBalance : snapshot.available.total)
+            : (isFutureMonth ? snapshot.available.total : snapshot.cashFlow)
+        let title = isCurrentMonth
+            ? (showNow ? "Disponible maintenant" : "Prévu fin du mois")
             : (isFutureMonth ? "Estimation du mois" : "Résultat du mois")
 
         return NeonUltraElevatedCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
+                if isCurrentMonth {
+                    heroPositionPicker
+                }
                 VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                     Text(title)
                         .font(NeonUltraTypography.label)
@@ -402,7 +449,17 @@ struct HomeTab: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
 
-                if isCurrentMonth {
+                if isCurrentMonth, showNow {
+                    Text("Sur vos comptes utilisables au quotidien.")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if isCurrentMonth {
+                    let expected = snapshot.available.expectedIncome + snapshot.available.recurringIncome
+                    Text("\(FinanceFormatting.chf(snapshot.available.liquidBalance)) maintenant + \(FinanceFormatting.chf(expected)) à recevoir − \(FinanceFormatting.chf(HomePilotDisplay.toPay(snapshot.available))) à sortir.")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(
                         amount < 0
                             ? "Il manque \(FinanceFormatting.chf(-amount)) pour finir le mois."
@@ -411,6 +468,8 @@ struct HomeTab: View {
                     .font(NeonUltraTypography.meta)
                     .foregroundStyle(amount < 0 ? NeonUltraColor.warning : NeonUltraColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+                }
+                if isCurrentMonth {
 
                     // A13 (parité PWA, lot A3) : où en est le mois — jour
                     // calendaire réel sur le nombre de jours du mois.

@@ -297,7 +297,7 @@ final class RecurringScheduleServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.available.recurringCharges, Decimal("2000.00"))
         XCTAssertEqual(
             snapshot.available.total,
-            snapshot.available.liquidBalance + Decimal("8000.00") - Decimal("2000.00") - snapshot.available.taxReserveGap
+            snapshot.available.liquidBalance + Decimal("8000.00") - Decimal("2000.00") - snapshot.available.taxMonthlyEffort
         )
     }
 

@@ -96,13 +96,40 @@ struct MonthlySnapshotService {
             .filter { [.expense, .saving, .investment, .taxPayment, .debtPayment].contains($0.type) }
             .reduce(Decimal.zero) { $0 + $1.amount }
 
+        // FE2 (cahier propriétaire, 18.08.2026) : la projection du mois ne
+        // porte que l'effort fiscal DU MOIS — même formule que la PWA :
+        // taux × revenus du mois (comptabilisés + attendus) − mises de côté
+        // « Impôts » du mois (comptabilisées, prévues ou engagées — pas de
+        // double compte), plafonné par l'écart annuel ANTICIPÉ (arriérés
+        // compris, réserve déduite ; une année couverte → zéro).
+        let expectedAllIncome = plannedIncome + recurringIncome
+        let isTaxSetAside: (BudgetTransaction) -> Bool = {
+            ($0.type == .saving || $0.type == .investment) && $0.category?.name == "Impôts"
+        }
+        let taxRecurringIDs = Set(recurrings
+            .filter { ($0.type == .saving || $0.type == .investment) && $0.category?.name == "Impôts" }
+            .map(\.id))
+        let taxSetAsideMonth = posted.filter(isTaxSetAside).reduce(Decimal.zero) { $0 + $1.amount }
+            + planned.filter(isTaxSetAside).reduce(Decimal.zero) { $0 + $1.amount }
+            + forecast.filter { taxRecurringIDs.contains($0.recurringID) }
+                .reduce(Decimal.zero) { $0 + $1.amount }
+        let dueForecast = max(.zero, taxReport.estimatedTax
+            + FinanceMath.roundedToCents(expectedAllIncome * taxReport.rate)
+            - taxReport.paid)
+        let gapForecast = max(.zero, dueForecast + taxReport.arrears - taxReport.reserved)
+        let taxMonthlyEffort = max(.zero, min(
+            FinanceMath.roundedToCents((totalIncome + expectedAllIncome) * taxReport.rate) - taxSetAsideMonth,
+            gapForecast
+        ))
+
         let available = AvailableBreakdown(
             liquidBalance: liquidBalance,
             expectedIncome: plannedIncome,
             committedCharges: plannedOutflows,
             recurringIncome: recurringIncome,
             recurringCharges: recurringCharges,
-            taxReserveGap: taxProvision.gap
+            taxReserveGap: taxProvision.gap,
+            taxMonthlyEffort: taxMonthlyEffort
         )
 
         let daysRemaining = self.daysRemaining(in: interval, now: now)

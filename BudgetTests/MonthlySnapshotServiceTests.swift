@@ -177,9 +177,55 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         XCTAssertEqual(available.taxReserveGap, Decimal("2400.00"))
         XCTAssertEqual(
             available.total,
-            available.liquidBalance + available.expectedIncome - available.committedCharges - available.taxReserveGap
+            available.liquidBalance + available.expectedIncome - available.committedCharges - available.taxMonthlyEffort
         )
-        XCTAssertEqual(available.total, Decimal("9600.00"))
+        // FE2 : la projection porte l'effort fiscal DU MOIS — 30 % des
+        // revenus du mois (8'000 reçus + 1'000 attendus) = 2'700, plafonné
+        // par l'écart annuel anticipé (2'400 + 30 % × 1'000 = 2'700). Le
+        // bonus attendu porte son impôt d'avance : confirmer ne fera pas
+        // bouger le chiffre.
+        XCTAssertEqual(available.taxMonthlyEffort, Decimal("2700.00"))
+        XCTAssertEqual(available.total, Decimal("9300.00"))
+    }
+
+    /// FE2 : confirmer un revenu attendu ne change pas la projection — son
+    /// impôt était provisionné d'avance (continuité, parité PWA A20/FE2-0).
+    func testConfirmingAnExpectedIncomeDoesNotChangeTheForecast() {
+        let salary = BudgetTransaction(
+            date: date(day: 25), amount: Decimal("4800.00"), type: .income,
+            status: .planned, title: "Salaire attendu", account: current
+        )
+        let before = makeSnapshot([insert(salary)])
+        salary.status = .posted
+        let after = makeSnapshot([salary])
+
+        XCTAssertEqual(before.available.taxMonthlyEffort, Decimal("1440.00"))
+        XCTAssertEqual(after.available.taxMonthlyEffort, Decimal("1440.00"))
+        XCTAssertEqual(before.available.total, after.available.total,
+                       "confirmer un salaire attendu ne doit pas faire bouger la projection")
+    }
+
+    /// FE2 : l'écart fiscal ANNUEL n'écrase plus le mois — seule la part du
+    /// mois pèse ; l'écart complet reste visible dans taxProvision.gap.
+    func testAnnualTaxGapDoesNotCrushTheMonthForecast() {
+        let past = BudgetTransaction(
+            date: date(day: 10, month: 1), amount: Decimal("100000.00"),
+            type: .income, title: "Gros revenu passé", account: current
+        )
+        let salary = BudgetTransaction(
+            date: date(day: 1), amount: Decimal("4000.00"), type: .income,
+            title: "Salaire du mois", account: current
+        )
+        let snapshot = makeSnapshot([insert(past), insert(salary)])
+
+        XCTAssertEqual(snapshot.taxProvision.gap, Decimal("31200.00"),
+                       "l'écart annuel reste dit en entier dans Impôts")
+        XCTAssertEqual(snapshot.available.taxMonthlyEffort, Decimal("1200.00"),
+                       "le mois ne porte que 30 % de SES revenus")
+        XCTAssertEqual(
+            snapshot.available.total,
+            snapshot.available.liquidBalance - snapshot.available.taxMonthlyEffort
+        )
     }
 
     func testPlannedMovementsStaySeparateFromActuals() {

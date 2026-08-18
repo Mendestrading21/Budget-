@@ -14,16 +14,12 @@ final class AppContainer {
     let documentFileStore: DocumentFileStoring
     let lockManager: AppLockManager
 
-    /// Amount-free maintenance error surfaced by the app shell. Promotion
-    /// is retried on the next activation and can also be retried manually.
-    private(set) var duePostingErrorMessage: String?
-
     /// Annonce ÉPHÉMÈRE de progrès d'objectif (« ☔️ Fonds d'urgence :
     /// 68 % → 71 % »), posée par un enregistrement réussi et affichée par
     /// la coquille (`MainTabView`) le temps d'une lecture. Vit ici — et pas
     /// dans un routeur — parce que l'écriture peut partir de n'importe
     /// quelle feuille et que la coquille est le seul endroit qui survit à
-    /// leur fermeture. Même précédent que `duePostingErrorMessage`.
+    /// leur fermeture.
     var goalProgressMessage: String?
 
     /// Demo mode runs the whole app on an isolated in-memory store filled
@@ -56,35 +52,9 @@ final class AppContainer {
             : try PersistenceFactory.makeProductionContainer()
     }
 
-    /// Applies the canonical day-based posting rule when the app starts or
-    /// returns to the foreground. The main context keeps already-rendered
-    /// `@Query` values coherent. Promotion starts only when that context is
-    /// clean, so it can never commit or cancel an unrelated form edit.
-    @MainActor
-    func postDuePlannedTransactions() {
-        let context = modelContainer.mainContext
-        guard !context.hasChanges else {
-            duePostingErrorMessage = "Une modification est encore en cours. Terminez-la, puis réessayez la mise à jour des échéances."
-            return
-        }
-        do {
-            let transactions = try context.fetch(FetchDescriptor<BudgetTransaction>())
-            let promoted = TransactionPostingPolicy(calendar: calendar)
-                .promoteDueTransactions(transactions, now: dateProvider.now)
-            if promoted > 0 {
-                try context.saveOrRollback()
-            }
-            duePostingErrorMessage = nil
-        } catch {
-            context.rollback()
-            duePostingErrorMessage = "Certaines factures arrivées à leur date n'ont pas pu être enregistrées. Vos données sont intactes : réessayez."
-        }
-    }
-
-    @MainActor
-    func dismissDuePostingError() {
-        duePostingErrorMessage = nil
-    }
+    // FE2 (décision propriétaire, 18.08.2026) : la comptabilisation
+    // automatique par date est SUPPRIMÉE. Une échéance arrivée devient
+    // « à confirmer » — jamais comptabilisée sans geste.
 
     private func rebuildContainer() {
         do {

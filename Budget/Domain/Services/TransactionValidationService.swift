@@ -16,24 +16,11 @@ struct TransactionPostingPolicy {
         isFuture(date, relativeTo: now) ? .planned : .posted
     }
 
-    /// Promotes due movements once their calendar day arrives. This keeps
-    /// balances neutral before the due date without leaving automatically
-    /// planned imports or recurring bills neutral forever.
-    @discardableResult
-    func promoteDueTransactions(
-        _ transactions: [BudgetTransaction],
-        now: Date
-    ) -> Int {
-        var promoted = 0
-        for transaction in transactions
-        where transaction.status == .planned
-            && !isFuture(transaction.date, relativeTo: now) {
-            transaction.status = .posted
-            transaction.updatedAt = now
-            promoted += 1
-        }
-        return promoted
-    }
+    // FE2 (décision propriétaire, 18.08.2026) : `promoteDueTransactions`
+    // est supprimée — une date atteinte rend un mouvement prévu
+    // « à confirmer », elle ne prouve jamais que l'argent a bougé.
+    // `automaticStatus` reste : c'est le statut INITIAL d'une saisie datée
+    // (saisir une dépense d'hier crée bien un mouvement comptabilisé).
 }
 
 /// Editable transaction fields before persistence.
