@@ -689,6 +689,20 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   justify-content: space-between;
   gap: 12px;
 }
+/* A7 : le Bilan est un GROUPE de quatre blocs — Rentrées, Dépenses,
+   Abonnements, Mis de côté — sous un en-tête commun hors carte. Chaque
+   bloc est une carte à part entière, au même rythme que les autres. */
+#screen.nu-pilot-screen .home-bilan { display: grid; gap: 10px; }
+#screen.nu-pilot-screen .home-bilan-head { padding: 2px 4px 0; }
+#screen.nu-pilot-screen .home-bloc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+#screen.nu-pilot-screen .home-bloc-head .card-label { margin-bottom: 2px; }
+#screen.nu-pilot-screen .home-bloc-count { color: var(--nu-text-tertiary); }
+#screen.nu-pilot-screen .home-bloc-vide { margin: 6px 0 0; color: var(--nu-text-tertiary); }
 #screen.nu-pilot-screen .home-bills-total {
   margin: 2px 0;
   color: var(--nu-text-primary);

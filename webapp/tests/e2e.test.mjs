@@ -892,7 +892,9 @@ check(!screenHTML.includes("Ce qui reste, 6 derniers mois")
   "ni courbe 6 mois ni budget détaillé ne doivent charger l'écran Mois");
 const home35 = await page.evaluate(() => {
   const s = document.getElementById("screen");
-  const bills = s.querySelector(".home-bills-card");
+  // A7 : le bilan est un GROUPE de quatre blocs sous un en-tête commun
+  // (mois courant) — ou une carte unique (mois futur/vide).
+  const bills = s.querySelector(".home-bilan") || s.querySelector(".home-bills-card");
   return {
     // Aucun ancien widget d'objectif ni tuile d'analyse.
     goalWidget: !!s.querySelector('.card.row.tx[data-more="goals"]'),
@@ -906,7 +908,7 @@ check(!home35.goalWidget,
   "l'ancien widget d'objectif ne doit plus charger l'écran Mois");
 check(home35.tileCount === 0 && !home35.carousel,
   `aucune tuile ni carrousel ne surcharge l'accueil (${home35.tileCount} tuile)`);
-check(home35.agenda, "le bilan unique du mois reste au premier niveau");
+check(home35.agenda, "le bilan du mois (groupe A7) reste au premier niveau");
 check(home35.manageUnified,
   "Gérer ouvre le hub qui contient les lignes mensuelles ET les factures ponctuelles");
 const tabLabel = await page.$eval('#tabbar button[data-tab="home"] span', el => el.textContent);
@@ -3924,6 +3926,8 @@ await page.waitForTimeout(300);
       heroes: s.querySelectorAll(".home-hero").length,
       stats: [...s.querySelectorAll(".home-metrics .card-label")].map(el => el.textContent.trim()),
       agendas: s.querySelectorAll(".home-agenda-card").length,
+      groupes: s.querySelectorAll(".home-bilan").length,
+      blocs: [...s.querySelectorAll(".home-bloc .card-label")].map(el => el.textContent.trim()),
       ctas: s.querySelectorAll(".btn.nu-cta").length,
       tabs: [...document.querySelectorAll("#tabbar button[data-tab]")]
         .map(button => button.getAttribute("aria-label")),
@@ -3931,8 +3935,11 @@ await page.waitForTimeout(300);
   });
   check(home91.tiles === 0 && home91.carousel === 0,
     `aucune tuile ni carrousel sur l'accueil (${JSON.stringify(home91)})`);
-  check(home91.heroes === 1 && home91.agendas === 1 && home91.ctas === 1,
-    `un héros, une liste et un CTA (${JSON.stringify(home91)})`);
+  // A7 : le bilan du mois courant est UN groupe de QUATRE blocs nommés.
+  check(home91.heroes === 1 && home91.groupes === 1 && home91.agendas === 4
+      && home91.blocs.join(",") === "Rentrées,Dépenses,Abonnements,Mis de côté"
+      && home91.ctas === 1,
+    `un héros, un groupe de quatre blocs nommés et un CTA (${JSON.stringify(home91)})`);
   check(home91.stats.join(",") === "Reçu,Dépensé,Mis de côté",
     `trois repères simples (${home91.stats.join(",")})`);
   check(home91.tabs.join(",") === "Mois,Historique,Budget,Comptes,Gérer",
@@ -8286,6 +8293,64 @@ const a6apres = await page.evaluate(() => ({
 check(a6avant === 0 && a6apres.postees === 1 && a6apres.faits.some(t => /Réserve mensuelle A6/.test(t)),
   `un appui sur « Mis de côté » enregistre l'opération et la ligne passe dans « Fait ce mois » (${a6apres.postees} postée)`);
 
+// ---------- Test 148 : A7 Quatre blocs — Rentrées, Dépenses, Abonnements, Mis de côté ----------
+// Demande propriétaire : « quatre blocs, pas tout dans un seul bloc ».
+// Le Bilan du mois courant est un groupe de quatre cartes nommées, chacune
+// avec ses lignes à faire (bouton un appui) ET ses lignes faites — la
+// ligne validée reste dans SON bloc, marquée reçue/payée. Un mois futur
+// garde sa carte unique « Prévu ce mois » ; un mois sans rien garde son
+// invitation.
+currentTest = "A7 quatre blocs";
+const a7 = await page.evaluate(() => {
+  cursor = { y: NOW.y, m: NOW.m };
+  activeTab = "home"; moreView = null; render();
+  const blocs = [...document.querySelectorAll(".home-bloc")].map(b => ({
+    titre: b.querySelector(".card-label").textContent.trim(),
+    attente: [...b.querySelectorAll('[data-home-section="todo"] .home-bill-row .t')].map(t => t.textContent),
+    faits: [...b.querySelectorAll(".home-done-list .home-bill-row .t")].map(t => t.textContent),
+  }));
+  const dans = (titre, portion) => {
+    const bloc = blocs.find(b => b.titre === titre);
+    return bloc ? bloc[portion] : [];
+  };
+  cursor = shiftMonth({ y: NOW.y, m: NOW.m }, 1); render();
+  const futurBlocs = document.querySelectorAll(".home-bloc").length;
+  const futurSection = document.querySelector('[data-home-section="future"]')?.textContent.trim() || "";
+  cursor = { y: NOW.y, m: NOW.m }; render();
+  return {
+    titres: blocs.map(b => b.titre),
+    salairePlace: dans("Rentrées", "attente").some(t => /Salaire A6/.test(t)),
+    facturePlace: dans("Dépenses", "attente").some(t => /Électricité A6/.test(t)),
+    abonnementPlace: dans("Abonnements", "attente").some(t => /streaming A6/i.test(t)),
+    reserveFaite: dans("Mis de côté", "faits").some(t => /Réserve mensuelle A6/.test(t)),
+    futurBlocs, futurSection,
+  };
+});
+check(a7.titres.join(",") === "Rentrées,Dépenses,Abonnements,Mis de côté",
+  `le Bilan du mois courant est fait de QUATRE blocs nommés (obtenu ${a7.titres.join(",")})`);
+check(a7.salairePlace && a7.facturePlace && a7.abonnementPlace,
+  `chaque ligne vit dans SON bloc — salaire, facture, abonnement (${JSON.stringify([a7.salairePlace, a7.facturePlace, a7.abonnementPlace])})`);
+check(a7.reserveFaite,
+  "la mise de côté validée au test A6 est restée dans le bloc « Mis de côté », marquée faite");
+check(a7.futurBlocs === 0 && a7.futurSection === "Prévu ce mois",
+  `un mois futur garde sa carte unique « Prévu ce mois » (${a7.futurBlocs} bloc(s), section « ${a7.futurSection} »)`);
+// Un appui : le salaire passe reçu SANS quitter son bloc. (Présence
+// vérifiée par assertion — un sabotage doit échouer proprement, pas en
+// timeout.)
+const a7bouton = await page.$('.home-bloc [data-postrec="r-a6-pay"]');
+check(!!a7bouton, "le bouton « Reçu » du salaire vit dans le bloc Rentrées");
+if (a7bouton) { await a7bouton.click(); await page.waitForTimeout(300); }
+const a7apres = await page.evaluate(() => {
+  const bloc = [...document.querySelectorAll(".home-bloc")].find(b => b.querySelector(".card-label").textContent.trim() === "Rentrées");
+  return {
+    fait: [...bloc.querySelectorAll(".home-done-list .home-bill-row")].some(r =>
+      /Salaire A6/.test(r.querySelector(".t").textContent) && /Reçu ce mois/.test(r.querySelector(".s").textContent)),
+    encoreEnAttente: [...bloc.querySelectorAll('[data-home-section="todo"] .home-bill-row .t')].some(t => /Salaire A6/.test(t.textContent)),
+  };
+});
+check(a7apres.fait && !a7apres.encoreEnAttente,
+  `un appui sur « Reçu » : le salaire reste dans « Rentrées », marqué « Reçu ce mois » (${JSON.stringify(a7apres)})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8295,4 +8360,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 147 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 148 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

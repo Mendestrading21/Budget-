@@ -217,6 +217,29 @@ par dispatch au SHA exact (run `32070087322`, succès) le 17.08.2026.
   négatif à 2 sabotages → 2 échecs ciblés ; 5 parités ; design vert ;
   captures avant/après dans `docs/neon-ultra/budget-prisme/a6/`.
 
+**A7 — Bilan en quatre blocs** · `VERIFYING_AUTOMATED` — PR depuis
+`agent/prisme-a7-quatre-blocs`.
+
+- Demande du 18.08.2026 : « quatre blocs, pas tout dans un seul bloc ».
+  Le Bilan du mois courant devient un GROUPE de quatre cartes nommées —
+  **Rentrées, Dépenses, Abonnements, Mis de côté** — sous un en-tête
+  commun (compteur global + Gérer). Chaque bloc porte ses lignes à faire
+  (bouton un appui, couleurs de sens A6) ET ses lignes faites : la ligne
+  validée RESTE dans son bloc, marquée « Reçu/Payé/Mis de côté ce mois »,
+  comme une case cochée de Notion. Compteur par bloc (« 2 à faire ·
+  1 fait ») ; bloc sans rien : « Rien ce mois. » ; bornes par bloc
+  (5 à faire + 3 faits + « Et N autres »). Un mois FUTUR garde sa carte
+  unique « Prévu ce mois » (une prévision, pas une liste de cases) ; un
+  mois vide garde son invitation.
+- Deux tests historiques mis à jour honnêtement : « bilan unique »
+  devient « groupe de quatre blocs nommés » (tests 35 et 91).
+- Preuves : e2e 147 → 148 parcours (quatre titres exacts, chaque ligne
+  dans SON bloc, réserve validée restée dans son bloc, mois futur à carte
+  unique, un appui → « Reçu ce mois » sans quitter Rentrées) ; contrôle
+  négatif : retour au bloc unique → échec net du test ; 5 parités ;
+  design vert ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/a7/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
