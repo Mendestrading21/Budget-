@@ -1,78 +1,100 @@
-# Budget — autorité pour Claude Code
+# Budget — authority for Claude Code
 
-Utiliser uniquement le skill projet `/budget-prisme` pour tout travail important
-sur Budget. Il orchestre l'audit, la simplification, le design, le développement,
-les tests et la publication page par page pour la PWA et iOS.
+Use only the project skill `/budget-prisme` for substantial work on Budget.
 
-`/budget-neon-ultra` est un alias historique de compatibilité. Ses références
-visuelles restent consultables lorsqu'une ADR les cite, mais son ancienne roadmap,
-ses anciens SHA, totaux de tests et contrats de branche ne pilotent plus le travail.
+## Active programme
 
-Le skill `/apple-design` (`.claude/skills/apple-design/SKILL.md`) est un compagnon
-conditionnel pour les gestes, le mouvement, les ressorts, les matériaux et Reduce
-Motion. Il ne prévaut jamais sur Budget Prisme pour la palette, la hiérarchie,
-les données, les textes ou l'accessibilité.
+- Programme : **Budget Prisme** — pages P00–P18 terminées, puis
+  améliorations continues (lots A1+) et le programme
+  **« Les quatre familles partout »** (`BUDGET_FAMILLES_PLAN.md`).
+- Release branch: **`main`**. All work flows through a short-lived
+  `agent/prisme-*` branch → French PR → green CI on the exact HEAD →
+  squash merge → publish.
+- Publishing: GitHub Pages deploys ONLY via workflow dispatch of
+  `pages.yml` at ref `refonte/budget-neon-ultra-v1` with inputs
+  `{"sha": "<full merge sha>"}`. The auto-deploy step from `main` is
+  blocked by the `github-pages` environment rule (owner click pending) —
+  its failure on merge commits is expected and documented.
+- Progress source: `BUDGET_PRISME_STATUS.md` (living status).
+- Concept grid: `BUDGET_FAMILLES_PLAN.md` — the four families
+  (Rentrées · Dépenses · Abonnements · Mis de côté), same order, same
+  glyphs, same semantic colors on every surface; strict partition —
+  each franc lives in exactly one family; internal transfers stay
+  transversal and neutral.
+- Skill references: `.claude/skills/budget-prisme/references/`
+  (finance/data, language, page registry, page workflow, quality
+  evidence, GitHub release) — they prevail over legacy skills.
 
-## Programme actif
+All other Budget skills (`/budget-v1`, `/budget-neon-ultra`,
+`/budget-horizon`, `/budget-master-evolution`, `/budget-2027`,
+`/budget-web`, `/budget-production-completion` included) are legacy
+references. Do not invoke them, combine their roadmaps, or let them
+override `/budget-prisme`. Preserve useful existing code and domain
+decisions. The Obsidian Glass and Neon Ultra history (L0–L9 and NU
+reports, `OBSIDIAN_GLASS_STATUS.md` in `archives/`, `NEON_ULTRA_STATUS.md`,
+`PROJECT_STATUS.md`) is preserved as-is and is never rewritten.
+`docs/INDEX.md` maps every document.
 
-- Programme : **Budget Prisme — page par page**.
-- Branche de release : **`main`**. Travailler sur une branche
-  `agent/prisme-pXX-<slug>` créée depuis le dernier `main` vert.
-- Source de progression : `BUDGET_PRISME_STATUS.md`.
-- Skill maître : `.claude/skills/budget-prisme/SKILL.md`.
-- Style vivant : `docs/neon-ultra/budget-prisme/STYLE.md`.
-- Décisions : `DECISION_LOG.md`, en particulier ADR-032 et les ADR du périmètre.
-- Workflows réels : `.github/workflows/*.yml`.
+## Working protocol (per lot)
 
-Les programmes Obsidian Glass, Horizon, Master Evolution, Budget v1 et leurs
-rapports restent historiques. Ne pas combiner leurs roadmaps avec Budget Prisme.
+1. After ANY container restart: `git fetch origin main` then
+   `git checkout -B main origin/main` and verify `git log -1` lineage
+   BEFORE branching. Never build on a stale clone.
+2. Read this file, `BUDGET_PRISME_STATUS.md`, `BUDGET_FAMILLES_PLAN.md`,
+   and the `/budget-prisme` references relevant to the lot.
+3. One focused lot per PR. Measure first (geometry/behaviour probe),
+   then fix, then prove.
+4. Tests are additive: the e2e browser suite (`webapp/tests/e2e.test.mjs`),
+   5 parity fixtures, and the design suites must stay green; every lot
+   adds its own test. Prove each fix with a negative control (targeted
+   sabotage → targeted failures → restore green).
+5. Before/after captures at 390 px (and 320 px when layout is involved),
+   actually inspected, stored under `docs/neon-ultra/budget-prisme/<lot>/`.
+6. Update `BUDGET_PRISME_STATUS.md` with evidence, then commit (French,
+   one lot), PR, wait for green CI on the exact HEAD, squash merge, wait
+   for green CI on `main` (deploy step excepted), publish by dispatch at
+   the exact SHA, record the run id in the status file.
+7. Never push directly to `main`; never disable TLS or unset HTTPS_PROXY;
+   fictional data only in tests and captures.
 
-## Protocole de travail
+## Product invariants
 
-1. Afficher `pwd`, branche, HEAD, `git status` et diff; préserver tout travail non lié.
-2. Lire `/budget-prisme`, la ligne active de `BUDGET_PRISME_STATUS.md`, les ADR,
-   le code, les tests et les workflows actuels.
-3. Transformer une demande générale en backlog, puis exécuter exactement une
-   page P00–P18 et ses feuilles directement possédées.
-4. Écrire un Page Work Order et des critères mesurables avant toute édition.
-5. Ajouter un test rouge avant un correctif financier, de données ou de sécurité.
-6. Implémenter le plus petit lot vertical; ne pas mélanger design et formule.
-7. Tester, ouvrir le rendu, inspecter les états et conserver les preuves utiles.
-8. Mettre à jour `BUDGET_PRISME_STATUS.md` avec l'état réel et la prochaine page.
-9. Créer une PR ciblée; s'arrêter pour validation du propriétaire.
+- Native: SwiftUI + SwiftData + Swift Charts, iOS 17+, iPhone only
+  (`UIDeviceFamily == [1]`, ADR-023).
+- PWA remains functional, installable, honest about local storage, and offline-capable.
+- Financial amounts use `Decimal` in native code; never silently coerce invalid values to zero.
+- Planned and actual money remain separate.
+- Savings and investments are not living expenses.
+- Internal transfers are neutral for household metrics and net worth.
+- Historical amounts never change because a current exchange rate changed.
+- No fake bank connection, no fake live data, and no personalized regulated advice.
+- Preserve stable identifiers, migrations, backups, privacy behavior, and user history.
+- Use `fr-CH` formatting and plain French understandable by a ten-year-old.
+- Amounts are unbreakable words (NBSP after the currency prefix) and are
+  never truncated or wrapped mid-token.
 
-Ne pas fusionner, déployer, publier, fermer une PR existante, modifier une
-protection ou lancer TestFlight sans autorisation explicite. Une PR verte n'est
-pas une publication; Pages doit déployer le SHA exact puis l'URL doit être vérifiée.
+## Visual authority
 
-## Invariants produit
+Budget Prisme keeps the single dark identity (ADR-024 base): deep black
+surfaces with magenta `#D946EF`, violet `#7C3AED`, cyan `#38BDF8`
+accents, CTA gradient `#C000A4 → #6E00E8`. 75% black/graphite, at most
+10% neon, one major luminous focal point per viewport, no glow around
+amounts, no casino aesthetics; green, coral, and amber are semantic only
+(green = money in, coral = money out, violet neutral = set aside).
+Budget Glyphs (stroke 1.75, viewBox 24, currentColor) are the only
+iconography — no functional emojis; country flags, user-chosen goal
+emojis and real-milestone 🎉 stay. Full rules in
+`.claude/skills/budget-prisme/references/` and the Neon Ultra
+constitution it builds on.
 
-- Native : SwiftUI + SwiftData + Swift Charts, iOS 17+, iPhone uniquement.
-- PWA installable, locale, honnête sur le stockage et fonctionnelle hors ligne.
-- Argent en `Decimal` natif; aucune saisie invalide transformée en zéro.
-- Planifié et comptabilisé restent distincts.
-- Épargne et investissement ne sont pas des dépenses de vie.
-- Transfert interne et mise de côté vers une destination sont neutres pour le patrimoine.
-- Capital de dette, intérêts et frais restent distincts.
-- Historique monétaire figé selon le taux enregistré.
-- Occurrences récurrentes liées, idempotentes et traçables.
-- Restauration validée avant remplacement; migrations et rollback testés.
-- Aucun faux compte bancaire, donnée live, assistant distant ou conseil réglementé.
-- Identifiants, sauvegardes, confidentialité et historique utilisateur préservés.
-- `fr-CH`, montants explicites et français compréhensible par un enfant de dix ans.
+Respect Dynamic Type, VoiceOver, WCAG AA body text (nothing under 10 px),
+44-point targets, reduced motion, increased contrast, and reduced
+transparency. When transparency is reduced, replace any blur with the
+opaque surface `#151923`.
 
-## Identité Budget Prisme
+## Navigation (ADR-026)
 
-Graphite mat majoritaire, montants blancs sans glow, arête cyan-violet-magenta
-rare et structurante. Vert, corail et ambre sont exclusivement sémantiques.
-Réutiliser Budget Glyphs; ne pas ajouter d'emoji fonctionnel, de blur lourd,
-de carte dans la carte ou de copie d'une application tierce.
-
-Respecter cibles de 44 px/pt, WCAG AA, Dynamic Type/texte 200 %, VoiceOver/
-lecteur d'écran, clavier, Reduce Motion, Reduce Transparency et montants longs.
-
-## Navigation stable
-
-PWA et iOS conservent cinq destinations : `Mois`, `Historique`, `Budget`,
-`Comptes`, `Gérer`. Aucun bouton d'ajout flottant global. Chaque page répond à
-une question principale et possède au maximum une action principale par viewport.
+PWA and iOS use the same five stable destinations: `Mois`, `Historique`,
+`Budget`, `Comptes`, `Gérer`. There is no global centered or floating
+add button. The home screen carries one primary movement action; each
+other screen owns only its useful contextual action.

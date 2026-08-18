@@ -306,6 +306,24 @@ par dispatch au SHA exact le 18.08.2026.
   5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a10/`.
 
+**A11 — Structure du dossier** · `VERIFYING_AUTOMATED` — PR depuis
+`agent/prisme-a11-dossier`.
+
+- Les quatre familles, suite (« la structure du dossier, tout ») :
+  - **`CLAUDE.md` réécrit** pour dire la vérité opérationnelle : skill
+    maître `/budget-prisme`, release sur `main` (branche → PR → CI →
+    squash → dispatch au SHA exact), sources de vérité
+    `BUDGET_PRISME_STATUS.md` + `BUDGET_FAMILLES_PLAN.md`, protocole par
+    lot (resynchronisation après redémarrage, sonde d'abord, contrôle
+    négatif, captures), invariants produit et autorité visuelle
+    conservés mot pour mot (complétés : montants insécables, plancher
+    10 px, couleurs de sens des familles).
+  - **`docs/INDEX.md`** : la carte de tous les documents — ce qui fait
+    foi, la préparation publication, l'histoire préservée (Obsidian,
+    Neon Ultra, Horizon, Master — rien n'est réécrit ni déplacé), et où
+    vit chaque chose.
+- Lot documentaire : aucun code applicatif touché — la CI le confirme.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
