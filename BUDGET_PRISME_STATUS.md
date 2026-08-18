@@ -324,8 +324,11 @@ par dispatch au SHA exact le 18.08.2026.
     vit chaque chose.
 - Lot documentaire : aucun code applicatif touché — la CI le confirme.
 
-**A12 — iOS au vocabulaire des familles** · `VERIFYING_AUTOMATED` — PR
-depuis `agent/prisme-a12-ios-familles`.
+**A12 — iOS au vocabulaire des familles** · `MERGED` + `PUBLISHED` —
+PR #51 fusionnée en squash, `main` =
+`6f35830a5af79eef9f6d368cc986b79ab4486cef`, CI de fusion verte (build +
+tests iOS), publié par dispatch au SHA exact le 18.08.2026. **Le plan
+A8→A12 des quatre familles est entièrement livré.**
 
 - Audit du vocabulaire des familles côté SwiftUI (grep systématique) :
   un seul écart structurel — `BudgetTab.swift` disait encore « Épargne
