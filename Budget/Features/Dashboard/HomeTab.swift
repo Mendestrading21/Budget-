@@ -171,11 +171,13 @@ private enum HomeMonthPendingItem: Identifiable {
 
 /// Les quatre intentions quotidiennes. Elles pilotent seulement la saisie :
 /// les types persistés et leurs règles financières restent inchangés.
+/// A14 (parité PWA, lot A9) : l'ordre des cas EST l'ordre affiché — celui
+/// des familles : reçu, dépensé, régulier, mis de côté.
 enum QuickEntryIntent: String, CaseIterable, Identifiable {
-    case expense
     case income
-    case setAside
+    case expense
     case recurring
+    case setAside
 
     var id: String { rawValue }
 
