@@ -571,7 +571,11 @@ héros native à deux positions (`HeroPosition`). Tests réécrits :
 continuité (confirmer un revenu attendu ne change pas la projection),
 écart annuel borné, échéances passées inertes sans geste.
 
-**FE2-3 — Fixture de parité n° 6** · ce lot. Scénario
+**FE2-3 — Fixture de parité n° 6** · `MERGED` + `PUBLISHED` — PR #68
+fusionnée en squash, `main` = `4758e4724f83c945144f82f28cf622283d4fc68d`,
+CI verte sur le HEAD exact puis sur `main` ; publié par dispatch au SHA
+exact (run `32189154462`, succès) le 18.08.2026 — ce dispatch unique
+publie d'un coup A22 + FE2-0/1/2/3. Scénario
 `moteur-v2-effort-mensuel` (juin 2026) verrouillant d'un coup : un
 salaire prévu à date passée qui reste prévu (l'ancien moteur l'aurait
 promu au chargement), un écart annuel énorme (revenu de 100'000 en
@@ -695,9 +699,9 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 ## Prochaine action exacte
 
 Registre P00–P18 : terminé. Améliorations continues A1–A22 : livrées.
-Programme FE2 (moteur financier V2) : FE2-0/1/2 fusionnés, FE2-3 en PR.
-Après fusion de FE2-3 : un seul dispatch Pages au SHA de merge final
-(couvre A22 + FE2-0/1/2/3). Candidats suivants, sur demande du
+Programme FE2 (moteur financier V2) : **terminé et publié** — FE2-0/1/2/3
+fusionnés, publication par dispatch au SHA `4758e472`
+(run `32189154462`, succès). Candidats suivants, sur demande du
 propriétaire : FE2-4 (vues natives Comptes/Épargne/Patrimoine alignées
 sur les cartes PWA), détail « où va l'épargne ». Discipline inchangée :
 audit, tests rouges d'abord, contrôle négatif, suites complètes,
