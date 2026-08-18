@@ -242,8 +242,10 @@ succès) le 18.08.2026.
   design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a7/`.
 
-**A8 — Les quatre familles : plan + Historique** · `VERIFYING_AUTOMATED`
-— PR depuis `agent/prisme-a8-familles-plan`.
+**A8 — Les quatre familles : plan + Historique** · `MERGED` +
+`PUBLISHED` — PR #44 fusionnée en squash, `main` =
+`cc346dece66dade9aee370edc6897c2a59cdfe02`, CI de fusion verte, publié
+par dispatch au SHA exact (run `32116582990`, succès) le 18.08.2026.
 
 - Demande du 18.08.2026 : « réorganise tout le concept… dépenses, reçues,
   investissement, abonnements… les logos, la structure du dossier ».
