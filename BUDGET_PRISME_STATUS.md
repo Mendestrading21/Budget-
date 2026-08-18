@@ -402,7 +402,8 @@ l'ordre canonique des familles, CI verte ensuite.
 **A15 — Mois futur PWA : quatre blocs + « Planifier »** · `MERGED` +
 `PUBLISHED` — PR #56 fusionnée en squash, `main` =
 `ff59e51c706f4c4efeaf435b0719952bdc40fa5c`, CI de fusion verte, publié
-avec A16 au SHA `5f102c8b` (voir ci-dessous) le 18.08.2026.
+avec A16 par dispatch au SHA `5f102c8b` (run `32142897362`, succès) le
+18.08.2026.
 
 - Demande propriétaire (18.08.2026, capture Septembre 2026) : « ajoute
   aussi la même mise en page que les autres et il manque toujours le
@@ -424,7 +425,7 @@ avec A16 au SHA `5f102c8b` (voir ci-dessous) le 18.08.2026.
 `PUBLISHED` — PR #57 fusionnée en squash, `main` =
 `5f102c8bfd837b5de9a0ad2caf72c8e2f6ff1842` (parité iOS du lot A15,
 compilation + tests natifs verts du premier coup), publié par dispatch
-au SHA exact le 18.08.2026 (run id dans la section publication).
+au SHA exact (run `32142897362`, succès) le 18.08.2026.
 
 - `HomeTab` : le Bilan d'un mois futur montre les quatre blocs
   (`familyBlock(isFutureMonth:)`), compteurs « N prévus »
