@@ -313,7 +313,11 @@ struct TaxesView: View {
             title: title,
             footer: footer,
             initialValue: initial,
-            allowsEmpty: kind == .override
+            allowsEmpty: kind == .override,
+            // A17 (risque n° 4) : le taux est borné comme sur la PWA —
+            // 0 à 60 % — via la constante unique de TaxService.
+            maximum: kind == .rate ? TaxService.maximumProvisionRate * 100 : nil,
+            maximumMessage: kind == .rate ? "Taux entre 0 et 60 %. Exemple : 30" : nil
         ) { value in
             apply(kind: kind, value: value)
         }
@@ -413,6 +417,10 @@ struct AmountEntrySheet: View {
     let footer: String
     let initialValue: Decimal?
     let allowsEmpty: Bool
+    /// Borne haute optionnelle (ex. 60 pour un taux en %) — au-delà, la
+    /// saisie est refusée avec `maximumMessage`, jamais tronquée en silence.
+    var maximum: Decimal?
+    var maximumMessage: String?
     let onSave: (Decimal?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -469,6 +477,10 @@ struct AmountEntrySheet: View {
         }
         guard let parsed = FinanceFormatting.parseAmount(trimmed), parsed >= 0 else {
             errorMessage = "Ce montant n'est pas valable. Exemple : 4'500.00"
+            return
+        }
+        if let maximum, parsed > maximum {
+            errorMessage = maximumMessage ?? "Cette valeur dépasse le maximum autorisé."
             return
         }
         onSave(parsed)
