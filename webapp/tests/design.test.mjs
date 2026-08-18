@@ -805,7 +805,7 @@ void clippedIn;
       todoNamed: !!document.querySelector('#screen [data-home-section="todo"]'),
       doneNamed: !!document.querySelector('#screen [data-home-section="done"]'),
       // Ordre du premier niveau : salutation → héros → métriques → actions.
-      order: [html.indexOf("Bonjour"), html.indexOf("Reste pour le mois"),
+      order: [html.indexOf("Bonjour"), html.indexOf("Disponible maintenant"),
               html.indexOf('class="stat-grid'), html.indexOf("Bilan du mois")],
       gradientCtas: [...document.querySelectorAll("#screen .btn")]
         .filter(b => getComputedStyle(b).backgroundImage.includes("gradient")).length,

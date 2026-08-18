@@ -2875,6 +2875,9 @@ let cursor = { y: NOW.y, m: NOW.m }; // mois affiché, navigation libre
 let activeTab = "home";
 let accountView = null; // fiche de compte ouverte dans l'onglet Comptes
 let moreView = null;          // null | taxes | networth | insurance | recurring | importcsv | settings
+// FE2-1 : la grande carte du Mois a deux positions — le RÉEL du moment et
+// la PROJECTION de fin de mois. Jamais l'une déguisée en l'autre.
+let heroVue = "maintenant";   // "maintenant" | "finmois"
 let locked = S.faceIDEnabled; // comme le natif : verrouillée au lancement si activé
 let lockMessage = "";
 let editingTxId = null;
@@ -3089,16 +3092,36 @@ function renderSimpleHome() {
   const pastMonth = y < NOW.y || (y === NOW.y && m < NOW.m);
   syncMonthCheckState(y, m);
 
-  const heroValue = s.isCurrent || futureMonth ? s.available : s.cashFlow;
-  const heroTitle = s.isCurrent ? "Reste pour le mois"
+  // FE2-1 (cahier propriétaire) : sur le mois COURANT, la carte a deux
+  // positions. « Maintenant » = l'argent réellement présent sur les
+  // comptes du quotidien ; « Fin du mois » = la projection, avec sa
+  // décomposition écrite. Une projection n'est jamais présentée comme de
+  // l'argent possédé.
+  const heroMaintenant = s.isCurrent && heroVue !== "finmois";
+  const enAttente = round2(s.plannedIncome + s.recurringIncome + s.irregularIncome);
+  const aSortir = round2(s.plannedOut + s.recurringCharges + s.taxMonthlyEffort);
+  const heroValue = s.isCurrent
+    ? (heroMaintenant ? s.liquid : s.endOfMonthForecast)
+    : (futureMonth ? s.available : s.cashFlow);
+  const heroTitle = s.isCurrent
+    ? (heroMaintenant ? "Disponible maintenant" : "Prévu fin du mois")
     : (futureMonth ? "Estimation du mois" : "Résultat du mois");
   const heroNote = s.isCurrent
-    ? (s.available < 0
-      ? `Il manque ${chf(Math.abs(s.available))} pour finir le mois.`
-      : `${chf(s.daily)} par jour pendant ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}.`)
+    ? (heroMaintenant
+      ? "Sur vos comptes utilisables au quotidien."
+      : `${chf(s.liquid)} maintenant + ${chf(enAttente)} à recevoir − ${chf(aSortir)} à sortir.`)
     : (futureMonth
       ? "Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois."
       : "Revenus moins sorties sur ce mois.");
+  const heroSousNote = s.isCurrent && !heroMaintenant
+    ? (s.endOfMonthForecast < 0
+      ? `Il manque ${chf(Math.abs(s.endOfMonthForecast))} pour finir le mois.`
+      : `${chf(s.daily)} par jour pendant ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""}.`)
+    : "";
+  const heroVues = s.isCurrent ? `<div class="hero-vues" role="tablist" aria-label="Vue du mois">
+      <button type="button" class="hero-vue${heroMaintenant ? " on" : ""}" data-herovue="maintenant" role="tab" aria-selected="${heroMaintenant}">Maintenant</button>
+      <button type="button" class="hero-vue${heroMaintenant ? "" : " on"}" data-herovue="finmois" role="tab" aria-selected="${!heroMaintenant}">Fin du mois</button>
+    </div>` : "";
   const heroLong = Math.abs(heroValue) >= 1000000 ? " long" : "";
   // A3 : où en est le mois — jour courant sur nombre de jours réels du
   // mois. Donnée exacte du calendrier, uniquement sur le mois en cours ;
@@ -3111,9 +3134,12 @@ function renderSimpleHome() {
   </div>` : "";
   const hero = `<section class="card hero home-hero"
       aria-label="${esc(heroTitle)} : ${chf(heroValue, pastMonth)}">
+    ${heroVues}
     <p class="card-label">${esc(heroTitle)}</p>
     <p class="hero-amount ${heroValue < 0 ? "neg" : ""}${heroLong}">${chf(heroValue, pastMonth)}</p>
     <p class="caption hero-note">${esc(heroNote)}</p>
+    ${heroSousNote ? `<p class="caption hero-note">${esc(heroSousNote)}</p>` : ""}
+    ${futureMonth ? `<p class="caption hero-reel">Sur vos comptes maintenant : ${chf(s.liquid)}</p>` : ""}
     ${avanceMois}
     <button class="btn nu-cta home-add" data-addtx>${budgetGlyph("add")}<span>Ajouter</span></button>
   </section>`;
@@ -3788,11 +3814,45 @@ function renderAccounts() {
       </div>
     </div>`;
   })();
+  // FE2-1 (cahier propriétaire) : les soldes RÉELS, classés — disponible
+  // maintenant, épargne accessible, fortune liquide, fortune totale (même
+  // formule que le Patrimoine, chaque franc compté une fois). Stock et
+  // flux ne s'additionnent jamais.
+  const epargneAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
+    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
+  const fortuneLiquide = round2(liquid + epargneAccessible);
+  const fortuneTotale = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
+    + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
+    + pensionPositionsTotal() - liabilitiesTotal();
+  const misCote = liste => round2(liste
+    .filter(t => t.status === "posted" && ["saving", "investment"].includes(t.type))
+    .reduce((a, t) => a + txCHF(t), 0));
+  const misCoteMois = misCote(transactions.filter(t => inMonth(t, NOW.y, NOW.m)));
+  const misCoteAnnee = misCote(transactions.filter(t => t.y === NOW.y));
   return `<h2 class="screen-title">Comptes</h2>
     <div class="card hero">
-      <p class="card-label">Argent disponible</p>
+      <p class="card-label">Disponible maintenant</p>
       <p class="hero-amount">${chf(liquid)}</p>
-      <span class="caption">Vos comptes du quotidien${hasForeign ? ` — vos comptes en autre monnaie sont convertis en ${baseCurrency()}, au taux que vous avez indiqué` : ""}</span>
+      <span class="caption">Sur vos comptes utilisables au quotidien${hasForeign ? ` — vos comptes en autre monnaie sont convertis en ${baseCurrency()}, au taux que vous avez indiqué` : ""}</span>
+    </div>
+    <div class="card" data-more="networth" role="button" tabindex="0" style="cursor:pointer"
+        aria-label="Ma fortune — épargne accessible ${chf(epargneAccessible)}, fortune liquide ${chf(fortuneLiquide)}, fortune totale ${chf(fortuneTotale)} — voir le détail dans Patrimoine">
+      <p class="card-label">Ma fortune</p>
+      <div class="breakdown" style="margin-top:8px">
+        <div><span>Épargne accessible</span><span>${chf(epargneAccessible, true)}</span></div>
+        <div><span>Fortune liquide</span><span>${chf(fortuneLiquide, true)}</span></div>
+        <div><span>Fortune totale</span><span>${chf(fortuneTotale, true)}</span></div>
+      </div>
+      <span class="caption" style="display:block;margin-top:6px">Liquide = quotidien + épargne. Totale = comptes, biens et prévoyance, moins vos dettes. Touchez pour le détail.</span>
+    </div>
+    <div class="card" data-epargne-carte>
+      <p class="card-label">Épargne</p>
+      <div class="breakdown" style="margin-top:8px">
+        <div><span>Épargne actuelle</span><span>${chf(epargneAccessible, true)}</span></div>
+        <div><span>Mis de côté ce mois</span><span>${chf(misCoteMois, true)}</span></div>
+        <div><span>Mis de côté cette année</span><span>${chf(misCoteAnnee, true)}</span></div>
+      </div>
+      <span class="caption" style="display:block;margin-top:6px">L'épargne actuelle est un STOCK ; les mises de côté sont des FLUX. Ils ne s'additionnent jamais.</span>
     </div>
     ${repartition}
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
@@ -4286,6 +4346,11 @@ function renderNetWorth() {
   const toPx = series => series.map((v, i) =>
     `${chartX(i, series.length)},${toY(v).toFixed(1)}`).join(" ");
   const px = toPx(points).split(" ");
+  // FE2-1 : la fortune LIQUIDE vit à côté de la fortune totale — l'argent
+  // mobilisable vite (quotidien + épargne), jamais confondu avec le tout.
+  const fortuneLiquideNW = fromCents(ACCOUNTS
+    .filter(a => ["current", "cash", "savings"].includes(a.kind))
+    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   return backBar("Patrimoine") + `
     <div class="card hero">
       <p class="card-label">Tout ce qui est à vous</p>
@@ -4345,6 +4410,11 @@ function renderNetWorth() {
         ${[5, 10, 20].map(yrs => `<div><span>Dans ${yrs} ans</span><span style="font-weight:700">${chf(projectWealth(yrs))}</span></div>`).join("")}
       </div>
       <p class="caption" style="margin:8px 0 0">On part de ce que vous avez mis de côté en ${NOW.y} et d'un rendement moyen. C'est une estimation, pas une promesse.</p>
+    </div>
+    <div class="card">
+      <p class="card-label">Fortune liquide</p>
+      <p class="hero-amount" style="font-size:24px" data-fortune-liquide>${chf(fortuneLiquideNW)}</p>
+      <span class="caption">Compte courant, espèces et épargne accessible — mobilisable vite.</span>
     </div>
     <div class="card">
       <p class="card-label">Les douze derniers mois</p>
@@ -5989,6 +6059,8 @@ document.getElementById("screen").addEventListener("click", (e) => {
     render();
     return;
   }
+  const heroVueBtn = e.target.closest("[data-herovue]");
+  if (heroVueBtn) { heroVue = heroVueBtn.dataset.herovue; render(); return; }
   if (e.target.closest("[data-quickexp]")) { openTxSheet(null, "expense"); return; }
   if (e.target.closest("[data-quickinc]")) { openTxSheet(null, "income"); return; }
   if (e.target.closest("[data-quicksend]")) { openTxSheet(null, "saving"); return; }

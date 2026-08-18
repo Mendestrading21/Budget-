@@ -881,7 +881,7 @@ currentTest = "mois blueprint";
 await page.click(`#tabbar button[aria-label="Mois"]`);
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Reste pour le mois"), "le reste du mois doit dominer l'écran Mois");
+check(screenHTML.includes("Disponible maintenant"), "le réel du moment doit dominer l'écran Mois (FE2 : position « Maintenant » par défaut)");
 check(screenHTML.includes("Bilan du mois"), "le bilan mensuel doit suivre les trois repères");
 // ADR-026 : l'accueil ne CHARGE aucune analyse. Un raccourci de navigation
 // vers une destination dédiée n'est pas une analyse — un widget de
@@ -927,7 +927,7 @@ await page.waitForSelector("#tabbar button");
 const legacyWidgets = await page.evaluate(() => ({
   hidden: S.homeWidgets?.hidden || [],
   customize: !!document.querySelector("#screen [data-customize]"),
-  essential: /reste pour le mois|résultat du mois|estimation du mois/i
+  essential: /disponible maintenant|prévu fin du mois|résultat du mois|estimation du mois/i
     .test(document.querySelector(".home-hero .card-label")?.textContent || ""),
 }));
 check(legacyWidgets.hidden.includes("trend6"),
@@ -1117,13 +1117,13 @@ screenHTML = await page.$eval("#screen", el => el.innerHTML);
 // Ordre du premier niveau : salutation → héros → repères → actions mensuelles.
 const orderIdx = {
   hello: screenHTML.indexOf("Bonjour"),
-  hero: screenHTML.indexOf("Reste pour le mois"),
+  hero: screenHTML.indexOf("Disponible maintenant"),
   metrics: screenHTML.indexOf('class="stat-grid'),
   bills: screenHTML.indexOf("Bilan du mois"),
 };
 check(orderIdx.hello >= 0 && orderIdx.hello < orderIdx.hero, "salutation avant le héros");
 check(/<h2 class="screen-title"[^>]*>Bonjour/.test(screenHTML), "salutation en grand titre de page (screen-title)");
-check(orderIdx.hero < orderIdx.metrics, "héros « Reste pour le mois » avant les métriques");
+check(orderIdx.hero < orderIdx.metrics, "héros « Disponible maintenant » avant les métriques");
 check(orderIdx.metrics < orderIdx.bills, "repères avant les actions mensuelles");
 check(screenHTML.includes("data-addtx"), "action universelle Ajouter dans le héros");
 // Exactement 3 repères, avec les mots du contrat.
@@ -1206,7 +1206,7 @@ await page.click('[data-obgoal="urgence"]');
 await page.waitForSelector("#tabbar button");
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
 check(screenHTML.includes("Bilan du mois"), "état vide guidé : bilan mensuel");
-check(screenHTML.includes("Reste pour le mois"), "le héros existe même sans mouvement");
+check(screenHTML.includes("Disponible maintenant"), "le héros existe même sans mouvement");
 const demoHidden = await page.$eval(".demo-banner", el => el.style.display === "none");
 check(demoHidden, "pas de bannière démo pour un vrai départ");
 // Mode démo clairement identifié (chargée depuis les Réglages).
@@ -5453,9 +5453,9 @@ await goHome();
   });
   check(heros.count === 1 && heros.carousel === 0,
     `un seul héros, aucun carrousel (${JSON.stringify(heros)})`);
-  check(/Reste pour le mois|Résultat du mois|Estimation du mois/.test(heros.title) && /\d/.test(heros.amount),
+  check(/Disponible maintenant|Prévu fin du mois|Résultat du mois|Estimation du mois/.test(heros.title) && /\d/.test(heros.amount),
     `le héros répond avec un montant (${heros.title} · ${heros.amount})`);
-  check(/par jour|Il manque|Revenus moins sorties|Depuis le solde actuel/.test(heros.note),
+  check(/par jour|Il manque|Sur vos comptes utilisables|Revenus moins sorties|Depuis le solde actuel/.test(heros.note),
     `une seule phrase explique le montant (« ${heros.note} »)`);
   check(heros.cta.includes("Ajouter") && heros.debordePage <= 1,
     `le CTA reste visible sans débordement (${JSON.stringify(heros)})`);
@@ -6424,11 +6424,14 @@ currentTest = "ce qui revient, partout le même mot";
 currentTest = "le rythme en une phrase";
 await goHome();
 {
+  // FE2-1 : le rythme quotidien appartient à la PROJECTION — la position
+  // « Fin du mois » de la grande carte, jamais au réel du moment.
   const vu = await page.evaluate(() => {
+    heroVue = "finmois"; render();
     const hero = document.querySelector("#screen .home-hero");
     const s = snapshot(NOW.y, NOW.m);
     return {
-      texte: hero?.querySelector(".hero-note")?.textContent || "",
+      texte: [...hero.querySelectorAll(".hero-note")].map(e => e.textContent).join(" "),
       attenduJour: chf(s.daily), attenduJours: s.daysRemaining,
       cartesRythme: document.querySelectorAll("#screen .rythme, #screen .rythme-bar").length,
     };
@@ -6451,11 +6454,12 @@ await goHome();
     const hero = document.querySelector("#screen .home-hero");
     const res = {
       dispo: snapshot(NOW.y, NOW.m).available,
-      texte: hero?.querySelector(".hero-note")?.textContent || "",
+      texte: [...hero.querySelectorAll(".hero-note")].map(e => e.textContent).join(" "),
       barre: !!document.querySelector("#screen .rythme-bar"),
     };
     const i = transactions.findIndex(t => t.id === 96001);
     if (i >= 0) transactions.splice(i, 1);
+    heroVue = "maintenant";
     saveState(); render();
     return res;
   });
@@ -8662,6 +8666,58 @@ if (fe2.scenarioFort) {
     `l'écart annuel n'écrase PAS le mois — l'effort reste borné aux revenus du mois (effort ${fe2.effort}, écart ${fe2.gapAnnuel})`);
 }
 
+// ---------- Test 155 : FE2-1 — les vues d'argent (Maintenant / Fin du mois, fortune, épargne) ----------
+// Cahier propriétaire : « ne jamais présenter une projection comme de
+// l'argent possédé ». La grande carte du Mois a deux positions ; Comptes
+// porte les soldes réels classés ; le Patrimoine montre la fortune
+// liquide À CÔTÉ de la fortune totale ; stock et flux d'épargne séparés.
+currentTest = "FE2 vues d'argent";
+await goHome();
+const fe21 = await page.evaluate(() => {
+  cursor = { y: NOW.y, m: NOW.m }; activeTab = "home"; moreView = null; heroVue = "maintenant"; render();
+  const s = snapshot(NOW.y, NOW.m);
+  const lireHero = () => ({
+    titre: document.querySelector(".home-hero .card-label")?.textContent || "",
+    montant: document.querySelector(".home-hero .hero-amount")?.textContent || "",
+    note: document.querySelector(".home-hero .hero-note")?.textContent || "",
+  });
+  const maintenant = lireHero();
+  document.querySelector('[data-herovue="finmois"]').click();
+  const finmois = lireHero();
+  document.querySelector('[data-herovue="maintenant"]').click();
+  activeTab = "accounts"; accountView = null; render();
+  const fortune = document.querySelector('[data-more="networth"]')?.textContent || "";
+  const epargne = document.querySelector("[data-epargne-carte]")?.textContent || "";
+  const epargneAccessible = ACCOUNTS.filter(a => a.kind === "savings")
+    .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  activeTab = "more"; moreView = "networth"; render();
+  const liquideNW = document.querySelector("[data-fortune-liquide]")?.textContent || "";
+  const patrimoineHero = [...document.querySelectorAll("#screen .hero-amount")].map(e => e.textContent);
+  activeTab = "home"; moreView = null; render();
+  return {
+    maintenant, finmois,
+    maintenantJuste: maintenant.titre === "Disponible maintenant" && maintenant.montant === chf(s.liquid),
+    finmoisJuste: finmois.titre === "Prévu fin du mois" && finmois.montant === chf(s.endOfMonthForecast),
+    decomposition: finmois.note.includes(chf(s.liquid)),
+    fortune, epargne,
+    fortuneListe: fortune.includes("Épargne accessible") && fortune.includes("Fortune liquide") && fortune.includes("Fortune totale"),
+    epargneStockFlux: epargne.includes("Épargne actuelle") && epargne.includes("Mis de côté ce mois") && epargne.includes("Mis de côté cette année"),
+    epargneStockJuste: epargne.includes(chf(epargneAccessible)),
+    liquideNWJuste: liquideNW === chf(s.liquidWealth),
+    patrimoineDeuxCartes: patrimoineHero.length >= 2,
+  };
+});
+check(fe21.maintenantJuste,
+  `la position « Maintenant » montre le RÉEL — Disponible maintenant = liquide exact (obtenu « ${fe21.maintenant.titre} » ${fe21.maintenant.montant})`);
+check(fe21.finmoisJuste && fe21.decomposition,
+  `la position « Fin du mois » montre la PROJECTION avec sa décomposition écrite (obtenu « ${fe21.finmois.titre} » ${fe21.finmois.montant} — ${fe21.finmois.note})`);
+check(fe21.fortuneListe,
+  "Comptes classe les soldes réels : épargne accessible, fortune liquide, fortune totale");
+check(fe21.epargneStockFlux && fe21.epargneStockJuste,
+  "l'épargne sépare le STOCK (actuelle) des FLUX (ce mois, cette année)");
+check(fe21.liquideNWJuste && fe21.patrimoineDeuxCartes,
+  `le Patrimoine montre la fortune liquide À CÔTÉ de la fortune totale (obtenu ${fe21.liquideNWJuste})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8671,4 +8727,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 154 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 155 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

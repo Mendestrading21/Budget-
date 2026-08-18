@@ -1088,6 +1088,35 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   background: var(--nu-tint-neutral);
   color: var(--nu-text-primary);
 }
+/* FE2-1 : la grande carte du Mois a deux positions — Maintenant (le réel)
+   et Fin du mois (la projection). Un sélecteur sobre, cibles 44 px. */
+#screen.nu-pilot-screen .hero-vues {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+#screen.nu-pilot-screen .hero-vue {
+  flex: 1;
+  min-height: 44px;
+  border: 1px solid var(--nu-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--nu-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#screen.nu-pilot-screen .hero-vue.on {
+  background: var(--nu-tint-violet);
+  border-color: var(--nu-violet);
+  color: var(--nu-text-primary);
+}
+#screen.nu-pilot-screen .hero-vue:focus-visible {
+  outline: 2px solid var(--nu-cyan);
+  outline-offset: 2px;
+}
+
 /* A22 (demande propriétaire, 18.08.2026) : sur le hub Gérer, la pastille
    d'icône est PLUS GRANDE et son glyphe grandit avec elle — centré dans
    son carré. Les listes denses (Mois, Historique) gardent leur géométrie
