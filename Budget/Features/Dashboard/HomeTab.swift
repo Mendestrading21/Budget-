@@ -139,9 +139,13 @@ enum HomeFamily: Int, CaseIterable, Identifiable {
     }
 
     /// Résumé du bloc : « 2 à faire · 1 fait », ou « Rien ce mois. »
-    static func blockSummary(pending: Int, completed: Int) -> String {
+    /// A16 (parité PWA, lot A15) : sur un mois FUTUR, l'attente se dit
+    /// « prévu », jamais « à faire ».
+    static func blockSummary(pending: Int, completed: Int, isFuture: Bool = false) -> String {
         var parts: [String] = []
-        if pending > 0 { parts.append("\(pending) à faire") }
+        if pending > 0 {
+            parts.append(isFuture ? "\(pending) prévu\(pending > 1 ? "s" : "")" : "\(pending) à faire")
+        }
         if completed > 0 { parts.append("\(completed) fait\(completed > 1 ? "s" : "")") }
         return parts.isEmpty ? "Rien ce mois." : parts.joined(separator: " · ")
     }
@@ -652,21 +656,24 @@ struct HomeTab: View {
                 }
             }
 
-            // A13 (parité PWA, lot A7) : le mois COURANT ou PASSÉ se lit en
-            // QUATRE blocs — Rentrées, Dépenses, Abonnements, Mis de côté.
-            // Chaque bloc porte ses lignes à faire ET ses lignes faites, qui
-            // restent dans leur bloc. Un mois FUTUR garde sa liste unique
-            // « Prévu ce mois » : c'est une prévision, pas des cases à cocher.
-            if !isFutureMonth && !(pending.isEmpty && completed.isEmpty) {
+            // A13/A16 (parité PWA, lots A7 et A15) : le Bilan se lit en
+            // QUATRE blocs — Rentrées, Dépenses, Abonnements, Mis de côté —
+            // sur le mois courant, passé ET futur. Chaque bloc porte ses
+            // lignes à faire ET ses lignes faites, qui restent dans leur
+            // bloc. Sur un mois futur, chaque bloc dit « prévu » et le seul
+            // geste offert est « Planifier » : rien n'est comptabilisé
+            // d'avance.
+            if !(pending.isEmpty && completed.isEmpty) {
                 ForEach(HomeFamily.allCases) { familyCase in
                     familyBlock(
                         familyCase,
                         pending: pending.filter { family(of: $0) == familyCase },
                         completed: completed.filter { family(of: $0) == familyCase },
-                        confirmableOccurrenceIDs: confirmableOccurrenceIDs
+                        confirmableOccurrenceIDs: confirmableOccurrenceIDs,
+                        isFutureMonth: isFutureMonth
                     )
                 }
-            } else if pending.isEmpty && completed.isEmpty {
+            } else {
                 NeonUltraCard {
                     VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                         HStack(spacing: BudgetSpacing.compact) {
@@ -697,65 +704,6 @@ struct HomeTab: View {
                             .foregroundStyle(NeonUltraColor.textSecondary)
                     }
                 }
-            } else if !pending.isEmpty {
-                Text(isFutureMonth ? "Prévu ce mois" : "À faire")
-                    .font(NeonUltraTypography.label)
-                    .foregroundStyle(NeonUltraColor.textSecondary)
-                    .accessibilityAddTraits(.isHeader)
-
-                let visible = Array(pending.prefix(3))
-                NeonUltraCard {
-                    VStack(spacing: 0) {
-                        ForEach(visible) { item in
-                            monthlyPendingRow(
-                                item,
-                                confirmableOccurrenceIDs: confirmableOccurrenceIDs
-                            )
-                            if item.id != visible.last?.id {
-                                Divider().overlay(NeonUltraColor.border)
-                            }
-                        }
-                    }
-                }
-
-                if pending.count > 3 {
-                    Text(
-                        isFutureMonth
-                            ? "Et \(pending.count - 3) autre\(pending.count - 3 > 1 ? "s" : "") prévu\(pending.count - 3 > 1 ? "s" : "")."
-                            : "Et \(pending.count - 3) autre\(pending.count - 3 > 1 ? "s" : "") à faire."
-                    )
-                        .font(NeonUltraTypography.meta)
-                        .foregroundStyle(NeonUltraColor.textSecondary)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                }
-            }
-
-            // A13 : sur un mois courant ou passé, le « fait » vit déjà dans
-            // son bloc de famille — cette liste ne sert plus qu'au futur.
-            if isFutureMonth && !completed.isEmpty {
-                Text("Fait ce mois")
-                    .font(NeonUltraTypography.label)
-                    .foregroundStyle(NeonUltraColor.textSecondary)
-                    .accessibilityAddTraits(.isHeader)
-
-                let visibleCompleted = Array(completed.prefix(3))
-                NeonUltraCard {
-                    VStack(spacing: 0) {
-                        ForEach(visibleCompleted) { transaction in
-                            completedMonthlyRow(transaction)
-                            if transaction.id != visibleCompleted.last?.id {
-                                Divider().overlay(NeonUltraColor.border)
-                            }
-                        }
-                    }
-                }
-
-                if completed.count > 3 {
-                    Text("Et \(completed.count - 3) autre\(completed.count - 3 > 1 ? "s" : "") ce mois.")
-                        .font(NeonUltraTypography.meta)
-                        .foregroundStyle(NeonUltraColor.textSecondary)
-                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-                }
             }
         }
     }
@@ -767,7 +715,8 @@ struct HomeTab: View {
         _ familyCase: HomeFamily,
         pending: [HomeMonthPendingItem],
         completed: [BudgetTransaction],
-        confirmableOccurrenceIDs: Set<String>
+        confirmableOccurrenceIDs: Set<String>,
+        isFutureMonth: Bool
     ) -> some View {
         let visiblePending = Array(pending.prefix(5))
         let visibleCompleted = Array(completed.prefix(3))
@@ -780,7 +729,11 @@ struct HomeTab: View {
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    Text(HomeFamily.blockSummary(pending: pending.count, completed: completed.count))
+                    Text(HomeFamily.blockSummary(
+                        pending: pending.count,
+                        completed: completed.count,
+                        isFuture: isFutureMonth
+                    ))
                         .font(NeonUltraTypography.meta)
                         .foregroundStyle(NeonUltraColor.textTertiary)
                 }
@@ -790,7 +743,8 @@ struct HomeTab: View {
                         ForEach(visiblePending) { item in
                             monthlyPendingRow(
                                 item,
-                                confirmableOccurrenceIDs: confirmableOccurrenceIDs
+                                confirmableOccurrenceIDs: confirmableOccurrenceIDs,
+                                isFutureMonth: isFutureMonth
                             )
                             if item.id != visiblePending.last?.id {
                                 Divider().overlay(NeonUltraColor.border)
@@ -798,7 +752,12 @@ struct HomeTab: View {
                         }
                     }
                     if pending.count > visiblePending.count {
-                        Text("Et \(pending.count - visiblePending.count) autre\(pending.count - visiblePending.count > 1 ? "s" : "") à faire.")
+                        let reste = pending.count - visiblePending.count
+                        Text(
+                            isFutureMonth
+                                ? "Et \(reste) autre\(reste > 1 ? "s" : "") prévu\(reste > 1 ? "s" : "")."
+                                : "Et \(reste) autre\(reste > 1 ? "s" : "") à faire."
+                        )
                             .font(NeonUltraTypography.meta)
                             .foregroundStyle(NeonUltraColor.textSecondary)
                     }
@@ -827,7 +786,7 @@ struct HomeTab: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "\(familyCase.title) — \(HomeFamily.blockSummary(pending: pending.count, completed: completed.count))"
+            "\(familyCase.title) — \(HomeFamily.blockSummary(pending: pending.count, completed: completed.count, isFuture: isFutureMonth))"
         )
         .accessibilityIdentifier("home.family.\(familyCase.rawValue)")
     }
@@ -835,13 +794,15 @@ struct HomeTab: View {
     @ViewBuilder
     private func monthlyPendingRow(
         _ item: HomeMonthPendingItem,
-        confirmableOccurrenceIDs: Set<String>
+        confirmableOccurrenceIDs: Set<String>,
+        isFutureMonth: Bool
     ) -> some View {
         switch item {
         case .forecast(let occurrence):
             monthlyActionRow(
                 occurrence,
-                isNextOccurrence: confirmableOccurrenceIDs.contains(occurrence.id)
+                isNextOccurrence: confirmableOccurrenceIDs.contains(occurrence.id),
+                isFutureMonth: isFutureMonth
             )
         case .planned(let transaction):
             plannedMonthlyRow(transaction)
@@ -944,7 +905,8 @@ struct HomeTab: View {
 
     private func monthlyActionRow(
         _ occurrence: ForecastOccurrence,
-        isNextOccurrence: Bool
+        isNextOccurrence: Bool,
+        isFutureMonth: Bool
     ) -> some View {
         let canConfirm = isNextOccurrence && HomePilotDisplay.canConfirm(
             date: occurrence.date,
@@ -968,6 +930,7 @@ struct HomeTab: View {
                     monthlyActionControl(
                         occurrence,
                         canConfirm: canConfirm,
+                        canPlan: isFutureMonth,
                         verb: verb,
                         waitingLabel: waitingLabel
                     )
@@ -981,6 +944,7 @@ struct HomeTab: View {
                         monthlyActionControl(
                             occurrence,
                             canConfirm: canConfirm,
+                            canPlan: isFutureMonth,
                             verb: verb,
                             waitingLabel: waitingLabel
                         )
@@ -1017,41 +981,55 @@ struct HomeTab: View {
     private func monthlyActionControl(
         _ occurrence: ForecastOccurrence,
         canConfirm: Bool,
+        canPlan: Bool,
         verb: String,
         waitingLabel: String
     ) -> some View {
         if canConfirm {
-            // Action de ligne : surface mate + bordure, jamais le dégradé —
-            // il reste réservé à l'action principale. A13 (parité PWA, lot
-            // A6) : le bouton porte la couleur de son SENS — vert pour
-            // recevoir, corail pour payer, violet neutre pour mettre de côté.
-            Button(verb) {
-                post(occurrence)
-            }
-            .font(NeonUltraTypography.label)
-            .foregroundStyle(actionForeground(for: occurrence.type))
-            .frame(minHeight: 44)
-            .padding(.horizontal, BudgetSpacing.small)
-            .background(actionTint(for: occurrence.type))
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: NeonUltraRadius.control,
-                    style: .continuous
-                )
-            )
-            .overlay(
-                RoundedRectangle(
-                    cornerRadius: NeonUltraRadius.control,
-                    style: .continuous
-                )
-                .stroke(NeonUltraColor.border, lineWidth: 1)
-            )
-            .accessibilityLabel("\(occurrence.title) : \(verb)")
+            actionButton(verb, for: occurrence)
+        } else if canPlan {
+            // A16 (parité PWA, lot A15) : sur un mois FUTUR, le geste un
+            // appui est « Planifier » — le mouvement est créé PRÉVU
+            // (la date future garde le statut planned), jamais reçu ni
+            // payé d'avance.
+            actionButton("Planifier", for: occurrence)
         } else {
             Text(waitingLabel)
                 .font(NeonUltraTypography.meta)
                 .foregroundStyle(NeonUltraColor.textSecondary)
         }
+    }
+
+    /// Action de ligne : surface mate + bordure, jamais le dégradé — il
+    /// reste réservé à l'action principale. A13 (parité PWA, lot A6) : le
+    /// bouton porte la couleur de son SENS — vert pour recevoir, corail
+    /// pour payer, violet neutre pour mettre de côté.
+    private func actionButton(
+        _ label: String,
+        for occurrence: ForecastOccurrence
+    ) -> some View {
+        Button(label) {
+            post(occurrence)
+        }
+        .font(NeonUltraTypography.label)
+        .foregroundStyle(actionForeground(for: occurrence.type))
+        .frame(minHeight: 44)
+        .padding(.horizontal, BudgetSpacing.small)
+        .background(actionTint(for: occurrence.type))
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: NeonUltraRadius.control,
+                style: .continuous
+            )
+        )
+        .overlay(
+            RoundedRectangle(
+                cornerRadius: NeonUltraRadius.control,
+                style: .continuous
+            )
+            .stroke(NeonUltraColor.border, lineWidth: 1)
+        )
+        .accessibilityLabel("\(occurrence.title) : \(label)")
     }
 
     /// A13 : couleurs de SENS des boutons un-appui (sémantique stricte —
