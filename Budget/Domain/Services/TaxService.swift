@@ -33,6 +33,11 @@ struct TaxYearReport: Equatable {
 struct TaxService {
     let calendar: Calendar
 
+    /// A17 (risque n° 4, parité PWA) : borne UNIQUE du taux de provision —
+    /// 0 à 60 %, comme l'onboarding et la page Impôts de la PWA. Une seule
+    /// source de vérité pour toutes les saisies natives du taux.
+    static let maximumProvisionRate = Decimal("0.60")
+
     // MARK: - Derivations (pure)
 
     /// Posted income of a calendar year.
