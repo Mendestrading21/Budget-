@@ -92,6 +92,11 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertEqual(HomeFamily.blockSummary(pending: 2, completed: 0), "2 à faire")
         XCTAssertEqual(HomeFamily.blockSummary(pending: 0, completed: 1), "1 fait")
         XCTAssertEqual(HomeFamily.blockSummary(pending: 1, completed: 3), "1 à faire · 3 faits")
+        // A16 (parité PWA, lot A15) : sur un mois FUTUR, l'attente se dit
+        // « prévu », jamais « à faire ».
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 1, completed: 0, isFuture: true), "1 prévu")
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 2, completed: 0, isFuture: true), "2 prévus")
+        XCTAssertEqual(HomeFamily.blockSummary(pending: 0, completed: 0, isFuture: true), "Rien ce mois.")
     }
 
     /// A14 — le filtre de familles de l'Historique natif : partition
