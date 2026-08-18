@@ -8439,6 +8439,45 @@ check(a9hub.premier === "Les quatre familles",
 check(/Rentrées, factures, abonnements et mises de côté/.test(a9hub.sousTitreVide),
   `l'invite vide de « Ce qui revient » parle l'ordre des familles (obtenu « ${a9hub.sousTitreVide} »)`);
 
+// ---------- Test 151 : A10 Budget en mots de famille + logos uniformes ----------
+// Programme « Les quatre familles partout ». L'écran Budget appelle le
+// groupe d'épargne par le mot de la famille — « Mis de côté » — et les
+// pastilles de logos (`.ico` + Budget Glyph) ont exactement la même
+// géométrie sur le Mois, l'Historique et le hub Gérer.
+currentTest = "A10 budget familles";
+await goHome();
+const a10 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  S.budgets = S.budgets || {};
+  const cle = `${NOW.y}-${NOW.m}`;
+  if (!(S.budgets[cle] || []).some(l => l.kind === "saving")) {
+    S.budgets[cle] = [...(S.budgets[cle] || []), { cat: "Épargne", amount: 500, kind: "saving" }];
+  }
+  cursor = { y: NOW.y, m: NOW.m };
+  activeTab = "budget"; moreView = null; render();
+  const titres = [...document.querySelectorAll("#screen .section-title")].map(t => t.textContent.trim());
+  const geometrie = ecran => {
+    const boites = [...document.querySelectorAll("#screen .ico")].slice(0, 6).map(i => {
+      const r = i.getBoundingClientRect();
+      const g = i.querySelector(".budget-glyph")?.getBoundingClientRect();
+      return `${Math.round(r.width)}x${Math.round(r.height)}` + (g ? `/${Math.round(g.width)}x${Math.round(g.height)}` : "");
+    });
+    return boites;
+  };
+  activeTab = "home"; render();
+  const geoMois = geometrie();
+  activeTab = "movements"; render();
+  const geoHisto = geometrie();
+  activeTab = "more"; moreView = null; render();
+  const geoGerer = geometrie();
+  activeTab = "home"; render();
+  return { titres, geo: [...geoMois, ...geoHisto, ...geoGerer] };
+});
+check(a10.titres.includes("Mis de côté") && !a10.titres.some(t => /Épargne et investissements/.test(t)),
+  `le Budget appelle le groupe par le mot de la famille (obtenu ${a10.titres.join(" · ")})`);
+check(a10.geo.length >= 6 && new Set(a10.geo).size === 1,
+  `les pastilles de logos ont la MÊME géométrie sur Mois, Historique et Gérer (obtenu ${[...new Set(a10.geo)].join(" ; ")})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8448,4 +8487,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 150 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 151 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

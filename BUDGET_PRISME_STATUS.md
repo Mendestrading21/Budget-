@@ -288,6 +288,22 @@ par dispatch au SHA exact le 18.08.2026.
   5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a9/`.
 
+**A10 — Budget en mots de famille + logos uniformes** ·
+`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a10-budget-familles`.
+
+- Les quatre familles, suite : l'écran Budget appelle son groupe
+  d'épargne par le mot de la famille — « **Mis de côté** » remplace
+  « Épargne et investissements » (même contenu, même calcul, même
+  séparation stricte d'avec les dépenses de vie). **Audit des logos** :
+  les pastilles `.ico` + Budget Glyph ont exactement la même géométrie
+  (44×44 / 20×20) sur le Mois, l'Historique et le hub Gérer — déjà
+  uniformes, désormais GARANTI par test (une pastille dérogeante fait
+  échouer la suite).
+- Preuves : e2e 150 → 151 parcours ; contrôle négatif à 2 sabotages
+  (ancien libellé ; pastille 40×40 sur le Mois) → 2 échecs ciblés ;
+  5 parités ; design vert ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/a10/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

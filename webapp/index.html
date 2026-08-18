@@ -3509,7 +3509,10 @@ function renderBudget() {
   const groups = [
     ["Essentiel", report.lines.filter(l => l.kind === "expense" && ["Logement", "Assurance maladie", "Alimentation", "Transports"].includes(l.cat))],
     ["Discrétionnaire", report.lines.filter(l => l.kind === "expense" && !["Logement", "Assurance maladie", "Alimentation", "Transports"].includes(l.cat))],
-    ["Épargne et investissements", report.lines.filter(l => l.kind === "saving" || l.kind === "investment")],
+    // A10 : le mot de la famille — « Mis de côté » — remplace « Épargne et
+    // investissements ». Même contenu, même calcul, même séparation stricte
+    // d'avec les dépenses de vie.
+    ["Mis de côté", report.lines.filter(l => l.kind === "saving" || l.kind === "investment")],
     ["Impôts", report.lines.filter(l => l.kind === "tax")],
   ];
 
