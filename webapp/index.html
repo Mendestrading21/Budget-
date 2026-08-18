@@ -3291,6 +3291,12 @@ function renderSimpleHome() {
         glyph: bill ? "bill" : movementGlyphName(transaction.type),
         amount: txCHF(transaction),
         movementType: transaction.type,
+        // A7 : la ligne FAITE reste dans SON bloc (Rentrées, Dépenses,
+        // Abonnements, Mis de côté), marquée reçue/payée — comme une case
+        // cochée de Notion, jamais déplacée dans un panier commun.
+        groupe: ["income", "refund"].includes(transaction.type) ? 0
+          : ["saving", "investment"].includes(transaction.type) ? 3
+          : recurring && recurringNature(recurring) === "abonnement" ? 2 : 1,
         transaction,
         target,
       };
@@ -3306,6 +3312,7 @@ function renderSimpleHome() {
       glyph: "bill",
       amount: billAmountInBase(bill),
       movementType: "expense",
+      groupe: 1,
       transaction: null,
       target: `data-billid="${esc(bill.id)}"`,
     }));
@@ -3325,18 +3332,57 @@ function renderSimpleHome() {
       <span class="amount">${chf(item.amount)}</span>
     </div>`;
   };
-  const completedShown = completed.slice(0, 3);
   const progressLabel = futureMonth
     ? (agenda.length ? `${agenda.length} prévu${agenda.length > 1 ? "s" : ""}` : "Rien de prévu")
     : monthlyProgressLabel(agenda.length, completed.length);
-  const tasks = `<section class="card home-bills-card home-agenda-card" aria-labelledby="monthlyTasksTitle">
-    <div class="home-bills-head">
+  const bilanHead = `<div class="home-bills-head home-bilan-head">
       <div>
         <p class="card-label" id="monthlyTasksTitle">Bilan du mois</p>
         <p class="home-agenda-count">${progressLabel}</p>
       </div>
       <button class="btn secondary home-manage" data-gototab="more">Gérer</button>
-    </div>
+    </div>`;
+  // A7 (demande propriétaire) : QUATRE blocs, pas tout dans un seul —
+  // Rentrées, Dépenses, Abonnements, Mis de côté. Chaque bloc porte ses
+  // lignes à faire (bouton un appui) ET ses lignes déjà faites, qui
+  // restent dans leur bloc marquées reçues/payées. Un mois FUTUR garde sa
+  // présentation « Prévu ce mois » : c'est une prévision, pas une liste
+  // de cases à cocher.
+  const bloc = (titre, g) => {
+    const attente = agenda.filter(item => item.groupe === g);
+    const faits = completed.filter(item => item.groupe === g);
+    const attenteMontree = attente.slice(0, 5);
+    const faitsMontres = faits.slice(0, 3);
+    const compte = [
+      attente.length ? `${attente.length} à faire` : "",
+      faits.length ? `${faits.length} fait${faits.length > 1 ? "s" : ""}` : "",
+    ].filter(Boolean).join(" · ");
+    return `<section class="card home-bills-card home-agenda-card home-bloc"
+        aria-label="${esc(titre)} — ${compte || "rien ce mois"}">
+      <div class="home-bloc-head">
+        <p class="card-label">${titre}</p>
+        ${compte ? `<span class="caption home-bloc-count">${compte}</span>` : ""}
+      </div>
+      ${attente.length ? `<div class="home-bills-list" data-home-section="todo">${attenteMontree.map(item => item.html).join("")}</div>
+        ${attente.length > attenteMontree.length
+          ? `<p class="caption home-done-more">Et ${attente.length - attenteMontree.length} autre${attente.length - attenteMontree.length > 1 ? "s" : ""} à faire.</p>` : ""}` : ""}
+      ${faits.length ? `<div class="home-bills-list home-done-list">${faitsMontres.map(completedRow).join("")}</div>
+        ${faits.length > faitsMontres.length
+          ? `<p class="caption home-done-more">Et ${faits.length - faitsMontres.length} autre${faits.length - faitsMontres.length > 1 ? "s" : ""} ce mois.</p>` : ""}` : ""}
+      ${!attente.length && !faits.length ? `<p class="caption home-bloc-vide">Rien ce mois.</p>` : ""}
+    </section>`;
+  };
+  const completedShown = completed.slice(0, 3);
+  const tasks = !futureMonth && (agenda.length || completed.length)
+    ? `<div class="home-bilan" role="group" aria-labelledby="monthlyTasksTitle">
+        ${bilanHead}
+        ${bloc("Rentrées", 0)}
+        ${bloc("Dépenses", 1)}
+        ${bloc("Abonnements", 2)}
+        ${bloc("Mis de côté", 3)}
+      </div>`
+    : `<section class="card home-bills-card home-agenda-card" aria-labelledby="monthlyTasksTitle">
+    ${bilanHead}
     ${agenda.length ? `
       <h3 class="home-section-title" data-home-section="${futureMonth ? "future" : "todo"}">${futureMonth ? "Prévu ce mois" : "À faire"}</h3>
       <div class="home-bills-list">${shown.map(item => item.html).join("")}</div>

@@ -1,0 +1,43 @@
+{
+ "blocs": [
+  {
+   "titre": "Rentrées",
+   "compte": "1 à faire",
+   "attente": [
+    "Salaire"
+   ],
+   "faits": [],
+   "vide": ""
+  },
+  {
+   "titre": "Dépenses",
+   "compte": "2 à faire",
+   "attente": [
+    "Caisse maladie (LAMal)",
+    "Électricité"
+   ],
+   "faits": [],
+   "vide": ""
+  },
+  {
+   "titre": "Abonnements",
+   "compte": "1 à faire",
+   "attente": [
+    "Streaming vidéo"
+   ],
+   "faits": [],
+   "vide": ""
+  },
+  {
+   "titre": "Mis de côté",
+   "compte": "1 à faire",
+   "attente": [
+    "Mise de côté mensuelle"
+   ],
+   "faits": [],
+   "vide": ""
+  }
+ ],
+ "entete": "5 à faire"
+}
+APRES APPUI: {"titre":"Rentrées","faits":["Salaire · Reçu ce mois"]}
