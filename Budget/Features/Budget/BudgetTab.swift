@@ -179,7 +179,10 @@ struct BudgetTab: View {
             ("Revenus", report.lineReports.filter { $0.categoryKind == .income }),
             ("Essentiel", expenses.filter(\.isEssential)),
             ("Discrétionnaire", expenses.filter { !$0.isEssential }),
-            ("Épargne et investissements", report.lineReports.filter { $0.categoryKind == .saving || $0.categoryKind == .investment }),
+            // A12 (Les quatre familles) : le mot de la famille — « Mis de
+            // côté » — même contenu, même calcul, même séparation stricte.
+            // Parité de vocabulaire avec la PWA (lot A10).
+            ("Mis de côté", report.lineReports.filter { $0.categoryKind == .saving || $0.categoryKind == .investment }),
             ("Impôts", report.lineReports.filter { $0.categoryKind == .tax }),
         ].filter { !$0.1.isEmpty }
     }
