@@ -2645,7 +2645,17 @@ function snapshot(y, m) {
       .reduce((x, t) => x + txCHF(t), 0), 0) / 3;
     irregularIncome = Math.max(0, avg - income - plannedIncome);
   }
-  const available = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGap);
+  // A20 (audit propriétaire, 18.08.2026) : le disponible est une
+  // PRÉVISION — l'impôt des revenus encore attendus ce mois est
+  // provisionné d'avance, au même taux annuel. Sans cela, confirmer un
+  // salaire attendu faisait CHUTER le disponible d'un coup (la provision
+  // n'apparaissait qu'après réception) : deux chiffres pour la même
+  // réalité économique. Une réserve déjà suffisante absorbe d'abord
+  // l'impôt anticipé — les max(0, …) sont ceux de taxSummary.
+  const expectedIncome = round2(plannedIncome + recurringIncome + irregularIncome);
+  const dueForecast = Math.max(0, round2(taxYear.estimated + round2(expectedIncome * taxYear.rate) - taxYear.paid));
+  const taxGapForecast = Math.max(0, round2(dueForecast - taxYear.reserved));
+  const available = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGapForecast);
   const daysInMonth = new Date(y, m, 0).getDate();
   const daysRemaining = isCurrent ? (daysInMonth - NOW.d + 1) : 0;
   const daily = (isCurrent && available > 0 && daysRemaining > 0) ? available / daysRemaining : 0;
@@ -2654,7 +2664,7 @@ function snapshot(y, m) {
   const cashFlow = round2(income - living - savings - invest - taxes);
 
   return { income, living, savings, invest, taxes, debtPaid, plannedIncome, plannedOut,
-           taxRecommended, taxGap, liquid, available, daysRemaining, daily,
+           taxRecommended, taxGap, taxGapForecast, liquid, available, daysRemaining, daily,
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
 }
 
@@ -5155,7 +5165,7 @@ function renderAssistant() {
       q: "Pourquoi ai-je ce montant disponible ?",
       icon: "search",
       result: chf(s.available),
-      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − réserve d'impôts manquante ${chf(-s.taxGap, true)}.`,
+      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − réserve d'impôts à prévoir ${chf(-s.taxGapForecast, true)} (l'impôt des revenus attendus est compté d'avance).`,
       hyp: "L'épargne et les investissements ne sont pas des dépenses ; les virements internes sont neutres.",
       action: ["Voir le détail sur Mois", 'data-gototab="home"'],
     },

@@ -8556,6 +8556,44 @@ check(a15apres.planifiees === 1 && a15apres.postees === 0,
 check(/Prévu/.test(a15apres.statut) && !a15apres.boutonRestant,
   `la ligne planifiée dit « Prévu » et n'offre plus aucun bouton (${JSON.stringify(a15apres)})`);
 
+// ---------- Test 153 : A20 Prévision continue — l'impôt des revenus attendus est provisionné d'avance ----------
+// Audit propriétaire (18.08.2026, « regarde toutes les cohérences des
+// calculs ») : avant ce lot, confirmer un salaire ATTENDU faisait chuter
+// le disponible d'un coup — la provision d'impôts (taux × salaire)
+// n'apparaissait qu'après réception. Le disponible est une prévision :
+// le même geste attendu doit donner le même chiffre avant et après.
+currentTest = "A20 prévision continue";
+const a20 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  const memoire = { taxRate: S.taxRate, taxReserve: S.taxReserve };
+  // Un taux haut et une réserve saisie nulle garantissent que la réserve
+  // d'impôts est réellement découverte pendant la mesure : sans cela, une
+  // réserve déjà suffisante absorberait l'anticipation et le contrôle
+  // négatif ne mordrait pas.
+  S.taxRate = 0.50; S.taxReserve = 0;
+  RECURRINGS.push({ id: "r-a20-salaire", title: "Salaire A20", amount: 3000, type: "income",
+    cat: "Salaire", day: 6, every: "month", accountId: cash.id });
+  const avant = snapshot(NOW.y, NOW.m);
+  const { transaction } = materializeRecurring(
+    RECURRINGS.find(r => r.id === "r-a20-salaire"), NOW.y, NOW.m);
+  const apres = snapshot(NOW.y, NOW.m);
+  // Nettoyage complet : mouvement, récurrence, réglages fiscaux.
+  transactions.splice(transactions.indexOf(transaction), 1);
+  RECURRINGS.splice(RECURRINGS.findIndex(r => r.id === "r-a20-salaire"), 1);
+  S.taxRate = memoire.taxRate; S.taxReserve = memoire.taxReserve;
+  saveState(); render();
+  return {
+    avant: avant.available, apres: apres.available,
+    gapAvant: avant.taxGapForecast, gapApres: apres.taxGapForecast,
+    anticipe: Math.round((avant.taxGapForecast - avant.taxGap) * 100) / 100,
+    statutCree: transaction.status,
+  };
+});
+check(a20.statutCree === "posted", `le salaire du test est bien comptabilisé (obtenu ${a20.statutCree})`);
+check(a20.anticipe >= 1500, `l'impôt du salaire attendu (50 % × 3'000) est provisionné AVANT réception (anticipé ${a20.anticipe})`);
+check(Math.abs(a20.avant - a20.apres) < 0.005 && Math.abs(a20.gapAvant - a20.gapApres) < 0.005,
+  `confirmer un salaire attendu ne change NI le disponible NI la réserve à prévoir (avant ${a20.avant} / après ${a20.apres} ; réserve ${a20.gapAvant} / ${a20.gapApres})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8565,4 +8603,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 152 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 153 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
