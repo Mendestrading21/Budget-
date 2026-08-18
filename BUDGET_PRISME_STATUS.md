@@ -324,6 +324,18 @@ par dispatch au SHA exact le 18.08.2026.
     vit chaque chose.
 - Lot documentaire : aucun code applicatif touché — la CI le confirme.
 
+**A12 — iOS au vocabulaire des familles** · `VERIFYING_AUTOMATED` — PR
+depuis `agent/prisme-a12-ios-familles`.
+
+- Audit du vocabulaire des familles côté SwiftUI (grep systématique) :
+  un seul écart structurel — `BudgetTab.swift` disait encore « Épargne
+  et investissements ». Aligné sur « **Mis de côté** » (parité de
+  vocabulaire avec la PWA, lot A10) ; même contenu, même calcul. Les
+  autres usages (« Revenus » comme libellé de type de mouvement ou de
+  statistique annuelle) sont conformes au plan : le vocabulaire de
+  STRUCTURE parle familles, les libellés de mouvement restent.
+- Validation : build + tests iOS par la CI (pas de simulateur local).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
