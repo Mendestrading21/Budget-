@@ -20,9 +20,11 @@ final class AppNavigationTests: XCTestCase {
     }
 
     func testQuickEntryOffersExactlyFourPlainIntentions() {
+        // A14 : même ordre canonique que le menu rapide de la PWA —
+        // Rentrées, Dépenses, Régulier, Mis de côté.
         XCTAssertEqual(
             QuickEntryIntent.allCases.map(\.title),
-            ["J'ai dépensé", "J'ai reçu", "J'ai mis de côté", "Ça revient régulièrement"]
+            ["J'ai reçu", "J'ai dépensé", "Ça revient régulièrement", "J'ai mis de côté"]
         )
         XCTAssertEqual(QuickEntryIntent.expense.transactionType, .expense)
         XCTAssertEqual(QuickEntryIntent.income.transactionType, .income)
