@@ -1,6 +1,6 @@
 # Budget Prisme — statut vivant
 
-Mis à jour le 17.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
+Mis à jour le 18.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
 la CI, ni les ADR, ni le code. Ne pas y recopier un journal de commits.
 
 ## Source vérifiée
@@ -368,8 +368,14 @@ tests iOS du premier coup), publié par dispatch au SHA exact le
 - Validation : build + ~260 tests iOS par la CI macOS (pas de simulateur
   local sur ce runner Linux) ; la suite web n'est pas touchée.
 
-**A14 — Listes natives aux familles** · `VERIFYING_AUTOMATED` — PR
-depuis `agent/prisme-a14-ios-listes`.
+**A14 — Listes natives aux familles** · `MERGED` + `PUBLISHED` — PR #55
+fusionnée en squash, `main` = `d1370b14e28b51001b529eb0558188d0c557a110`,
+CI de fusion verte, publié par dispatch au SHA exact (run `32141164454`,
+succès) le 18.08.2026. Première CI de la PR rouge pour une raison saine :
+deux tests figeaient l'ancien ordre du menu rapide
+(`testQuickEntryOffersExactlyFourPlainIntentions`,
+`testFourQuickIntentionsUsePlainFinancialGlyphs`) — mis à jour vers
+l'ordre canonique des familles, CI verte ensuite.
 
 - Parité iOS, suite (lots A8/A9 web) :
   - **Menu d'ajout natif** : les quatre intentions dans l'ordre des
@@ -392,6 +398,72 @@ depuis `agent/prisme-a14-ios-listes`.
   (`testTransactionFamilyFilterPartitionsEveryMovement`) : titres et
   ordre, partition exacte type par type, virements/ajustements à part.
 - Validation : build + tests iOS par la CI macOS.
+
+**A15 — Mois futur PWA : quatre blocs + « Planifier »** · `MERGED` +
+`PUBLISHED` — PR #56 fusionnée en squash, `main` =
+`ff59e51c706f4c4efeaf435b0719952bdc40fa5c`, CI de fusion verte, publié
+avec A16 par dispatch au SHA `5f102c8b` (run `32142897362`, succès) le
+18.08.2026.
+
+- Demande propriétaire (18.08.2026, capture Septembre 2026) : « ajoute
+  aussi la même mise en page que les autres et il manque toujours le
+  bouton où j'appuie ». Un mois FUTUR montre les mêmes quatre blocs que
+  le mois courant ; chaque ligne non planifiée porte un bouton un appui
+  « Planifier », à la couleur de son sens.
+- Honnêteté conservée : « Planifier » crée le mouvement PRÉVU du mois
+  (échéance fin de mois, règle existante `recurringDueDate`) — jamais
+  reçu ni payé d'avance ; une ligne déjà planifiée dit « · Prévu » sans
+  bouton de confirmation ; les compteurs disent « N prévus », jamais
+  « à faire » ; le mois futur vide garde son invitation.
+- Preuves : parcours 152 ajouté ; parcours 104 et 148 mis à jour ;
+  152 e2e + 5 parités + design verts ; deux contrôles négatifs (gate
+  futur rétabli → 8 échecs ciblés ; confirmation future autorisée →
+  1 échec ciblé) ; captures 390/320 avant (liste sans boutons) / après
+  (4 blocs + « Planifier » + toast « planifié ») inspectées.
+
+**A16 — Mois futur natif : quatre blocs + « Planifier »** · `MERGED` +
+`PUBLISHED` — PR #57 fusionnée en squash, `main` =
+`5f102c8bfd837b5de9a0ad2caf72c8e2f6ff1842` (parité iOS du lot A15,
+compilation + tests natifs verts du premier coup), publié par dispatch
+au SHA exact (run `32142897362`, succès) le 18.08.2026.
+
+- `HomeTab` : le Bilan d'un mois futur montre les quatre blocs
+  (`familyBlock(isFutureMonth:)`), compteurs « N prévus »
+  (`HomeFamily.blockSummary(pending:completed:isFuture:)`), bouton
+  « Planifier » réutilisant `post(occurrence)` →
+  `makeTransactionIfNeeded` (statut `planned` garanti par
+  `TransactionPostingPolicy.automaticStatus` pour une date future) ;
+  une ligne déjà planifiée reste « Prévu » sans bouton (`canConfirm`
+  inchangé). L'ancienne liste unique du futur et sa section « Fait ce
+  mois » sont supprimées (diff net-négatif).
+- Test natif étendu : cas `isFuture` de `blockSummary` dans
+  `testHomeFamilyGridIsAStrictPartitionInCanonicalOrder`.
+- Workflow Demo relancé sur `main` (A16 inclus) : run `32143463083`,
+  succès — artifact simulateur `budget-demo` (142 Mo) téléchargeable
+  depuis la page du run. Le réseau de l'agent ne peut pas télécharger
+  les artifacts Actions (blob Azure refusé par la politique) : captures
+  simulateur NON inspectées par l'agent, à regarder côté propriétaire.
+
+**A17 — Borne unique du taux d'impôts natif (risque n° 4)** · `MERGED`
+— PR #59 fusionnée en squash, `main` =
+`58b74986694ad5a2b28d030554c26df04b5fa7bc`, CI de la PR verte du premier
+coup, publié par dispatch au SHA exact (run `32144828974`, succès) le
+18.08.2026 — statut `MERGED` + `PUBLISHED`.
+
+- Mesure d'abord : la PWA borne le taux à 0–60 % aux deux endroits
+  (commentaires « P11 (risque n°4) » en place) ; côté iOS la feuille
+  « Votre taux » acceptait n'importe quel pourcentage (250 % stocké
+  comme 2.5 sans un mot) et la validation d'onboarding montait à 100 %
+  (slider limité à 50 %, mais le modèle est l'API).
+- Correctif : constante unique `TaxService.maximumProvisionRate = 0.60` ;
+  validation d'onboarding alignée (« entre 0 % et 60 % ») ;
+  `AmountEntrySheet` gagne une borne haute optionnelle — la feuille
+  Impôts refuse au-delà de 60 avec les mots de la PWA, jamais de
+  troncature silencieuse ; les trois autres feuilles inchangées ; aucune
+  donnée persistée réécrite.
+- Test : `testTaxRateStepSharesTheSingleSixtyPercentBoundWithThePWA`
+  (constante, 61 % refusé avec le bon message, 60 % accepté, négatif
+  refusé).
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
@@ -490,8 +562,13 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 2. P14 PWA : **confirmé et corrigé** (incident P0 « annee-consultee », clos).
 3. P06 : **confirmé et corrigé** — gardes destination récurrente et position
    de prévoyance ajoutées (PWA + iOS), test 128 rouge→vert.
-4. P11 : bornes de taux différentes selon onboarding et page Impôts.
-5. P10 iOS : un objectif archivé peut devenir inaccessible dans la liste.
+4. P11 : **confirmé et corrigé.** PWA : bornes 0–60 % déjà alignées
+   pendant P11 (commentaires « risque n°4 » dans le code). Natif : la
+   feuille Impôts n'avait AUCUNE borne — corrigé par le lot A17
+   (constante unique `TaxService.maximumProvisionRate`).
+5. P10 iOS : **vérifié corrigé** — la section « Archivés » de
+   `GoalsTab` (commentaire « P10 (risque n°5) ») garde tout objectif
+   archivé visible et rouvrable.
 6. Publication web : règle d'environnement `github-pages` à corriger par le
    propriétaire avant de pouvoir marquer la version fusionnée `PUBLISHED`
    sans dispatch manuel.
