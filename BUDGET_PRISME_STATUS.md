@@ -339,8 +339,11 @@ A8→A12 des quatre familles est entièrement livré.**
   STRUCTURE parle familles, les libellés de mouvement restent.
 - Validation : build + tests iOS par la CI (pas de simulateur local).
 
-**A13 — Parité iOS du Bilan (quatre familles natives)** ·
-`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a13-ios-bilan`.
+**A13 — Parité iOS du Bilan (quatre familles natives)** · `MERGED` +
+`PUBLISHED` — PR #53 fusionnée en squash, `main` =
+`b84863353af70c39907eac8c99d498347b43ea1f`, CI de fusion verte (build +
+tests iOS du premier coup), publié par dispatch au SHA exact le
+18.08.2026.
 
 - « Tout ce que tu peux faire, fais-le » : le chantier restant exécutable
   sans propriétaire est la parité iOS. Ce lot porte au natif ce que la
