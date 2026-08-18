@@ -1942,28 +1942,25 @@ await p56.click('[data-obcountry="CH"]');
 await p56.click('[data-obhh="solo"]');
 await p56.fill("#obName", "Testeur");
 await p56.click('#obForm1 button[type="submit"]');
-await p56.waitForSelector("#obTaxPct");
-const tax56 = await p56.$eval("#obTaxPct", el => el.value);
-check(tax56 === "30", `l'estimation fiscale par défaut est affichée (obtenu ${tax56})`);
-ob56 = await p56.$eval("body", el => el.innerHTML);
-check(ob56.includes("pas un taux officiel"),
-  "le taux est présenté comme une estimation d'organisation, jamais un taux officiel");
-await p56.fill("#obTaxPct", "25");
+await p56.waitForSelector("#obSalary");
+// A18 (demande propriétaire) : l'onboarding ne demande PLUS de taux
+// d'impôts — le défaut du pays s'applique, modifiable dans Impôts.
+const tax56 = await p56.$("#obTaxPct");
+check(tax56 === null, "l'étape salaire ne demande plus de taux d'impôts (champ retiré)");
 await p56.fill("#obSalary", "5000");
 await p56.click('#obForm2 button[type="submit"]');
 await p56.waitForSelector("#obOpening");
 // Aucune écriture AVANT la fin du parcours (atomicité PWA).
 const partial56 = await p56.evaluate(() => localStorage.getItem(APP_STATE_KEY));
 check(partial56 === null, "aucun état n'est écrit avant la validation finale du parcours");
-// Retour : les saisies salaire ET taux sont CONSERVÉES.
+// Retour : la saisie du salaire est CONSERVÉE.
 await p56.click("[data-obback]");
 await p56.waitForSelector("#obSalary");
 const back56 = await p56.evaluate(() => ({
   salary: document.getElementById("obSalary").value,
-  tax: document.getElementById("obTaxPct").value,
 }));
-check(back56.salary === "5000" && back56.tax === "25",
-  `Retour conserve salaire et taux saisis (obtenu ${back56.salary} / ${back56.tax})`);
+check(back56.salary === "5000",
+  `Retour conserve le salaire saisi (obtenu ${back56.salary})`);
 await p56.click('#obForm2 button[type="submit"]');
 await p56.waitForSelector("#obOpening");
 await p56.fill("#obOpening", "1000");
@@ -1982,7 +1979,7 @@ const final56 = await p56.evaluate(() => ({
   accounts: ACCOUNTS.length,
   saved: localStorage.getItem(APP_STATE_KEY) !== null,
 }));
-check(final56.taxRate === 0.25, `le taux CHOISI est appliqué (obtenu ${final56.taxRate})`);
+check(final56.taxRate === 0.30, `sans question à l'onboarding, le taux par défaut du pays s'applique (obtenu ${final56.taxRate})`);
 check(final56.salary === 5000, "le salaire facultatif devient un paiement régulier existant");
 check(final56.accounts >= 2 && final56.saved, "la finalisation crée les comptes et écrit l'état UNE fois");
 await ctx56.close();
@@ -7668,11 +7665,28 @@ check(p11.options.includes("Impôts"),
 check(p11.ecran.emojis.length === 0,
   `zéro emoji sur l'écran Impôts (restants : ${p11.ecran.emojis.join(" ") || "aucun"})`);
 check(p11.ecran.glypheAcompte, "l'acompte listé porte le glyphe calendrier");
-// Borne d'onboarding : la source doit refuser au-delà de 60 % (même règle
-// que la page Impôts) — vérifiée sur le code réellement servi.
-const borne136 = await page.evaluate(() =>
-  bindOnboarding.toString().includes("pct >= 0 && pct <= 60"));
-check(borne136, "l'onboarding borne le taux d'impôts à 60 % comme la page Impôts");
+// A18 : l'onboarding ne demande PLUS de taux — la seule saisie du taux est
+// la feuille Impôts, et sa borne 0–60 % est vérifiée EN VRAI : 61 refusé
+// avec message, 25 accepté, puis l'état d'origine est rendu.
+const borne136 = await page.evaluate(() => {
+  const sansOnboarding = !bindOnboarding.toString().includes("obTaxPct");
+  const avant = S.taxRate;
+  openTaxSheet();
+  document.getElementById("txRate").value = "61";
+  document.getElementById("taxForm").requestSubmit();
+  const refus = document.getElementById("txError").textContent;
+  const tauxApresRefus = S.taxRate;
+  document.getElementById("txRate").value = "25";
+  document.getElementById("taxForm").requestSubmit();
+  const tauxApresAccord = S.taxRate;
+  S.taxRate = avant; saveState(); render();
+  return { sansOnboarding, refus, tauxApresRefus, tauxApresAccord, avant };
+});
+check(borne136.sansOnboarding, "l'onboarding ne demande plus de taux d'impôts (A18)");
+check(/entre 0 et 60/.test(borne136.refus) && borne136.tauxApresRefus === borne136.avant,
+  `la feuille Impôts refuse 61 % avec message, sans rien changer (obtenu « ${borne136.refus} »)`);
+check(borne136.tauxApresAccord === 0.25,
+  `la feuille Impôts accepte 25 % (obtenu ${borne136.tauxApresAccord})`);
 
 // ---------- Test 137 : P12 Patrimoine — glyphes de sens, dettes honnêtes, mots ----------
 // Budget Prisme, lot P12. Étiquettes « par classe » et lignes biens/dettes
