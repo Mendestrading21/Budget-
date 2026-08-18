@@ -701,7 +701,7 @@ currentTest = "menu gérer groupé";
 await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(150);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-for (const group of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
+for (const group of ["Les quatre familles", "À prévoir", "À construire", "Mes données", "Application"]) {
   check(screenHTML.includes(group), `groupe « ${group} » absent du menu Gérer`);
 }
 check(!screenHTML.includes('data-more="movements"'),
@@ -1992,7 +1992,7 @@ currentTest = "hub Gérer L7";
 await page.click(`#tabbar button[aria-label="Gérer"]`);
 await page.waitForTimeout(200);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-for (const group57 of ["À organiser", "À prévoir", "À construire", "Mes données", "Application"]) {
+for (const group57 of ["Les quatre familles", "À prévoir", "À construire", "Mes données", "Application"]) {
   check(screenHTML.includes(group57), `le groupe « ${group57} » est présent`);
 }
 const rows57 = await page.evaluate(() =>
@@ -8223,13 +8223,13 @@ const a6 = await page.evaluate(() => {
   if (!RECURRINGS.some(r => r.id === "r-a6-sub")) {
     RECURRINGS.push(
       { id: "r-a6-pay", title: "Salaire A6", amount: 1000, type: "income",
-        cat: "Revenus", accountId: cash.id, every: "month" },
+        cat: "Revenus", accountId: cash.id, every: "month", day: 2 },
       { id: "r-a6-sub", title: "Abonnement streaming A6", amount: 19.9, type: "expense",
-        family: "sub", cat: "Loisirs", accountId: cash.id, every: "month" },
+        family: "sub", cat: "Loisirs", accountId: cash.id, every: "month", day: 3 },
       { id: "r-a6-save", title: "Réserve mensuelle A6", amount: 300, type: "expense",
-        nature: "reserve", cat: "Épargne", accountId: cash.id, every: "month" },
+        nature: "reserve", cat: "Épargne", accountId: cash.id, every: "month", day: 4 },
       { id: "r-a6-bill", title: "Électricité A6", amount: 90, type: "expense",
-        family: "charge", cat: "Logement", accountId: cash.id, every: "month" },
+        family: "charge", cat: "Logement", accountId: cash.id, every: "month", day: 5 },
     );
   }
   cursor = { y: NOW.y, m: NOW.m };
@@ -8406,6 +8406,39 @@ check(a8.recChips.length === a8attendu.length
     && a8.recChips.every((c, i) => c.replace(/\s*\d+$/, "") === a8attendu[i]),
   `« Ce qui revient » suit l'ordre des familles (obtenu ${a8.recChips.join(",")})`);
 
+// ---------- Test 150 : A9 Menu d'ajout et hub Gérer à l'ordre des familles ----------
+// Programme « Les quatre familles partout ». Le menu « Ajouter » propose
+// ses intentions dans l'ordre canonique — J'ai reçu, J'ai dépensé, Ça
+// revient régulièrement, J'ai mis de côté — et le hub Gérer s'ouvre sur
+// le groupe « Les quatre familles ».
+currentTest = "A9 menu familles";
+await goHome();
+await page.click("[data-addtx]");
+await page.waitForSelector("#quickMenu", { state: "visible" });
+const a9menu = await page.evaluate(() =>
+  [...document.querySelectorAll("#quickMenu .quick-intent")].map(b => b.dataset.quick));
+await page.click("#quickCancel");
+check(a9menu.join(",") === "income,expense,rec,save",
+  `le menu d'ajout suit l'ordre des familles (obtenu ${a9menu.join(",")})`);
+const a9hub = await page.evaluate(() => {
+  activeTab = "more"; moreView = null; render();
+  const premier = document.querySelector("#screen .section-title")?.textContent || "";
+  const sousTitreVide = (() => {
+    const sauvegarde = RECURRINGS.splice(0, RECURRINGS.length);
+    render();
+    const texte = document.querySelector('[data-more="recurring"] .s')?.textContent || "";
+    RECURRINGS.push(...sauvegarde);
+    render();
+    return texte;
+  })();
+  activeTab = "home"; render();
+  return { premier, sousTitreVide };
+});
+check(a9hub.premier === "Les quatre familles",
+  `le hub Gérer s'ouvre sur « Les quatre familles » (obtenu « ${a9hub.premier} »)`);
+check(/Rentrées, factures, abonnements et mises de côté/.test(a9hub.sousTitreVide),
+  `l'invite vide de « Ce qui revient » parle l'ordre des familles (obtenu « ${a9hub.sousTitreVide} »)`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8415,4 +8448,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 149 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 150 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

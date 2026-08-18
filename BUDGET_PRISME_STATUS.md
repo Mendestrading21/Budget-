@@ -267,6 +267,25 @@ par dispatch au SHA exact (run `32116582990`, succès) le 18.08.2026.
   → 3 échecs ciblés ; 5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a8/`.
 
+**A9 — Menu d'ajout et hub Gérer aux familles** · `VERIFYING_AUTOMATED`
+— PR depuis `agent/prisme-a9-menu-familles`.
+
+- Les quatre familles, suite (BUDGET_FAMILLES_PLAN.md) :
+  - **Menu « Ajouter »** : intentions dans l'ordre canonique — J'ai reçu,
+    J'ai dépensé, Ça revient régulièrement, J'ai mis de côté ;
+  - **Hub Gérer** : le premier groupe s'appelle « Les quatre familles »
+    (Ce qui revient + Factures ponctuelles) ; l'invite vide de « Ce qui
+    revient » parle l'ordre des familles.
+- Correctif de fixtures découvert par le rechargement réel : les
+  récurrences de test A6 n'avaient pas de champ `day` — l'état persisté
+  était honnêtement REFUSÉ par la validation stricte au rechargement
+  (comportement app correct, fixture fautive). Fixtures corrigées : la
+  suite traverse désormais un vrai rechargement avec cet état.
+- Preuves : e2e 149 → 150 parcours (ordre du menu, premier groupe du hub,
+  invite vide) ; contrôle négatif à 2 sabotages → 4 échecs ciblés ;
+  5 parités ; design vert ; captures avant/après dans
+  `docs/neon-ultra/budget-prisme/a9/`.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
