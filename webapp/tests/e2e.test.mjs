@@ -3472,15 +3472,24 @@ const recurring84 = await page79.evaluate(() => {
   const recurringStatusAtCreation = firstRecurring.transaction.status;
   const billStatusAtCreation = firstBill.transaction.status;
   const balanceBeforeDue = balance("alt-correctness");
-  const promotedRecurring = promoteDuePlannedTransactions(S, {
-    y: firstRecurring.transaction.y, m: firstRecurring.transaction.m, d: firstRecurring.transaction.d,
-  });
-  const balanceAfterRecurring = balance("alt-correctness");
-  const billStillPlanned = firstBill.transaction.status === "planned";
-  const promotedBill = promoteDuePlannedTransactions(S, {
-    y: firstBill.transaction.y, m: firstBill.transaction.m, d: firstBill.transaction.d,
-  });
-  const balanceAfterBill = balance("alt-correctness");
+  // FE2 (décision propriétaire) : AUCUNE promotion par date. Un mouvement
+  // prévu dont la date est atteinte ou passée reste prévu après un rendu
+  // complet — le calendrier ne comptabilise jamais ; seul le geste le fait.
+  const hier = new Date(Date.now() - 86400000);
+  const duePassed = { id: ++txSeq, y: hier.getFullYear(), m: hier.getMonth() + 1, d: hier.getDate(),
+    title: "Salaire à confirmer FE2", amount: 900, type: "income", cat: "Salaire",
+    acc: "alt-correctness", status: "planned", recurringId: "r-correctness",
+    createdAt: 1, updatedAt: 1 };
+  transactions.push(duePassed);
+  render();
+  const stillPlannedAfterRender = duePassed.status === "planned";
+  const balanceAfterRender = balance("alt-correctness");
+  const promotionGone = typeof window.promoteDuePlannedTransactions === "undefined";
+  // Le geste, lui, comptabilise (même chemin que le bouton « Reçu »).
+  duePassed.status = "posted";
+  const balanceAfterGesture = balance("alt-correctness");
+  transactions.splice(transactions.indexOf(duePassed), 1);
+  render();
 
   openBillSheet(bill);
   const locked = ["bAmount", "bDue", "bAccount"].every(id => document.getElementById(id).disabled);
@@ -3501,11 +3510,10 @@ const recurring84 = await page79.evaluate(() => {
     billDuplicate: secondBill.created,
     transactionCount: transactions.length,
     balanceBeforeDue,
-    promotedRecurring,
-    balanceAfterRecurring,
-    billStillPlanned,
-    promotedBill,
-    balanceAfterBill,
+    stillPlannedAfterRender,
+    balanceAfterRender,
+    promotionGone,
+    balanceAfterGesture,
     deleteBlocked: !!accountDeleteBlocker("alt-correctness"),
     locked,
     linkedTitle: linked && linked.title,
@@ -3525,13 +3533,16 @@ check(recurring84.recurringDay === recurring84.lastDayOfNextMonth,
   `une échéance récurrente future tombe en fin de mois (obtenu ${recurring84.recurringDay}, attendu ${recurring84.lastDayOfNextMonth})`);
 check(recurring84.billDay === 10,
   `une FACTURE conserve son échéance au jour près (obtenu ${recurring84.billDay})`);
+// FE2 : le calendrier n'encaisse ni ne paie — un mouvement prévu dont la
+// date est passée reste prévu après un rendu complet, le solde ne bouge
+// pas, et l'ancienne fonction de promotion n'existe plus. Seul le geste
+// comptabilise.
 check(recurring84.balanceBeforeDue === 0
-    && recurring84.promotedRecurring === 1
-    && recurring84.balanceAfterRecurring === -800
-    && recurring84.billStillPlanned
-    && recurring84.promotedBill === 1
-    && recurring84.balanceAfterBill === -1050,
-  "une échéance doit rester neutre avant sa date puis être comptabilisée une seule fois");
+    && recurring84.stillPlannedAfterRender
+    && recurring84.balanceAfterRender === 0
+    && recurring84.promotionGone
+    && recurring84.balanceAfterGesture === 900,
+  `une date passée ne comptabilise RIEN — seul le geste enregistre (${JSON.stringify({ p: recurring84.stillPlannedAfterRender, avant: recurring84.balanceAfterRender, geste: recurring84.balanceAfterGesture, fonction: recurring84.promotionGone })})`);
 check(!recurring84.recurringDuplicate && !recurring84.billDuplicate && recurring84.transactionCount === 2,
   `une seule transaction par échéance attendue (obtenu ${recurring84.transactionCount})`);
 check(recurring84.deleteBlocked, "un compte utilisé par une facture/récurrence ne doit pas être supprimable");
@@ -8598,6 +8609,59 @@ check(a20.anticipe >= 1500, `l'impôt du salaire attendu (50 % × 3'000) est pro
 check(Math.abs(a20.avant - a20.apres) < 0.005 && Math.abs(a20.gapAvant - a20.gapApres) < 0.005,
   `confirmer un salaire attendu ne change NI le disponible NI la réserve à prévoir (avant ${a20.avant} / après ${a20.apres} ; réserve ${a20.gapAvant} / ${a20.gapApres})`);
 
+// ---------- Test 154 : FE2-0 — l'écart fiscal ANNUEL n'écrase plus le mois ----------
+// Cahier propriétaire « Financial Engine V2 » (18.08.2026) : « s'il manque
+// CHF 30'000 de réserve fiscale annuelle, les 30'000 ne doivent pas peser
+// immédiatement sur la projection d'août ». La projection ne soustrait que
+// l'EFFORT DU MOIS — taux × revenus du mois, moins ce qui est déjà mis ou
+// engagé de côté pour les impôts — plafonné par l'écart annuel anticipé.
+currentTest = "FE2 effort fiscal mensuel";
+const fe2 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  const memoire = { taxRate: S.taxRate, taxReserve: S.taxReserve };
+  S.taxRate = 0.30; S.taxReserve = 0;
+  const injectes = [];
+  // Un gros revenu comptabilisé PLUS TÔT dans l'année crée un écart annuel
+  // énorme, étranger au mois courant. (En janvier, aucun mois passé de la
+  // même année n'existe : le scénario fort est alors non constructible et
+  // seule l'identité de formule est vérifiée.)
+  const moisPasse = NOW.m > 1 ? { y: NOW.y, m: NOW.m - 1 } : null;
+  if (moisPasse) {
+    const gros = { id: ++txSeq, y: moisPasse.y, m: moisPasse.m, d: 5,
+      title: "Gros revenu FE2", amount: 100000, type: "income", cat: "Salaire",
+      acc: cash.id, status: "posted", createdAt: 1, updatedAt: 1 };
+    transactions.push(gros); injectes.push(gros);
+  }
+  const s = snapshot(NOW.y, NOW.m);
+  const identite = Math.round((s.liquid + s.plannedIncome + s.recurringIncome + s.irregularIncome
+    - s.plannedOut - s.recurringCharges - s.taxMonthlyEffort) * 100) / 100;
+  const effortFormule = Math.max(0, Math.min(
+    Math.round(((s.income + s.plannedIncome + s.recurringIncome + s.irregularIncome) * 0.30 - s.taxSetAsideMonth) * 100) / 100,
+    s.taxGapForecast
+  ));
+  const resultat = {
+    gapAnnuel: s.taxGapForecast,
+    effort: s.taxMonthlyEffort,
+    disponible: s.available,
+    identiteOK: identite === s.available,
+    effortOK: Math.abs(s.taxMonthlyEffort - effortFormule) < 0.01,
+    plafondRevenusDuMois: Math.round((s.income + s.plannedIncome + s.recurringIncome + s.irregularIncome) * 0.30 * 100) / 100,
+    scenarioFort: !!moisPasse,
+  };
+  for (const t of injectes) transactions.splice(transactions.indexOf(t), 1);
+  S.taxRate = memoire.taxRate; S.taxReserve = memoire.taxReserve;
+  saveState(); render();
+  return resultat;
+});
+check(fe2.identiteOK && fe2.effortOK,
+  `la projection soustrait exactement l'effort fiscal DU MOIS (effort ${fe2.effort}, identité ${fe2.identiteOK})`);
+if (fe2.scenarioFort) {
+  check(fe2.gapAnnuel >= 25000,
+    `l'écart annuel du scénario est bien énorme (obtenu ${fe2.gapAnnuel})`);
+  check(fe2.effort <= fe2.plafondRevenusDuMois + 0.01 && fe2.gapAnnuel - fe2.effort >= 20000,
+    `l'écart annuel n'écrase PAS le mois — l'effort reste borné aux revenus du mois (effort ${fe2.effort}, écart ${fe2.gapAnnuel})`);
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8607,4 +8671,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 153 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 154 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

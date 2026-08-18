@@ -1981,24 +1981,14 @@ function isFutureDate(y, m, d, today = todayParts()) {
 function statusForDate(y, m, d) {
   return isFutureDate(y, m, d) ? "planned" : "posted";
 }
-/* Sur le web, le statut est entièrement dérivé de la date : une opération
-   future reste neutre, puis devient comptabilisée au premier chargement ou
-   rendu effectué le jour de son échéance. */
-function promoteDuePlannedTransactions(state, today = todayParts()) {
-  let promoted = 0;
-  for (const transaction of state.transactions || []) {
-    if (transaction.status === "planned"
-        && validCalendarDate(transaction.y, transaction.m, transaction.d)
-        && compareDateParts(
-          { y: transaction.y, m: transaction.m, d: transaction.d },
-          today
-        ) <= 0) {
-      transaction.status = "posted";
-      promoted++;
-    }
-  }
-  return promoted;
-}
+/* FE2 (décision propriétaire, 18.08.2026) : AUCUNE comptabilisation
+   automatique par date. Une date atteinte rend une opération prévue
+   « à confirmer » — elle ne prouve JAMAIS que l'argent a bougé. L'ancienne
+   `promoteDuePlannedTransactions` (qui basculait planned → posted au
+   premier chargement du jour de l'échéance) est supprimée : seule une
+   confirmation — un geste — comptabilise. `statusForDate` ne sert plus
+   qu'au statut INITIAL d'une saisie (saisir une dépense d'hier crée bien
+   un mouvement comptabilisé : dater, c'est le geste). */
 const MONTH_NAMES = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
 function shiftMonth(base, delta) {
   const d = new Date(base.y, base.m - 1 + delta, 1);
@@ -2274,7 +2264,8 @@ function loadState() {
     // les alias ou le rendu. Une entrée comme transactions:[null] est mise
     // en secours puis l'app repart sur un état vierge, sans écraser le blob.
     const validated = validatedRestoreState(s, { preserveDeviceLock: true });
-    promoteDuePlannedTransactions(validated);
+    // FE2 : plus de promotion automatique au chargement — une opération
+    // prévue reste prévue jusqu'au geste de confirmation.
     // La validation réalise aussi les migrations additives (devise/taux
     // historiques, comptes des factures). Elles doivent être persistées
     // immédiatement, sinon un second lancement recommencerait la migration.
@@ -2645,17 +2636,38 @@ function snapshot(y, m) {
       .reduce((x, t) => x + txCHF(t), 0), 0) / 3;
     irregularIncome = Math.max(0, avg - income - plannedIncome);
   }
-  // A20 (audit propriétaire, 18.08.2026) : le disponible est une
-  // PRÉVISION — l'impôt des revenus encore attendus ce mois est
-  // provisionné d'avance, au même taux annuel. Sans cela, confirmer un
-  // salaire attendu faisait CHUTER le disponible d'un coup (la provision
-  // n'apparaissait qu'après réception) : deux chiffres pour la même
-  // réalité économique. Une réserve déjà suffisante absorbe d'abord
-  // l'impôt anticipé — les max(0, …) sont ceux de taxSummary.
+  // FE2 (cahier propriétaire, 18.08.2026) : la projection du mois ne
+  // porte plus l'écart fiscal ANNUEL — seulement l'« effort fiscal du
+  // mois » : le taux appliqué aux revenus DU MOIS (comptabilisés +
+  // attendus), moins ce qui est déjà mis ou engagé de côté pour les
+  // impôts ce mois. Deux gardes :
+  //  · pas de double compte — les mises de côté « Impôts » déjà prévues
+  //    ou engagées vivent déjà dans plannedOut/recurringCharges, elles
+  //    réduisent donc l'effort restant ;
+  //  · plafond à l'écart annuel ANTICIPÉ (A20) — si l'année est déjà
+  //    couverte (réserve suffisante), le mois ne déduit rien.
+  // La continuité d'A20 tient toujours : confirmer un salaire attendu ne
+  // change pas la projection.
   const expectedIncome = round2(plannedIncome + recurringIncome + irregularIncome);
   const dueForecast = Math.max(0, round2(taxYear.estimated + round2(expectedIncome * taxYear.rate) - taxYear.paid));
   const taxGapForecast = Math.max(0, round2(dueForecast - taxYear.reserved));
-  const available = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxGapForecast);
+  const isTaxSetAside = t => (t.type === "saving" || t.type === "investment") && t.cat === "Impôts";
+  const taxSetAsideMonth = round2(
+    posted.filter(isTaxSetAside).reduce((a, t) => a + txCHF(t), 0)
+    + planned.filter(isTaxSetAside).reduce((a, t) => a + txCHF(t), 0)
+    + fromCents(upcomingRecurrings.reduce((a, r) =>
+      a + (recurringIsReserve(r) && r.cat === "Impôts" ? toCents(recurringAmountInBase(r)) : 0), 0))
+  );
+  const taxMonthlyEffort = Math.max(0, Math.min(
+    round2(round2((income + expectedIncome) * taxYear.rate) - taxSetAsideMonth),
+    taxGapForecast
+  ));
+  // FE2 : les agrégats explicites — chacun dit UNE chose.
+  const savingsAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
+    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
+  const liquidWealth = round2(liquid + savingsAccessible);
+  const endOfMonthForecast = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxMonthlyEffort);
+  const available = endOfMonthForecast;
   const daysInMonth = new Date(y, m, 0).getDate();
   const daysRemaining = isCurrent ? (daysInMonth - NOW.d + 1) : 0;
   const daily = (isCurrent && available > 0 && daysRemaining > 0) ? available / daysRemaining : 0;
@@ -2664,7 +2676,9 @@ function snapshot(y, m) {
   const cashFlow = round2(income - living - savings - invest - taxes);
 
   return { income, living, savings, invest, taxes, debtPaid, plannedIncome, plannedOut,
-           taxRecommended, taxGap, taxGapForecast, liquid, available, daysRemaining, daily,
+           taxRecommended, taxGap, taxGapForecast, taxMonthlyEffort, taxSetAsideMonth,
+           savingsAccessible, liquidWealth, endOfMonthForecast,
+           liquid, available, daysRemaining, daily,
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
 }
 
@@ -3148,7 +3162,13 @@ function renderSimpleHome() {
   const obligations = monthlyObligations(y, m);
   const open = obligations.filter(item => item.state !== "paid");
   const status = item => {
-    if (item.state === "scheduled") return { label: "Prévu", cls: "warn" };
+    // FE2 : une date atteinte ne comptabilise RIEN — elle rend la ligne
+    // « À confirmer ». C'est le bouton qui enregistre, jamais le calendrier.
+    if (item.state === "scheduled") {
+      return compareDateParts(item.due, NOW) < 0
+        ? { label: "À confirmer", cls: "warn" }
+        : { label: "Prévu", cls: "warn" };
+    }
     if (item.state === "late") return { label: "En retard", cls: "neg" };
     const recurring = item.source === "recurring" && RECURRINGS.find(r => r.id === item.id);
     const movementType = recurring ? recurringMovementType(recurring) : "expense";
@@ -5165,7 +5185,7 @@ function renderAssistant() {
       q: "Pourquoi ai-je ce montant disponible ?",
       icon: "search",
       result: chf(s.available),
-      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − réserve d'impôts à prévoir ${chf(-s.taxGapForecast, true)} (l'impôt des revenus attendus est compté d'avance).`,
+      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − effort d'impôts du mois ${chf(-s.taxMonthlyEffort, true)} (le taux appliqué aux revenus du mois, moins ce qui est déjà mis de côté — l'écart annuel complet vit dans Impôts).`,
       hyp: "L'épargne et les investissements ne sont pas des dépenses ; les virements internes sont neutres.",
       action: ["Voir le détail sur Mois", 'data-gototab="home"'],
     },
@@ -5727,9 +5747,8 @@ const RENDERERS = {
 };
 
 function render() {
-  // Une PWA peut rester ouverte pendant plusieurs jours : la promotion
-  // d'échéance se fait aussi au rendu, pas seulement au rechargement.
-  if (promoteDuePlannedTransactions(S) > 0) saveState();
+  // FE2 : plus de promotion automatique au rendu non plus — le calendrier
+  // n'encaisse ni ne paie à votre place.
   if (!RENDERERS[activeTab]) activeTab = "home"; // ancien onglet « month » (historique) ou état inconnu
   const screen = document.getElementById("screen");
   const banner = document.querySelector(".demo-banner");
