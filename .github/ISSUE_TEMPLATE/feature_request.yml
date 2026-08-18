@@ -1,0 +1,64 @@
+name: Évolution
+description: Proposer une amélioration cadrée de Budget
+title: "[Évolution] "
+labels: []
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème utilisateur
+      description: Décrire le besoin avant de proposer l’interface.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Résultat mesurable attendu
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - iPhone natif
+        - PWA
+        - Les deux avec parité
+        - Dépôt / qualité / release
+    validations:
+      required: true
+  - type: checkboxes
+    id: domains
+    attributes:
+      label: Domaines touchés
+      options:
+        - label: Réel / planifié / projection
+        - label: Opérations et quatre familles
+        - label: Budget
+        - label: Comptes / patrimoine / dettes
+        - label: Impôts / prévoyance / objectifs
+        - label: Import / export / sauvegarde
+        - label: Accessibilité / confidentialité
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Invariants et risques
+      description: Formules, migrations, données, confidentialité et parité à préserver.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critères d’acceptation
+      description: Liste de comportements vérifiables et tests attendus.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Discipline
+      options:
+        - label: La proposition ne dépend d’aucune fausse connexion bancaire ou donnée inventée.
+          required: true
+        - label: Les exemples utilisent uniquement des données fictives.
+          required: true

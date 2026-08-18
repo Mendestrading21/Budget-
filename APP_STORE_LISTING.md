@@ -1,168 +1,127 @@
-# Fiche App Store — Budget V1 (préparée, non publiée)
+# Budget 1.0 — fiche App Store candidate
 
-Tout ce qu'il faut pour remplir App Store Connect le jour venu. Chaque
-affirmation est ancrée dans le code réel de la V1 — rien n'est promis
-que l'app ne fait pas (pas de « connectée à toutes les banques », pas de
-conseil financier).
+Ce document prépare App Store Connect. Il ne constitue ni une soumission,
+ni une preuve que les déclarations Apple ont été validées. Les textes finaux
+doivent être comparés à la build TestFlight issue du SHA enregistré dans
+`BUDGET_1_0_READINESS.md`.
 
-## Identité
+## Identité technique confirmée dans le dépôt
 
 | Champ | Valeur |
 |---|---|
-| Bundle ID (canonique) | `ch.budgetapp.Budget` |
-| Nom (30 car. max) | **Budget — Finances du foyer** |
-| Alternatives | « Budget Suisse », « Budget : le foyer serein » |
-| Sous-titre (30 car. max) | **Le tableau de bord suisse** |
-| Alternatives | « Clarté mensuelle, en CHF », « Vos finances, en clair » |
-| Catégorie | Finance |
-| Catégorie secondaire | Productivité |
-| Classification d'âge | 4+ |
-| Langue | Français (Suisse) uniquement en V1 |
-| Appareils | **iPhone uniquement** (ADR-023, `TARGETED_DEVICE_FAMILY = 1`, portrait) — sans prétendre empêcher un éventuel mode de compatibilité géré par Apple sur iPad |
-| Prix | Voir « Décision de prix » ci-dessous |
+| Bundle ID | `ch.budgetapp.Budget` |
+| Version marketing | `1.0` |
+| Cible | iPhone, iOS 17+ |
+| Langue produit | Français suisse |
+| Catégorie proposée | Finance |
+| Nom proposé | **Budget — Finances du foyer** |
+| Sous-titre proposé | **Votre argent, sans confusion** |
 
-## Texte promotionnel (170 car. max)
+Le nom, le sous-titre, la catégorie, le prix et la disponibilité restent des
+décisions du propriétaire dans App Store Connect. Ne pas les présenter comme
+validés avant enregistrement.
 
-> Le tableau de bord financier des foyers suisses. Vos données restent
-> sur votre iPhone : aucun compte, aucun serveur, aucun traceur.
+## Texte promotionnel proposé
 
-## Description
+> Voyez ce qui est réellement disponible aujourd’hui, ce qui est prévu à la
+> fin du mois et comment évolue votre patrimoine — sans mélanger les trois.
 
-Budget est le tableau de bord financier des foyers suisses : la clarté
-du mois en cours, et une vue honnête sur ce qui vous attend.
+## Description candidate
 
-VRAIMENT DISPONIBLE
-Un chiffre au centre : ce qu'il vous reste réellement — liquidités,
-revenus attendus, charges engagées, récurrents à venir et réserve
-d'impôts manquante déjà déduits. La décomposition complète est toujours
-visible : aucun chiffre magique.
+**Votre mois, en clair**
 
-CONÇU POUR LA SUISSE
-Montants en CHF au format suisse (CHF 1'234.50), provision d'impôts
-selon votre taux (estimé = payé + encore dû, toujours), acomptes et
-arriérés, 3e pilier et LPP, franchise et primes d'assurance.
+Budget sépare l’argent réellement présent sur vos comptes, les opérations
+encore planifiées et la projection de fin de mois. Chaque total reste
+explicable à partir de ses opérations sources.
 
-LE FOYER, PAS SEULEMENT VOUS
-Comptes personnels et partagés, membres du ménage, budgets par
-catégorie avec le vrai « Hors budget », charges récurrentes détectées
-dans vos prévisions, objectifs d'épargne avec la contribution mensuelle
-requise, patrimoine net complet.
+**Un tableau de bord pour le foyer**
 
-VOS DONNÉES VOUS APPARTIENNENT
-Tout reste sur votre iPhone : pas de compte, pas de serveur, aucune
-connexion réseau, aucun traceur. Verrouillage Face ID. Import CSV
-(depuis Notion ou un tableur), export CSV, sauvegarde JSON complète et
-restauration. La suppression totale efface tout, vraiment.
+Suivez les entrées, les dépenses, les abonnements et les sommes mises de
+côté. Organisez vos budgets, comptes, actifs, dettes, objectifs, impôts et
+positions de prévoyance dans une navigation simple.
 
-HONNÊTE, PAR PRINCIPE
-Le planifié et le réel ne sont jamais mélangés. L'épargne n'est pas une
-dépense. Les virements internes ne comptent ni comme revenu ni comme
-dépense. Les estimations montrent toujours leurs hypothèses — l'écran
-Méthodologie les explique toutes.
+**Des règles financières cohérentes**
 
-Budget n'est pas connecté aux banques et ne donne aucun conseil
-financier : c'est votre tableau de bord, alimenté par vous, pour votre
-sérénité.
+Une mise de côté n’est pas une dépense de vie. Un virement interne ne crée
+ni revenu ni dépense. Un remboursement de capital déplace le cash et
+l’encours sans créer un faux appauvrissement. Le réel et la prévision ne
+sont jamais fusionnés silencieusement.
 
-## Mots-clés (100 car. max, séparés par des virgules)
+**Vos données sous votre contrôle**
 
-budget,finances,foyer,CHF,suisse,impôts,épargne,dépenses,patrimoine,3e pilier,ménage,argent
+Budget fonctionne sans compte bancaire connecté. Les fonctions de
+sauvegarde, restauration, import et export doivent être validées dans la QA
+finale. Le verrouillage et le voile de confidentialité doivent être testés
+sur l’artefact TestFlight avant toute affirmation définitive.
 
-(97 caractères — vérifier dans App Store Connect, les espaces comptent.)
+Budget est un outil d’organisation personnelle. Il ne fournit ni cours en
+direct, ni connexion bancaire, ni conseil financier personnalisé.
 
-## Nutrition de confidentialité (App Privacy)
+## Mots-clés candidats
 
-Réponses exactes fondées sur le code :
+`budget,finances,foyer,suisse,CHF,dépenses,épargne,patrimoine,impôts,comptes`
 
-- **Données collectées : AUCUNE.** L'app n'établit aucune connexion
-  réseau (aucun SDK tiers, aucun backend, aucune analyse d'usage).
-- Réponse à « Do you or your third-party partners collect data from this
-  app? » → **No**. La fiche affichera « Données non collectées ».
-- Chiffrement : l'app utilise uniquement le chiffrement iOS standard
-  (protection complète des fichiers) → exemption d'export standard,
-  `ITSAppUsesNonExemptEncryption = NO` à déclarer.
-- `NSFaceIDUsageDescription` déjà dans le binaire : « Budget verrouille
-  vos données financières avec Face ID. »
+Recompter la longueur et adapter la liste directement dans App Store Connect.
 
-## Storyboard des captures d'écran (6, ordre imposé par le skill)
+## Confidentialité — déclaration à valider
 
-À réaliser en **mode démo** (données fictives réalistes, jamais de vraies
-données) sur simulateur iPhone 16 Pro Max (6.9") et iPhone 8 Plus (5.5")
-si demandé. Mode sombre, l'identité canonique.
+Le manifeste `Budget/PrivacyInfo.xcprivacy` déclare actuellement :
 
-1. **Accueil / Vraiment disponible** — le hero avec la décomposition
-   ouverte. Accroche : « Ce qu'il vous reste. Vraiment. »
-2. **Budget vs réel** — variances et « Hors budget ».
-   Accroche : « Le planifié et le réel, jamais mélangés. »
-3. **Impôts** — estimé = payé + encore dû, réserve, échéances.
-   Accroche : « Les impôts, sans surprise. »
-4. **Objectif d'épargne** — progression + contribution requise.
-   Accroche : « Chaque objectif a son plan. »
-5. **Patrimoine** — fortune nette décomposée, courbe d'évolution.
-   Accroche : « Votre fortune, en entier. »
-6. **Foyer / Onboarding** — écran de bienvenue ou vue ménage.
-   Accroche : « Vos données restent sur votre iPhone. »
+- aucun suivi;
+- aucun domaine de suivi;
+- aucun type de donnée collectée déclaré;
+- accès à `UserDefaults` pour la raison autorisée inscrite dans le manifeste.
 
-## URLs (RELEASE_BLOCKER — placeholders à créer avant la soumission)
+Avant la soumission :
 
-> **Statut : BLOQUEUR HUMAIN OUVERT.** Les trois URLs ci-dessous sont des
-> placeholders volontaires (`VOTRE-DOMAINE`). Elles ne doivent PAS être
-> inventées par un outil : le propriétaire crée les pages réelles, puis
-> remplace les URLs ici et dans App Store Connect. La soumission est
-> impossible sans la page de confidentialité.
+- [ ] comparer le manifeste au binaire Release final;
+- [ ] vérifier l’absence de SDK, télémétrie ou transfert réseau non documenté;
+- [ ] répondre au questionnaire App Privacy selon la build réelle;
+- [ ] vérifier les textes Face ID, fichiers, import/export et suppression;
+- [ ] publier une politique de confidentialité accessible par une URL stable;
+- [ ] ne jamais déduire « aucune donnée collectée » du seul manifeste.
 
-- Support : `https://VOTRE-DOMAINE/budget/support` (une page avec une
-  adresse e-mail suffit ; l'adresse e.mendestrading@gmail.com peut servir
-  au début)
-- Politique de confidentialité (obligatoire) :
-  `https://VOTRE-DOMAINE/budget/confidentialite` — reprendre les six
-  paragraphes de l'écran Confidentialité de l'app (SettingsView), qui
-  décrivent déjà exactement le comportement réel.
-- Marketing (facultatif) : `https://VOTRE-DOMAINE/budget`
+## Captures candidates
 
-Une page GitHub Pages gratuite convient parfaitement pour les trois.
+Utiliser uniquement le mode démo et des données fictives. Capturer au minimum :
 
-## Décision de prix
+1. **Mois — Maintenant** : argent réellement disponible.
+2. **Mois — Fin du mois** : projection et décomposition.
+3. **Budget** : consommé, restant et hors-budget.
+4. **Comptes** : disponible, épargne et fortune.
+5. **Patrimoine** : actifs, dettes, prévoyance et fortune nette.
+6. **Gérer / confidentialité** : sauvegarde, import/export et contrôle local.
 
-**Recommandation : payant à l'achat, CHF 6.00 (palier ~USD 5.99), sans
-achats intégrés en V1.**
+Chaque capture doit provenir de la même build TestFlight que la QA finale.
 
-Pourquoi :
-- Cohérent avec le positionnement premium et privé : pas de compte, pas
-  de pub, pas de données monétisées — le prix EST le modèle d'affaires,
-  et c'est un argument de confiance en soi.
-- Un prix unique évite tout paywall à construire (zéro code en plus) et
-  tout engagement de contenu récurrent qu'exigerait un abonnement.
-- Le palier reste impulsif pour le marché suisse et se change en deux
-  clics dans App Store Connect, sans mise à jour de l'app.
+## URLs bloquantes
 
-Alternatives écartées : gratuit (aucun revenu, attire des attentes de
-sync/banques), abonnement (injustifiable sans service continu en V1 —
-possible en V2 avec la sync famille, prévue par la vision produit).
+À renseigner avec des pages réellement publiées :
 
-Étapes de vie du prix : TestFlight gratuit pour vous → lancement à
-CHF 6.00 → réévaluation avec la V2 (palier familial / abonnement si la
-sync arrive).
+- URL d’assistance : `À FOURNIR`
+- URL de politique de confidentialité : `À FOURNIR`
+- URL marketing : facultative
 
-## État réel au 25.07.2026 (rien de tout cela n'est encore fait)
+Aucune adresse personnelle ni URL fictive ne doit être ajoutée au dépôt pour
+faire disparaître artificiellement ce bloqueur.
 
-- L'app native n'a encore **JAMAIS été installée** sur un iPhone réel.
-- **Aucun compte Apple Developer / App Store Connect** n'existe.
-- L'App ID `ch.budgetapp.Budget` n'est **pas encore enregistré** chez
-  Apple (identifiant canonique réservé côté projet uniquement).
-- **TestFlight n'a jamais été exécuté** ; aucun Xcode local utilisé.
-- QA physique (haptique, Face ID réel, VoiceOver réel) : PENDING HUMAN.
+## Prix
 
-## Reste à faire avec le compte Apple Developer (~99 $/an)
+Décision ouverte. Les options possibles sont gratuit, achat unique ou autre
+modèle compatible avec les fonctions réellement livrées. Le dépôt ne fixe pas
+un prix tant que le propriétaire n’a pas validé le positionnement commercial.
 
-1. Créer l'App ID `ch.budgetapp.Budget` — l'identité CANONIQUE de l'app,
-   celle du projet Xcode (les cibles de test gardent leurs identifiants
-   dédiés `ch.budgetapp.BudgetTests` et `ch.budgetapp.BudgetUITests`,
-   comme il se doit ; elles ne sont jamais soumises à l'App Store).
-2. App Store Connect : créer la fiche, coller les textes ci-dessus.
-3. Captures d'écran en mode démo (checklist ci-dessus).
-4. Héberger les deux pages support/confidentialité.
-5. Archive signée + upload (Xcode Cloud ou GitHub Actions avec
-   certificats — l'automatisation TestFlight est déjà prévue côté CI).
-6. TestFlight sur votre iPhone → dérouler MANUAL_QA_CHECKLIST.md →
-   soumission.
+## Porte de soumission
+
+La fiche ne peut être considérée prête que lorsque :
+
+- le SHA candidat est enregistré;
+- la CI `push` est verte sur ce SHA;
+- FE2-3 est clos par la PR #68 et les six fixtures canoniques sont vertes;
+- les vues natives Comptes/Épargne/Patrimoine sont alignées sur FE2 ou
+  l’écart est explicitement accepté et décrit;
+- le workflow TestFlight a produit la build depuis ce même SHA;
+- `MANUAL_QA_CHECKLIST.md` est signé GO;
+- les URLs, captures, prix et déclarations de confidentialité sont validés;
+- le propriétaire a accepté les accords et réglages exigés dans son compte
+  Apple au moment de la soumission.

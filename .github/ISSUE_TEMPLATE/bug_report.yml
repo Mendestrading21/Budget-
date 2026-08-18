@@ -1,0 +1,67 @@
+name: Bug
+description: Signaler un comportement reproductible de Budget
+title: "[Bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Utilisez uniquement des données fictives. Ne joignez ni sauvegarde réelle, ni secret, ni information personnelle.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - iPhone natif
+        - PWA
+        - Les deux
+        - CI / dépôt
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version, build ou SHA
+      placeholder: "1.0 (build …) / SHA complet"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Résultat attendu
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Résultat observé
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction avec données fictives
+      description: Donnez les valeurs de départ et chaque action.
+    validations:
+      required: true
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - label: Le défaut touche un calcul financier
+        - label: Le défaut peut perdre ou corrompre des données
+        - label: Le défaut touche la confidentialité ou le verrouillage
+        - label: Le défaut empêche le lancement ou la navigation
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Preuves non sensibles
+      description: Logs nettoyés, capture fictive, test ou comparaison de totaux.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Confirmation
+      options:
+        - label: Je n’ai inclus aucune donnée réelle, clé, jeton ou certificat.
+          required: true

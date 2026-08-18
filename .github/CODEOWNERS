@@ -1,0 +1,17 @@
+# Propriétaire par défaut
+* @Mendestrading21
+
+# Code, modèles et migrations
+/Budget/ @Mendestrading21
+/Budget.xcodeproj/ @Mendestrading21
+/BudgetTests/ @Mendestrading21
+/BudgetUITests/ @Mendestrading21
+/webapp/ @Mendestrading21
+/fixtures/ @Mendestrading21
+
+# Gouvernance, automatisation et règles agents
+/.github/workflows/ @Mendestrading21
+/.github/scripts/ @Mendestrading21
+/.claude/skills/budget-prisme/ @Mendestrading21
+/CLAUDE.md @Mendestrading21
+/BUDGET_1_0_READINESS.md @Mendestrading21

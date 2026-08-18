@@ -7,11 +7,35 @@ on:
       - "codex/**"
       - "refonte/**"
       - "version/**"
+      - "agent/**"
       - main
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  repository-audit:
+    name: Repository (structure, version, secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Audit Budget 1.0
+        run: node .github/scripts/repository-audit.mjs
+
   web-tests:
     name: Web (e2e navigateur réel)
     runs-on: ubuntu-latest
@@ -28,7 +52,7 @@ jobs:
       - name: Dépendances (Playwright + Chromium)
         working-directory: webapp/tests
         run: |
-          npm install playwright@1.61.1
+          npm install --no-save --no-package-lock playwright@1.61.1
           npx playwright install --with-deps chromium
 
       - name: Suite e2e (Chromium réel, zéro erreur console tolérée)
@@ -43,7 +67,7 @@ jobs:
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
           node parity.test.mjs
 
-      - name: Design system Obsidian (tokens, contrastes, galerie, a11y)
+      - name: Design system (tokens, contrastes, galerie, a11y)
         working-directory: webapp/tests
         run: |
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
@@ -88,9 +112,6 @@ jobs:
             -skip-testing:BudgetUITests \
             test
 
-      # Vérification d'archive (Phase 14) : le build Release doit passer
-      # aussi proprement que le Debug — sans signature, faute de compte
-      # développeur en CI. derivedDataPath connu pour inspecter le produit.
       - name: Build Release (vérification d'archive)
         run: |
           set -o pipefail
@@ -103,31 +124,24 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      # P0-4 Obsidian L1 : le manifeste doit exister DANS le produit
-      # Release compilé (les groupes synchronisés Xcode 16 l'embarquent) —
-      # échec de CI sinon.
       - name: Manifeste de confidentialité présent dans Budget.app (Release)
         run: |
           APP="DerivedData/Build/Products/Release-iphonesimulator/Budget.app"
           test -d "$APP" || { echo "::error::Budget.app introuvable sous $APP"; exit 1; }
-          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::PrivacyInfo.xcprivacy ABSENT du produit Release"; exit 1; }
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::PrivacyInfo.xcprivacy absent du produit Release"; exit 1; }
           plutil -lint "$APP/PrivacyInfo.xcprivacy"
           echo "PrivacyInfo.xcprivacy présent et valide dans Budget.app ✓"
 
-      # ADR-023 : prise en charge native iPhone UNIQUEMENT. La liste
-      # ENTIÈRE doit valoir exactement [1] — la simple présence de 1 ne
-      # suffit pas ([1,2] doit échouer).
       - name: iPhone uniquement — UIDeviceFamily == [1] (produit Release)
         run: |
           PLIST="DerivedData/Build/Products/Release-iphonesimulator/Budget.app/Info.plist"
           FAM=$(plutil -extract UIDeviceFamily json -o - "$PLIST" | tr -d '[:space:]')
           if [ "$FAM" != "[1]" ]; then
-            echo "::error::UIDeviceFamily = $FAM dans $PLIST (attendu EXACTEMENT [1])"; exit 1
+            echo "::error::UIDeviceFamily = $FAM dans $PLIST (attendu exactement [1])"
+            exit 1
           fi
           echo "UIDeviceFamily == [1] dans le produit Release ✓"
 
-      # Preuve secondaire ADR-023 : le réglage de cible lui-même, en
-      # Debug ET en Release.
       - name: iPhone uniquement — preuve secondaire (build settings)
         run: |
           for CONF in Debug Release; do
@@ -139,7 +153,8 @@ jobs:
               -showBuildSettings 2>/dev/null \
               | awk -F' = ' '$1 ~ /TARGETED_DEVICE_FAMILY/ { print $2; exit }')
             if [ "$VAL" != "1" ]; then
-              echo "::error::TARGETED_DEVICE_FAMILY = '$VAL' en $CONF (attendu 1)"; exit 1
+              echo "::error::TARGETED_DEVICE_FAMILY = '$VAL' en $CONF (attendu 1)"
+              exit 1
             fi
             echo "TARGETED_DEVICE_FAMILY = 1 en $CONF ✓"
           done

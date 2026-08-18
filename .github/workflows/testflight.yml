@@ -1,20 +1,91 @@
 name: TestFlight
 
-# Construit, signe et téléverse Budget vers TestFlight — sans Mac.
-# Se lance à la main : GitHub → Actions → TestFlight → Run workflow.
-# Prérequis : les 4 secrets décrits dans TESTFLIGHT_SETUP.md.
-
 on:
   workflow_dispatch:
+    inputs:
+      sha:
+        description: SHA Git complet de la tête actuelle de main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: testflight-production
+  cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Vérifier le SHA et la CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Valider le format du SHA
+        run: |
+          if ! [[ "$RELEASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Le champ sha doit contenir exactement 40 caractères hexadécimaux."
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Exiger la tête actuelle de main
+        run: |
+          MAIN_SHA="$(git rev-parse origin/main)"
+          if [ "$RELEASE_SHA" != "$MAIN_SHA" ]; then
+            echo "::error::SHA demandé $RELEASE_SHA, tête actuelle de main $MAIN_SHA."
+            exit 1
+          fi
+          git cat-file -e "$RELEASE_SHA^{commit}"
+          echo "SHA exact de main confirmé : $RELEASE_SHA"
+
+      - name: Exiger une CI push verte sur ce SHA
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          RESPONSE="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$RELEASE_SHA&event=push&status=completed&per_page=100")"
+
+          SUCCESS_COUNT="$(printf '%s' "$RESPONSE" | jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+          if [ "$SUCCESS_COUNT" -lt 1 ]; then
+            echo "::error::Aucune CI push terminée avec succès pour $RELEASE_SHA."
+            exit 1
+          fi
+          echo "CI push verte confirmée pour $RELEASE_SHA"
+
   upload:
     name: Archive signée + upload TestFlight
+    needs: verify
     runs-on: macos-15
     timeout-minutes: 45
+    env:
+      RELEASE_SHA: ${{ inputs.sha }}
     steps:
-      - name: Checkout
+      - name: Checkout du SHA validé
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 1
+
+      - name: Vérifier le checkout
+        run: |
+          CHECKED_OUT_SHA="$(git rev-parse HEAD)"
+          if [ "$CHECKED_OUT_SHA" != "$RELEASE_SHA" ]; then
+            echo "::error::Checkout $CHECKED_OUT_SHA différent du SHA validé $RELEASE_SHA."
+            exit 1
+          fi
 
       - name: Vérifier les secrets
         env:
@@ -29,7 +100,7 @@ jobs:
           [ -z "$ASC_ISSUER_ID" ] && missing="$missing ASC_ISSUER_ID"
           [ -z "$ASC_API_KEY_P8" ] && missing="$missing ASC_API_KEY_P8"
           if [ -n "$missing" ]; then
-            echo "::error::Secrets manquants :$missing — suivez TESTFLIGHT_SETUP.md (Settings → Secrets and variables → Actions)."
+            echo "::error::Secrets manquants :$missing — voir TESTFLIGHT_SETUP.md."
             exit 1
           fi
 
@@ -38,9 +109,16 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
-          mkdir -p ~/private_keys
-          echo "$ASC_API_KEY_P8" | base64 -d > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
-          echo "Clé installée : AuthKey_$ASC_KEY_ID.p8"
+          mkdir -p "$HOME/private_keys"
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          path = Path.home() / "private_keys" / f"AuthKey_{os.environ['ASC_KEY_ID']}.p8"
+          path.write_bytes(base64.b64decode(os.environ["ASC_API_KEY_P8"], validate=True))
+          PY
+          chmod 600 "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"
 
       - name: Archive Release (signature cloud automatique)
         env:
@@ -58,7 +136,7 @@ jobs:
             archive \
             -allowProvisioningUpdates \
             -allowProvisioningDeviceRegistration \
-            -authenticationKeyPath ~/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
@@ -69,7 +147,8 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cat > build/ExportOptions.plist << EOF
+          mkdir -p build
+          cat > build/ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -96,17 +175,23 @@ jobs:
             -exportOptionsPlist build/ExportOptions.plist \
             -exportPath build/export \
             -allowProvisioningUpdates \
-            -authenticationKeyPath ~/private_keys/AuthKey_$ASC_KEY_ID.p8 \
+            -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-          echo "✅ Build ${{ github.run_number }} téléversé — il apparaîtra dans TestFlight après le traitement d'Apple (10-30 min)."
+          echo "Build ${{ github.run_number }} téléversé depuis $RELEASE_SHA."
 
       - name: Journaux d'export en cas d'échec
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: export-logs
+          name: export-logs-${{ github.run_number }}
           path: |
             build/export
             ~/Library/Logs/gym
           if-no-files-found: ignore
+
+      - name: Supprimer la clé temporaire
+        if: always()
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: rm -f "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8"

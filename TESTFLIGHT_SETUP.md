@@ -1,85 +1,134 @@
-# Mettre Budget sur votre iPhone via GitHub — sans Mac
+# Distribuer Budget 1.0 avec TestFlight
 
-Tout se fait depuis l'iPhone (Safari + l'app TestFlight). Une fois les
-étapes 1-4 faites (une seule fois), chaque nouvelle version s'envoie en
-un clic (étape 5).
+Le workflow GitHub construit et téléverse un artefact depuis un **SHA
+explicite de `main`**. Il ne doit jamais publier la branche sélectionnée
+implicitement dans l’interface GitHub.
 
-**Le seul vrai prérequis : le compte Apple Developer (~99 $/an).**
-Sans lui, Apple n'autorise aucune installation — ni GitHub ni personne
-ne peut le contourner.
+## Conditions préalables
 
----
+- adhésion Apple Developer active;
+- App ID explicite `ch.budgetapp.Budget`;
+- application correspondante créée dans App Store Connect;
+- clé API App Store Connect ayant les droits nécessaires;
+- branche par défaut GitHub définie sur `main`;
+- protection de `main` activée;
+- CI `push` verte sur le SHA candidat;
+- quatre secrets GitHub configurés.
 
-## Étape 1 — Compte Apple Developer (une fois, ~15 min + validation Apple)
+## 1. App ID et fiche App Store Connect
 
-1. Installez l'app **Apple Developer** depuis l'App Store.
-2. Ouvrez-la → onglet **Compte** → connectez-vous avec votre Apple ID →
-   **Adhérer au programme** (Enroll). Payez l'adhésion (~99 $/an).
-3. Attendez l'e-mail de confirmation d'Apple (souvent < 48 h).
-4. Notez votre **Team ID** : sur
-   [developer.apple.com/account](https://developer.apple.com/account),
-   section « Membership details » → *Team ID* (10 caractères, ex. `AB12CD34EF`).
+Dans le portail Apple Developer, créer un identifiant d’application
+explicite :
 
-## Étape 2 — Déclarer l'app (une fois, ~10 min, Safari)
+```text
+ch.budgetapp.Budget
+```
 
-1. [developer.apple.com/account](https://developer.apple.com/account) →
-   **Identifiers** → **+** → *App IDs* → *App* :
-   - Description : `Budget`
-   - Bundle ID : **explicit** → `ch.budgetapp.Budget` (exactement — c'est
-     celui du projet Xcode)
-   - Capabilities : rien à cocher (Face ID n'en demande pas). Continue → Register.
-2. [appstoreconnect.apple.com](https://appstoreconnect.apple.com) →
-   **Mes apps** → **+** → *Nouvelle app* :
-   - Plateforme : iOS · Nom : `Budget — Finances du foyer` (modifiable)
-   - Langue principale : Français · Bundle ID : `ch.budgetapp.Budget`
-   - SKU : `budget-v1` · Accès : accès complet
+Dans App Store Connect, créer l’application iOS avec le même Bundle ID.
+Le nom commercial, la catégorie, les textes, les captures et la politique
+de confidentialité sont des décisions du propriétaire; ils doivent
+correspondre au comportement réellement validé.
 
-## Étape 3 — Clé API App Store Connect (une fois, ~5 min)
+## 2. Clé API App Store Connect
 
-1. App Store Connect → **Utilisateurs et accès** → onglet
-   **Intégrations** → *Clés App Store Connect API* → **+**.
-2. Nom : `GitHub Actions` · Accès : **App Manager**.
-3. Notez l'**Issuer ID** (en haut de la page) et le **Key ID** de la clé.
-4. **Téléchargez le fichier `.p8`** (possible une seule fois — gardez-le
-   dans Fichiers).
+Créer une clé dédiée aux GitHub Actions dans **Utilisateurs et accès →
+Intégrations → App Store Connect API**. Conserver séparément :
 
-## Étape 4 — Les 4 secrets GitHub (une fois, ~5 min)
+- Issuer ID;
+- Key ID;
+- fichier privé `.p8`, téléchargeable une seule fois.
 
-GitHub → dépôt `Mendestrading21/Budget-` → **Settings** → **Secrets and
-variables** → **Actions** → *New repository secret* :
+Ne jamais ajouter le fichier `.p8` au dépôt, à une issue, à une PR ou à un
+artefact.
 
-| Nom du secret | Valeur |
+## 3. Secrets GitHub
+
+Dans **Settings → Secrets and variables → Actions**, créer :
+
+| Secret | Contenu |
 |---|---|
-| `APPLE_TEAM_ID` | votre Team ID (étape 1.4) |
-| `ASC_ISSUER_ID` | l'Issuer ID (étape 3.3) |
-| `ASC_KEY_ID` | le Key ID (étape 3.3) |
-| `ASC_API_KEY_P8` | le contenu du fichier `.p8` **encodé en base64** |
+| `APPLE_TEAM_ID` | Team ID Apple |
+| `ASC_ISSUER_ID` | Issuer ID de la clé API |
+| `ASC_KEY_ID` | Key ID |
+| `ASC_API_KEY_P8` | contenu complet du `.p8`, encodé en base64 |
 
-Pour le base64 sans ordinateur : dans l'app **Raccourcis** (Shortcuts),
-créez un raccourci de deux actions — « Sélectionner le fichier » puis
-« Encoder [en base64] » — exécutez-le sur le `.p8`, copiez le résultat.
+Le workflow vérifie que les quatre valeurs existent avant l’archive et
+supprime le fichier de clé temporaire à la fin du job.
 
-## Étape 5 — Envoyer l'app (à chaque version, 1 clic)
+## 4. Préparer le SHA candidat
 
-1. GitHub → **Actions** → workflow **TestFlight** → **Run workflow**
-   (branche `claude/execute-tbkhsd` ou `main`).
-2. Le robot compile, signe (certificat créé automatiquement dans le
-   cloud Apple) et téléverse. Durée : ~15 min, puis 10-30 min de
-   traitement chez Apple.
-3. Premier envoi seulement : App Store Connect → TestFlight → répondre
-   à la question de conformité chiffrement est déjà réglé
-   (`ITSAppUsesNonExemptEncryption = NO` est dans le binaire) ; ajoutez-
-   vous comme testeur interne (Utilisateurs → votre Apple ID).
-4. Sur l'iPhone : installez l'app **TestFlight**, acceptez l'invitation
-   → **Installer Budget**. 🎉
-5. Première ouverture : déroulez `MANUAL_QA_CHECKLIST.md`.
+1. Fusionner la dernière PR par squash dans `main`.
+2. Ouvrir le run CI déclenché par le `push`.
+3. Vérifier que les jobs dépôt, web et iOS sont verts.
+4. Copier le SHA complet de 40 caractères du commit de `main`.
+5. Inscrire le SHA et le run dans `BUDGET_1_0_READINESS.md`.
 
-## En cas d'échec du workflow
+Le SHA doit être la tête actuelle de `main`. Une branche, un SHA court ou
+le HEAD d’une PR ne sont pas acceptés.
 
-- Lisez le premier message `::error::` dans le journal — les secrets
-  manquants ou mal collés sont la cause n° 1 (le `.p8` doit être la
-  version base64, sans espaces ni retours ajoutés).
-- « No profiles / provisioning » : vérifiez que le Bundle ID
-  `ch.budgetapp.Budget` existe bien (étape 2.1) et que la clé API a le
-  rôle **App Manager**.
-- Le job « Journaux d'export en cas d'échec » attache les logs utiles.
+## 5. Lancer TestFlight
+
+1. GitHub → **Actions** → **TestFlight**.
+2. Vérifier que le workflow affiché provient de `main`.
+3. Cliquer **Run workflow**.
+4. Choisir `main`.
+5. Coller le SHA complet dans le champ `sha`.
+6. Lancer.
+
+Avant d’accéder aux secrets, le job de garde vérifie :
+
+- format du SHA;
+- égalité avec la tête actuelle de `main`;
+- présence d’une CI `push` terminée avec succès sur ce SHA.
+
+Le job d’upload checkout ensuite ce SHA exact, archive en Release, signe
+avec Apple et téléverse vers App Store Connect.
+
+## 6. Valider l’artefact
+
+Après traitement par Apple :
+
+1. vérifier la version `1.0` et le numéro de build;
+2. ajouter un testeur interne;
+3. installer le build sur un iPhone réel;
+4. compléter `MANUAL_QA_CHECKLIST.md`;
+5. reporter build, appareil, résultat et écarts dans
+   `BUDGET_1_0_READINESS.md`.
+
+Un upload réussi n’est pas un GO de release.
+
+## Diagnostic
+
+### SHA refusé
+
+- utiliser 40 caractères hexadécimaux;
+- vérifier que le SHA est exactement la tête de `main`;
+- attendre uniquement la fin du run CI déjà déclenché, puis relancer le
+  workflow avec le même SHA si la CI est verte.
+
+### CI introuvable ou non verte
+
+- ouvrir **Actions → CI**;
+- sélectionner l’exécution `push`, pas seulement la PR;
+- corriger tout échec avant TestFlight.
+
+### Secrets manquants
+
+Le premier message `::error::` liste les noms absents. Ne jamais imprimer
+leur valeur dans les logs.
+
+### Signature ou provisioning
+
+Vérifier :
+
+- Bundle ID exact `ch.budgetapp.Budget`;
+- Team ID;
+- rôle et validité de la clé API;
+- accords Apple éventuellement en attente;
+- accès de l’application à l’équipe concernée.
+
+### Échec d’export
+
+Télécharger l’artefact `export-logs` du workflow. Partager uniquement les
+messages nécessaires après avoir contrôlé qu’ils ne contiennent aucune
+donnée sensible.

@@ -1,44 +1,69 @@
 # Budget — index des documents
 
-Carte de tous les documents du dépôt. Rien n'est réécrit : l'histoire
-reste où elle est, cet index dit seulement ce qui fait foi aujourd'hui.
+Carte du dépôt documentaire. L’histoire est préservée; cet index indique
+ce qui fait foi aujourd’hui.
 
-## Fait foi aujourd'hui
-
-| Document | Rôle |
-|---|---|
-| `CLAUDE.md` | Autorité opérationnelle (programme actif, protocole, invariants) |
-| `BUDGET_PRISME_STATUS.md` | Statut vivant du programme Budget Prisme (lots, preuves, publications) |
-| `BUDGET_FAMILLES_PLAN.md` | Matrice « Les quatre familles partout » (concept + lots A8→A12) |
-| `.claude/skills/budget-prisme/` | Skill maître et ses six références (finance, langue, registre des pages, workflow, preuves, release) |
-| `DECISION_LOG.md` | ADR — décisions structurelles, toujours valides sauf remplacement explicite |
-| `docs/neon-ultra/budget-prisme/` | Preuves par lot (captures avant/après, rapports de sonde) |
-| `webapp/tests/` | Suites e2e navigateur, parité web↔natif, design system |
-| `fixtures/parity-fixtures.json` | Fixtures de parité des calculs |
-
-## Préparation publication (à tenir à jour au moment voulu)
+## Autorité actuelle
 
 | Document | Rôle |
 |---|---|
-| `APP_STORE_LISTING.md` | Fiche App Store préparée (décisions propriétaire marquées HUMAN REQUIRED) |
-| `TESTFLIGHT_SETUP.md` | Procédure TestFlight |
-| `MANUAL_QA_CHECKLIST.md` | QA manuelle iPhone réel |
+| `README.md` | Présentation du produit, architecture et commandes |
+| `CLAUDE.md` | Protocole opérationnel et invariants |
+| `BUDGET_1_0_READINESS.md` | Porte de sortie de la version 1.0 |
+| `BUDGET_PRISME_STATUS.md` | Journal détaillé des lots, preuves et incidents |
+| `BUDGET_FAMILLES_PLAN.md` | Matrice des quatre familles |
+| `FINANCIAL_ENGINE_V2.md` | Contrat des cinq chiffres et lots FE2 |
+| `.claude/skills/budget-prisme/` | Skill maître et références |
+| `.claude/skills/README.md` | Statut et priorité des skills |
+| `DECISION_LOG.md` | ADR structurelles |
+| `CHANGELOG.md` | Changements destinés aux releases |
+| `webapp/tests/` | e2e navigateur, parité et design |
+| `fixtures/parity-fixtures.json` | Fixtures financières canoniques |
 
-## Histoire préservée (ne jamais réécrire)
+## Qualité, contribution et sécurité
 
-| Document | Programme d'origine |
+| Document | Rôle |
 |---|---|
-| `PROJECT_STATUS.md`, `NEON_ULTRA_STATUS.md` | Neon Ultra (bannières de renvoi vers Prisme en tête) |
-| `archives/OBSIDIAN_GLASS_STATUS.md` | Obsidian Glass (L0–L9) |
-| `archives/BUDGET_MASTER_STATUS.md` | Budget Master Evolution |
-| `archives/HORIZON_REFONTE_PLAN.md` | Refonte Horizon (R1–R9) |
-| `archives/AUDIT_COMPLET_BUDGET_2026-07-21.md` | Audit complet du 21.07.2026 |
-| `archives/docs/`, `docs/neon-ultra/` (hors `budget-prisme/`) | Preuves des programmes précédents |
-| `.claude/skills/` (hors `budget-prisme/`) | Skills hérités — références seulement |
+| `CONTRIBUTING.md` | Règles de branche, tests et PR |
+| `SECURITY.md` | Signalement et traitement des vulnérabilités |
+| `.github/PULL_REQUEST_TEMPLATE.md` | Preuves obligatoires par PR |
+| `.github/ISSUE_TEMPLATE/` | Rapports structurés |
+| `.github/scripts/repository-audit.mjs` | Audit automatisé du dépôt |
+| `.github/workflows/ci.yml` | Structure, web et iOS |
+| `.github/workflows/pages.yml` | Déploiement Pages au SHA exact |
+| `.github/workflows/testflight.yml` | TestFlight au SHA exact |
 
-## Où vivent les choses
+## Publication
 
-- **PWA** : `webapp/index.html` (app monofichier) + `webapp/design-system/neon-ultra.css` (tokens et primitives) + `webapp/sw.js`, `manifest.webmanifest`, icônes.
-- **iOS natif** : `Budget/` (SwiftUI + SwiftData), tests `BudgetTests/`, UI `BudgetUITests/`, projet `Budget.xcodeproj`.
+| Document | Rôle |
+|---|---|
+| `APP_STORE_LISTING.md` | Fiche candidate; assertions à valider sur la build finale |
+| `TESTFLIGHT_SETUP.md` | Configuration et exécution TestFlight |
+| `MANUAL_QA_CHECKLIST.md` | QA de l’artefact sur appareil réel |
+| `BUDGET_1_0_READINESS.md` | Enregistrement du GO/NO-GO et des runs |
+
+## Code et preuves
+
+- **iOS** : `Budget/`; tests `BudgetTests/` et `BudgetUITests/`; projet
+  `Budget.xcodeproj`.
+- **PWA** : `webapp/index.html`, design system, service worker, manifeste
+  et icônes.
+- **Preuves Prisme** :
+  `docs/neon-ultra/budget-prisme/<lot>/`.
 - **Marque** : `branding/`.
-- **CI** : `.github/workflows/` — la publication Pages passe par le dispatch de `pages.yml` au SHA exact (voir `CLAUDE.md`).
+- **CI et publication** : `.github/workflows/`.
+
+## Histoire préservée
+
+| Emplacement | Programme |
+|---|---|
+| `PROJECT_STATUS.md`, `NEON_ULTRA_STATUS.md` | Neon Ultra |
+| `archives/OBSIDIAN_GLASS_STATUS.md` | Obsidian Glass |
+| `archives/BUDGET_MASTER_STATUS.md` | Budget Master Evolution |
+| `archives/HORIZON_REFONTE_PLAN.md` | Refonte Horizon |
+| `archives/AUDIT_COMPLET_BUDGET_2026-07-21.md` | Audit du 21 juillet 2026 |
+| `archives/docs/`, anciennes preuves `docs/neon-ultra/` | Programmes précédents |
+| `.claude/skills/budget-neon-ultra/` | Skill historique |
+
+L’historique n’est pas réécrit. Lorsqu’une information ancienne est
+obsolète, la source actuelle la remplace par référence explicite.
