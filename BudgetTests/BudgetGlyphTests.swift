@@ -25,9 +25,10 @@ final class BudgetGlyphTests: XCTestCase {
     }
 
     func testFourQuickIntentionsUsePlainFinancialGlyphs() {
+        // A14 : ordre canonique des familles, identique au menu rapide PWA.
         XCTAssertEqual(
             QuickEntryIntent.allCases.map(\.budgetGlyph),
-            [.expense, .income, .setAside, .recurring]
+            [.income, .expense, .recurring, .setAside]
         )
         XCTAssertEqual(QuickEntryIntent.expense.budgetIconTone, .negative)
         XCTAssertEqual(QuickEntryIntent.income.budgetIconTone, .positive)

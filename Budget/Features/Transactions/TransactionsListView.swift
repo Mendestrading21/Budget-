@@ -25,6 +25,51 @@ enum TransactionDuplication {
     }
 }
 
+/// A14 (Les quatre familles, parité PWA lot A8) : le filtre de premier
+/// niveau de l'Historique — Tous, Rentrées, Dépenses, Abonnements,
+/// Mis de côté, Virements. Partition stricte : une dépense d'abonnement
+/// vit sous « Abonnements », plus sous « Dépenses » ; les ajustements
+/// restent transversaux (visibles sous « Tous » seulement).
+enum TransactionFamilyFilter: String, CaseIterable, Identifiable {
+    case income
+    case expense
+    case subscription
+    case setAside
+    case transfer
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .income: "Rentrées"
+        case .expense: "Dépenses"
+        case .subscription: "Abonnements"
+        case .setAside: "Mis de côté"
+        case .transfer: "Virements"
+        }
+    }
+
+    private var homeFamily: HomeFamily? {
+        switch self {
+        case .income: .income
+        case .expense: .expense
+        case .subscription: .subscription
+        case .setAside: .setAside
+        case .transfer: nil
+        }
+    }
+
+    func matches(type: TransactionType, isSubscription: Bool) -> Bool {
+        switch self {
+        case .transfer:
+            return type == .transfer
+        default:
+            guard type != .transfer, type != .adjustment, let homeFamily else { return false }
+            return HomePilotDisplay.family(for: type, isSubscription: isSubscription) == homeFamily
+        }
+    }
+}
+
 /// Full movement list: month navigation, search, filters, uncategorized
 /// queue, edit/duplicate/delete with confirmation.
 struct TransactionsListView: View {
@@ -34,9 +79,11 @@ struct TransactionsListView: View {
     @Query(sort: \BudgetTransaction.date, order: .reverse)
     private var allTransactions: [BudgetTransaction]
     @Query(sort: \Account.createdAt) private var accounts: [Account]
+    @Query private var recurrings: [RecurringTransaction]
 
     @State private var monthAnchor: Date?
     @State private var searchText = ""
+    @State private var familyFilter: TransactionFamilyFilter?
     @State private var typeFilter: TransactionType?
     @State private var accountFilter: Account?
     @State private var statusFilter: TransactionStatus?
@@ -54,9 +101,23 @@ struct TransactionsListView: View {
         MonthInterval(containing: currentAnchor, calendar: appContainer.calendar)
     }
 
+    /// A14 : l'abonnement se reconnaît par sa définition régulière —
+    /// jamais deviné depuis un titre ou une catégorie.
+    private func isSubscriptionRecurring(_ id: UUID?) -> Bool {
+        guard let id else { return false }
+        return recurrings.first(where: { $0.id == id })?.isSubscription == true
+    }
+
     private var filteredTransactions: [BudgetTransaction] {
         allTransactions.filter { transaction in
             guard monthInterval.contains(transaction.date) else { return false }
+            if let familyFilter,
+               !familyFilter.matches(
+                   type: transaction.type,
+                   isSubscription: isSubscriptionRecurring(transaction.recurringID)
+               ) {
+                return false
+            }
             if let typeFilter, transaction.type != typeFilter { return false }
             if let accountFilter,
                transaction.account?.id != accountFilter.id
@@ -93,7 +154,8 @@ struct TransactionsListView: View {
     }
 
     private var hasActiveFilters: Bool {
-        typeFilter != nil || accountFilter != nil || statusFilter != nil || showsUncategorizedOnly
+        familyFilter != nil || typeFilter != nil || accountFilter != nil
+            || statusFilter != nil || showsUncategorizedOnly
     }
 
     var body: some View {
@@ -101,6 +163,7 @@ struct TransactionsListView: View {
             BudgetScreenBackground()
             VStack(spacing: 0) {
                 monthSelector
+                familyChips
                 content
             }
         }
@@ -157,6 +220,42 @@ struct TransactionsListView: View {
 
     // MARK: - Month navigation
 
+    // A14 : le filtre de PREMIER niveau — les familles, dans l'ordre
+    // canonique, comme les chips de la PWA. Le menu « Filtres » (type
+    // précis, compte, statut) reste pour l'affinage.
+    private var familyChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: BudgetSpacing.small) {
+                familyChip(nil, title: "Tous")
+                ForEach(TransactionFamilyFilter.allCases) { filter in
+                    familyChip(filter, title: filter.title)
+                }
+            }
+            .padding(.horizontal, BudgetSpacing.screenMargin)
+            .padding(.bottom, BudgetSpacing.small)
+        }
+    }
+
+    private func familyChip(_ value: TransactionFamilyFilter?, title: String) -> some View {
+        let isSelected = familyFilter == value
+        return Button {
+            familyFilter = value
+        } label: {
+            Text(title)
+                .font(BudgetFont.caption.weight(.semibold))
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(
+                    isSelected ? BudgetColor.brandBright.opacity(0.18) : BudgetColor.coolGray.opacity(0.12),
+                    in: Capsule()
+                )
+                .foregroundStyle(isSelected ? BudgetColor.brandBright : Color.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+        .accessibilityIdentifier("movements.family.\(value?.rawValue ?? "all")")
+    }
+
     private var monthSelector: some View {
         HStack {
             Button {
@@ -211,6 +310,7 @@ struct TransactionsListView: View {
             Toggle("Non catégorisés uniquement", isOn: $showsUncategorizedOnly)
             if hasActiveFilters {
                 Button("Réinitialiser les filtres", role: .destructive) {
+                    familyFilter = nil
                     typeFilter = nil
                     accountFilter = nil
                     statusFilter = nil

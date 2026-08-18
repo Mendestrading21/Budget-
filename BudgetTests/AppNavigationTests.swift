@@ -20,9 +20,11 @@ final class AppNavigationTests: XCTestCase {
     }
 
     func testQuickEntryOffersExactlyFourPlainIntentions() {
+        // A14 : même ordre canonique que le menu rapide de la PWA —
+        // Rentrées, Dépenses, Régulier, Mis de côté.
         XCTAssertEqual(
             QuickEntryIntent.allCases.map(\.title),
-            ["J'ai dépensé", "J'ai reçu", "J'ai mis de côté", "Ça revient régulièrement"]
+            ["J'ai reçu", "J'ai dépensé", "Ça revient régulièrement", "J'ai mis de côté"]
         )
         XCTAssertEqual(QuickEntryIntent.expense.transactionType, .expense)
         XCTAssertEqual(QuickEntryIntent.income.transactionType, .income)
@@ -90,6 +92,39 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertEqual(HomeFamily.blockSummary(pending: 2, completed: 0), "2 à faire")
         XCTAssertEqual(HomeFamily.blockSummary(pending: 0, completed: 1), "1 fait")
         XCTAssertEqual(HomeFamily.blockSummary(pending: 1, completed: 3), "1 à faire · 3 faits")
+    }
+
+    /// A14 — le filtre de familles de l'Historique natif : partition
+    /// stricte, virements à part, ajustements transversaux.
+    func testTransactionFamilyFilterPartitionsEveryMovement() {
+        XCTAssertEqual(
+            TransactionFamilyFilter.allCases.map(\.title),
+            ["Rentrées", "Dépenses", "Abonnements", "Mis de côté", "Virements"]
+        )
+        XCTAssertTrue(TransactionFamilyFilter.income.matches(type: .income, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.income.matches(type: .refund, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.expense.matches(type: .expense, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.expense.matches(type: .taxPayment, isSubscription: false))
+        // Partition stricte : l'abonnement quitte « Dépenses ».
+        XCTAssertFalse(TransactionFamilyFilter.expense.matches(type: .expense, isSubscription: true))
+        XCTAssertTrue(TransactionFamilyFilter.subscription.matches(type: .expense, isSubscription: true))
+        XCTAssertFalse(TransactionFamilyFilter.subscription.matches(type: .expense, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.setAside.matches(type: .saving, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.setAside.matches(type: .investment, isSubscription: false))
+        XCTAssertTrue(TransactionFamilyFilter.transfer.matches(type: .transfer, isSubscription: false))
+        // Un virement ou un ajustement n'appartient à aucune famille.
+        for filter in TransactionFamilyFilter.allCases where filter != .transfer {
+            XCTAssertFalse(filter.matches(type: .transfer, isSubscription: false))
+            XCTAssertFalse(filter.matches(type: .adjustment, isSubscription: false))
+        }
+        // Hors virement/ajustement : chaque type vit dans EXACTEMENT un filtre.
+        for type in TransactionType.allCases where type != .transfer && type != .adjustment {
+            XCTAssertEqual(
+                TransactionFamilyFilter.allCases.filter { $0.matches(type: type, isSubscription: false) }.count,
+                1,
+                "type \(type) doit vivre dans une seule famille"
+            )
+        }
     }
 
     func testMonthlyProgressAlwaysSaysWhatRemainsAndWhatIsDone() {

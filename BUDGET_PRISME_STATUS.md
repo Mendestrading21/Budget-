@@ -368,6 +368,31 @@ tests iOS du premier coup), publié par dispatch au SHA exact le
 - Validation : build + ~260 tests iOS par la CI macOS (pas de simulateur
   local sur ce runner Linux) ; la suite web n'est pas touchée.
 
+**A14 — Listes natives aux familles** · `VERIFYING_AUTOMATED` — PR
+depuis `agent/prisme-a14-ios-listes`.
+
+- Parité iOS, suite (lots A8/A9 web) :
+  - **Menu d'ajout natif** : les quatre intentions dans l'ordre des
+    familles — J'ai reçu, J'ai dépensé, Ça revient régulièrement, J'ai
+    mis de côté (l'ordre des cas de `QuickEntryIntent` est l'ordre
+    affiché) ;
+  - **« Ce qui revient » natif** : quatre sections dans l'ordre
+    canonique — Mes rentrées, Mes factures, Mes abonnements (séparés par
+    le drapeau `isSubscription`, jamais devinés), Mes mises de côté ; le
+    total du héros reste calculé sur toutes les sorties régulières
+    (chiffre inchangé) ;
+  - **Historique natif** : rangée de chips de familles de premier
+    niveau — Tous · Rentrées · Dépenses · Abonnements · Mis de côté ·
+    Virements — partition stricte via `TransactionFamilyFilter`
+    (l'abonnement quitte « Dépenses » ; ajustements transversaux sous
+    « Tous » seulement) ; le menu « Filtres » (type précis, compte,
+    statut) reste pour l'affinage et sa réinitialisation couvre la
+    famille.
+- Logique pure couverte par un test unitaire natif
+  (`testTransactionFamilyFilterPartitionsEveryMovement`) : titres et
+  ordre, partition exacte type par type, virements/ajustements à part.
+- Validation : build + tests iOS par la CI macOS.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

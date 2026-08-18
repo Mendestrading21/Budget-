@@ -16,10 +16,22 @@ struct RecurringListView: View {
         RecurringScheduleService(calendar: appContainer.calendar)
     }
 
-    private var activeBills: [RecurringTransaction] {
+    // A14 (Les quatre familles, parité PWA lot A8) : les abonnements sont
+    // une famille à part entière — séparés des factures par le drapeau
+    // `isSubscription`, jamais devinés. Le total du héros reste calculé
+    // sur TOUTES les sorties régulières : le chiffre ne change pas.
+    private var activeOutflows: [RecurringTransaction] {
         recurrings.filter {
             $0.isActive && ![.income, .refund, .saving, .investment].contains($0.type)
         }
+    }
+
+    private var activeBills: [RecurringTransaction] {
+        activeOutflows.filter { !$0.isSubscription }
+    }
+
+    private var activeSubscriptions: [RecurringTransaction] {
+        activeOutflows.filter(\.isSubscription)
     }
 
     private var activeSetAside: [RecurringTransaction] {
@@ -35,7 +47,7 @@ struct RecurringListView: View {
     }
 
     private var monthlyBillsTotal: Decimal {
-        activeBills.reduce(.zero) {
+        activeOutflows.reduce(.zero) {
             $0 + scheduleService.monthlyEquivalent(of: $1)
         }
     }
@@ -51,9 +63,12 @@ struct RecurringListView: View {
                     if recurrings.isEmpty {
                         emptyState
                     } else {
-                        billSection
-                        setAsideSection
+                        // A14 : l'ordre canonique des familles — Rentrées,
+                        // Factures, Abonnements, Mis de côté.
                         incomeSection
+                        billSection
+                        subscriptionSection
+                        setAsideSection
                         inactiveSection
                     }
                 }
@@ -106,8 +121,18 @@ struct RecurringListView: View {
     @ViewBuilder
     private var billSection: some View {
         if !activeBills.isEmpty {
-            sectionTitle("Mes factures et abonnements", count: activeBills.count)
+            sectionTitle("Mes factures", count: activeBills.count)
             ForEach(activeBills) { recurring in
+                row(recurring)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var subscriptionSection: some View {
+        if !activeSubscriptions.isEmpty {
+            sectionTitle("Mes abonnements", count: activeSubscriptions.count)
+            ForEach(activeSubscriptions) { recurring in
                 row(recurring)
             }
         }
@@ -126,7 +151,7 @@ struct RecurringListView: View {
     @ViewBuilder
     private var incomeSection: some View {
         if !activeIncome.isEmpty {
-            sectionTitle("Mes revenus réguliers", count: activeIncome.count)
+            sectionTitle("Mes rentrées", count: activeIncome.count)
             ForEach(activeIncome) { recurring in
                 row(recurring)
             }
