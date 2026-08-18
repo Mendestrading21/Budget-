@@ -1540,18 +1540,21 @@
          role="dialog" aria-modal="true" aria-labelledby="quickMenuTitle">
       <h3 id="quickMenuTitle">Que voulez-vous ajouter&nbsp;?</h3>
       <p class="caption quick-intent-help">Choisissez une phrase. L'app prépare le bon formulaire.</p>
+      <!-- A9 : l'ordre des QUATRE familles — Rentrées, Dépenses,
+           régulier (factures/abonnements), Mis de côté. Le même ordre que
+           le Bilan, l'Historique et « Ce qui revient ». -->
       <div class="quick-intent-grid">
-        <button type="button" class="quick-intent" data-quick="expense">
-          <span class="quick-intent-icon quick-intent-icon--expense" data-budget-glyph="expense" aria-hidden="true"></span><strong>J'ai dépensé</strong><small>Courses, transport, sortie…</small>
-        </button>
         <button type="button" class="quick-intent" data-quick="income">
           <span class="quick-intent-icon quick-intent-icon--income" data-budget-glyph="income" aria-hidden="true"></span><strong>J'ai reçu</strong><small>Salaire ou autre revenu</small>
         </button>
-        <button type="button" class="quick-intent" data-quick="save">
-          <span class="quick-intent-icon quick-intent-icon--saving" data-budget-glyph="saving" aria-hidden="true"></span><strong>J'ai mis de côté</strong><small>Épargne, impôts ou 3e pilier</small>
+        <button type="button" class="quick-intent" data-quick="expense">
+          <span class="quick-intent-icon quick-intent-icon--expense" data-budget-glyph="expense" aria-hidden="true"></span><strong>J'ai dépensé</strong><small>Courses, transport, sortie…</small>
         </button>
         <button type="button" class="quick-intent" data-quick="rec">
           <span class="quick-intent-icon quick-intent-icon--recurring" data-budget-glyph="recurring" aria-hidden="true"></span><strong>Ça revient régulièrement</strong><small>Salaire, facture, abonnement ou épargne</small>
+        </button>
+        <button type="button" class="quick-intent" data-quick="save">
+          <span class="quick-intent-icon quick-intent-icon--saving" data-budget-glyph="saving" aria-hidden="true"></span><strong>J'ai mis de côté</strong><small>Épargne, impôts ou 3e pilier</small>
         </button>
       </div>
       <button type="button" class="btn secondary" id="quickCancel" style="margin-top:12px">Fermer</button>
@@ -5191,11 +5194,13 @@ function renderAssistant() {
 /* P07 : chaque ligne du hub porte un Budget Glyph (plus d'emoji fonctionnel)
    et un sous-titre qui annonce honnêtement ce que contient sa destination. */
 const MORE_GROUPS = [
-  ["À organiser", [
+  // A9 : le hub s'ouvre sur LES QUATRE FAMILLES — tout ce qui nourrit le
+  // Bilan du mois (rentrées, factures, abonnements, mises de côté).
+  ["Les quatre familles", [
     ["recurring", "recurring", "Ce qui revient", () => {
       const actives = RECURRINGS.filter(recurringIsActive);
       const sorties = actives.filter(r => !["income", "refund"].includes(r.type));
-      if (!actives.length) return "Loyer, abonnements, mises de côté et revenus";
+      if (!actives.length) return "Rentrées, factures, abonnements et mises de côté";
       const parMois = fromCents(Math.round(
         sorties.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
       return `${actives.length} ligne${actives.length > 1 ? "s" : ""}`
