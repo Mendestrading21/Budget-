@@ -8351,6 +8351,61 @@ const a7apres = await page.evaluate(() => {
 check(a7apres.fait && !a7apres.encoreEnAttente,
   `un appui sur « Reçu » : le salaire reste dans « Rentrées », marqué « Reçu ce mois » (${JSON.stringify(a7apres)})`);
 
+// ---------- Test 149 : A8 Les quatre familles — Historique et « Ce qui revient » ----------
+// Programme « Les quatre familles partout » (BUDGET_FAMILLES_PLAN.md).
+// L'Historique filtre par famille dans l'ordre canonique — Tous,
+// Rentrées, Dépenses, Abonnements, Mis de côté, Virements — en PARTITION
+// stricte : une dépense d'abonnement vit sous « Abonnements », plus sous
+// « Dépenses » ; chaque franc est compté dans une seule famille.
+// « Ce qui revient » suit le même ordre.
+currentTest = "A8 familles";
+await goMovements();
+const a8 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  if (!transactions.some(t => t.id === 990001)) {
+    transactions.push(
+      { id: 990001, y: NOW.y, m: NOW.m, d: 9, title: "Streaming payé A8", amount: 21.9,
+        type: "expense", cat: "Loisirs", acc: cash.id, recurringId: "r-a6-sub",
+        status: "posted", createdAt: 1, updatedAt: 1 },
+      { id: 990002, y: NOW.y, m: NOW.m, d: 9, title: "Courses A8", amount: 55,
+        type: "expense", cat: "Alimentation", acc: cash.id,
+        status: "posted", createdAt: 1, updatedAt: 1 },
+    );
+  }
+  activeTab = "movements"; moreView = null; moreSearch = ""; moreFilter = "all"; render();
+  const chips = [...document.querySelectorAll("[data-morefilter]")].map(c => c.textContent.trim());
+  const lit = filtre => {
+    moreFilter = filtre; render();
+    return [...document.querySelectorAll(".tx .meta .t")].map(t => t.textContent.trim());
+  };
+  const sous = lit("sub");
+  const depenses = lit("expense");
+  const rentrees = lit("income");
+  const familles = ["income", "expense", "sub", "saving", "transfer"];
+  const partition = transactions
+    .filter(t => inMonth(t, NOW.y, NOW.m) && t.type !== "adjustment")
+    .every(t => familles.filter(f => txFamille(t) === f).length === 1);
+  moreFilter = "all"; render();
+  activeTab = "more"; moreView = "recurring"; render();
+  const recChips = [...document.querySelectorAll("[data-recfilter]")].map(c => c.textContent.trim());
+  activeTab = "home"; moreView = null; render();
+  return { chips, sous, depenses, rentrees, partition, recChips };
+});
+check(a8.chips.join(",") === "Tous,Rentrées,Dépenses,Abonnements,Mis de côté,Virements",
+  `l'Historique filtre par famille, dans l'ordre canonique (obtenu ${a8.chips.join(",")})`);
+check(a8.sous.some(t => /Streaming payé A8/.test(t)) && !a8.sous.some(t => /Courses A8/.test(t)),
+  `« Abonnements » montre l'abonnement payé, rien d'autre (${JSON.stringify(a8.sous)})`);
+check(a8.depenses.some(t => /Courses A8/.test(t)) && !a8.depenses.some(t => /Streaming payé A8/.test(t)),
+  "« Dépenses » ne compte plus les abonnements — partition stricte");
+check(a8.rentrees.every(t => !/Courses A8|Streaming payé A8/.test(t)), "« Rentrées » ne montre que les rentrées");
+check(a8.partition, "chaque opération du mois vit dans exactement UNE famille");
+// Les chips de « Ce qui revient » portent leur décompte (« Factures 1 ») :
+// l'ordre et les mots comptent, pas les nombres.
+const a8attendu = ["Tout", "Rentrées", "Factures", "Abonnements", "Mis de côté"];
+check(a8.recChips.length === a8attendu.length
+    && a8.recChips.every((c, i) => c.replace(/\s*\d+$/, "") === a8attendu[i]),
+  `« Ce qui revient » suit l'ordre des familles (obtenu ${a8.recChips.join(",")})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8360,4 +8415,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 148 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 149 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
