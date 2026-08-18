@@ -217,8 +217,10 @@ par dispatch au SHA exact (run `32070087322`, succès) le 17.08.2026.
   négatif à 2 sabotages → 2 échecs ciblés ; 5 parités ; design vert ;
   captures avant/après dans `docs/neon-ultra/budget-prisme/a6/`.
 
-**A7 — Bilan en quatre blocs** · `VERIFYING_AUTOMATED` — PR depuis
-`agent/prisme-a7-quatre-blocs`.
+**A7 — Bilan en quatre blocs** · `MERGED` + `PUBLISHED` — PR #42
+fusionnée en squash, `main` = `efb75136adc60022d62b3878563b47f3172e65ec`,
+CI de fusion verte, publié par dispatch au SHA exact (run `32112863070`,
+succès) le 18.08.2026.
 
 - Demande du 18.08.2026 : « quatre blocs, pas tout dans un seul bloc ».
   Le Bilan du mois courant devient un GROUPE de quatre cartes nommées —
