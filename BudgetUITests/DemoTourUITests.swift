@@ -141,12 +141,8 @@ final class DemoTourUITests: XCTestCase {
                       "étape localisation absente")
         app.buttons["Continuer"].tap()
 
-        XCTAssertTrue(app.staticTexts.matching(contains("point de départ d'organisation")).firstMatch
-            .waitForExistence(timeout: 10),
-            "le taux doit être présenté comme un point de départ d'organisation, jamais officiel")
-        snap(app, "ios-l7-onboarding-fiscal")
-        app.buttons["Continuer"].tap()
-
+        // A19 (parité PWA, lot A18) : plus d'étape « Provision d'impôts » —
+        // la localisation mène directement au premier compte.
         let balanceField = app.textFields["2'500.00"]
         XCTAssertTrue(balanceField.waitForExistence(timeout: 10), "étape premier compte absente")
         balanceField.tap()

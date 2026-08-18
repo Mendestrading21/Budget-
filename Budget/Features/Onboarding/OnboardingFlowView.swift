@@ -66,7 +66,6 @@ struct OnboardingFlowView: View {
         case .welcome: welcomeStep
         case .household: householdStep
         case .location: locationStep
-        case .taxRate: taxRateStep
         case .firstAccount: firstAccountStep
         case .income: incomeStep
         }
@@ -156,41 +155,6 @@ struct OnboardingFlowView: View {
                     labeledField("Devise de base") {
                         Text("CHF — franc suisse")
                             .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    private var taxRateStep: some View {
-        VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
-            stepTitle("Provision d'impôts", subtitle: "Quelle part de vos revenus mettre de côté pour les impôts ?")
-            GlassCard {
-                VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
-                    Text(FinanceFormatting.percent(model.taxProvisionRate))
-                        .font(BudgetFont.heroAmount)
-                        .frame(maxWidth: .infinity)
-                        .accessibilityLabel("Taux de provision : \(FinanceFormatting.percent(model.taxProvisionRate))")
-
-                    Slider(
-                        value: Binding(
-                            get: { NSDecimalNumber(decimal: model.taxProvisionRate).doubleValue },
-                            set: { model.taxProvisionRate = FinanceMath.roundedToCents(Decimal($0)) }
-                        ),
-                        in: 0...0.5,
-                        step: 0.01
-                    )
-                    .tint(BudgetColor.indigo)
-                    .accessibilityLabel("Taux de provision d'impôts")
-                    .accessibilityValue(FinanceFormatting.percent(model.taxProvisionRate))
-
-                    Label {
-                        Text("30 % est un simple point de départ d'organisation — ni un taux officiel, ni une recommandation fiscale. Ajustez-le à votre situation : il reste modifiable à tout moment dans Impôts.")
-                            .font(BudgetFont.caption)
-                            .foregroundStyle(.secondary)
-                    } icon: {
-                        Image(systemName: "info.circle")
-                            .foregroundStyle(BudgetColor.informative)
                     }
                 }
             }
