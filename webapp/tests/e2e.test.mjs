@@ -8493,12 +8493,16 @@ const a10 = await page.evaluate(() => {
   activeTab = "more"; moreView = null; render();
   const geoGerer = geometrie();
   activeTab = "home"; render();
-  return { titres, geo: [...geoMois, ...geoHisto, ...geoGerer] };
+  return { titres, geoListes: [...geoMois, ...geoHisto], geoGerer };
 });
 check(a10.titres.includes("Mis de côté") && !a10.titres.some(t => /Épargne et investissements/.test(t)),
   `le Budget appelle le groupe par le mot de la famille (obtenu ${a10.titres.join(" · ")})`);
-check(a10.geo.length >= 6 && new Set(a10.geo).size === 1,
-  `les pastilles de logos ont la MÊME géométrie sur Mois, Historique et Gérer (obtenu ${[...new Set(a10.geo)].join(" ; ")})`);
+check(a10.geoListes.length >= 4 && new Set(a10.geoListes).size === 1,
+  `les pastilles des LISTES ont la même géométrie sur Mois et Historique (obtenu ${[...new Set(a10.geoListes)].join(" ; ")})`);
+// A22 (demande propriétaire) : le hub Gérer porte une pastille PLUS
+// GRANDE — 54 px, glyphe 26 px — uniforme sur toutes ses entrées.
+check(a10.geoGerer.length >= 4 && new Set(a10.geoGerer).size === 1 && a10.geoGerer[0] === "54x54/26x26",
+  `le hub Gérer porte sa grande pastille uniforme 54 px / glyphe 26 px (obtenu ${[...new Set(a10.geoGerer)].join(" ; ")})`);
 
 // ---------- Test 152 : A15 Mois futur — quatre blocs et bouton « Planifier » ----------
 // Demande propriétaire (18.08.2026) : « ajoute aussi la même mise en page
