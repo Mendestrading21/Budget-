@@ -288,8 +288,10 @@ par dispatch au SHA exact le 18.08.2026.
   5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a9/`.
 
-**A10 — Budget en mots de famille + logos uniformes** ·
-`VERIFYING_AUTOMATED` — PR depuis `agent/prisme-a10-budget-familles`.
+**A10 — Budget en mots de famille + logos uniformes** · `MERGED` +
+`PUBLISHED` — PR #48 fusionnée en squash, `main` =
+`1bf53882f70696fe5d1a3e91e43880ea7a64bf74`, CI de fusion verte, publié
+par dispatch au SHA exact le 18.08.2026.
 
 - Les quatre familles, suite : l'écran Budget appelle son groupe
   d'épargne par le mot de la famille — « **Mis de côté** » remplace
