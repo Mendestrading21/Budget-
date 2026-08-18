@@ -5335,7 +5335,6 @@ let obSalary2 = null;
 let obSalaryPhase = 1;
 let obOpeningVal = 0;
 let obGoal = null; // préréglage d'objectif choisi à la bienvenue
-let obTaxRate = null; // estimation de provision fiscale choisie (fraction)
 let obAccounts = { savings: true, pension: false, brokerage: false };
 // Montants saisis aux deux écrans de charges : { clé du préréglage → montant }.
 // Une clé absente = la ligne a été laissée vide, donc rien n'est créé.
@@ -5435,10 +5434,6 @@ function renderOnboarding() {
     <form id="obForm2" class="ob-form">
       <label for="obSalary">Ce que vous recevez chaque mois (${obBase})</label>
       <input id="obSalary" inputmode="decimal" placeholder="5'500.00" autocomplete="off" value="${(() => { const v = obSalaryPhase === 2 ? obSalary2 : obSalary; return v ? String(v) : ""; })()}" />
-      ${obSalaryPhase === 2 ? "" : `
-      <label for="obTaxPct">Part mise de côté pour les impôts (%)</label>
-      <input id="obTaxPct" inputmode="numeric" maxlength="3" value="${Math.round((obTaxRate ?? COUNTRIES[obCountry].taxRate) * 100)}" />
-      <p class="caption" style="margin:4px 0 0">C'est une estimation pour vous organiser, pas un taux officiel. Vous pourrez le changer quand vous voulez, dans Impôts.</p>`}
       <button class="btn" type="submit" style="margin-top:12px">Continuer</button>
       <button class="btn secondary" type="button" data-obskip style="margin-top:10px">Passer</button>
     </form>`);
@@ -5502,18 +5497,11 @@ function renderOnboarding() {
 }
 
 function bindOnboarding() {
-  // L7 : lire le taux d'impôts saisi (estimation MODIFIABLE, jamais
-  // officielle) avant de quitter l'étape salaire, quel que soit le chemin.
-  const captureTaxRate = () => {
-    const field = document.getElementById("obTaxPct");
-    if (!field) return;
-    const pct = parseInt(field.value, 10);
-    // P11 (risque n°4) : même borne que la page Impôts — 0 à 60 %.
-    if (Number.isFinite(pct) && pct >= 0 && pct <= 60) obTaxRate = pct / 100;
-  };
+  // A18 (demande propriétaire, 18.08.2026) : l'onboarding ne demande plus
+  // de taux d'impôts. Le taux vit dans la page Impôts, avec le défaut du
+  // pays — modifiable quand on veut.
   // Retour : revient d'une étape en CONSERVANT toutes les saisies.
   document.querySelectorAll("[data-obback]").forEach(btn => btn.addEventListener("click", () => {
-    captureTaxRate();
     if (obStep === 4 && obSalaryPhase === 2) { obSalaryPhase = 1; }
     else { obStep = Math.max(1, obStep - 1); }
     render(); scrollTop();
@@ -5560,7 +5548,6 @@ function bindOnboarding() {
   if (form2) {
     form2.addEventListener("submit", (e) => {
       e.preventDefault();
-      captureTaxRate();
       const amount = parseAmountField(document.getElementById("obSalary").value);
       if (obSalaryPhase === 2) {
         obSalary2 = amount > 0 ? amount : null;
@@ -5572,7 +5559,6 @@ function bindOnboarding() {
       render(); scrollTop();
     });
     form2.querySelector("[data-obskip]").addEventListener("click", () => {
-      captureTaxRate();
       if (obSalaryPhase === 2) { obSalary2 = null; obStep = 5; }
       else if (obPartner) { obSalary = null; obSalaryPhase = 2; }
       else { obSalary = null; obStep = 5; }
@@ -5647,7 +5633,9 @@ function finishOnboarding() {
   const opening = obOpeningVal;
   S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
-  S.taxRate = obTaxRate ?? COUNTRIES[obCountry].taxRate;
+  // A18 : plus de question d'impôts à l'onboarding — le défaut du pays
+  // s'applique, modifiable dans Impôts.
+  S.taxRate = COUNTRIES[obCountry].taxRate;
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
   ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: "", kind: "current",
