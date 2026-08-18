@@ -1088,6 +1088,20 @@ html[data-reduced-transparency="true"] .nu-app .tabbar {
   background: var(--nu-tint-neutral);
   color: var(--nu-text-primary);
 }
+/* A22 (demande propriétaire, 18.08.2026) : sur le hub Gérer, la pastille
+   d'icône est PLUS GRANDE et son glyphe grandit avec elle — centré dans
+   son carré. Les listes denses (Mois, Historique) gardent leur géométrie
+   serrée : la règle ne cible que les entrées du hub (`[data-more]`), qui
+   vit dans la peau Obsidian — d'où le scope `.nu-app`, pas le pilote. */
+.nu-app .tx.read-row[data-more] .ico {
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+}
+.nu-app .tx.read-row[data-more] .ico .budget-glyph {
+  width: 26px;
+  height: 26px;
+}
 /* Le glyphe prend la couleur du SENS, comme la teinte de fond : un
    symbole monochrome, jamais un emoji d'une autre couleur au milieu. */
 #screen.nu-pilot-screen .ico.t-income {
