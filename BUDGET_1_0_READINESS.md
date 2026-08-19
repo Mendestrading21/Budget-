@@ -25,8 +25,9 @@ Dernière mise à jour : 19.08.2026 (publication finale + verdict).
 
 ## 2. Vérité financière et parité
 
-- [x] 6 fixtures de parité web↔natif réconciliées au centime
-      (`fixtures/parity-fixtures.json`, suite `parity.test.mjs`).
+- [x] 7 fixtures de parité web↔natif réconciliées au centime
+      (`fixtures/parity-fixtures.json`, suite `parity.test.mjs` —
+      la n° 7 grave l'union de la fortune liquide, FE2-5).
 - [x] 155 parcours e2e navigateur réel verts (CI `Web (e2e navigateur
       réel)` sur `main` = `4758e472` puis `a100cca4`).
 - [x] Tests iOS verts en CI (`Build + tests (simulateur iOS)`, mêmes

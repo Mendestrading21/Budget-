@@ -679,6 +679,16 @@ runs suivants.
 FE2-0..7 ; les lots FE2-6/7 sont natifs (la PWA publiée est celle de
 `0091d449`, inchangée depuis).
 
+**FE2-8 — Fixture de parité n° 7 : l'union de la fortune liquide** ·
+en PR. Le scénario `fortune-liquide-union` grave la règle FE2-5 dans
+le contrat de parité web↔natif : quatre comptes (courant hors
+quotidien 1'000, quotidien 200, épargne 500, épargne marquée cash
+300) → `liquid` 500, `savingsAccessible` 800, `liquidWealth` 1'000 —
+jamais 1'300 (chaque franc une fois), le courant hors quotidien exclu.
+Réconciliée du premier coup ; contrôle négatif : somme naïve
+rebranchée → la fixture mord seule (obtenu 1'300, attendu 1'000).
+Suites : 7 parités + 156 e2e + design, vertes.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
