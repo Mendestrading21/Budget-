@@ -17,8 +17,11 @@ Dernière mise à jour : 18.08.2026 (création du registre).
       comme de l'argent possédé ; plus de comptabilisation automatique
       par date ; effort fiscal mensuel séparé de l'écart annuel ;
       fixture de parité n° 6 verrouille le tout web↔natif.
-- [ ] **FE2-4 — vues natives Comptes/Épargne/Patrimoine** : en PR
-      (#72, head `b589a73`). Sera coché au squash-merge avec CI verte.
+- [x] **FE2-4 — vues natives Comptes/Épargne/Patrimoine** : PR #72
+      fusionnée en squash, `main` = `d7e18b9e`, CI verte sur le HEAD
+      exact `b589a73` (web + iOS, dont les trois nouveaux tests
+      `NetWorthServiceTests`). Publication portée par le prochain
+      dispatch Pages.
 
 ## 2. Vérité financière et parité
 
