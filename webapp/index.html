@@ -1691,8 +1691,8 @@ function L(key) {
 }
 
 const COUNTRIES = {
-  CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0.30,
-        taxHint: "Ici, les impôts ne sont pas retenus sur le salaire : mettez-les de côté vous-même." },
+  CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0,
+        taxHint: "Ici, les impôts ne sont pas retenus sur le salaire. Si vous voulez que l'app mette de côté pour vous, réglez un taux dans Gérer → Impôts." },
   FR: { flag: "🇫🇷", name: "France", currency: "EUR", taxRate: 0,
         taxHint: "Vos impôts sont déjà retenus sur le salaire : mettre de côté reste facultatif." },
   BE: { flag: "🇧🇪", name: "Belgique", currency: "EUR", taxRate: 0,
@@ -2180,7 +2180,7 @@ function emptyState() {
     baseCurrency: "CHF",
     faceIDEnabled: false,
     lockCode: null,
-    taxRate: 0.30,
+    taxRate: 0,
     taxReserve: 0,
     monthChecks: {},
     lastImport: null,
@@ -2223,7 +2223,7 @@ function loadState() {
     for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances"]) {
       if (!Array.isArray(s[key])) s[key] = [];
     }
-    if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0.30;
+    if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0;
     if (typeof s.taxReserve !== "number") s.taxReserve = 0;
     if (!Array.isArray(s.documents)) s.documents = [];
     if (!Array.isArray(s.bills)) s.bills = [];
@@ -4059,7 +4059,7 @@ function backBar(title) {
 /* ---------- Impôts : UNE seule vérité (posted + année) ----------
    Utilisée par l'écran Impôts ET par le dashboard — jamais deux formules. */
 function taxSummary(year) {
-  const rate = S.taxRate ?? 0.30;
+  const rate = S.taxRate ?? 0;
   // Revenus COMPTABILISÉS depuis le 1er janvier — jamais les prévus, jamais
   // une projection artificielle sur douze mois. Parité avec TaxService natif.
   const monthlyIncomes = Array.from({ length: 12 }, (_, i) =>
@@ -7324,7 +7324,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   if (state.taxReserve != null && (!Number.isFinite(state.taxReserve) || state.taxReserve < 0)) {
     throw new Error("réserve fiscale invalide");
   }
-  state.taxRate = state.taxRate ?? 0.30;
+  state.taxRate = state.taxRate ?? 0;
   state.taxReserve = state.taxReserve ?? 0;
   state.profile = state.profile || { name: null };
   state.projectionProfile = PROJECTION_PROFILES[state.projectionProfile]
@@ -8252,7 +8252,7 @@ document.getElementById("penDelete").addEventListener("click", () => {
 /* ---------- Feuille impôts (W4) ---------- */
 function openTaxSheet() {
   document.getElementById("taxForm").reset();
-  document.getElementById("txRate").value = ((S.taxRate ?? 0.30) * 100).toFixed(0);
+  document.getElementById("txRate").value = ((S.taxRate ?? 0) * 100).toFixed(0);
   document.getElementById("txReserve").value = (S.taxReserve ?? 0).toFixed(2);
   document.getElementById("txError").textContent = "";
   openSheet("taxForm");

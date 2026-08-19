@@ -23,7 +23,7 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         calendar.locale = FinanceFormatting.locale
         service = MonthlySnapshotService(calendar: calendar)
 
-        household = Household(name: "Test")
+        household = Household(name: "Test", taxProvisionRate: Decimal("0.30"))
         current = Account(name: "Courant", type: .current, openingBalance: Decimal("5000.00"))
         savings = Account(name: "Épargne", type: .savings, openingBalance: Decimal("1000.00"))
         context.insert(household)

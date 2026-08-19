@@ -25,7 +25,8 @@ final class TaxProfile {
         id: UUID = UUID(),
         canton: String = "",
         municipality: String = "",
-        provisionRate: Decimal = Decimal("0.30"),
+        // FE2-11 : opt-in - aucun taux implicite.
+        provisionRate: Decimal = .zero,
         notes: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()

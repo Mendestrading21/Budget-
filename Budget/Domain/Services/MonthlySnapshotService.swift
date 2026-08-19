@@ -66,7 +66,7 @@ struct MonthlySnapshotService {
             profile: taxProfile,
             provision: yearProvision,
             transactions: transactions,
-            fallbackRate: household?.taxProvisionRate ?? Decimal("0.30")
+            fallbackRate: household?.taxProvisionRate ?? .zero
         )
         let taxProvision = TaxProvisionSummary(
             rate: taxReport.rate,

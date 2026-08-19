@@ -15,7 +15,7 @@ final class PersistenceFoundationTests: XCTestCase {
         XCTAssertEqual(fetched.count, 1)
         XCTAssertEqual(fetched.first?.name, "Test")
         XCTAssertEqual(fetched.first?.baseCurrencyCode, "CHF")
-        XCTAssertEqual(fetched.first?.taxProvisionRate, Decimal("0.30"))
+        XCTAssertEqual(fetched.first?.taxProvisionRate, .zero, "FE2-11 : la provision est opt-in, zero par defaut")
     }
 
     func testDefaultCategoriesCoverEveryKindAndStayOrdered() {

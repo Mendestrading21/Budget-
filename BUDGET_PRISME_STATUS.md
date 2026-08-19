@@ -718,6 +718,20 @@ d'impôts fondus) ; test natif des deux sens ; capture de l'état exact
 du propriétaire inspectée (`docs/neon-ultra/budget-prisme/fe2-10/`).
 Aucune formule touchée — le moteur disait déjà vrai.
 
+**FE2-11 — Aucun impôt automatique : la provision est OPT-IN
+(ADR-034)** · en PR. Ordre propriétaire pendant sa QA : « ne calcule
+pas les impôts automatiquement — c'est moi qui les mets comme
+dépenses. » Tous les défauts de taux passent à ZÉRO (web : COUNTRIES,
+gabarit vierge, assainisseur, fallback moteur, restauration, feuille
+Impôts ; natif : Household, TaxProfile, OnboardingViewModel,
+TaxService, MonthlySnapshotService, TaxesView) ; la démo garde 30 %
+(elle montre la fonction) ; les formules FE2 restent intactes et
+s'activent seulement quand l'utilisateur choisit un taux dans
+Gérer → Impôts. Parcours 56 réécrit et né rouge (taux 0.3 appliqué en
+douce, effort 1500 sans consentement) ; les tests fiscaux passent un
+taux explicite. Données existantes non réécrites — le propriétaire
+passe son taux à 0 % d'un geste.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

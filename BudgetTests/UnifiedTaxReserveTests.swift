@@ -45,7 +45,8 @@ final class UnifiedTaxReserveTests: XCTestCase {
         let provision = makeProvision(reserved: Decimal("2500.00"), arrears: Decimal("400.00"))
 
         let snapshot = snapshotService.snapshot(
-            monthOf: now, now: now, household: nil,
+            monthOf: now, now: now,
+            household: Household(name: "Test", taxProvisionRate: Decimal("0.30")),
             accounts: [account], transactions: [income],
             taxProvisions: [provision]
         )
@@ -68,7 +69,8 @@ final class UnifiedTaxReserveTests: XCTestCase {
             createdAt: now, updatedAt: now
         )
         let snapshot = snapshotService.snapshot(
-            monthOf: now, now: now, household: nil,
+            monthOf: now, now: now,
+            household: Household(name: "Test", taxProvisionRate: Decimal("0.30")),
             accounts: [account], transactions: [income],
             taxProvisions: [otherYear]
         )
@@ -89,10 +91,12 @@ final class UnifiedTaxReserveTests: XCTestCase {
 
         let report = taxService.report(
             year: 2026, profile: nil, provision: provision,
-            transactions: incomes
+            transactions: incomes,
+            fallbackRate: Decimal("0.30")
         )
         let snapshot = snapshotService.snapshot(
-            monthOf: now, now: now, household: nil,
+            monthOf: now, now: now,
+            household: Household(name: "Test", taxProvisionRate: Decimal("0.30")),
             accounts: [account], transactions: incomes,
             taxProvisions: [provision]
         )

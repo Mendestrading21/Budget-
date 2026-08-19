@@ -67,7 +67,7 @@ struct TaxService {
         profile: TaxProfile?,
         provision: TaxProvision?,
         transactions: [BudgetTransaction],
-        fallbackRate: Decimal = Decimal("0.30")
+        fallbackRate: Decimal = .zero
     ) -> TaxYearReport {
         let rate = profile?.provisionRate ?? fallbackRate
         let income = taxableIncome(year: year, transactions: transactions)
@@ -111,7 +111,7 @@ struct TaxService {
         let profile = TaxProfile(
             canton: household?.canton ?? "",
             municipality: household?.municipality ?? "",
-            provisionRate: household?.taxProvisionRate ?? Decimal("0.30"),
+            provisionRate: household?.taxProvisionRate ?? .zero,
             createdAt: now,
             updatedAt: now
         )
