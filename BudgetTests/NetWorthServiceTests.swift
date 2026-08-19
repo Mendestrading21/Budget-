@@ -116,6 +116,91 @@ final class NetWorthServiceTests: XCTestCase {
         XCTAssertEqual(before, after, "Un virement interne ne change jamais la fortune nette")
     }
 
+    // MARK: - FE2-4 : les vues d'argent (mêmes définitions que la PWA)
+
+    func testAccessibleSavingsIsTheStockOfActiveSavingsAccountsOnly() {
+        let current = Account(name: "Courant", type: .current, openingBalance: Decimal("5000.00"))
+        let savings = Account(name: "Épargne", type: .savings, openingBalance: Decimal("2300.00"))
+        let broker = Account(name: "Titres", type: .broker, openingBalance: Decimal("500.00"))
+        let pillar = Account(name: "3a", type: .pillar3a, openingBalance: Decimal("8000.00"))
+        let archived = Account(name: "Ancienne épargne", type: .savings, openingBalance: Decimal("999.00"), isActive: false)
+        for account in [current, savings, broker, pillar, archived] { context.insert(account) }
+
+        XCTAssertEqual(
+            service.accessibleSavings(accounts: [current, savings, broker, pillar, archived]),
+            Decimal("2300.00"),
+            "L'épargne accessible = comptes d'épargne actifs SEULEMENT — ni quotidien, ni titres, ni prévoyance, ni archivés"
+        )
+    }
+
+    func testLiquidWealthCountsEachFrancExactlyOnce() {
+        // Reflet de la fixture de parité n° 6 : 104'700 au quotidien
+        // + 2'300 d'épargne = 107'000 de fortune liquide.
+        let current = Account(name: "Courant", type: .current, openingBalance: Decimal("104700.00"))
+        let savings = Account(name: "Épargne", type: .savings, openingBalance: Decimal("2300.00"))
+        context.insert(current)
+        context.insert(savings)
+        XCTAssertEqual(
+            service.liquidWealth(accounts: [current, savings]),
+            Decimal("107000.00"),
+            "Fortune liquide = disponible maintenant + épargne accessible"
+        )
+
+        // Un compte d'épargne marqué « compte dans le cash disponible »
+        // porte les deux qualités — il ne doit être compté qu'UNE fois.
+        let both = Account(name: "Épargne quotidienne", type: .savings, openingBalance: Decimal("1000.00"), includeInAvailableCash: true)
+        context.insert(both)
+        XCTAssertEqual(
+            service.liquidWealth(accounts: [current, savings, both]),
+            Decimal("108000.00"),
+            "Aucun double comptage : chaque franc vit une seule fois dans la fortune liquide"
+        )
+    }
+
+    func testSetAsideFlowsCountPostedSavingAndInvestmentOnly() {
+        let current = Account(name: "Courant", type: .current, openingBalance: Decimal("5000.00"))
+        let savings = Account(name: "Épargne", type: .savings, openingBalance: Decimal("1000.00"))
+        context.insert(current)
+        context.insert(savings)
+        let june = calendar.dateInterval(of: .month, for: now)!
+        let posted = BudgetTransaction(
+            date: now, amount: Decimal("300.00"), type: .saving,
+            title: "Mise de côté", account: current, destinationAccount: savings
+        )
+        let invested = BudgetTransaction(
+            date: now, amount: Decimal("200.00"), type: .investment,
+            title: "Titres", account: current, destinationAccount: savings
+        )
+        // Le PRÉVU n'entre jamais dans un flux « mis de côté » : une
+        // projection n'est pas de l'argent possédé (règle d'or FE2).
+        let planned = BudgetTransaction(
+            date: now, amount: Decimal("500.00"), type: .saving, status: .planned,
+            title: "Prévu", account: current, destinationAccount: savings
+        )
+        let expense = BudgetTransaction(
+            date: now, amount: Decimal("80.00"), type: .expense,
+            title: "Courses", account: current
+        )
+        let lastYear = BudgetTransaction(
+            date: now.addingTimeInterval(-400 * 86_400), amount: Decimal("700.00"), type: .saving,
+            title: "Vieille mise de côté", account: current, destinationAccount: savings
+        )
+        for transaction in [posted, invested, planned, expense, lastYear] { context.insert(transaction) }
+
+        let all = [posted, invested, planned, expense, lastYear]
+        XCTAssertEqual(
+            AccountsTab.setAsideFlows(all, from: june.start, to: june.end),
+            Decimal("500.00"),
+            "Le flux du mois = mises de côté et investissements COMPTABILISÉS du mois"
+        )
+        let year = calendar.dateInterval(of: .year, for: now)!
+        XCTAssertEqual(
+            AccountsTab.setAsideFlows(all, from: year.start, to: year.end),
+            Decimal("500.00"),
+            "Le flux de l'année ignore l'an dernier, le prévu et les dépenses"
+        )
+    }
+
     // MARK: - Snapshots
 
     func testSnapshotRecordedAtMostOncePerDay() throws {

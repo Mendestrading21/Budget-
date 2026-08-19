@@ -51,6 +51,24 @@ struct NetWorthService {
         )
     }
 
+    /// FE2-4 : « Épargne accessible » — le STOCK des comptes d'épargne
+    /// actifs, même définition que la PWA (les titres, la prévoyance et
+    /// le quotidien n'en font pas partie).
+    func accessibleSavings(accounts: [Account]) -> Decimal {
+        accounts
+            .filter { $0.isActive && $0.type == .savings }
+            .reduce(.zero) { $0 + balanceService.balance(of: $1) }
+    }
+
+    /// FE2-4 : « Fortune liquide » — l'argent mobilisable vite :
+    /// disponible au quotidien + épargne accessible. Un compte qui porte
+    /// les deux qualités n'est compté qu'UNE fois.
+    func liquidWealth(accounts: [Account]) -> Decimal {
+        accounts
+            .filter { $0.isActive && ($0.includeInAvailableCash || $0.type == .savings) }
+            .reduce(.zero) { $0 + balanceService.balance(of: $1) }
+    }
+
     /// Records today's snapshot unless one already exists for this
     /// calendar day. Returns the recorded snapshot, or nil when today is
     /// already covered.

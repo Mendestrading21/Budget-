@@ -117,6 +117,7 @@ struct NetWorthView: View {
                 VStack(spacing: BudgetSpacing.medium) {
                     heroCard
                     projectionCard
+                    liquidWealthCard
                     trendCard
                     assetsSection
                     liabilitiesSection
@@ -224,6 +225,30 @@ struct NetWorthView: View {
                 .foregroundStyle(amount < 0 ? BudgetColor.negative : .primary)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Fortune liquide (FE2-4)
+
+    /// La fortune LIQUIDE vit à côté de la fortune totale — l'argent
+    /// mobilisable vite (quotidien + épargne accessible), jamais confondu
+    /// avec le tout. Même formule que la carte « Ma fortune » des Comptes
+    /// (NetWorthService, source unique).
+    private var liquidWealthCard: some View {
+        let fortuneLiquide = service.liquidWealth(accounts: accounts)
+        return GlassCard {
+            VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
+                Text("Fortune liquide")
+                    .font(BudgetFont.cardLabel)
+                    .foregroundStyle(.secondary)
+                AmountText(amount: fortuneLiquide, emphasis: fortuneLiquide < 0 ? .negative : .neutral)
+                Text("Compte courant, espèces et épargne accessible — mobilisable vite.")
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Fortune liquide : \(FinanceFormatting.chf(fortuneLiquide))")
+            .accessibilityIdentifier("networth.liquidWealth")
+        }
     }
 
     // MARK: - Trend

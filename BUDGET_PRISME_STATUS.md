@@ -586,6 +586,33 @@ nouveaux agrégats (`savingsAccessible` 2'300, `liquidWealth` 107'000,
 sur l'écart annuel → la fixture 6 mord exactement (écart de 30'000).
 Suites : 6 parités + 155 e2e + design, vertes.
 
+**FE2-4 — Les vues d'argent natives (Comptes / Épargne / Patrimoine)** ·
+en PR. Parité iOS des cartes FE2-1 :
+
+- Comptes : héros renommé « Disponible maintenant » (caption « Sur vos
+  comptes utilisables au quotidien ») ; carte « Ma fortune » (Épargne
+  accessible / Fortune liquide / Fortune totale — fortune totale lue
+  dans `NetWorthService.breakdown`, la MÊME décomposition que l'écran
+  Patrimoine, jamais un recalcul local) ; carte « Épargne » (stock
+  « Épargne actuelle » d'un côté, flux « Mis de côté ce mois / cette
+  année » de l'autre, jamais additionnés).
+- Patrimoine : carte « Fortune liquide » (quotidien + épargne
+  accessible, « mobilisable vite ») à côté de la fortune totale.
+- Moteur : `NetWorthService.accessibleSavings` (comptes `savings`
+  actifs seulement — ni titres, ni prévoyance, ni quotidien, comme la
+  PWA) et `NetWorthService.liquidWealth` (union des qualités — un
+  compte d'épargne aussi marqué « cash disponible » n'est compté
+  qu'UNE fois, garde-fou absent de la PWA). `AccountsTab.setAsideFlows`
+  ne compte que les mises de côté/investissements COMPTABILISÉS de
+  l'intervalle — le prévu n'entre jamais dans un flux.
+- Tests : `testAccessibleSavingsIsTheStockOfActiveSavingsAccountsOnly`,
+  `testLiquidWealthCountsEachFrancExactlyOnce` (reflet de la fixture
+  n° 6 : 104'700 + 2'300 = 107'000),
+  `testSetAsideFlowsCountPostedSavingAndInvestmentOnly`.
+  Contrôles négatifs structurels : titres dans l'épargne accessible →
+  2'800 ≠ 2'300 ; double comptage → 109'000 ≠ 108'000 ; prévu compté →
+  1'000 ≠ 500. Exécution par la CI (pas de simulateur local).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
@@ -699,11 +726,12 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 ## Prochaine action exacte
 
 Registre P00–P18 : terminé. Améliorations continues A1–A22 : livrées.
-Programme FE2 (moteur financier V2) : **terminé et publié** — FE2-0/1/2/3
-fusionnés, publication par dispatch au SHA `4758e472`
-(run `32189154462`, succès). Candidats suivants, sur demande du
-propriétaire : FE2-4 (vues natives Comptes/Épargne/Patrimoine alignées
-sur les cartes PWA), détail « où va l'épargne ». Discipline inchangée :
-audit, tests rouges d'abord, contrôle négatif, suites complètes,
-captures inspectées, PR, CI verte sur le HEAD exact, fusion squash,
-publication au SHA de merge.
+Programme FE2 (moteur financier V2) : FE2-0/1/2/3 **publiés** (dispatch
+au SHA `4758e472`, run `32189154462`, succès) ; FE2-4 (vues natives) en
+PR. Cap propriétaire (18.08.2026) : **terminer Budget 1.0** — après
+FE2-4 : audit « créances » (rapport avant tout code), audit release
+final (`BUDGET_1_0_READINESS.md` + `repository-audit.mjs` à créer),
+rapport RELEASE READY et ARRÊT avant tout tag v1.0.0. Discipline
+inchangée : audit, tests rouges d'abord, contrôle négatif, suites
+complètes, captures inspectées, PR, CI verte sur le HEAD exact, fusion
+squash, publication au SHA de merge.
