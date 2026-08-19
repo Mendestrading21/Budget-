@@ -1,5 +1,44 @@
 # Budget decision log
 
+## ADR-034 — La provision d'impôts est OPT-IN : aucun impôt calculé automatiquement
+
+Date: 2026-08-19
+Status: accepted
+
+### Contexte
+
+Ordre du propriétaire pendant sa QA de la v1.0.0 : « ne calcule pas les
+impôts automatiquement — c'est moi qui les mets comme dépenses. » Depuis
+A18, l'onboarding suisse posait silencieusement un taux de 30 % ; le
+Moteur V2 en déduisait un effort mensuel de la projection (FE2-0) —
+mathématiquement juste, mais de l'argent « sortait » sans qu'aucune
+facture n'existe (incident de lisibilité FE2-10).
+
+### Décision
+
+1. AUCUN taux implicite nulle part : `COUNTRIES.CH.taxRate` 0,
+   gabarit d'état vierge 0, assainisseur 0, fallback de `snapshot()` 0,
+   restauration 0, `Household`/`TaxProfile`/`OnboardingViewModel`
+   natifs à zéro, fallbacks de `TaxService`/`MonthlySnapshotService`/
+   `TaxesView` à zéro.
+2. La provision reste disponible en OPT-IN : l'utilisateur choisit un
+   taux (0–60 %, borne A17) dans Gérer → Impôts ; toutes les formules
+   FE2 (effort mensuel, écart anticipé) fonctionnent alors comme avant.
+3. Les impôts payés se saisissent comme des mouvements (type
+   « impôts » ou dépense) — la vérité vient des gestes de l'utilisateur.
+4. La DÉMO garde un taux de 30 % : elle montre la fonction activée.
+5. Les données existantes ne sont PAS réécrites (un taux déjà en place
+   reste en place — le propriétaire passe le sien à 0 % d'un geste).
+
+### Vérification
+
+Parcours e2e 56 réécrit (né rouge : taux 0.3 appliqué, effort 1500
+calculé sans consentement) ; tests natifs des défauts mis à zéro
+(`OnboardingViewModelTests`, `PersistenceFoundationTests`) ; les tests
+de comportement fiscal passent tous un taux EXPLICITE
+(`UnifiedTaxReserveTests`, `MonthlySnapshotServiceTests`,
+`TaxServiceTests`) — le moteur n'a pas changé, seul le défaut.
+
 ## ADR-033 — Budget 1.0 : les créances (« ce qu'on me doit ») sont exclues
 
 Date: 2026-08-18

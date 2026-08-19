@@ -34,8 +34,9 @@ final class OnboardingViewModel {
     var canton: SwissCanton = .VD
     var municipality: String = ""
 
-    // Impôts — fraction (0.30 = 30 %)
-    var taxProvisionRate: Decimal = Decimal("0.30")
+    // Impôts — fraction (0.30 = 30 %). FE2-11 : opt-in — zéro tant que
+    // l'utilisateur n'a pas choisi un taux dans Gérer → Impôts.
+    var taxProvisionRate: Decimal = .zero
 
     // Premier compte
     var accountName: String = "Compte courant"

@@ -1975,11 +1975,16 @@ await p56.click("[data-obskipgoal]");
 await p56.waitForSelector("#tabbar button", { timeout: 10000 });
 const final56 = await p56.evaluate(() => ({
   taxRate: S.taxRate,
+  effort: snapshot(NOW.y, NOW.m).taxMonthlyEffort,
   salary: RECURRINGS.find(r => r.type === "income")?.amount,
   accounts: ACCOUNTS.length,
   saved: localStorage.getItem(APP_STATE_KEY) !== null,
 }));
-check(final56.taxRate === 0.30, `sans question à l'onboarding, le taux par défaut du pays s'applique (obtenu ${final56.taxRate})`);
+// FE2-11 (décision propriétaire, 19.08.2026) : AUCUN impôt calculé
+// automatiquement — la provision est OPT-IN. Le taux démarre à zéro,
+// même en Suisse ; il ne s'active que dans Gérer → Impôts.
+check(final56.taxRate === 0, `aucun impôt automatique : le taux démarre à zéro (obtenu ${final56.taxRate})`);
+check(final56.effort === 0, `sans taux choisi, l'effort d'impôts du mois est nul même avec un salaire régulier (obtenu ${final56.effort})`);
 check(final56.salary === 5000, "le salaire facultatif devient un paiement régulier existant");
 check(final56.accounts >= 2 && final56.saved, "la finalisation crée les comptes et écrit l'état UNE fois");
 await ctx56.close();

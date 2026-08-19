@@ -28,7 +28,9 @@ final class Household {
         baseCurrencyCode: String = "CHF",
         canton: String = "",
         municipality: String = "",
-        taxProvisionRate: Decimal = Decimal("0.30"),
+        // FE2-11 (decision proprietaire, 19.08.2026) : AUCUN impot calcule
+        // automatiquement - la provision est opt-in, le taux demarre a zero.
+        taxProvisionRate: Decimal = .zero,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         members: [HouseholdMember] = []

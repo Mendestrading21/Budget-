@@ -51,7 +51,7 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertFalse(
             OnboardingStep.allCases.map { String(describing: $0) }.contains("taxRate")
         )
-        XCTAssertEqual(makeValidModel().taxProvisionRate, Decimal("0.30"))
+        XCTAssertEqual(makeValidModel().taxProvisionRate, .zero, "FE2-11 : aucun impot automatique, opt-in")
         XCTAssertEqual(TaxService.maximumProvisionRate, Decimal("0.60"))
     }
 
@@ -85,7 +85,7 @@ final class OnboardingViewModelTests: XCTestCase {
         let household = try XCTUnwrap(households.first)
         XCTAssertEqual(household.name, "Famille Test")
         XCTAssertEqual(household.canton, "GE")
-        XCTAssertEqual(household.taxProvisionRate, Decimal("0.30"))
+        XCTAssertEqual(household.taxProvisionRate, .zero, "FE2-11 : le menage demarre sans provision d'impots")
         XCTAssertEqual(household.members.count, 1)
         XCTAssertEqual(household.members.first?.role, .owner)
 

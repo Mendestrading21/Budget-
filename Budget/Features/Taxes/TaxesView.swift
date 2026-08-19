@@ -45,7 +45,7 @@ struct TaxesView: View {
             profile: profile,
             provision: provision,
             transactions: transactions,
-            fallbackRate: households.first?.taxProvisionRate ?? Decimal("0.30")
+            fallbackRate: households.first?.taxProvisionRate ?? .zero
         )
     }
 
@@ -301,7 +301,7 @@ struct TaxesView: View {
     private func amountSheet(for kind: SheetKind) -> some View {
         let (title, footer, initial): (String, String, Decimal?) = switch kind {
         case .rate:
-            ("Votre taux", "La part de vos revenus que vous mettez de côté. 30 %, c'est un simple point de départ : ni un taux officiel, ni une recommandation.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? Decimal("0.30")) * 100)
+            ("Votre taux", "La part de vos revenus que vous mettez de côté. Zéro tant que vous n'avez rien choisi : l'app ne calcule aucun impôt à votre place.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? .zero) * 100)
         case .reserved:
             ("Déjà mis de côté", "L'argent que vous avez déjà réservé pour vos impôts \(String(currentYear)).", provision?.reservedAmount)
         case .arrears:
