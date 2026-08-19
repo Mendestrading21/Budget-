@@ -398,8 +398,29 @@ final class DemoTourUITests: XCTestCase {
         while centering < 8 {
             let f = chart.frame
             if f.minY >= viewport.minY + 40 && f.maxY <= viewport.maxY - 120 { break }
-            let from = CGVector(dx: 0.5, dy: f.midY > viewport.midY ? 0.7 : 0.45)
-            let to = CGVector(dx: 0.5, dy: f.midY > viewport.midY ? 0.45 : 0.7)
+            // FE2-4 : le glissement de recentrage doit COMMENCER hors de
+            // la courbe — son geste de lecture (DragGesture à distance
+            // minimale nulle) capture tout toucher qui naît dessus et la
+            // liste ne défile alors jamais (run Demo 32223166455 : la
+            // carte « Fortune liquide » avait décalé la courbe pile sous
+            // l'ancien point fixe dy 0.7).
+            let up = f.midY > viewport.midY
+            // Deuxième passe (run 32224285413) : quand la courbe est
+            // ENTIÈREMENT sous le viewport, « f.minY − 50 » sort du
+            // cadre du scroll et le geste ne défile rien. Le départ
+            // reste donc TOUJOURS dans le viewport, et n'évite la
+            // courbe que si elle le chevauche réellement.
+            var startY = up ? viewport.maxY - 80 : viewport.minY + 80
+            if startY > f.minY - 10 && startY < f.maxY + 10 {
+                startY = up
+                    ? max(viewport.minY + 60, f.minY - 50)
+                    : min(viewport.maxY - 60, f.maxY + 50)
+            }
+            let endY = up
+                ? max(viewport.minY + 40, startY - 150)
+                : min(viewport.maxY - 40, startY + 150)
+            let from = CGVector(dx: 0.5, dy: (startY - viewport.minY) / viewport.height)
+            let to = CGVector(dx: 0.5, dy: (endY - viewport.minY) / viewport.height)
             scroll.coordinate(withNormalizedOffset: from)
                 .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: to))
             centering += 1
