@@ -702,7 +702,10 @@ de preuve soldées :
   liquide » ajoutées aux preuves nommées du Patrimoine (avant ET après
   défilement). Validé par un run Demo sur la branche.
 
-**FE2-10 — La décomposition nomme l'impôt à mettre de côté** · en PR.
+**FE2-10 — La décomposition nomme l'impôt à mettre de côté** ·
+`MERGED` + `PUBLISHED` — PR #85 fusionnée en squash, `main` =
+`51d3f740`, CI verte sur le HEAD exact puis sur `main` ; publié par
+dispatch au SHA exact (run `32283259619`, succès) le 19.08.2026.
 Premier retour terrain de la v1.0.0 (capture propriétaire : « pourquoi
 sortir 600 alors que je n'ai pas de facture ? ») : la ligne « à
 sortir » de la position « Fin du mois » fondait l'effort d'impôts du
