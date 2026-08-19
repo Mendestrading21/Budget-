@@ -1,5 +1,37 @@
 # Budget decision log
 
+## ADR-033 — Budget 1.0 : les créances (« ce qu'on me doit ») sont exclues
+
+Date: 2026-08-18
+Status: accepted
+
+### Contexte
+
+Question propriétaire pour la release 1.0 : Budget possède-t-il un vrai
+modèle de créances (argent que d'autres doivent au ménage), distinct des
+dettes ? Audit du dépôt (natif + web) : AUCUN modèle, écran, type ou
+migration « créance » n'existe — la fonctionnalité n'est pas inachevée,
+elle est absente. Les seuls voisins sont le type de mouvement `refund`
+(« Remboursement reçu » — un flux ponctuel, sans suivi d'encours) et les
+actifs libres du Patrimoine.
+
+### Décision
+
+1. Les créances sont EXCLUES de Budget 1.0 : ajouter en fin de cycle un
+   modèle financier avec migrations et parité web↔natif à prouver serait
+   exactement la « fonctionnalité à moitié » que le propriétaire refuse.
+2. Contournement honnête documenté : un prêt accordé se note comme actif
+   libre du Patrimoine (« Prêt à … »), mis à jour à la main ; chaque
+   remboursement reçu se saisit comme mouvement « Remboursement reçu ».
+3. Un vrai module de créances (encours, échéances, lien avec les
+   remboursements) est un candidat FE3, à spécifier par le propriétaire.
+
+### Vérification
+
+`grep -ri "créance|receivable|on me doit"` sur Budget/, BudgetTests/,
+webapp/ : zéro occurrence applicative. `BUDGET_1_0_READINESS.md` § 3
+porte la décision ; aucun modèle ni migration touché.
+
 ## ADR-032 — Budget Prisme : une matière et une iconographie propres
 
 Date: 2026-08-14
