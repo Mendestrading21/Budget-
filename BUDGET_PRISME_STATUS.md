@@ -618,6 +618,21 @@ ADR-033 créances). Parité iOS des cartes FE2-1 :
   2'800 ≠ 2'300 ; double comptage → 109'000 ≠ 108'000 ; prévu compté →
   1'000 ≠ 500. Exécution par la CI (pas de simulateur local).
 
+**FE2-5 — Une seule définition de « Fortune liquide » (PWA)** · en PR.
+L'audit FE2-4 a révélé deux formules web pour la même étiquette :
+Comptes additionnait « cash disponible + épargne » (un compte d'épargne
+aussi marqué cash était compté DEUX fois), le Patrimoine additionnait
+les genres current/cash/savings (ignorant le choix « ne compte pas
+dans le cash disponible »). Désormais `snapshot().liquidWealth` est
+l'union des comptes cash et des comptes d'épargne — chaque franc UNE
+fois, la même règle que le natif (`NetWorthService.liquidWealth`,
+FE2-4) — et les cartes Comptes + Patrimoine LISENT le moteur au lieu
+de recalculer. Parcours 156 né rouge (3 échecs exacts : 7'300 ≠ 7'000,
+double compte de 300, Patrimoine à 8'000), vert après correctif ;
+contrôle négatif : carte Patrimoine rebranchée sur les genres → le 156
+remord seul. Suites : 156 e2e + 6 parités + design, vertes (fixture 6
+inchangée au centime).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
