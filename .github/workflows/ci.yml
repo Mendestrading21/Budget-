@@ -15,7 +15,11 @@ jobs:
   web-tests:
     name: Web (e2e navigateur réel)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 15 minutes tuaient les runs quand le CDN Playwright traînait : le
+    # téléchargement de Chromium pendait, le job partait en « cancelled »
+    # (runs 32226819348, 32228559711, 32230552234). La suite e2e à 156
+    # parcours prend ~8 min ; 25 min laissent la marge honnête.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,6 +28,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # Le navigateur ne se retélécharge plus à chaque run — c'était la
+      # source des pendaisons. Clé figée sur la version épinglée.
+      - name: Cache du navigateur Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-1.61.1-${{ runner.os }}
 
       - name: Dépendances (Playwright + Chromium)
         working-directory: webapp/tests
