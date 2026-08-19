@@ -689,6 +689,19 @@ Réconciliée du premier coup ; contrôle négatif : somme naïve
 rebranchée → la fixture mord seule (obtenu 1'300, attendu 1'000).
 Suites : 7 parités + 156 e2e + design, vertes.
 
+**FE2-9 — Preuves visuelles des vues d'argent** · en PR. Deux dettes
+de preuve soldées :
+- **Web** : captures 390 px de l'état DISCRIMINANT de FE2-5 (compte
+  d'épargne aussi « cash disponible ») — Comptes et Patrimoine disent
+  tous deux Fortune liquide **1'000** (jamais 1'300 ni 2'000), moteur
+  vérifié en page avant capture, inspectées réellement —
+  `docs/neon-ultra/budget-prisme/fe2-5/`.
+- **Natif** : le tour Demo PROUVE désormais les cartes FE2-4/6 au lieu
+  de les traverser — « Ma fortune » et « Épargne » assertées sur
+  Comptes avant la capture ; « Mis de côté en <année> » et « Fortune
+  liquide » ajoutées aux preuves nommées du Patrimoine (avant ET après
+  défilement). Validé par un run Demo sur la branche.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
