@@ -4,7 +4,7 @@ Ce document est la SEULE liste de contrôle de la release 1.0. Une case
 n'est cochée qu'avec une preuve réelle (run CI, SHA, test observé) —
 jamais sur parole. Il est tenu à jour lot par lot.
 
-Dernière mise à jour : 18.08.2026 (création du registre).
+Dernière mise à jour : 19.08.2026 (publication finale + verdict).
 
 ## 1. Programmes terminés
 
@@ -20,8 +20,8 @@ Dernière mise à jour : 18.08.2026 (création du registre).
 - [x] **FE2-4 — vues natives Comptes/Épargne/Patrimoine** : PR #72
       fusionnée en squash, `main` = `d7e18b9e`, CI verte sur le HEAD
       exact `b589a73` (web + iOS, dont les trois nouveaux tests
-      `NetWorthServiceTests`). Publication portée par le prochain
-      dispatch Pages.
+      `NetWorthServiceTests`). Publié par dispatch au SHA final
+      `b5e6e161` (run `32221728707`, succès).
 
 ## 2. Vérité financière et parité
 
@@ -79,7 +79,9 @@ prouver), Budget 1.0 assume :
       iOS) verts sur chaque PR et sur `main` (hors étape « Déployer »,
       bloquée par la règle d'environnement — échec attendu documenté).
 - [x] Publication Pages par dispatch de `pages.yml` au SHA exact —
-      dernière publication : run `32189154462` au SHA `4758e472`.
+      dernière publication : run `32221728707` au SHA `b5e6e161`
+      (état final : FE2-0..4 + registre 1.0 + audit + ADR-033), succès
+      le 19.08.2026.
 - [ ] Workflow `testflight.yml` : présent, jamais exécuté — exige les
       4 secrets Apple décrits dans `TESTFLIGHT_SETUP.md` (propriétaire).
 
@@ -98,7 +100,14 @@ prouver), Budget 1.0 assume :
 
 ## 7. Verdict courant
 
-`EN COURS` — FE2-4 en PR ; audit release en cours dans le même lot que
-ce registre. Le verdict final (READY FOR TESTFLIGHT / READY FOR v1.0.0
-/ BLOCKED) sera posé dans le rapport de fin, et le tag `v1.0.0` ne
-sera JAMAIS créé sans l'accord explicite du propriétaire.
+**READY FOR TESTFLIGHT (côté code)** — 19.08.2026, `main` =
+`b5e6e161` : programmes P00–P18 / A1–A22 / FE2-0..4 fusionnés et
+publiés, 155 parcours e2e + 6 parités + design verts, 341 tests iOS
+0 échec observés sur le SHA exact, audit release 33/33 PASS, aucun
+P0/P1 ouvert.
+
+`v1.0.0` reste BLOQUÉ par les seules actions propriétaire (§ 6) :
+secrets Apple + premier run TestFlight, QA iPhone réel
+(`MANUAL_QA_CHECKLIST.md` — haptique/biométrie), décisions App Store,
+et idéalement l'environnement github-pages ouvert à `main`. Le tag
+`v1.0.0` ne sera JAMAIS créé sans l'accord explicite du propriétaire.
