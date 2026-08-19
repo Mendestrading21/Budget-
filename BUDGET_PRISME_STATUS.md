@@ -702,6 +702,19 @@ de preuve soldées :
   liquide » ajoutées aux preuves nommées du Patrimoine (avant ET après
   défilement). Validé par un run Demo sur la branche.
 
+**FE2-10 — La décomposition nomme l'impôt à mettre de côté** · en PR.
+Premier retour terrain de la v1.0.0 (capture propriétaire : « pourquoi
+sortir 600 alors que je n'ai pas de facture ? ») : la ligne « à
+sortir » de la position « Fin du mois » fondait l'effort d'impôts du
+mois avec les vraies sorties — chiffre juste, étiquette mensongère.
+Désormais chaque terme réel est NOMMÉ (« − X d'impôts à mettre de
+côté ») et un terme à zéro se tait, sur les deux plateformes
+(`noteFinMois` web ↔ `HomePilotDisplay.forecastDecomposition`).
+Parcours 157 né rouge (« 1'009.90 à sortir » = 109.90 réels + 900
+d'impôts fondus) ; test natif des deux sens ; capture de l'état exact
+du propriétaire inspectée (`docs/neon-ultra/budget-prisme/fe2-10/`).
+Aucune formule touchée — le moteur disait déjà vrai.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
