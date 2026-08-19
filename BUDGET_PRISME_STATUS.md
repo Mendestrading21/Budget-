@@ -640,7 +640,9 @@ contrôle négatif : carte Patrimoine rebranchée sur les genres → le 156
 remord seul. Suites : 156 e2e + 6 parités + design, vertes (fixture 6
 inchangée au centime).
 
-**FE2-6 — « Mis de côté en 2026 » dans le Patrimoine natif** · en PR.
+**FE2-6 — « Mis de côté en 2026 » dans le Patrimoine natif** ·
+`MERGED` + `PUBLISHED` — PR #78 fusionnée en squash, `main` =
+`eb0a7414`, CI verte + tour Demo vert sur le HEAD exact.
 Dernière vue d'épargne manquante à la parité : la PWA montre, par
 classe de placement (Épargne / Bourse / Prévoyance), le flux de
 l'année et le total depuis toujours — le Patrimoine natif gagne la
@@ -651,8 +653,11 @@ ACTIFS d'une classe (source unique, testée :
 l'année ne mélange pas 2025). Stock ≠ flux : la carte n'additionne
 jamais ces montants aux soldes. Tour Demo re-prouvé sur la branche.
 
-**FE2-7 — Barre de composition du héros Patrimoine natif** · en
-préparation (branche empilée sur FE2-6). La PWA montre sous la
+**FE2-7 — Barre de composition du héros Patrimoine natif** ·
+`MERGED` + `PUBLISHED` — PR #79 fusionnée en squash, `main` =
+`e3197105`, CI verte + tour Demo vert sur le HEAD exact `7e45038`
+(l'invite de la courbe n'est exigée qu'avant toute lecture — le
+défilement du tour peut l'effleurer, « dernière lecture conservée »). La PWA montre sous la
 décomposition la part de chaque classe positive du patrimoine BRUT
 (Sur vos comptes / Vos biens / Prévoyance) avec sa légende en % ; le
 héros natif gagne la même barre. Rampe NON sémantique portée en
@@ -660,6 +665,19 @@ tokens (`NeonUltraColor.series1..3` = `--series-1..3` exacts). Les
 dettes ne colorent jamais la barre — elles restent dans la
 décomposition. Tests : `testCompositionPartsKeepOnlyPositiveClasses`
 (classe négative sans part, 60 % exact, zéro sûr).
+
+**CI durcie (PR #80 + PR #81)** · `MERGED` — le job web gelait par
+périodes : d'abord marge (cache du navigateur Playwright + timeout
+25 min, `main` = `d4606aab`), puis cause racine (le miroir apt
+`azure.archive.ubuntu.com` pendait, appelé par `--with-deps` — 25 min
+de silence au log du run `32236297184`) : plus AUCUN appel apt dans le
+job (`main` = `28bb9c01`). Preuve : Web vert du premier coup sur les
+runs suivants.
+
+**Publication finale du cycle** : dispatch au SHA exact `28bb9c01`
+(run `32239926920`, succès, 19.08.2026) — l'app en ligne porte
+FE2-0..7 ; les lots FE2-6/7 sont natifs (la PWA publiée est celle de
+`0091d449`, inchangée depuis).
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
