@@ -103,6 +103,14 @@ prouver), Budget 1.0 assume :
 
 ## 7. Verdict courant
 
+**v1.0.0 ordonnée par le propriétaire** (19.08.2026, « tag v1.0.0 ») :
+le tag et la Release se créent par le workflow `release.yml` (le proxy
+git de l'agent ne pousse pas de tags) — dispatch au SHA exact de
+`main`. Réserve consignée : la QA iPhone réel (haptique, Face ID,
+VoiceOver) reste `PENDING HUMAN` — la release l'affiche honnêtement.
+
+### Verdict au moment de l'audit
+
 **READY FOR TESTFLIGHT (côté code)** — 19.08.2026, `main` =
 `b5e6e161` : programmes P00–P18 / A1–A22 / FE2-0..4 fusionnés et
 publiés, 155 parcours e2e + 6 parités + design verts, 341 tests iOS
