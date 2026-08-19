@@ -587,7 +587,12 @@ sur l'écart annuel → la fixture 6 mord exactement (écart de 30'000).
 Suites : 6 parités + 155 e2e + design, vertes.
 
 **FE2-4 — Les vues d'argent natives (Comptes / Épargne / Patrimoine)** ·
-en PR. Parité iOS des cartes FE2-1 :
+`MERGED` + `PUBLISHED` — PR #72 fusionnée en squash, `main` =
+`d7e18b9e`, CI verte sur le HEAD exact `b589a73` puis sur `main` ;
+publié par dispatch au SHA final `b5e6e161` (run `32221728707`,
+succès) le 19.08.2026, avec le lot audit 1.0 (PR #73 : registre
+`BUDGET_1_0_READINESS.md`, script `repository-audit.mjs` 33/33 PASS,
+ADR-033 créances). Parité iOS des cartes FE2-1 :
 
 - Comptes : héros renommé « Disponible maintenant » (caption « Sur vos
   comptes utilisables au quotidien ») ; carte « Ma fortune » (Épargne
@@ -725,13 +730,15 @@ Ces éléments sont des hypothèses d'audit à reproduire avant correction :
 
 ## Prochaine action exacte
 
-Registre P00–P18 : terminé. Améliorations continues A1–A22 : livrées.
-Programme FE2 (moteur financier V2) : FE2-0/1/2/3 **publiés** (dispatch
-au SHA `4758e472`, run `32189154462`, succès) ; FE2-4 (vues natives) en
-PR. Cap propriétaire (18.08.2026) : **terminer Budget 1.0** — après
-FE2-4 : audit « créances » (rapport avant tout code), audit release
-final (`BUDGET_1_0_READINESS.md` + `repository-audit.mjs` à créer),
-rapport RELEASE READY et ARRÊT avant tout tag v1.0.0. Discipline
+Registre P00–P18, améliorations A1–A22, programme FE2-0..4 : terminés,
+fusionnés et **publiés** (dernier dispatch au SHA `b5e6e161`, run
+`32221728707`, succès, 19.08.2026). Audit « créances » : exclusion
+documentée (ADR-033). Audit release : `BUDGET_1_0_READINESS.md` +
+`repository-audit.mjs` 33/33 PASS. Verdict courant :
+**READY FOR TESTFLIGHT (côté code)** — voir le registre 1.0 ; le tag
+`v1.0.0` attend les actions propriétaire (secrets Apple, QA iPhone,
+décisions App Store) et son accord explicite. Prochain travail agent
+seulement sur demande : FE3 (créances) ou finitions. Discipline
 inchangée : audit, tests rouges d'abord, contrôle négatif, suites
-complètes, captures inspectées, PR, CI verte sur le HEAD exact, fusion
-squash, publication au SHA de merge.
+complètes, PR, CI verte sur le HEAD exact, fusion squash, publication
+au SHA de merge.
