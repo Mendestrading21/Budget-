@@ -1,0 +1,48 @@
+name: Release
+
+# Crée le tag annoté et la Release GitHub depuis Actions — le proxy git
+# de l'agent ne peut pas pousser de tags (403), et la création reste
+# ainsi un acte EXPLICITE : un humain ou un ordre humain déclenche, le
+# SHA visé doit appartenir à main.
+#
+# GitHub → Actions → Release → Run workflow (tag + sha complets).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag à créer (ex. v1.0.0)"
+        required: true
+      sha:
+        description: "SHA complet de main à taguer"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag + Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout complet
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Le SHA doit appartenir à main
+        run: |
+          git cat-file -e "${{ inputs.sha }}^{commit}"
+          git merge-base --is-ancestor "${{ inputs.sha }}" origin/main
+          echo "SHA ${{ inputs.sha }} ✓ sur main"
+
+      - name: Créer le tag annoté et la Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag }}" \
+            --target "${{ inputs.sha }}" \
+            --title "Budget ${{ inputs.tag }}" \
+            --notes-file .github/RELEASE_NOTES_1_0_0.md
