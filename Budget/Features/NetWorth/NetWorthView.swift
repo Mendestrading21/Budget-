@@ -205,6 +205,7 @@ struct NetWorthView: View {
                     breakdownRow("Dettes", -breakdown.liabilitiesTotal)
                 }
                 .padding(.top, BudgetSpacing.micro)
+                compositionBar
                 // Fraîcheur : la fortune est dérivée des données du jour.
                 Text("Vos comptes, vos biens et votre prévoyance, moins ce que vous devez.")
                     .font(BudgetFont.caption)
@@ -212,6 +213,64 @@ struct NetWorthView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Tout ce qui est à vous : \(FinanceFormatting.chf(breakdown.netWorth))")
+        }
+    }
+
+    // MARK: - Composition (FE2-7)
+
+    /// Parts de la composition du patrimoine BRUT — classes positives
+    /// seulement ; les dettes se lisent dans la décomposition, jamais
+    /// dans la barre. Statique et testé.
+    static func compositionParts(_ breakdown: NetWorthBreakdown) -> [(label: String, value: Decimal)] {
+        [
+            ("Sur vos comptes", max(.zero, breakdown.accountsTotal)),
+            ("Vos biens", max(.zero, breakdown.assetsTotal)),
+            ("Prévoyance", max(.zero, breakdown.pensionTotal)),
+        ].filter { $0.1 > 0 }
+    }
+
+    /// Pourcentage entier d'une part — zéro sûr quand le brut est nul.
+    static func percentage(_ value: Decimal, of gross: Decimal) -> Int {
+        guard gross > 0 else { return 0 }
+        let ratio = NSDecimalNumber(decimal: value).doubleValue
+            / NSDecimalNumber(decimal: gross).doubleValue
+        return Int((ratio * 100).rounded())
+    }
+
+    /// La même barre de composition que le héros Patrimoine de la PWA :
+    /// visible dès deux classes positives, rampe non sémantique.
+    @ViewBuilder
+    private var compositionBar: some View {
+        let parts = Self.compositionParts(breakdown)
+        let gross = parts.reduce(Decimal.zero) { $0 + $1.value }
+        if parts.count >= 2, gross > 0 {
+            let colors: [Color] = [NeonUltraColor.series1, NeonUltraColor.series2, NeonUltraColor.series3]
+            let legend = parts.enumerated()
+                .map { "\($0.element.label) \(Self.percentage($0.element.value, of: gross)) %" }
+                .joined(separator: " · ")
+            VStack(alignment: .leading, spacing: BudgetSpacing.micro) {
+                GeometryReader { geo in
+                    HStack(spacing: 0) {
+                        ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                            Rectangle()
+                                .fill(colors[index % colors.count])
+                                .frame(width: geo.size.width
+                                    * CGFloat(NSDecimalNumber(decimal: part.value).doubleValue
+                                        / NSDecimalNumber(decimal: gross).doubleValue))
+                        }
+                    }
+                    .clipShape(Capsule())
+                }
+                .frame(height: 10)
+                Text(legend)
+                    .font(BudgetFont.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.top, BudgetSpacing.micro)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Ce que vous avez, en parts : \(legend)")
+            .accessibilityIdentifier("networth.composition.bar")
         }
     }
 

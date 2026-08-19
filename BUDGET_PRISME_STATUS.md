@@ -644,6 +644,16 @@ ACTIFS d'une classe (source unique, testée :
 l'année ne mélange pas 2025). Stock ≠ flux : la carte n'additionne
 jamais ces montants aux soldes. Tour Demo re-prouvé sur la branche.
 
+**FE2-7 — Barre de composition du héros Patrimoine natif** · en
+préparation (branche empilée sur FE2-6). La PWA montre sous la
+décomposition la part de chaque classe positive du patrimoine BRUT
+(Sur vos comptes / Vos biens / Prévoyance) avec sa légende en % ; le
+héros natif gagne la même barre. Rampe NON sémantique portée en
+tokens (`NeonUltraColor.series1..3` = `--series-1..3` exacts). Les
+dettes ne colorent jamais la barre — elles restent dans la
+décomposition. Tests : `testCompositionPartsKeepOnlyPositiveClasses`
+(classe négative sans part, 60 % exact, zéro sûr).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

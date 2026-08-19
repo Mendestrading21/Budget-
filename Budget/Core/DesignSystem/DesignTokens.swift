@@ -290,6 +290,12 @@ enum NeonUltraColor {
     static let violet = rgb(124, 58, 237)
     /// `#38BDF8` — information, sélection de graphique, focus.
     static let cyan = rgb(56, 189, 248)
+    /// FE2-7 : rampe NON sémantique des séries de composition — parité
+    /// exacte avec `--series-1..3` de la PWA (`#C9C4FF/#9188FF/#6457F0`).
+    /// Jamais pour porter un sens financier (vert/corail/ambre seulement).
+    static let series1 = rgb(201, 196, 255)
+    static let series2 = rgb(145, 136, 255)
+    static let series3 = rgb(100, 87, 240)
     /// `#C000A4` — départ du dégradé CTA.
     static let ctaStart = rgb(192, 0, 164)
     /// `#6E00E8` — arrivée du dégradé CTA.
