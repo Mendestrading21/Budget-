@@ -45,6 +45,20 @@ final class DemoTourUITests: XCTestCase {
         snap(app, "03-budget")
 
         openTab(app, "Comptes")
+        // FE2-9 : les vues d'argent de Comptes sont PROUVÉES, pas juste
+        // photographiées — « Ma fortune » (FE2-4, NetWorthService source
+        // unique) et « Épargne » (stock ≠ flux) doivent exister.
+        XCTAssertTrue(
+            app.descendants(matching: .any)
+                .matching(identifier: "accounts.fortune.card").firstMatch
+                .waitForExistence(timeout: 10),
+            "La carte « Ma fortune » (FE2-4) doit exister sur Comptes"
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)
+                .matching(identifier: "accounts.epargne.card").firstMatch.exists,
+            "La carte « Épargne » (stock ≠ flux, FE2-4) doit exister sur Comptes"
+        )
         snap(app, "04-comptes")
 
         openTab(app, "Gérer")
@@ -59,7 +73,13 @@ final class DemoTourUITests: XCTestCase {
                              lastProofPrefix: "taxes.duedate")
         visitFinancialModule(app, label: "Patrimoine", base: "08-patrimoine",
                              lastProofPrefix: nil,
-                             namedProofs: ["networth.chart.evolution"])
+                             // FE2-9 : la courbe, la carte « Mis de côté en
+                             // <année> » (FE2-6) et la « Fortune liquide »
+                             // (FE2-4) sont prouvées avant ET après le
+                             // défilement — plus seulement traversées.
+                             namedProofs: ["networth.chart.evolution",
+                                           "networth.setaside.card",
+                                           "networth.liquidWealth"])
         demoNetWorthSelectionProof(app)
         visitFinancialModule(app, label: "Ce qui revient", base: "09-recurrents",
                              lastProofPrefix: "recurring.row",
