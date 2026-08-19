@@ -23,6 +23,45 @@ final class ContributionServiceTests: XCTestCase {
         calendar = nil
     }
 
+    // MARK: - FE2-6 : cumuls par classe (carte « Mis de côté en <année> »)
+
+    func testClassSummaryAggregatesOnlyItsActiveAccounts() {
+        let current = Account(name: "Courant", type: .current, openingBalance: Decimal("9000.00"))
+        let savings = Account(name: "Épargne", type: .savings)
+        let broker = Account(name: "Titres", type: .broker)
+        let pillar = Account(name: "3a", type: .pillar3a)
+        let archived = Account(name: "Ancienne épargne", type: .savings, isActive: false)
+        let movements = [
+            BudgetTransaction(date: lastYear, amount: Decimal("700.00"), type: .saving,
+                              title: "Épargne 2025", account: current, destinationAccount: savings),
+            BudgetTransaction(date: now, amount: Decimal("300.00"), type: .saving,
+                              title: "Épargne juin", account: current, destinationAccount: savings),
+            BudgetTransaction(date: now, amount: Decimal("200.00"), type: .investment,
+                              title: "Titres", account: current, destinationAccount: broker),
+            BudgetTransaction(date: now, amount: Decimal("100.00"), type: .saving,
+                              title: "3a", account: current, destinationAccount: pillar),
+            // Un compte archivé ne participe plus aux cumuls de classe.
+            BudgetTransaction(date: now, amount: Decimal("50.00"), type: .saving,
+                              title: "Vers l'archivé", account: current, destinationAccount: archived),
+        ]
+        let accounts = [current, savings, broker, pillar, archived]
+
+        let epargne = service.classSummary(accounts: accounts, types: [.savings], movements: movements, now: now)
+        XCTAssertEqual(epargne.total, Decimal("1000.00"), "L'archivé est exclu : 700 + 300, pas 1'050")
+        XCTAssertEqual(epargne.currentYear, Decimal("300.00"), "Le flux de l'année ne mélange pas 2025")
+
+        let bourse = service.classSummary(accounts: accounts, types: [.broker], movements: movements, now: now)
+        XCTAssertEqual(bourse.total, Decimal("200.00"))
+        XCTAssertEqual(bourse.currentYear, Decimal("200.00"))
+
+        let prevoyance = service.classSummary(
+            accounts: accounts, types: [.pillar3a, .pillar3b, .occupationalPension],
+            movements: movements, now: now
+        )
+        XCTAssertEqual(prevoyance.total, Decimal("100.00"))
+        XCTAssertEqual(prevoyance.currentYear, Decimal("100.00"))
+    }
+
     func testContributionsAccumulateAcrossYears() {
         let current = Account(name: "Courant", type: .current, openingBalance: Decimal("9000.00"))
         let savings = Account(name: "Épargne", type: .savings)

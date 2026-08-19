@@ -633,6 +633,17 @@ contrôle négatif : carte Patrimoine rebranchée sur les genres → le 156
 remord seul. Suites : 156 e2e + 6 parités + design, vertes (fixture 6
 inchangée au centime).
 
+**FE2-6 — « Mis de côté en 2026 » dans le Patrimoine natif** · en PR.
+Dernière vue d'épargne manquante à la parité : la PWA montre, par
+classe de placement (Épargne / Bourse / Prévoyance), le flux de
+l'année et le total depuis toujours — le Patrimoine natif gagne la
+même carte, entre le héros et la projection.
+`ContributionService.classSummary` agrège les cumuls des comptes
+ACTIFS d'une classe (source unique, testée :
+`testClassSummaryAggregatesOnlyItsActiveAccounts` — l'archivé exclu,
+l'année ne mélange pas 2025). Stock ≠ flux : la carte n'additionne
+jamais ces montants aux soldes. Tour Demo re-prouvé sur la branche.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
