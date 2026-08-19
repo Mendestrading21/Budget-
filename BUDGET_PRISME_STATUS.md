@@ -719,7 +719,12 @@ du propriétaire inspectée (`docs/neon-ultra/budget-prisme/fe2-10/`).
 Aucune formule touchée — le moteur disait déjà vrai.
 
 **FE2-11 — Aucun impôt automatique : la provision est OPT-IN
-(ADR-034)** · en PR. Ordre propriétaire pendant sa QA : « ne calcule
+(ADR-034)** · `MERGED` + `PUBLISHED` — PR #87 fusionnée en squash,
+`main` = `2de27b74`, CI verte sur le HEAD exact (`6df3bdd6`) puis sur
+`main` ; publié par dispatch au SHA exact (run `32297267551`, succès)
+le 19.08.2026. Contrôle négatif mordant : le défaut 0.30 remis
+temporairement fait échouer les deux assertions du parcours 56, et
+elles seules. Ordre propriétaire pendant sa QA : « ne calcule
 pas les impôts automatiquement — c'est moi qui les mets comme
 dépenses. » Tous les défauts de taux passent à ZÉRO (web : COUNTRIES,
 gabarit vierge, assainisseur, fallback moteur, restauration, feuille
