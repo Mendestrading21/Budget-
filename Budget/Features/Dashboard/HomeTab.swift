@@ -11,6 +11,26 @@ enum HomePilotDisplay {
         available.committedCharges + available.recurringCharges + available.taxMonthlyEffort
     }
 
+    /// FE2-10 (capture propriétaire, 19.08.2026) : « pourquoi sortir 600
+    /// alors que je n'ai pas de facture ? » — l'effort d'impôts du mois
+    /// était fondu dans « à sortir ». La décomposition NOMME chaque terme
+    /// réel et tait les termes à zéro. Même phrase que la PWA.
+    static func forecastDecomposition(_ available: AvailableBreakdown) -> String {
+        var parts = ["\(FinanceFormatting.chf(available.liquidBalance)) maintenant"]
+        let expected = available.expectedIncome + available.recurringIncome
+        if expected > 0 {
+            parts.append("+ \(FinanceFormatting.chf(expected)) à recevoir")
+        }
+        let realOut = available.committedCharges + available.recurringCharges
+        if realOut > 0 {
+            parts.append("− \(FinanceFormatting.chf(realOut)) à sortir")
+        }
+        if available.taxMonthlyEffort > 0 {
+            parts.append("− \(FinanceFormatting.chf(available.taxMonthlyEffort)) d'impôts à mettre de côté")
+        }
+        return parts.joined(separator: " ") + "."
+    }
+
     /// Vocabulaire de confirmation du rituel mensuel. Le type financier reste
     /// la source de vérité ; seule sa traduction pour l'accueil vit ici.
     static func actionVerb(for type: TransactionType) -> String {
@@ -455,8 +475,7 @@ struct HomeTab: View {
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if isCurrentMonth {
-                    let expected = snapshot.available.expectedIncome + snapshot.available.recurringIncome
-                    Text("\(FinanceFormatting.chf(snapshot.available.liquidBalance)) maintenant + \(FinanceFormatting.chf(expected)) à recevoir − \(FinanceFormatting.chf(HomePilotDisplay.toPay(snapshot.available))) à sortir.")
+                    Text(HomePilotDisplay.forecastDecomposition(snapshot.available))
                         .font(NeonUltraTypography.meta)
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)

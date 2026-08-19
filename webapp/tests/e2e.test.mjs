@@ -8764,6 +8764,43 @@ check(fe25.comptesJuste,
 check(fe25.nwJuste,
   `la carte « Fortune liquide » du Patrimoine dit LE MÊME chiffre que Comptes, même avec un courant hors quotidien (obtenu ${fe25.carteNW})`);
 
+// ---------- 157. FE2-10 : la décomposition nomme l'impôt à mettre de côté ----------
+// Capture propriétaire (19.08.2026) : « pourquoi sortir 600 alors que je
+// n'ai même pas de facture ? » — la ligne « à sortir » fondait l'effort
+// d'impôts du mois (30 % × salaire attendu) avec les vraies sorties.
+// Désormais chaque terme réel est NOMMÉ et les termes à zéro se taisent.
+currentTest = "FE2-10 décomposition nommée";
+await goHome();
+const fe210 = await page.evaluate(() => {
+  const ancienTaux = S.taxRate;
+  S.taxRate = 0.3;
+  S.transactions.push({ id: "t157sal", title: "Salaire attendu", amount: 2000, type: "income",
+    cat: "Salaire", acc: ACCOUNTS[0].id, dest: null, status: "planned",
+    y: NOW.y, m: NOW.m, d: 28 });
+  cursor = { y: NOW.y, m: NOW.m }; activeTab = "home"; moreView = null; heroVue = "finmois"; render();
+  const s = snapshot(NOW.y, NOW.m);
+  const note = [...document.querySelectorAll(".hero-note")].map(e => e.textContent).join(" ");
+  const sortiesReelles = round2(s.plannedOut + s.recurringCharges);
+  const i = S.transactions.findIndex(t => t.id === "t157sal");
+  if (i >= 0) S.transactions.splice(i, 1);
+  S.taxRate = ancienTaux;
+  heroVue = "maintenant"; render();
+  return {
+    note, sortiesReelles,
+    effort: s.taxMonthlyEffort,
+    impotNomme: s.taxMonthlyEffort > 0
+      && note.includes("d'impôts à mettre de côté")
+      && note.includes(chf(s.taxMonthlyEffort)),
+    zeroTu: sortiesReelles > 0 ? note.includes(`${chf(sortiesReelles)} à sortir`) : !note.includes("à sortir"),
+  };
+});
+check(fe210.effort > 0,
+  `le scénario porte bien un effort d'impôts (obtenu ${fe210.effort})`);
+check(fe210.impotNomme,
+  `l'impôt à mettre de côté est NOMMÉ avec son montant — plus jamais fondu dans « à sortir » (note : ${fe210.note})`);
+check(fe210.zeroTu,
+  `un terme à zéro se tait, un terme réel garde son nom exact (sorties réelles ${fe210.sortiesReelles} — note : ${fe210.note})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8773,4 +8810,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 156 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 157 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
