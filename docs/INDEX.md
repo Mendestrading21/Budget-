@@ -12,6 +12,9 @@ reste où elle est, cet index dit seulement ce qui fait foi aujourd'hui.
 | `BUDGET_FAMILLES_PLAN.md` | Matrice « Les quatre familles partout » (concept + lots A8→A12) |
 | `.claude/skills/budget-prisme/` | Skill maître et ses six références (finance, langue, registre des pages, workflow, preuves, release) |
 | `DECISION_LOG.md` | ADR — décisions structurelles, toujours valides sauf remplacement explicite |
+| `FINANCIAL_ENGINE_V2.md` | Cahier du Moteur financier V2 (cinq chiffres, règles correctives, règle d'or) |
+| `BUDGET_1_0_READINESS.md` | Liste de contrôle de la release 1.0 — cases cochées sur preuve seulement |
+| `.github/scripts/repository-audit.mjs` | Audit release déterministe du dépôt (lecture seule) |
 | `docs/neon-ultra/budget-prisme/` | Preuves par lot (captures avant/après, rapports de sonde) |
 | `webapp/tests/` | Suites e2e navigateur, parité web↔natif, design system |
 | `fixtures/parity-fixtures.json` | Fixtures de parité des calculs |
@@ -33,6 +36,7 @@ reste où elle est, cet index dit seulement ce qui fait foi aujourd'hui.
 | `archives/BUDGET_MASTER_STATUS.md` | Budget Master Evolution |
 | `archives/HORIZON_REFONTE_PLAN.md` | Refonte Horizon (R1–R9) |
 | `archives/AUDIT_COMPLET_BUDGET_2026-07-21.md` | Audit complet du 21.07.2026 |
+| `webapp/AUDIT_W1.md` | Audit W1 historique de la PWA (programme budget-web) |
 | `archives/docs/`, `docs/neon-ultra/` (hors `budget-prisme/`) | Preuves des programmes précédents |
 | `.claude/skills/` (hors `budget-prisme/`) | Skills hérités — références seulement |
 
