@@ -530,6 +530,83 @@
      "sav": 2300.0
     }
    }
+  },
+  {
+   "id": "fortune-liquide-union",
+   "title": "FE2-5 : la fortune liquide est l'UNION cash/épargne — chaque franc une fois, le courant hors quotidien exclu",
+   "month": {
+    "y": 2026,
+    "m": 6
+   },
+   "state": {
+    "taxRate": 0.3,
+    "taxReserve": 0,
+    "accounts": [
+     {
+      "id": "cur",
+      "name": "Courant hors quotidien",
+      "kind": "current",
+      "opening": 1000,
+      "cash": false,
+      "currency": "CHF"
+     },
+     {
+      "id": "quo",
+      "name": "Quotidien",
+      "kind": "current",
+      "opening": 200,
+      "cash": true,
+      "currency": "CHF"
+     },
+     {
+      "id": "sav",
+      "name": "Épargne",
+      "kind": "savings",
+      "opening": 500,
+      "cash": false,
+      "currency": "CHF"
+     },
+     {
+      "id": "epc",
+      "name": "Épargne au quotidien",
+      "kind": "savings",
+      "opening": 300,
+      "cash": true,
+      "currency": "CHF"
+     }
+    ],
+    "liabilities": [],
+    "transactions": []
+   },
+   "expected": {
+    "snapshot": {
+     "income": 0.0,
+     "living": 0.0,
+     "savings": 0.0,
+     "invest": 0.0,
+     "taxes": 0.0,
+     "plannedIncome": 0.0,
+     "plannedOut": 0.0,
+     "taxRecommended": 0.0,
+     "taxGap": 0.0,
+     "taxGapForecast": 0.0,
+     "taxMonthlyEffort": 0.0,
+     "taxSetAsideMonth": 0.0,
+     "savingsAccessible": 800.0,
+     "liquidWealth": 1000.0,
+     "liquid": 500.0,
+     "available": 500.0,
+     "endOfMonthForecast": 500.0,
+     "savingsRate": 0.0,
+     "cashFlow": 0.0
+    },
+    "balances": {
+     "cur": 1000.0,
+     "quo": 200.0,
+     "sav": 500.0,
+     "epc": 300.0
+    }
+   }
   }
  ]
 }
