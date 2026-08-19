@@ -116,6 +116,7 @@ struct NetWorthView: View {
             ScrollView {
                 VStack(spacing: BudgetSpacing.medium) {
                     heroCard
+                    setAsideCard
                     projectionCard
                     liquidWealthCard
                     trendCard
@@ -225,6 +226,56 @@ struct NetWorthView: View {
                 .foregroundStyle(amount < 0 ? BudgetColor.negative : .primary)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Mis de côté cette année (FE2-6)
+
+    /// « Mis de côté en <année> » : les FLUX de l'année par classe de
+    /// placement — épargne, bourse, prévoyance — avec le total depuis
+    /// toujours. Même lecture que la carte du Patrimoine PWA ; jamais
+    /// additionné aux soldes (stock ≠ flux, règle d'or FE2).
+    @ViewBuilder
+    private var setAsideCard: some View {
+        let now = appContainer.dateProvider.now
+        let year = appContainer.calendar.component(.year, from: now)
+        let contributionService = ContributionService(calendar: appContainer.calendar)
+        let rows: [(label: String, summary: ContributionSummary)] = [
+            ("Épargne", contributionService.classSummary(
+                accounts: accounts, types: [.savings], movements: transactions, now: now)),
+            ("Bourse / titres", contributionService.classSummary(
+                accounts: accounts, types: [.broker], movements: transactions, now: now)),
+            ("Prévoyance", contributionService.classSummary(
+                accounts: accounts, types: [.pillar3a, .pillar3b, .occupationalPension],
+                movements: transactions, now: now)),
+        ].filter { $0.1.total > 0 }
+        if !rows.isEmpty {
+            let yearSum = rows.reduce(Decimal.zero) { $0 + $1.summary.currentYear }
+            GlassCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    Text("Mis de côté en \(String(year)) — \(FinanceFormatting.chf(yearSum))")
+                        .font(BudgetFont.cardLabel)
+                        .foregroundStyle(.secondary)
+                    VStack(spacing: BudgetSpacing.micro) {
+                        ForEach(rows, id: \.label) { row in
+                            HStack {
+                                Text(row.label)
+                                    .font(BudgetFont.caption)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(FinanceFormatting.chf(row.summary.currentYear)) · en tout \(FinanceFormatting.chf(row.summary.total))")
+                                    .font(BudgetFont.caption.monospacedDigit())
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+                    }
+                    Text("Chaque versement compte. Continuez comme ça.")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("networth.setaside.card")
+            }
+        }
     }
 
     // MARK: - Fortune liquide (FE2-4)

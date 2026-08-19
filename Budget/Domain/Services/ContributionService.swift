@@ -50,6 +50,29 @@ struct ContributionService {
         return ContributionSummary(total: total, currentYear: currentYear, withdrawn: withdrawn)
     }
 
+    /// FE2-6 : cumuls d'une CLASSE de placement (épargne, bourse,
+    /// prévoyance) — la même lecture que la carte « Mis de côté en
+    /// <année> » du Patrimoine PWA. Seuls les comptes actifs de la
+    /// classe comptent ; les flux restent des flux (jamais additionnés
+    /// à un solde).
+    func classSummary(
+        accounts: [Account],
+        types: [AccountType],
+        movements: [BudgetTransaction],
+        now: Date
+    ) -> ContributionSummary {
+        accounts
+            .filter { $0.isActive && types.contains($0.type) }
+            .reduce(ContributionSummary(total: .zero, currentYear: .zero, withdrawn: .zero)) { partial, account in
+                let s = summary(of: account, movements: movements, now: now)
+                return ContributionSummary(
+                    total: partial.total + s.total,
+                    currentYear: partial.currentYear + s.currentYear,
+                    withdrawn: partial.withdrawn + s.withdrawn
+                )
+            }
+    }
+
     /// Plus-value d'un compte titres : valeur actuelle − ouverture −
     /// versements nets. Honnête seulement si la valeur est tenue à jour
     /// (réconciliation) — l'appelant l'affiche avec sa méthode.
