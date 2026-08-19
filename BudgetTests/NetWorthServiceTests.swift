@@ -201,6 +201,23 @@ final class NetWorthServiceTests: XCTestCase {
         )
     }
 
+    // MARK: - FE2-7 : composition du patrimoine brut
+
+    func testCompositionPartsKeepOnlyPositiveClasses() {
+        let breakdown = NetWorthBreakdown(
+            accountsTotal: Decimal("-500.00"),
+            assetsTotal: Decimal("12000.00"),
+            pensionTotal: Decimal("8000.00"),
+            liabilitiesTotal: Decimal("100.00")
+        )
+        let parts = NetWorthView.compositionParts(breakdown)
+        XCTAssertEqual(parts.map(\.label), ["Vos biens", "Prévoyance"],
+                       "Un total négatif ou nul ne crée pas de part ; les dettes n'entrent jamais dans la barre")
+        XCTAssertEqual(NetWorthView.percentage(Decimal("12000.00"), of: Decimal("20000.00")), 60)
+        XCTAssertEqual(NetWorthView.percentage(Decimal("1.00"), of: .zero), 0,
+                       "Jamais de division par zéro")
+    }
+
     // MARK: - Snapshots
 
     func testSnapshotRecordedAtMostOncePerDay() throws {
