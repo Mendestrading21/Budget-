@@ -2665,7 +2665,12 @@ function snapshot(y, m) {
   // FE2 : les agrégats explicites — chacun dit UNE chose.
   const savingsAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
     .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
-  const liquidWealth = round2(liquid + savingsAccessible);
+  // FE2-5 : fortune liquide = UNION des comptes « cash disponible » et
+  // des comptes d'épargne, chaque franc compté UNE fois — un compte
+  // d'épargne aussi marqué cash n'est plus doublé (même règle que le
+  // natif, NetWorthService.liquidWealth).
+  const liquidWealth = fromCents(ACCOUNTS.filter(a => a.cash || a.kind === "savings")
+    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const endOfMonthForecast = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxMonthlyEffort);
   const available = endOfMonthForecast;
   const daysInMonth = new Date(y, m, 0).getDate();
@@ -3818,9 +3823,10 @@ function renderAccounts() {
   // maintenant, épargne accessible, fortune liquide, fortune totale (même
   // formule que le Patrimoine, chaque franc compté une fois). Stock et
   // flux ne s'additionnent jamais.
-  const epargneAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
-    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
-  const fortuneLiquide = round2(liquid + epargneAccessible);
+  // FE2-5 : les deux chiffres viennent du moteur — plus de recalcul local.
+  const sVues = snapshot(NOW.y, NOW.m);
+  const epargneAccessible = sVues.savingsAccessible;
+  const fortuneLiquide = sVues.liquidWealth;
   const fortuneTotale = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
     + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
     + pensionPositionsTotal() - liabilitiesTotal();
@@ -4348,9 +4354,9 @@ function renderNetWorth() {
   const px = toPx(points).split(" ");
   // FE2-1 : la fortune LIQUIDE vit à côté de la fortune totale — l'argent
   // mobilisable vite (quotidien + épargne), jamais confondu avec le tout.
-  const fortuneLiquideNW = fromCents(ACCOUNTS
-    .filter(a => ["current", "cash", "savings"].includes(a.kind))
-    .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
+  // FE2-5 : LA définition unique du moteur — plus de formule par genre
+  // qui ignorait le choix « ne compte pas dans le cash disponible ».
+  const fortuneLiquideNW = snapshot(NOW.y, NOW.m).liquidWealth;
   return backBar("Patrimoine") + `
     <div class="card hero">
       <p class="card-label">Tout ce qui est à vous</p>

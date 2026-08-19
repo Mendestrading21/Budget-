@@ -8718,6 +8718,52 @@ check(fe21.epargneStockFlux && fe21.epargneStockJuste,
 check(fe21.liquideNWJuste && fe21.patrimoineDeuxCartes,
   `le Patrimoine montre la fortune liquide À CÔTÉ de la fortune totale (obtenu ${fe21.liquideNWJuste})`);
 
+// ---------- 156. FE2-5 : UNE seule définition de « Fortune liquide » ----------
+// L'audit FE2-4 a montré deux formules pour la même étiquette : Comptes
+// additionnait « cash disponible + épargne » (double compte possible),
+// le Patrimoine additionnait les genres current/cash/savings (ignorant
+// le choix « ne compte pas dans le cash disponible »). Désormais la
+// définition unique vit dans snapshot() : comptes marqués cash OU
+// d'épargne, chaque franc UNE fois — la même que le natif (FE2-4).
+currentTest = "FE2-5 fortune liquide unique";
+await goHome();
+const fe25 = await page.evaluate(() => {
+  ACCOUNTS.push(
+    { id: "t156cur", name: "Courant hors quotidien", kind: "current", opening: 1000, cash: false, currency: "CHF" },
+    { id: "t156quo", name: "Quotidien", kind: "current", opening: 200, cash: true, currency: "CHF" },
+    { id: "t156sav", name: "Épargne", kind: "savings", opening: 500, cash: false, currency: "CHF" },
+    { id: "t156epc", name: "Épargne au quotidien", kind: "savings", opening: 300, cash: true, currency: "CHF" },
+  );
+  const s = snapshot(NOW.y, NOW.m);
+  const unionAttendue = fromCents(ACCOUNTS.filter(a => a.cash || a.kind === "savings")
+    .reduce((c, a2) => c + toCents(toCHF(balance(a2.id), a2.currency)), 0));
+  const doubleCompte = Math.round((s.liquid + s.savingsAccessible - s.liquidWealth) * 100) / 100;
+  cursor = { y: NOW.y, m: NOW.m }; activeTab = "accounts"; accountView = null; render();
+  const carteComptes = document.querySelector('[data-more="networth"]')?.textContent || "";
+  activeTab = "more"; moreView = "networth"; render();
+  const carteNW = document.querySelector("[data-fortune-liquide]")?.textContent || "";
+  for (const id of ["t156cur", "t156quo", "t156sav", "t156epc"]) {
+    const i = ACCOUNTS.findIndex(a => a.id === id);
+    if (i >= 0) ACCOUNTS.splice(i, 1);
+  }
+  activeTab = "home"; moreView = null; render();
+  return {
+    unionJuste: s.liquidWealth === unionAttendue,
+    liquidWealth: s.liquidWealth, unionAttendue, doubleCompte,
+    comptesJuste: carteComptes.includes(chf(s.liquidWealth)),
+    nwJuste: carteNW === chf(s.liquidWealth),
+    carteNW,
+  };
+});
+check(fe25.unionJuste,
+  `la fortune liquide compte chaque franc UNE fois — union cash/épargne (obtenu ${fe25.liquidWealth}, attendu ${fe25.unionAttendue})`);
+check(fe25.doubleCompte === 300,
+  `un compte d'épargne aussi « cash disponible » n'est plus compté deux fois (écart naïf − union = ${fe25.doubleCompte}, attendu 300)`);
+check(fe25.comptesJuste,
+  "la carte « Ma fortune » des Comptes lit la définition unique du moteur");
+check(fe25.nwJuste,
+  `la carte « Fortune liquide » du Patrimoine dit LE MÊME chiffre que Comptes, même avec un courant hors quotidien (obtenu ${fe25.carteNW})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8727,4 +8773,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 155 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 156 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
