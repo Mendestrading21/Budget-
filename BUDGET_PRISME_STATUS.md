@@ -618,7 +618,14 @@ ADR-033 créances). Parité iOS des cartes FE2-1 :
   2'800 ≠ 2'300 ; double comptage → 109'000 ≠ 108'000 ; prévu compté →
   1'000 ≠ 500. Exécution par la CI (pas de simulateur local).
 
-**FE2-5 — Une seule définition de « Fortune liquide » (PWA)** · en PR.
+**FE2-5 — Une seule définition de « Fortune liquide » (PWA)** ·
+`MERGED` + `PUBLISHED` — PR #75 fusionnée en squash, `main` =
+`d524d5e4`, CI verte sur le HEAD exact puis sur `main` ; publié par
+dispatch au SHA final `0091d449` (run `32230441056`, succès) le
+19.08.2026, avec le correctif du tour Demo (PR #76 : le recentrage de
+la courbe Évolution reste dans le viewport et hors de la courbe —
+prouvé par le run Demo `32225260671`, succès, artefact « budget-demo »
+avec les captures FE2-4).
 L'audit FE2-4 a révélé deux formules web pour la même étiquette :
 Comptes additionnait « cash disponible + épargne » (un compte d'épargne
 aussi marqué cash était compté DEUX fois), le Patrimoine additionnait

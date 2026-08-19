@@ -79,9 +79,10 @@ prouver), Budget 1.0 assume :
       iOS) verts sur chaque PR et sur `main` (hors étape « Déployer »,
       bloquée par la règle d'environnement — échec attendu documenté).
 - [x] Publication Pages par dispatch de `pages.yml` au SHA exact —
-      dernière publication : run `32221728707` au SHA `b5e6e161`
-      (état final : FE2-0..4 + registre 1.0 + audit + ADR-033), succès
-      le 19.08.2026.
+      dernière publication : run `32230441056` au SHA `0091d449`
+      (FE2-0..5 + correctif du tour Demo + registre 1.0 + audit +
+      ADR-033), succès le 19.08.2026. Suites au moment de la
+      publication : 156 e2e + 6 parités + design, 341 tests iOS.
 - [ ] Workflow `testflight.yml` : présent, jamais exécuté — exige les
       4 secrets Apple décrits dans `TESTFLIGHT_SETUP.md` (propriétaire).
 
