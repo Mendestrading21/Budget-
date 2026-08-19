@@ -405,9 +405,17 @@ final class DemoTourUITests: XCTestCase {
             // carte « Fortune liquide » avait décalé la courbe pile sous
             // l'ancien point fixe dy 0.7).
             let up = f.midY > viewport.midY
-            let startY = up
-                ? max(viewport.minY + 60, f.minY - 50)
-                : min(viewport.maxY - 60, f.maxY + 50)
+            // Deuxième passe (run 32224285413) : quand la courbe est
+            // ENTIÈREMENT sous le viewport, « f.minY − 50 » sort du
+            // cadre du scroll et le geste ne défile rien. Le départ
+            // reste donc TOUJOURS dans le viewport, et n'évite la
+            // courbe que si elle le chevauche réellement.
+            var startY = up ? viewport.maxY - 80 : viewport.minY + 80
+            if startY > f.minY - 10 && startY < f.maxY + 10 {
+                startY = up
+                    ? max(viewport.minY + 60, f.minY - 50)
+                    : min(viewport.maxY - 60, f.maxY + 50)
+            }
             let endY = up
                 ? max(viewport.minY + 40, startY - 150)
                 : min(viewport.maxY - 40, startY + 150)
