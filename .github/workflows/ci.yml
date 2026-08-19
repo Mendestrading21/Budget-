@@ -41,7 +41,12 @@ jobs:
         working-directory: webapp/tests
         run: |
           npm install playwright@1.61.1
-          npx playwright install --with-deps chromium
+          # « --with-deps » gelait le job : le miroir apt
+          # azure.archive.ubuntu.com pend par périodes (runs 32236297184,
+          # 32230552234 — 25 min de silence après « Ign:14 azure.archive »).
+          # L'image ubuntu-24.04 porte déjà les bibliothèques du navigateur ;
+          # installation SANS apt, navigateur servi par le cache ci-dessus.
+          npx playwright install chromium
 
       - name: Suite e2e (Chromium réel, zéro erreur console tolérée)
         working-directory: webapp/tests
