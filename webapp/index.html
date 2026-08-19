@@ -3104,7 +3104,17 @@ function renderSimpleHome() {
   // l'argent possédé.
   const heroMaintenant = s.isCurrent && heroVue !== "finmois";
   const enAttente = round2(s.plannedIncome + s.recurringIncome + s.irregularIncome);
-  const aSortir = round2(s.plannedOut + s.recurringCharges + s.taxMonthlyEffort);
+  // FE2-10 (capture propriétaire, 19.08.2026) : « pourquoi sortir 600
+  // alors que je n'ai pas de facture ? » — l'effort d'impôts du mois
+  // était fondu dans « à sortir ». Chaque terme réel est NOMMÉ, et un
+  // terme à zéro se tait.
+  const sortiesReelles = round2(s.plannedOut + s.recurringCharges);
+  const noteFinMois = [
+    `${chf(s.liquid)} maintenant`,
+    ...(enAttente > 0 ? [`+ ${chf(enAttente)} à recevoir`] : []),
+    ...(sortiesReelles > 0 ? [`− ${chf(sortiesReelles)} à sortir`] : []),
+    ...(s.taxMonthlyEffort > 0 ? [`− ${chf(s.taxMonthlyEffort)} d'impôts à mettre de côté`] : []),
+  ].join(" ") + ".";
   const heroValue = s.isCurrent
     ? (heroMaintenant ? s.liquid : s.endOfMonthForecast)
     : (futureMonth ? s.available : s.cashFlow);
@@ -3114,7 +3124,7 @@ function renderSimpleHome() {
   const heroNote = s.isCurrent
     ? (heroMaintenant
       ? "Sur vos comptes utilisables au quotidien."
-      : `${chf(s.liquid)} maintenant + ${chf(enAttente)} à recevoir − ${chf(aSortir)} à sortir.`)
+      : noteFinMois)
     : (futureMonth
       ? "Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois."
       : "Revenus moins sorties sur ce mois.");

@@ -141,6 +141,34 @@ final class AppNavigationTests: XCTestCase {
         )
     }
 
+    /// FE2-10 : « pourquoi sortir 600 alors que je n'ai pas de facture ? »
+    /// — l'effort d'impôts était fondu dans « à sortir ». Chaque terme
+    /// réel est nommé, un terme à zéro se tait.
+    func testForecastDecompositionNamesTheTaxAndSilencesZeroTerms() {
+        let sansSorties = AvailableBreakdown(
+            liquidBalance: Decimal("10000.00"), expectedIncome: Decimal("2000.00"),
+            committedCharges: .zero, recurringIncome: .zero, recurringCharges: .zero,
+            taxReserveGap: .zero, taxMonthlyEffort: Decimal("600.00")
+        )
+        let phrase = HomePilotDisplay.forecastDecomposition(sansSorties)
+        XCTAssertTrue(phrase.contains("d'impôts à mettre de côté"),
+                      "L'impôt du mois est NOMMÉ : \(phrase)")
+        XCTAssertTrue(phrase.contains(FinanceFormatting.chf(Decimal("600.00"))),
+                      "Avec son montant exact : \(phrase)")
+        XCTAssertFalse(phrase.contains("à sortir"),
+                       "Aucune vraie sortie → « à sortir » se tait : \(phrase)")
+
+        let sansImpot = AvailableBreakdown(
+            liquidBalance: Decimal("5000.00"), expectedIncome: .zero,
+            committedCharges: Decimal("600.00"), recurringIncome: .zero, recurringCharges: .zero,
+            taxReserveGap: .zero, taxMonthlyEffort: .zero
+        )
+        let phrase2 = HomePilotDisplay.forecastDecomposition(sansImpot)
+        XCTAssertTrue(phrase2.contains("à sortir"), "La vraie sortie garde son nom : \(phrase2)")
+        XCTAssertFalse(phrase2.contains("impôts"), "Effort nul → pas de terme fiscal : \(phrase2)")
+        XCTAssertFalse(phrase2.contains("à recevoir"), "Rien d'attendu → pas de terme : \(phrase2)")
+    }
+
     func testMonthlyProgressAlwaysSaysWhatRemainsAndWhatIsDone() {
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 0, completed: 0), "Rien à faire")
         XCTAssertEqual(HomePilotDisplay.monthProgress(pending: 2, completed: 0), "2 à faire")
