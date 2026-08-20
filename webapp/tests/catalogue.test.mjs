@@ -114,6 +114,23 @@ for (const [key, entry] of Object.entries(glyphMap.glyphs)) {
   else viaFallback += 1;
 }
 
+// ---------- 5. P08-C : la copie embarquée dans la PWA reste l'octet-copie structurelle ----------
+{
+  const html = read("webapp/index.html");
+  const m = html.match(/const IDENTITY_CATALOG = (\{.*?\});\n/);
+  check(Boolean(m), "IDENTITY_CATALOG embarqué dans la PWA (P08-C)");
+  if (m) {
+    const sortDeep = v => Array.isArray(v) ? v.map(sortDeep)
+      : (v && typeof v === "object"
+        ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sortDeep(v[k])]))
+        : v);
+    const embedded = JSON.stringify(sortDeep(JSON.parse(m[1])));
+    const source = JSON.stringify(sortDeep(JSON.parse(fixtureRaw)));
+    check(embedded === source,
+      "la copie embarquée est STRUCTURELLEMENT identique à fixtures/catalogue-identites.json");
+  }
+}
+
 // ---------- Rapport ----------
 if (failures.length) {
   console.error(`CATALOGUE : ${failures.length} échec(s) :`);

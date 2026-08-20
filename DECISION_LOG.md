@@ -1,5 +1,53 @@
 # Budget decision log
 
+## ADR-041 — P08-C : le catalogue des services suggère, il n'invente jamais
+
+Date: 2026-08-20
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot P08-C. Le catalogue éditorial (164
+identités, ADR-037) doit servir la saisie sur « Ce qui revient » sans
+jamais inventer le budget de la personne.
+
+### Décision
+
+1. La PWA embarque une copie STRUCTURELLE de
+   `fixtures/catalogue-identites.json` (`IDENTITY_CATALOG`, monofichier
+   hors ligne) ; garde de synchronisation exécutable dans
+   `catalogue.test.mjs`. iOS reçoit `BudgetIdentityCatalog.swift`
+   GÉNÉRÉ depuis la même fixture
+   (`.github/scripts/generate-identity-catalog.mjs`) avec garde de
+   dérive en CI — une seule autorité éditoriale.
+2. « Ce qui revient » gagne « Choisir un service du catalogue » :
+   recherche locale pliée (accents, alias), sections par pays puis par
+   catégorie, « Je ne trouve pas mon service » et Annuler qui
+   RESTAURENT la saisie en cours. Sens proposés : abonnement, facture,
+   mise de côté — les institutions attendent P05-C/P13-C.
+3. Choisir remplit AU PLUS : nom, nature, catégorie App (table de
+   correspondance sûre — sans correspondance, aucune suggestion),
+   rythme compatible (première cadence suggérée). Montant, compte,
+   date, statut : jamais préremplis ; aucune ligne créée sans
+   confirmation.
+4. Marchés : PWA filtrée par le pays du profil (CH/FR/BE + GLOBAL) ;
+   iOS reste nativement CHF → entrées CH + GLOBAL seulement (garde-fou
+   devises du skill).
+5. Identité visuelle : monogramme/glyphe DÉRIVÉ du nom à l'affichage
+   (IC1) — aucune clé persistée dans ce lot ; la persistance optionnelle
+   est le lot ID1.
+6. Sécurité inchangée : texte pur uniquement (esc/identityTile), aucune
+   image, aucune requête réseau, une recherche hostile ne rend aucune
+   balise.
+
+### Vérification
+
+Parcours 162 né rouge (7 contrôles : bouton absent, recherche, filtre
+pays, injection, remplissage, montant vide, saisie libre conservée) ;
+garde embarquée/fixture et garde de dérive Swift en CI ;
+`BudgetIdentityCatalogTests` (164 entrées, marchés iOS, institutions
+exclues, correspondances sûres) ; captures du sélecteur inspectées.
+
 ## ADR-040 — REC2 : « toutes les quatre semaines » exact côté PWA
 
 Date: 2026-08-20

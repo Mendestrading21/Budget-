@@ -94,6 +94,7 @@ struct RecurringFormView: View {
     @State private var hasCancellationDeadline = false
     @State private var cancellationDeadline = Date()
     @State private var showsAdvancedOptions = false
+    @State private var isPickingService = false
     @State private var errorMessage: String?
 
     private let validationService = TransactionValidationService()
@@ -173,6 +174,16 @@ struct RecurringFormView: View {
                             Label(kind.title, systemImage: kind.systemImage).tag(kind)
                         }
                     }
+
+                    // P08-C (ADR-041) : le catalogue local SUGGÈRE nom,
+                    // catégorie et rythme — jamais un montant, un compte,
+                    // une date ni une ligne créée sans confirmation.
+                    Button {
+                        isPickingService = true
+                    } label: {
+                        Label("Choisir un service du catalogue", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("recurring.pickService")
 
                     TextField("Nom — par exemple Loyer", text: $title)
                     TextField("Montant en CHF", text: $amountText)
@@ -285,6 +296,47 @@ struct RecurringFormView: View {
                 }
             }
             .onAppear(perform: populate)
+            .sheet(isPresented: $isPickingService) {
+                IdentityServicePickerView { entry in
+                    applyServiceSuggestion(entry)
+                }
+            }
+        }
+    }
+
+    /// P08-C : applique UNIQUEMENT des suggestions — le montant, le
+    /// compte, la prochaine date et l'activation restent intacts.
+    private func applyServiceSuggestion(_ entry: BudgetIdentityEntry) {
+        title = entry.displayName
+        switch entry.financialSense {
+        case "subscription":
+            apply(.subscription)
+        case "set_aside":
+            apply(.setAside)
+        default:
+            apply(.bill)
+        }
+        if let mapped = IdentityServicePickerView.appCategoryName(for: entry.category),
+           let match = relevantCategories.first(where: { $0.name == mapped }) {
+            category = match
+        }
+        switch entry.cadenceHints.first {
+        case "four_weeks":
+            frequency = .custom
+            customUnit = .week
+            customCount = 4
+        case "quarter":
+            frequency = .quarterly
+        case "semiannual":
+            frequency = .semiannual
+        case "year":
+            frequency = .annual
+        case "week":
+            frequency = .weekly
+        case "month":
+            frequency = .monthly
+        default:
+            break
         }
     }
 
