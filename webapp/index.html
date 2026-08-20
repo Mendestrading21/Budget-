@@ -1369,10 +1369,14 @@
       <label id="rEveryLabel">Rythme</label>
       <div class="type-grid" id="rEveryGrid" role="group" aria-labelledby="rEveryLabel">
         <button type="button" data-revery="month" aria-pressed="false"><span class="type-glyph" data-budget-glyph="recurring" aria-hidden="true"></span>Tous les mois</button>
+        <button type="button" data-revery="quarter" aria-pressed="false"><span class="type-glyph" data-budget-glyph="calendar" aria-hidden="true"></span>Chaque trimestre</button>
+        <button type="button" data-revery="semiannual" aria-pressed="false"><span class="type-glyph" data-budget-glyph="calendar" aria-hidden="true"></span>Deux fois par an</button>
         <button type="button" data-revery="year" aria-pressed="false"><span class="type-glyph" data-budget-glyph="calendar" aria-hidden="true"></span>Une fois par an</button>
       </div>
       <select id="rEvery" class="sr-select" aria-hidden="true" tabindex="-1">
         <option value="month">Tous les mois</option>
+        <option value="quarter">Chaque trimestre</option>
+        <option value="semiannual">Deux fois par an</option>
         <option value="year">Une fois par an</option>
       </select>
       <div id="rDueWrap" style="display:none">
@@ -2467,20 +2471,28 @@ function recurringAmountInBase(recurring) {
   return toCHF(recurring.amount, accountCurrency(recurringAccountId(recurring)));
 }
 
-/* ---------- Rythme d'une charge régulière (mensuel ou annuel) ----------
+/* ---------- Rythme d'une charge régulière ----------
    Champs ADDITIFS : une récurrence sans `every` reste mensuelle, donc les
    données déjà enregistrées gardent exactement le même sens.
-   - `every` : "month" (défaut) ou "year"
-   - `dueM`  : mois d'échéance 1-12, utile UNIQUEMENT en annuel
+   - `every` : "month" (défaut), "quarter", "semiannual" ou "year"
+   - `dueM`  : mois d'ANCRAGE 1-12 — le mois d'une échéance ; les autres
+     s'en déduisent par pas de 3 (trimestriel) ou 6 (semestriel)
    - `endedOn` : null, ou { y, m } à partir duquel la charge est résiliée
-   Décision propriétaire : un abonnement ANNUEL n'est engagé QUE sur son
-   mois d'échéance. Il n'est jamais lissé sur douze mois — l'app n'affiche
-   pas un prélèvement qui n'existe pas. */
+   Décision propriétaire (étendue par ADR-039) : une charge non mensuelle
+   n'est engagée QUE sur ses mois d'échéance. Elle n'est jamais lissée —
+   l'app n'affiche pas un prélèvement qui n'existe pas. Le natif exprime
+   déjà ces rythmes ((month,3), (month,6)) : la parité arrive côté web. */
+const RECURRING_EVERY = { month: 1, quarter: 3, semiannual: 6, year: 12 };
 function recurringEvery(recurring) {
-  return recurring && recurring.every === "year" ? "year" : "month";
+  const value = recurring && recurring.every;
+  return Object.hasOwn(RECURRING_EVERY, value) ? value : "month";
+}
+/* Pas en mois du rythme : 1, 3, 6 ou 12. */
+function recurringStepMonths(recurring) {
+  return RECURRING_EVERY[recurringEvery(recurring)];
 }
 function recurringDueMonth(recurring) {
-  if (recurringEvery(recurring) !== "year") return null;
+  if (recurringEvery(recurring) === "month") return null;
   const m = Number(recurring.dueM);
   return Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1;
 }
@@ -2498,14 +2510,18 @@ function recurringIsActive(recurring) {
    seul mois d'échéance, résilié = plus jamais. */
 function recurringDueIn(recurring, y, m) {
   if (recurringEnded(recurring, y, m)) return false;
-  if (recurringEvery(recurring) === "year") return m === recurringDueMonth(recurring);
-  return true;
+  const step = recurringStepMonths(recurring);
+  if (step === 1) return true;
+  // Dû quand l'écart au mois d'ancrage est un multiple du pas — pour un
+  // annuel (pas 12), cela redonne exactement « m === dueM ».
+  return ((m - recurringDueMonth(recurring)) % step + step) % step === 0;
 }
-/* Coût RAMENÉ au mois et à l'année — pour comparer des rythmes différents
-   sans jamais prétendre que l'annuel est prélevé tous les mois. */
+/* Coût RAMENÉ à l'année — pour comparer des rythmes différents sans
+   jamais prétendre qu'un trimestriel est prélevé tous les mois :
+   12/pas échéances par an, exactement. */
 function recurringYearlyCost(recurring) {
   const amount = recurringAmountInBase(recurring);
-  return recurringEvery(recurring) === "year" ? amount : fromCents(toCents(amount) * 12);
+  return fromCents(toCents(amount) * (12 / recurringStepMonths(recurring)));
 }
 /* ÉCHÉANCE D'UNE CHARGE RÉGULIÈRE — décision du propriétaire (06.08.2026) :
    l'app ne demande plus de « jour de paiement ». Personne ne connaît par
@@ -4740,26 +4756,30 @@ function subsBody() {
   const yearlyC = active.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0);
   const yearly = fromCents(yearlyC);
   const perMonth = fromCents(Math.round(yearlyC / 12));
-  const monthlyOnes = active.filter(r => recurringEvery(r) === "month");
-  const annualOnes = active.filter(r => recurringEvery(r) === "year");
-  const monthlySum = fromCents(monthlyOnes.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
-  const annualSum = fromCents(annualOnes.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
+  const RHYTHM_LABEL = { month: "Mensuel", quarter: "Trimestriel", semiannual: "Semestriel", year: "Annuel" };
+  const byRhythm = key => active.filter(r => recurringEvery(r) === key);
+  const sumOf = list => fromCents(list.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
+  const monthlyOnes = byRhythm("month");
+  const monthlySum = sumOf(monthlyOnes);
+  const steppedLines = [
+    { key: "quarter", list: byRhythm("quarter"), per: "par trimestre" },
+    { key: "semiannual", list: byRhythm("semiannual"), per: "par semestre" },
+    { key: "year", list: byRhythm("year"), per: "par an" },
+  ].filter(l => l.list.length);
 
   const row = r => {
     const every = recurringEvery(r);
-    const isYear = every === "year";
     const dueM = recurringDueMonth(r);
     const amount = recurringAmountInBase(r);
-    const rhythm = isYear
-      ? `<span class="pill">Annuel</span>`
-      : `<span class="pill">Mensuel</span>`;
-    const when = isYear
-      ? `Chaque année en ${MONTH_NAMES[dueM - 1]}`
-      : "Tous les mois";
+    const rhythm = `<span class="pill">${RHYTHM_LABEL[every]}</span>`;
+    const when = every === "month" ? "Tous les mois"
+      : every === "quarter" ? `Quatre fois par an, dès ${MONTH_NAMES[dueM - 1]}`
+      : every === "semiannual" ? `Deux fois par an, dès ${MONTH_NAMES[dueM - 1]}`
+      : `Chaque année en ${MONTH_NAMES[dueM - 1]}`;
     // Le coût comparable est toujours écrit, jamais deviné.
-    const compare = isYear
-      ? `soit ${chf(fromCents(Math.round(toCents(amount) / 12)))} par mois`
-      : `soit ${chf(recurringYearlyCost(r))} par an`;
+    const compare = every === "month"
+      ? `soit ${chf(recurringYearlyCost(r))} par an`
+      : `soit ${chf(fromCents(Math.round(toCents(recurringYearlyCost(r)) / 12)))} par mois`;
     const endedNote = recurringIsActive(r) ? ""
       : ` · résilié depuis ${MONTH_NAMES[r.endedOn.m - 1]} ${r.endedOn.y}`;
     // Part de ce poste dans le coût annuel total : la barre rend la
@@ -4791,7 +4811,7 @@ function subsBody() {
       <span class="caption">Soit ${chf(perMonth)} par mois en moyenne, sur ${active.length} abonnement${active.length > 1 ? "s" : ""} actif${active.length > 1 ? "s" : ""}.</span>
       <div class="breakdown" style="margin-top:10px">
         ${monthlyOnes.length ? `<div><span>${monthlyOnes.length} mensuel${monthlyOnes.length > 1 ? "s" : ""}</span><span>${chf(monthlySum)} / mois</span></div>` : ""}
-        ${annualOnes.length ? `<div><span>${annualOnes.length} annuel${annualOnes.length > 1 ? "s" : ""}</span><span>${chf(annualSum)} / an</span></div>` : ""}
+        ${steppedLines.map(l => `<div><span>${l.list.length} ${RHYTHM_LABEL[l.key].toLowerCase()}${l.list.length > 1 ? "s" : ""}</span><span>${chf(sumOf(l.list))} ${l.per}</span></div>`).join("")}
       </div>
     </div>`;
 
@@ -4808,17 +4828,19 @@ function subsBody() {
       const charges = RECURRINGS.filter(r =>
         r.type === "expense" && !isSubscription(r) && recurringIsActive(r));
       if (!charges.length) return "";
-      const total = fromCents(charges.reduce((a, r) => a + toCents(recurringAmountInBase(r)), 0));
+      // Des rythmes différents ne s'additionnent pas tels quels : le seul
+      // total honnête est le coût ANNUEL exact de chaque poste.
+      const totalAnnuel = fromCents(charges.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0));
       return `<div class="card row tx read-row" data-more="recurring" role="button" tabindex="0" style="cursor:pointer;margin-top:8px">
         <div class="ico" aria-hidden="true">${budgetGlyph("home")}</div>
         <div class="meta"><div class="t"><span class="t-label">Vos charges du foyer</span></div>
-          <div class="s">${charges.length} poste${charges.length > 1 ? "s" : ""} — loyer, assurances, transports… comptés à part, pas comme des abonnements</div></div>
-        <span class="amount neg">−${chf(total)}</span></div>`;
+          <div class="s">${charges.length} poste${charges.length > 1 ? "s" : ""} par an — loyer, assurances, transports… comptés à part, pas comme des abonnements</div></div>
+        <span class="amount neg">−${chf(totalAnnuel)}</span></div>`;
     })()}
     <div class="card" style="margin-top:12px">
       <p class="card-label">Comment c'est compté</p>
       <p class="caption" style="margin:0 0 6px">Ici, ce qui se <strong>résilie</strong>. Loyer et caisse maladie sont des charges du foyer : ils vivent dans « Ce qui revient ». Ouvrez une ligne pour changer.</p>
-      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong> est retiré en une fois, le mois où il tombe.</p>
+      <p class="caption" style="margin:0 0 6px">Un abonnement <strong>annuel</strong>, <strong>semestriel</strong> ou <strong>trimestriel</strong> est retiré en une fois, chaque mois où il tombe — jamais réparti sur les autres mois.</p>
       <p class="caption" style="margin:0">Un abonnement <strong>résilié</strong> quitte les prévisions, mais reste visible ici.</p>
     </div>`;
 }
@@ -7187,12 +7209,12 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     // le sens des sauvegardes antérieures est donc strictement préservé.
     // Une valeur PRÉSENTE mais illisible fait refuser la restauration
     // plutôt que d'être silencieusement ramenée à une valeur par défaut.
-    if (recurring.every !== undefined && !["month", "year"].includes(recurring.every)) {
+    if (recurring.every !== undefined && !["month", "quarter", "semiannual", "year"].includes(recurring.every)) {
       throw new Error("rythme de paiement régulier invalide");
     }
-    if (recurring.every === "year") {
+    if (recurring.every !== undefined && recurring.every !== "month") {
       if (!Number.isInteger(recurring.dueM) || recurring.dueM < 1 || recurring.dueM > 12) {
-        throw new Error("mois d'échéance annuelle invalide");
+        throw new Error("mois d'ancrage du rythme invalide");
       }
     }
     if (recurring.endedOn !== undefined && recurring.endedOn !== null) {
@@ -7894,16 +7916,20 @@ document.getElementById("rCat").addEventListener("change", () => refreshRecDest(
 function refreshRecRhythm() {
   const every = document.getElementById("rEvery").value;
   const wrap = document.getElementById("rDueWrap");
-  wrap.style.display = every === "year" ? "block" : "none";
+  wrap.style.display = every === "month" ? "none" : "block";
   const note = document.getElementById("rDueNote");
   const raw = parseAmountField(document.getElementById("rAmount").value);
-  if (every === "year" && raw > 0) {
-    const perMonth = fromCents(Math.round(toCents(raw) / 12));
-    note.textContent = `Déduit en une fois ce mois-là — jamais lissé. À titre de comparaison : ${chf(perMonth)} par mois.`;
-  } else if (every === "year") {
-    note.textContent = "Le montant sera déduit en une fois, le mois choisi — jamais lissé sur douze mois.";
+  if (every === "month") { note.textContent = ""; return; }
+  const step = RECURRING_EVERY[every] || 12;
+  const parAn = 12 / step;
+  const phrase = every === "year"
+    ? "Le montant sera déduit en une fois, le mois choisi — jamais réparti sur douze mois."
+    : `Déduit ${parAn} fois par an, à partir du mois choisi — jamais réparti sur les autres mois.`;
+  if (raw > 0) {
+    const perMonth = fromCents(Math.round(toCents(raw) * parAn / 12));
+    note.textContent = `${phrase} À titre de comparaison : ${chf(perMonth)} par mois.`;
   } else {
-    note.textContent = "";
+    note.textContent = phrase;
   }
 }
 document.getElementById("rEvery").addEventListener("change", refreshRecRhythm);
@@ -7934,9 +7960,10 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   if (!title) { err.textContent = "Donnez un intitulé."; return; }
   const amount = parseAmountField(document.getElementById("rAmount").value);
   if (!(amount > 0)) { err.textContent = "Ce montant n'est pas valable. Exemple : 89.00"; return; }
-  const every = document.getElementById("rEvery").value === "year" ? "year" : "month";
-  const dueM = every === "year" ? Number(document.getElementById("rDueM").value) : null;
-  if (every === "year" && !(Number.isInteger(dueM) && dueM >= 1 && dueM <= 12)) {
+  const everyRaw = document.getElementById("rEvery").value;
+  const every = Object.hasOwn(RECURRING_EVERY, everyRaw) ? everyRaw : "month";
+  const dueM = every !== "month" ? Number(document.getElementById("rDueM").value) : null;
+  if (every !== "month" && !(Number.isInteger(dueM) && dueM >= 1 && dueM <= 12)) {
     err.textContent = "Choisissez le mois d'échéance."; return;
   }
   const existing = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
@@ -7953,9 +7980,9 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     cat: document.getElementById("rCat").value,
     accountId: document.getElementById("rAccount").value,
   };
-  // Le mois d'échéance n'existe qu'en annuel : repasser en mensuel le
+  // Le mois d'ancrage n'existe que hors mensuel : repasser en mensuel le
   // retire réellement plutôt que de laisser un champ orphelin.
-  if (every === "year") data.dueM = dueM; else data.dueM = undefined;
+  if (every !== "month") data.dueM = dueM; else data.dueM = undefined;
   if (!ACCOUNTS.some(a => a.id === data.accountId)) { err.textContent = "Choisissez le compte utilisé."; return; }
   // Une mise de côté doit arriver quelque part, sinon l'argent disparaît du
   // patrimoine. On refuse ici plutôt que d'enregistrer une ligne qui ment.
@@ -7969,7 +7996,8 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
   } else {
     data.destAccountId = undefined;
   }
-  const label = every === "year" ? "Ligne annuelle" : "Ligne régulière";
+  const label = { month: "Ligne régulière", quarter: "Ligne trimestrielle",
+    semiannual: "Ligne semestrielle", year: "Ligne annuelle" }[every];
   if (existing) {
     Object.assign(existing, data);
     if (data.dueM === undefined) delete existing.dueM;

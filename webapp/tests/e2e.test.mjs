@@ -8886,6 +8886,77 @@ check(mono158.aucuneImage && mono158.aucuneExecution && mono158.tuileTexte === "
 check(mono158.tuileDecorative,
   "la tuile monogramme est décorative (aria-hidden) — le nom reste le libellé");
 
+// ---------- 160. REC1 : cadences exactes — trimestriel et semestriel (ADR-039) ----------
+// Programme Identités locales : le catalogue suggère des rythmes réels
+// (électricité trimestrielle, assurance semestrielle). La PWA ne
+// connaissait que mensuel et annuel — un trimestriel saisi en mensuel
+// aurait pesé douze fois au lieu de quatre. Chaque cadence est engagée
+// UNIQUEMENT sur ses mois d'échéance, jamais lissée ; le natif savait
+// déjà le faire ((month,3)/(month,6)) — la parité arrive côté web.
+currentTest = "REC1 cadences exactes";
+await goHome();
+const rec159 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  const mois = (base, delta) => ((base - 1 + delta) % 12 + 12) % 12 + 1;
+  const anneeDe = delta => NOW.y + Math.floor((NOW.m - 1 + delta) / 12);
+  const chargesAvant = snapshot(NOW.y, NOW.m).recurringCharges;
+  RECURRINGS.push(
+    { id: "r-rec1-tri", title: "Électricité trimestrielle", amount: 180, type: "expense",
+      cat: "Logement", day: 1, every: "quarter", dueM: NOW.m, accountId: cash.id },
+    { id: "r-rec1-sem", title: "Assurance semestrielle", amount: 240, type: "expense",
+      cat: "Assurance maladie", day: 1, every: "semiannual", dueM: mois(NOW.m, 1), accountId: cash.id },
+  );
+  const tri = RECURRINGS.find(r => r.id === "r-rec1-tri");
+  const sem = RECURRINGS.find(r => r.id === "r-rec1-sem");
+  const probe = recur => {
+    const clone = JSON.parse(JSON.stringify(S));
+    clone.recurrings = [...clone.recurrings.filter(r => !String(r.id).startsWith("r-rec1-")), recur];
+    try { validatedRestoreState(clone, {}); return "accepté"; }
+    catch (e) { return "refusé"; }
+  };
+  const resultat = {
+    triDueNow: recurringDueIn(tri, NOW.y, NOW.m),
+    triDuePlus1: recurringDueIn(tri, anneeDe(1), mois(NOW.m, 1)),
+    triDuePlus3: recurringDueIn(tri, anneeDe(3), mois(NOW.m, 3)),
+    semDueNow: recurringDueIn(sem, NOW.y, NOW.m),
+    semDuePlus1: recurringDueIn(sem, anneeDe(1), mois(NOW.m, 1)),
+    semDuePlus7: recurringDueIn(sem, anneeDe(7), mois(NOW.m, 7)),
+    triAnnuel: recurringYearlyCost(tri),
+    semAnnuel: recurringYearlyCost(sem),
+    chargesDelta: Math.round((snapshot(NOW.y, NOW.m).recurringCharges - chargesAvant) * 100) / 100,
+    chips: [...document.querySelectorAll("#rEveryGrid [data-revery]")].map(b => b.dataset.revery),
+    restaureQuarterSansMois: probe({ id: "rx1", title: "T", amount: 10, type: "expense",
+      cat: "Autre", day: 1, every: "quarter", accountId: cash.id }),
+    restaureQuarterAvecMois: probe({ id: "rx2", title: "T", amount: 10, type: "expense",
+      cat: "Autre", day: 1, every: "quarter", dueM: 2, accountId: cash.id }),
+    restaureInconnu: probe({ id: "rx3", title: "T", amount: 10, type: "expense",
+      cat: "Autre", day: 1, every: "weekly", accountId: cash.id }),
+  };
+  tri.endedOn = { y: NOW.y, m: NOW.m };
+  resultat.triApresResiliation = recurringDueIn(tri, anneeDe(3), mois(NOW.m, 3));
+  for (const id of ["r-rec1-tri", "r-rec1-sem"]) {
+    const i = RECURRINGS.findIndex(r => r.id === id);
+    if (i >= 0) RECURRINGS.splice(i, 1);
+  }
+  render();
+  return resultat;
+});
+check(rec159.triDueNow === true && rec159.triDuePlus1 === false && rec159.triDuePlus3 === true,
+  `un trimestriel n'est engagé que tous les trois mois depuis son ancrage (M ${rec159.triDueNow}, M+1 ${rec159.triDuePlus1}, M+3 ${rec159.triDuePlus3})`);
+check(rec159.semDueNow === false && rec159.semDuePlus1 === true && rec159.semDuePlus7 === true,
+  `un semestriel n'est engagé que deux fois par an (M ${rec159.semDueNow}, M+1 ${rec159.semDuePlus1}, M+7 ${rec159.semDuePlus7})`);
+check(rec159.triAnnuel === 720 && rec159.semAnnuel === 480,
+  `coût annuel EXACT : 4 × 180 = 720 et 2 × 240 = 480 — jamais 12 × (obtenu ${rec159.triAnnuel} / ${rec159.semAnnuel})`);
+check(rec159.chargesDelta === 180,
+  `le mois courant n'engage QUE le trimestriel dû — le semestriel du mois prochain ne pèse pas (delta ${rec159.chargesDelta})`);
+check(rec159.triApresResiliation === false,
+  "résilié = plus jamais engagé, même sur un futur mois d'échéance");
+check(rec159.chips.includes("quarter") && rec159.chips.includes("semiannual"),
+  `le formulaire propose les quatre rythmes (obtenu : ${rec159.chips.join(", ")})`);
+check(rec159.restaureQuarterSansMois === "refusé" && rec159.restaureQuarterAvecMois === "accepté"
+    && rec159.restaureInconnu === "refusé",
+  `restauration : trimestriel sans mois d'ancrage refusé, avec ancrage accepté, rythme inconnu refusé (obtenu ${rec159.restaureQuarterSansMois} / ${rec159.restaureQuarterAvecMois} / ${rec159.restaureInconnu})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8895,4 +8966,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 159 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 160 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

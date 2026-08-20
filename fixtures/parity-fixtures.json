@@ -594,6 +594,81 @@
      "epc": 300.0
     }
    }
+  },
+  {
+   "id": "cadences-exactes",
+   "title": "REC1 : trimestriel ancré mars dû en juin, semestriel ancré janvier silencieux, annuel de juin dû — jamais lissés (ADR-039)",
+   "month": {
+    "y": 2026,
+    "m": 6
+   },
+   "state": {
+    "taxRate": 0,
+    "taxReserve": 0,
+    "accounts": [
+     {
+      "id": "cur",
+      "name": "Compte courant",
+      "kind": "current",
+      "opening": 1000,
+      "cash": true,
+      "currency": "CHF"
+     }
+    ],
+    "liabilities": [],
+    "transactions": [],
+    "recurrings": [
+     {
+      "id": "r-tri",
+      "title": "Électricité",
+      "amount": 300.0,
+      "type": "expense",
+      "cat": "Logement",
+      "day": 1,
+      "every": "quarter",
+      "dueM": 3,
+      "accountId": "cur"
+     },
+     {
+      "id": "r-sem",
+      "title": "Assurance",
+      "amount": 240.0,
+      "type": "expense",
+      "cat": "Assurance maladie",
+      "day": 1,
+      "every": "semiannual",
+      "dueM": 1,
+      "accountId": "cur"
+     },
+     {
+      "id": "r-an",
+      "title": "Redevance",
+      "amount": 120.0,
+      "type": "expense",
+      "cat": "Autre",
+      "day": 1,
+      "every": "year",
+      "dueM": 6,
+      "accountId": "cur"
+     }
+    ]
+   },
+   "expected": {
+    "snapshot": {
+     "income": 0.0,
+     "living": 0.0,
+     "plannedIncome": 0.0,
+     "plannedOut": 0.0,
+     "recurringCharges": 420.0,
+     "recurringIncome": 0.0,
+     "liquid": 1000.0,
+     "available": 580.0,
+     "endOfMonthForecast": 580.0
+    },
+    "balances": {
+     "cur": 1000.0
+    }
+   }
   }
  ]
 }
