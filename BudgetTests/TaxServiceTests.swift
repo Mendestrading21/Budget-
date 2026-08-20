@@ -64,38 +64,34 @@ final class TaxServiceTests: XCTestCase {
     }
 
     private func makeReport(_ transactions: [BudgetTransaction]) -> TaxYearReport {
-        service.report(year: 2026, profile: profile, provision: provision, transactions: transactions)
+        service.report(year: 2026, provision: provision, transactions: transactions)
     }
 
-    // MARK: - Estimation
+    // MARK: - ADR-035 : rien n'est estimé, tout est saisi
 
-    func testEstimateIsIncomeTimesRate() {
+    func testNothingIsEstimatedWithoutAUserAmount() {
+        // Le profil du setUp porte encore un taux hérité de 30 % : il doit
+        // rester lettre morte — aucun revenu ne fabrique un chiffre.
         let income = addTransaction(Decimal("50000.00"), type: .income)
         let report = makeReport([income])
-        XCTAssertEqual(report.taxableIncome, Decimal("50000.00"))
-        XCTAssertEqual(report.estimatedTax, Decimal("15000.00"))
-        XCTAssertFalse(report.isOverridden)
+        XCTAssertNil(report.annualTax, "l'app n'invente jamais le montant de l'année")
+        XCTAssertEqual(report.outstanding, .zero)
+        XCTAssertEqual(report.reserveGap, .zero)
     }
 
-    func testManualOverrideWins() {
+    func testUserAnnualAmountDrivesOutstanding() {
         let income = addTransaction(Decimal("50000.00"), type: .income)
         provision.estimatedAnnualTaxOverride = Decimal("12500.00")
         let report = makeReport([income])
-        XCTAssertEqual(report.estimatedTax, Decimal("12500.00"))
-        XCTAssertTrue(report.isOverridden)
-    }
-
-    func testIncomeFromOtherYearsIsExcluded() {
-        let thisYear = addTransaction(Decimal("50000.00"), type: .income)
-        let lastYear = addTransaction(Decimal("99999.00"), type: .income, year: 2025)
-        let planned = addTransaction(Decimal("8000.00"), type: .income, month: 12, status: .planned)
-        let report = makeReport([thisYear, lastYear, planned])
-        XCTAssertEqual(report.taxableIncome, Decimal("50000.00"), "Autres années et prévus exclus")
+        XCTAssertEqual(report.annualTax, Decimal("12500.00"))
+        XCTAssertEqual(report.outstanding, Decimal("12500.00"),
+                       "encore dû = le montant saisi − les paiements notés")
     }
 
     // MARK: - Paid / outstanding reconciliation
 
     func testPaidSumsOnlyPostedTaxPaymentsOfTheYear() {
+        provision.estimatedAnnualTaxOverride = Decimal("15000.00")
         let income = addTransaction(Decimal("50000.00"), type: .income)
         let paid1 = addTransaction(Decimal("4000.00"), type: .taxPayment, month: 4)
         let paid2 = addTransaction(Decimal("2500.00"), type: .taxPayment, month: 5)
@@ -106,42 +102,41 @@ final class TaxServiceTests: XCTestCase {
         let report = makeReport([income, paid1, paid2, otherYear, plannedPayment, expense])
         XCTAssertEqual(report.paid, Decimal("6500.00"))
         XCTAssertEqual(report.outstanding, Decimal("8500.00"))
-        // Réconciliation totale : estimé = payé + encore dû.
-        XCTAssertEqual(report.estimatedTax, report.paid + report.outstanding)
+        // Réconciliation totale : montant saisi = payé + encore dû.
+        XCTAssertEqual(report.annualTax, report.paid + report.outstanding)
     }
 
     func testOutstandingNeverGoesNegative() {
-        let income = addTransaction(Decimal("1000.00"), type: .income)
+        provision.estimatedAnnualTaxOverride = Decimal("300.00")
         let overpaid = addTransaction(Decimal("900.00"), type: .taxPayment)
-        let report = makeReport([income, overpaid])
-        XCTAssertEqual(report.estimatedTax, Decimal("300.00"))
-        XCTAssertEqual(report.outstanding, .zero)
+        let report = makeReport([overpaid])
+        XCTAssertEqual(report.outstanding, .zero, "un trop-payé ne devient jamais un dû négatif")
     }
 
     // MARK: - Reserve and arrears
 
     func testReserveGapCoversOutstandingPlusArrears() {
-        let income = addTransaction(Decimal("50000.00"), type: .income)
+        provision.estimatedAnnualTaxOverride = Decimal("15000.00")
         provision.reservedAmount = Decimal("10000.00")
         provision.arrearsAmount = Decimal("2000.00")
 
-        let report = makeReport([income])
+        let report = makeReport([])
         XCTAssertEqual(report.outstanding, Decimal("15000.00"))
         XCTAssertEqual(report.totalDue, Decimal("17000.00"))
         XCTAssertEqual(report.reserveGap, Decimal("7000.00"))
     }
 
     func testSufficientReserveMeansNoGap() {
-        let income = addTransaction(Decimal("10000.00"), type: .income)
+        provision.estimatedAnnualTaxOverride = Decimal("3000.00")
         provision.reservedAmount = Decimal("5000.00")
-        let report = makeReport([income])
+        let report = makeReport([])
         XCTAssertEqual(report.outstanding, Decimal("3000.00"))
         XCTAssertEqual(report.reserveGap, .zero)
     }
 
-    func testZeroIncomeYieldsSafeZeroes() {
+    func testEmptyYearYieldsSafeZeroes() {
         let report = makeReport([])
-        XCTAssertEqual(report.estimatedTax, .zero)
+        XCTAssertNil(report.annualTax)
         XCTAssertEqual(report.outstanding, .zero)
         XCTAssertEqual(report.reserveGap, .zero)
     }
@@ -185,7 +180,9 @@ final class TaxServiceTests: XCTestCase {
 
     // MARK: - Snapshot integration
 
-    func testSnapshotPrefersProfileRateOverHousehold() {
+    func testSnapshotIgnoresEveryStoredRate() {
+        // ADR-035 : un taux hérité (ménage OU profil) ne pèse plus RIEN sur
+        // la projection — le moteur n'a même plus de champ pour ça.
         let household = Household(name: "Test", taxProvisionRate: Decimal("0.30"))
         context.insert(household)
         profile.provisionRate = Decimal("0.20")
@@ -194,11 +191,15 @@ final class TaxServiceTests: XCTestCase {
         let snapshotService = MonthlySnapshotService(calendar: calendar)
         let snapshot = snapshotService.snapshot(
             monthOf: now, now: now, household: household,
-            accounts: [account], transactions: [income],
-            taxProfile: profile
+            accounts: [account], transactions: [income]
         )
-        XCTAssertEqual(snapshot.taxProvision.rate, Decimal("0.20"))
-        XCTAssertEqual(snapshot.taxProvision.recommended, Decimal("2000.00"))
+        XCTAssertEqual(
+            snapshot.available.total,
+            snapshot.available.liquidBalance + snapshot.available.expectedIncome
+                + snapshot.available.recurringIncome
+                - snapshot.available.committedCharges - snapshot.available.recurringCharges,
+            "la projection additionne seulement ce qui est saisi"
+        )
     }
 
     // MARK: - Persistence

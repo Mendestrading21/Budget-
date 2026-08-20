@@ -149,7 +149,7 @@ final class ObsidianFinancialModulesTests: XCTestCase {
                        "600 + 400×12 : équivalents réconciliés")
     }
 
-    // MARK: - Impôts : réservé, payé, estimé restent distincts (aucune invention)
+    // MARK: - Impôts : réservé, payé, montant saisi restent distincts (aucune invention)
 
     func testTaxFieldsStayDistinct() throws {
         let profile = TaxProfile(provisionRate: Decimal("0.30"))
@@ -170,17 +170,17 @@ final class ObsidianFinancialModulesTests: XCTestCase {
         try context.save()
 
         let report = TaxService(calendar: calendar).report(
-            year: 2026, profile: profile, provision: provision,
+            year: 2026, provision: provision,
             transactions: [payment]
         )
-        XCTAssertTrue(report.isOverridden, "l'estimation vient de la saisie, pas d'un calcul caché")
-        XCTAssertEqual(report.estimatedTax, Decimal("6000.00"))
+        XCTAssertEqual(report.annualTax, Decimal("6000.00"),
+                       "le montant de l'année vient de la saisie, jamais d'un calcul caché")
         XCTAssertEqual(report.paid, Decimal("400.00"))
         XCTAssertEqual(report.reserved, Decimal("1000.00"))
         XCTAssertNotEqual(report.paid, report.reserved, "payé ≠ réservé, toujours")
         XCTAssertEqual(report.outstanding, Decimal("5600.00"))
-        XCTAssertEqual(report.estimatedTax, report.paid + report.outstanding,
-                       "estimé = payé + encore dû — l'identité de réconciliation tient")
+        XCTAssertEqual(report.annualTax, report.paid + report.outstanding,
+                       "montant saisi = payé + encore dû — l'identité de réconciliation tient")
         XCTAssertEqual(report.reserveGap, Decimal("4600.00"),
                        "réserve manquante = encore dû − réservé, sans double comptage")
     }

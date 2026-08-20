@@ -23,6 +23,8 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         calendar.locale = FinanceFormatting.locale
         service = MonthlySnapshotService(calendar: calendar)
 
+        // ADR-035 : le taux hérité stocké reste à 30 % EXPRÈS — chaque test
+        // prouve qu'il est lettre morte.
         household = Household(name: "Test", taxProvisionRate: Decimal("0.30"))
         current = Account(name: "Courant", type: .current, openingBalance: Decimal("5000.00"))
         savings = Account(name: "Épargne", type: .savings, openingBalance: Decimal("1000.00"))
@@ -133,30 +135,32 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         XCTAssertEqual(balanceService.balance(of: savings, movements: [transfer]), Decimal("2500.00"))
     }
 
-    // MARK: - Tax provision
+    // MARK: - Impôts manuels (ADR-035)
 
-    func testTaxProvisionUsesConfiguredRateAndDefaults() {
+    func testStoredRateNeverCreatesATaxFigure() {
+        // 10'000 de revenus et un taux hérité de 30 % : AUCUN chiffre
+        // fiscal n'apparaît nulle part dans le snapshot.
         let income = [
             insert(BudgetTransaction(date: date(day: 1), amount: Decimal("10000.00"), type: .income, title: "Salaire", account: current)),
         ]
-        // Default 30 %
-        XCTAssertEqual(makeSnapshot(income).taxProvision.recommended, Decimal("3000.00"))
-
-        household.taxProvisionRate = Decimal("0.25")
         let snapshot = makeSnapshot(income)
-        XCTAssertEqual(snapshot.taxProvision.rate, Decimal("0.25"))
-        XCTAssertEqual(snapshot.taxProvision.recommended, Decimal("2500.00"))
-        XCTAssertEqual(snapshot.taxProvision.gap, Decimal("2500.00"))
+        XCTAssertEqual(snapshot.totalTaxPayments, .zero)
+        XCTAssertEqual(
+            snapshot.available.total,
+            snapshot.available.liquidBalance,
+            "sans mouvement prévu ni charge engagée, la projection = l'argent présent"
+        )
     }
 
-    func testTaxGapNeverGoesNegative() {
+    func testTaxPaymentsAreOnlyWhatWasEntered() {
         let transactions = [
             insert(BudgetTransaction(date: date(day: 1), amount: Decimal("1000.00"), type: .income, title: "Salaire", account: current)),
-            insert(BudgetTransaction(date: date(day: 5), amount: Decimal("900.00"), type: .taxPayment, title: "Rattrapage impôts", account: current)),
+            insert(BudgetTransaction(date: date(day: 5), amount: Decimal("900.00"), type: .taxPayment, title: "Acompte saisi", account: current)),
         ]
         let snapshot = makeSnapshot(transactions)
-        XCTAssertEqual(snapshot.taxProvision.recommended, Decimal("300.00"))
-        XCTAssertEqual(snapshot.taxProvision.gap, .zero)
+        XCTAssertEqual(snapshot.totalTaxPayments, Decimal("900.00"),
+                       "les impôts du mois = les paiements notés, rien d'autre")
+        XCTAssertEqual(snapshot.cashFlow, Decimal("100.00"))
     }
 
     // MARK: - Available to spend
@@ -174,22 +178,17 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         XCTAssertEqual(available.liquidBalance, Decimal("13000.00"))
         XCTAssertEqual(available.expectedIncome, Decimal("1000.00"))
         XCTAssertEqual(available.committedCharges, Decimal("2000.00"))
-        XCTAssertEqual(available.taxReserveGap, Decimal("2400.00"))
+        // ADR-035 : plus aucun terme fiscal — la projection additionne
+        // exactement ce qui est saisi, malgré le taux hérité de 30 %.
         XCTAssertEqual(
             available.total,
-            available.liquidBalance + available.expectedIncome - available.committedCharges - available.taxMonthlyEffort
+            available.liquidBalance + available.expectedIncome - available.committedCharges
         )
-        // FE2 : la projection porte l'effort fiscal DU MOIS — 30 % des
-        // revenus du mois (8'000 reçus + 1'000 attendus) = 2'700, plafonné
-        // par l'écart annuel anticipé (2'400 + 30 % × 1'000 = 2'700). Le
-        // bonus attendu porte son impôt d'avance : confirmer ne fera pas
-        // bouger le chiffre.
-        XCTAssertEqual(available.taxMonthlyEffort, Decimal("2700.00"))
-        XCTAssertEqual(available.total, Decimal("9300.00"))
+        XCTAssertEqual(available.total, Decimal("12000.00"))
     }
 
-    /// FE2 : confirmer un revenu attendu ne change pas la projection — son
-    /// impôt était provisionné d'avance (continuité, parité PWA A20/FE2-0).
+    /// A20 : confirmer un revenu attendu ne change pas la projection —
+    /// et depuis ADR-035, plus aucun terme fiscal ne s'en mêle.
     func testConfirmingAnExpectedIncomeDoesNotChangeTheForecast() {
         let salary = BudgetTransaction(
             date: date(day: 25), amount: Decimal("4800.00"), type: .income,
@@ -199,15 +198,14 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         salary.status = .posted
         let after = makeSnapshot([salary])
 
-        XCTAssertEqual(before.available.taxMonthlyEffort, Decimal("1440.00"))
-        XCTAssertEqual(after.available.taxMonthlyEffort, Decimal("1440.00"))
         XCTAssertEqual(before.available.total, after.available.total,
                        "confirmer un salaire attendu ne doit pas faire bouger la projection")
     }
 
-    /// FE2 : l'écart fiscal ANNUEL n'écrase plus le mois — seule la part du
-    /// mois pèse ; l'écart complet reste visible dans taxProvision.gap.
-    func testAnnualTaxGapDoesNotCrushTheMonthForecast() {
+    /// ADR-035 : même un gros revenu de l'année et un taux hérité de 30 %
+    /// ne fabriquent AUCUNE déduction — le scénario exact de la capture du
+    /// propriétaire (20.08.2026).
+    func testStoredRateStaysInertEvenWithBigYearIncome() {
         let past = BudgetTransaction(
             date: date(day: 10, month: 1), amount: Decimal("100000.00"),
             type: .income, title: "Gros revenu passé", account: current
@@ -218,13 +216,10 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         )
         let snapshot = makeSnapshot([insert(past), insert(salary)])
 
-        XCTAssertEqual(snapshot.taxProvision.gap, Decimal("31200.00"),
-                       "l'écart annuel reste dit en entier dans Impôts")
-        XCTAssertEqual(snapshot.available.taxMonthlyEffort, Decimal("1200.00"),
-                       "le mois ne porte que 30 % de SES revenus")
         XCTAssertEqual(
             snapshot.available.total,
-            snapshot.available.liquidBalance - snapshot.available.taxMonthlyEffort
+            snapshot.available.liquidBalance,
+            "rien de prévu, rien d'engagé : la projection = l'argent présent, sans AUCUN impôt inventé"
         )
     }
 

@@ -737,6 +737,26 @@ douce, effort 1500 sans consentement) ; les tests fiscaux passent un
 taux explicite. Données existantes non réécrites — le propriétaire
 passe son taux à 0 % d'un geste.
 
+**FE2-12 — Impôts 100 % manuels : le taux disparaît, l'app additionne
+(ADR-035)** · en PR. Le lendemain de FE2-11, la capture du propriétaire
+montrait toujours « − 600 d'impôts » : son appareil portait le taux 30 %
+stocké d'avant (jamais réécrit, par principe). Ordre définitif : « une
+page impôts où c'est moi qui mets combien je verse, comme une facture —
+toutes les données, c'est moi qui dois les rentrer. » Le CONCEPT de taux
+disparaît : plus aucune formule ne lit un taux stocké (le « − 600 »
+s'éteint sans toucher à ses données), le moteur perd tous ses champs
+fiscaux dérivés (projection = argent + attendu − sorties saisies, deux
+plateformes), la page Impôts additionne payé / mis de côté / acomptes et
+gagne « Ajouter un acompte », la feuille ne règle plus que le report.
+Parcours 157 réécrit sur le scénario exact de sa capture, né rouge
+(« − 900 d'impôts » encore présent) ; tests 53/56/82/107/136/153/154
+réécrits ; fixture `impots-manuels-taux-herite` garde `taxRate: 0.3`
+EXPRÈS dans le state (107'160 → 108'300) ; miroir natif complet ;
+FINANCIAL_ENGINE_V2.md amendé. Au passage : le parcours 97 fournissait
+son badge « Prévu » par accident du jeu de démo (l'acompte du jour 20) —
+il injecte désormais son propre mouvement prévu, déterministe quel que
+soit le jour du mois.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

@@ -1484,10 +1484,8 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="taxForm" style="display:none">
-      <h3>Profil d'impôts</h3>
-      <label for="txRate">Argent prévu pour les impôts (% des revenus)</label>
-      <input id="txRate" inputmode="decimal" placeholder="30" autocomplete="off" />
-      <label for="txReserve">Déjà mis de côté (<span class="curlabel">CHF</span>)</label>
+      <h3>Report d'impôts</h3>
+      <label for="txReserve">Déjà mis de côté avant l'app (<span class="curlabel">CHF</span>)</label>
       <input id="txReserve" data-primary-amount inputmode="decimal" placeholder="2400.00" autocomplete="off" />
       <div class="error" id="txError" role="alert"></div>
       <div class="actions sticky">
@@ -1691,12 +1689,12 @@ function L(key) {
 }
 
 const COUNTRIES = {
-  CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF", taxRate: 0,
-        taxHint: "Ici, les impôts ne sont pas retenus sur le salaire. Si vous voulez que l'app mette de côté pour vous, réglez un taux dans Gérer → Impôts." },
-  FR: { flag: "🇫🇷", name: "France", currency: "EUR", taxRate: 0,
-        taxHint: "Vos impôts sont déjà retenus sur le salaire : mettre de côté reste facultatif." },
-  BE: { flag: "🇧🇪", name: "Belgique", currency: "EUR", taxRate: 0,
-        taxHint: "Vos impôts sont déjà retenus sur le salaire : mettre de côté reste facultatif." },
+  CH: { flag: "🇨🇭", name: "Suisse", currency: "CHF",
+        taxHint: "Ici, les impôts ne sont pas retenus sur le salaire : notez vos acomptes dans Impôts, comme des factures." },
+  FR: { flag: "🇫🇷", name: "France", currency: "EUR",
+        taxHint: "Vos impôts sont déjà retenus sur le salaire : rien à faire de plus dans l'app." },
+  BE: { flag: "🇧🇪", name: "Belgique", currency: "EUR",
+        taxHint: "Vos impôts sont déjà retenus sur le salaire : rien à faire de plus dans l'app." },
 };
 const CURRENCY_NAMES = { CHF: "Franc suisse", EUR: "Euro", USD: "Dollar américain" };
 const CURRENCY_SYMBOL = { CHF: "CHF", EUR: "€", USD: "$" };
@@ -2124,7 +2122,6 @@ function seedState(country = "CH") {
     baseCurrency: "CHF",
     faceIDEnabled: false,
     lockCode: null,
-    taxRate: 0.30,
     taxReserve: 2400,
     monthChecks: {},
     lastImport: null,
@@ -2155,7 +2152,6 @@ function seedState(country = "CH") {
     s.country = country;
     s.baseCurrency = COUNTRIES[country].currency;
     s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
-    s.taxRate = COUNTRIES[country].taxRate;
     for (const account of s.accounts) {
       account.currency = s.baseCurrency;
       if (account.kind === "pension") account.name = LABELS.pensionKind[country];
@@ -2604,13 +2600,6 @@ function snapshot(y, m) {
   const plannedOut = round2(["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
     + openBillsDue);
 
-  // UNE vérité fiscale : l'accueil consomme exactement le même résumé
-  // annuel que l'écran Impôts. La réserve annuelle n'est jamais soustraite
-  // séparément à chacun des mois.
-  const taxYear = taxSummary(y);
-  const taxRecommended = taxYear.estimated;
-  const taxGap = taxYear.reserveGap;
-
   const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const isCurrent = (y === NOW.y && m === NOW.m);
   // Toutes les occurrences mensuelles non couvertes restent engagées,
@@ -2636,32 +2625,12 @@ function snapshot(y, m) {
       .reduce((x, t) => x + txCHF(t), 0), 0) / 3;
     irregularIncome = Math.max(0, avg - income - plannedIncome);
   }
-  // FE2 (cahier propriétaire, 18.08.2026) : la projection du mois ne
-  // porte plus l'écart fiscal ANNUEL — seulement l'« effort fiscal du
-  // mois » : le taux appliqué aux revenus DU MOIS (comptabilisés +
-  // attendus), moins ce qui est déjà mis ou engagé de côté pour les
-  // impôts ce mois. Deux gardes :
-  //  · pas de double compte — les mises de côté « Impôts » déjà prévues
-  //    ou engagées vivent déjà dans plannedOut/recurringCharges, elles
-  //    réduisent donc l'effort restant ;
-  //  · plafond à l'écart annuel ANTICIPÉ (A20) — si l'année est déjà
-  //    couverte (réserve suffisante), le mois ne déduit rien.
-  // La continuité d'A20 tient toujours : confirmer un salaire attendu ne
-  // change pas la projection.
-  const expectedIncome = round2(plannedIncome + recurringIncome + irregularIncome);
-  const dueForecast = Math.max(0, round2(taxYear.estimated + round2(expectedIncome * taxYear.rate) - taxYear.paid));
-  const taxGapForecast = Math.max(0, round2(dueForecast - taxYear.reserved));
-  const isTaxSetAside = t => (t.type === "saving" || t.type === "investment") && t.cat === "Impôts";
-  const taxSetAsideMonth = round2(
-    posted.filter(isTaxSetAside).reduce((a, t) => a + txCHF(t), 0)
-    + planned.filter(isTaxSetAside).reduce((a, t) => a + txCHF(t), 0)
-    + fromCents(upcomingRecurrings.reduce((a, r) =>
-      a + (recurringIsReserve(r) && r.cat === "Impôts" ? toCents(recurringAmountInBase(r)) : 0), 0))
-  );
-  const taxMonthlyEffort = Math.max(0, Math.min(
-    round2(round2((income + expectedIncome) * taxYear.rate) - taxSetAsideMonth),
-    taxGapForecast
-  ));
+  // ADR-035 (décision propriétaire, 20.08.2026) : AUCUN impôt calculé
+  // automatiquement. La projection additionne seulement ce qui est saisi —
+  // un acompte pèse par sa facture ou son mouvement prévu, dans
+  // plannedOut/recurringCharges, comme n'importe quelle sortie. Un taux
+  // hérité encore stocké (S.taxRate) est lettre morte : plus aucune
+  // formule ne le lit.
   // FE2 : les agrégats explicites — chacun dit UNE chose.
   const savingsAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
     .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
@@ -2671,7 +2640,7 @@ function snapshot(y, m) {
   // natif, NetWorthService.liquidWealth).
   const liquidWealth = fromCents(ACCOUNTS.filter(a => a.cash || a.kind === "savings")
     .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
-  const endOfMonthForecast = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges - taxMonthlyEffort);
+  const endOfMonthForecast = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges);
   const available = endOfMonthForecast;
   const daysInMonth = new Date(y, m, 0).getDate();
   const daysRemaining = isCurrent ? (daysInMonth - NOW.d + 1) : 0;
@@ -2681,7 +2650,6 @@ function snapshot(y, m) {
   const cashFlow = round2(income - living - savings - invest - taxes);
 
   return { income, living, savings, invest, taxes, debtPaid, plannedIncome, plannedOut,
-           taxRecommended, taxGap, taxGapForecast, taxMonthlyEffort, taxSetAsideMonth,
            savingsAccessible, liquidWealth, endOfMonthForecast,
            liquid, available, daysRemaining, daily,
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
@@ -3055,7 +3023,6 @@ function monthPriority(y, m, s, report) {
   const goal = GOALS.find(g => !g.achieved && g.priority) || GOALS.find(g => !g.achieved);
   if (prevOpen) return { text: `Priorité : boucler ${MONTH_NAMES[prev.m - 1]} — quelques validations suffisent.`, nav: `data-gotomonth="${prev.y}-${prev.m}"`, why: "le mois précédent contient des éléments non validés" };
   if (lateBills.length) return { text: `Priorité : ${lateBills.length > 1 ? lateBills.length + " factures en retard" : "une facture en retard"} — réglez-les d'abord.`, nav: 'data-more="bills"', why: "une facture en retard coûte des rappels et de la charge mentale" };
-  if (s.taxGap > 0) return { text: `Priorité : mettre ${chf(s.taxGap)} de côté pour les impôts ${y}.`, nav: 'data-more="taxes"', why: `la réserve d'impôts ${y} n'est pas encore couverte` };
   if (overCats.length) return { text: `Attention : « ${esc(overCats[0].cat)} » dépasse son budget — un œil suffit.`, nav: 'data-gototab="budget"', why: "une enveloppe dépasse son montant planifié" };
   if (goal) return { text: `Tout est en ordre — un versement vers « ${esc(goal.name)} » ferait avancer votre objectif.`, nav: 'data-more="goals"', why: "rien d'urgent : le surplus peut nourrir votre objectif prioritaire" };
   return null;
@@ -3104,16 +3071,14 @@ function renderSimpleHome() {
   // l'argent possédé.
   const heroMaintenant = s.isCurrent && heroVue !== "finmois";
   const enAttente = round2(s.plannedIncome + s.recurringIncome + s.irregularIncome);
-  // FE2-10 (capture propriétaire, 19.08.2026) : « pourquoi sortir 600
-  // alors que je n'ai pas de facture ? » — l'effort d'impôts du mois
-  // était fondu dans « à sortir ». Chaque terme réel est NOMMÉ, et un
-  // terme à zéro se tait.
+  // FE2-10 : chaque terme réel est NOMMÉ, un terme à zéro se tait.
+  // FE2-12 (ADR-035) : plus AUCUN terme d'impôts automatique — seuls les
+  // mouvements et factures saisis pèsent sur la projection.
   const sortiesReelles = round2(s.plannedOut + s.recurringCharges);
   const noteFinMois = [
     `${chf(s.liquid)} maintenant`,
     ...(enAttente > 0 ? [`+ ${chf(enAttente)} à recevoir`] : []),
     ...(sortiesReelles > 0 ? [`− ${chf(sortiesReelles)} à sortir`] : []),
-    ...(s.taxMonthlyEffort > 0 ? [`− ${chf(s.taxMonthlyEffort)} d'impôts à mettre de côté`] : []),
   ].join(" ") + ".";
   const heroValue = s.isCurrent
     ? (heroMaintenant ? s.liquid : s.endOfMonthForecast)
@@ -4057,63 +4022,44 @@ function backBar(title) {
 }
 
 /* ---------- Impôts : UNE seule vérité (posted + année) ----------
-   Utilisée par l'écran Impôts ET par le dashboard — jamais deux formules. */
+   Utilisée par l'écran Impôts ET par l'assistant — jamais deux formules.
+   ADR-035 (décision propriétaire, 20.08.2026) : la page ADDITIONNE ce qui
+   a été noté — paiements, envois « Impôts », report saisi, acomptes à
+   venir. Elle n'estime plus rien à partir d'un taux ; le champ hérité
+   S.taxRate n'est plus jamais lu. */
 function taxSummary(year) {
-  const rate = S.taxRate ?? 0;
-  // Revenus COMPTABILISÉS depuis le 1er janvier — jamais les prévus, jamais
-  // une projection artificielle sur douze mois. Parité avec TaxService natif.
-  const monthlyIncomes = Array.from({ length: 12 }, (_, i) =>
-    transactions.filter(t => inMonth(t, year, i + 1) && t.type === "income" && t.status === "posted")
-      .reduce((a, t) => a + txCHF(t), 0));
-  const observed = monthlyIncomes.filter(v => v > 0);
-  const yearIncome = monthlyIncomes.reduce((a, b) => a + b, 0);
-  const estimated = Math.round(yearIncome * rate * 100) / 100;
   // Payés COMPTABILISÉS de la même année uniquement.
   const paid = transactions
     .filter(t => t.type === "taxPayment" && t.status === "posted" && t.y === year)
     .reduce((a, t) => a + txCHF(t), 0);
-  const due = Math.max(0, estimated - paid);
-  // C2 (07.08.2026) — LA PROVISION EST CE QUE VOUS AVEZ VRAIMENT MIS DE CÔTÉ.
-  // Avant, `S.taxReserve` était un nombre TAPÉ À LA MAIN, relié à aucun
-  // mouvement : virer 2'500 vers un compte pour ses impôts ne le remplissait
-  // pas, il fallait le retaper. C'était la double saisie signalée par le
-  // propriétaire.
-  // Désormais on additionne les vrais envois de l'année rangés dans
-  // « Impôts » — exactement ce que crée une charge régulière de nature
-  // « mis de côté » depuis C1.
+  // C2 (07.08.2026) : la provision est CE QU'ON A VRAIMENT MIS — les envois
+  // de l'année rangés dans « Impôts », additionnés tout seuls.
   const reservedFromMovements = round2(transactions
     .filter(t => t.y === year && t.status === "posted"
       && (t.type === "saving" || t.type === "investment") && t.cat === "Impôts")
     .reduce((a, t) => a + txCHF(t), 0));
-  // Le nombre déjà saisi n'est PAS effacé : il devient un report, affiché à
-  // part. Faire disparaître un chiffre que quelqu'un a écrit serait pire que
-  // le défaut qu'on corrige.
+  // Le report saisi à la main n'est jamais effacé : il s'ajoute, à part.
   const reservedManual = S.taxReserve ?? 0;
   const reserved = round2(reservedFromMovements + reservedManual);
-  const reserveGap = Math.max(0, round2(due - reserved));
   // Échéances réelles : les factures de catégorie Impôts encore ouvertes.
   const taxBills = (S.bills || []).filter(b => !billIsCovered(b) && b.cat === "Impôts" && b.dueY === year);
-  return { rate, yearIncome, estimated, paid, due, reserved, reservedFromMovements,
-           reservedManual, reserveGap, observedMonths: observed.length, taxBills };
+  return { paid, reserved, reservedFromMovements, reservedManual, taxBills };
 }
 
 function renderTaxes() {
   const summary = taxSummary(cursor.y);
-  const { rate, estimated, paid, due, reserved, reservedFromMovements, reservedManual,
-          reserveGap, observedMonths, taxBills } = summary;
+  const { paid, reserved, reservedFromMovements, reservedManual, taxBills } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
-      <p class="card-label">Il vous reste à payer, à peu près</p>
-      <p class="hero-amount warn${due >= 1000000 ? " long" : ""}">${chf(due)}</p>
-      <div style="margin:6px 0 4px">${reserveGap > 0
-        ? `<span class="pill warn">Il manque ${chf(reserveGap)} de côté</span>`
-        : '<span class="pill pos">Vous avez tout mis de côté</span>'}</div>
+      <p class="card-label">Payé en ${cursor.y}</p>
+      <p class="hero-amount${paid >= 1000000 ? " long" : ""}">${chf(paid)}</p>
+      <div style="margin:6px 0 4px">${taxBills.length
+        ? `<span class="pill warn">${taxBills.length > 1 ? `${taxBills.length} acomptes à venir` : "1 acompte à venir"}</span>`
+        : '<span class="pill pos">Aucun acompte en attente</span>'}</div>
     </div>
     <div class="stat-grid">
-      <div class="stat"><span class="card-label">Pour toute l'année</span><span class="amount">${chf(estimated)}</span></div>
       <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span></div>
       <div class="stat"><span class="card-label">Déjà mis de côté</span><span class="amount info">${chf(reserved)}</span></div>
-      <div class="stat"><span class="card-label">Encore à mettre de côté</span><span class="amount ${reserveGap > 0 ? "warn" : "pos"}">${chf(reserveGap)}</span></div>
     </div>
     <div class="card" style="margin-top:8px">
       <p class="card-label">D'où vient « déjà mis de côté »</p>
@@ -4123,18 +4069,15 @@ function renderTaxes() {
       </div>
       <p class="caption" style="margin:8px 0 0">Chaque envoi rangé dans « Impôts » compte ici tout seul. Plus rien à retaper.</p>
     </div>
-    ${observedMonths === 0 ? `<div class="card" style="border-color:var(--warning)">
-      <p class="card-label warn">Il manque des informations</p>
-      <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 0">Aucun revenu noté en ${cursor.y}, donc le calcul donne zéro. On n'invente rien : notez vos revenus et l'estimation deviendra utile.</p>
-    </div>` : ""}
     <p class="section-title">Vos prochains acomptes</p>
     ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">À payer ${billDueLabel(b)}</div></div>
       <span class="amount">${chf(billAmountInBase(b))}</span></div>`).join("")
-      : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez un acompte comme une facture, dans la catégorie « Impôts » : il apparaîtra ici et dans votre mois.</span></div>`}
-    <button class="btn secondary" data-adjusttax style="margin-top:8px">Changer le taux ou ma réserve</button>
-    <p class="caption" style="padding:6px 4px 0">C'est une estimation pour vous organiser, pas un conseil fiscal. On compte seulement ce que vous avez noté en ${cursor.y}.</p>`;
+      : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez vos acomptes comme des factures : ils compteront dans votre mois, comme n'importe quelle sortie.</span></div>`}
+    <button class="btn secondary" data-addtaxbill style="margin-top:8px">Ajouter un acompte</button>
+    <button class="btn secondary" data-adjusttax style="margin-top:8px">Corriger mon report</button>
+    <p class="caption" style="padding:6px 4px 0">L'app ne calcule aucun impôt à votre place : elle additionne seulement ce que vous notez en ${cursor.y}. Ce n'est pas un conseil fiscal.</p>`;
 }
 
 /* ---------- Patrimoine (Phase 10) ---------- */
@@ -5264,31 +5207,31 @@ function renderAssistant() {
       icon: "budget",
       result: s.available > 0 ? `≈ ${chf(weekBudget)} sur ${weekDays} jour${weekDays > 1 ? "s" : ""}` : "Prudence : le disponible du mois est à zéro ou négatif",
       why: `Votre argent disponible (${chf(s.available)}) réparti sur les ${s.daysRemaining} jour${s.daysRemaining > 1 ? "s" : ""} restants du mois donne ${chf(s.daily)} par jour.`,
-      hyp: "Compte les revenus attendus, les charges prévues, les paiements réguliers à venir et la réserve d'impôts manquante — pas l'épargne ni le patrimoine.",
+      hyp: "Compte les revenus attendus, les charges prévues et les paiements réguliers à venir — pas l'épargne ni le patrimoine.",
       action: ["Voir le budget", 'data-gototab="budget"'],
     },
     why: {
       q: "Pourquoi ai-je ce montant disponible ?",
       icon: "search",
       result: chf(s.available),
-      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)} − effort d'impôts du mois ${chf(-s.taxMonthlyEffort, true)} (le taux appliqué aux revenus du mois, moins ce qui est déjà mis de côté — l'écart annuel complet vit dans Impôts).`,
+      why: `Argent sur les comptes cash ${chf(s.liquid)} + revenus attendus ${chf(s.plannedIncome + s.recurringIncome, true)} − charges prévues ${chf(-(s.plannedOut + s.recurringCharges), true)}. L'app n'ajoute aucun impôt d'elle-même : vos acomptes comptent quand vous les saisissez, comme des factures.`,
       hyp: "L'épargne et les investissements ne sont pas des dépenses ; les virements internes sont neutres.",
       action: ["Voir le détail sur Mois", 'data-gototab="home"'],
     },
     tax: {
-      q: "Combien garder pour mes impôts ?",
+      q: "Où en sont mes impôts ?",
       icon: "taxPayment",
-      result: tax.reserveGap > 0 ? `Encore ${chf(tax.reserveGap)} pour ${NOW.y}` : `Votre réserve ${NOW.y} est couverte`,
-      why: `Estimation ${NOW.y} : ${chf(tax.estimated)} (${pct(tax.rate)} des revenus observés) · déjà payé : ${chf(tax.paid)} · réserve constituée : ${chf(tax.reserved)}.`,
-      hyp: "Estimation d'organisation personnelle basée sur votre taux réglable — pas un conseil fiscal.",
+      result: `Payé en ${NOW.y} : ${chf(tax.paid)} · mis de côté : ${chf(tax.reserved)}`,
+      why: `L'app additionne seulement ce que vous avez noté : vos paiements d'impôts (${chf(tax.paid)}) et ce que vous avez rangé dans « Impôts » (${chf(tax.reserved)}). Elle ne calcule aucun impôt à votre place.`,
+      hyp: "Vos acomptes se saisissent comme des factures, catégorie « Impôts » — pas un conseil fiscal.",
       action: ["Ouvrir Impôts", 'data-more="taxes"'],
     },
     prio: {
       q: "Quelle est ma priorité ce mois-ci ?",
       icon: "goal",
       result: prio ? prio.text : "Tout est en ordre — rien d'urgent ce mois.",
-      why: prio ? `Parce que ${prio.why}.` : "Aucun retard, réserve d'impôts couverte, budget respecté.",
-      hyp: "Une seule priorité à la fois : rattrapage > factures en retard > impôts > dépassement > objectif.",
+      why: prio ? `Parce que ${prio.why}.` : "Aucun retard, budget respecté.",
+      hyp: "Une seule priorité à la fois : rattrapage > factures en retard > dépassement > objectif.",
       action: prio ? ["Y aller", prio.nav] : ["Voir mes objectifs", 'data-more="goals"'],
     },
   };
@@ -5749,9 +5692,8 @@ function finishOnboarding() {
   const opening = obOpeningVal;
   S.profile = { name: obName, partner: obPartner || null, householdType: obHousehold };
   S.country = obCountry;
-  // A18 : plus de question d'impôts à l'onboarding — le défaut du pays
-  // s'applique, modifiable dans Impôts.
-  S.taxRate = COUNTRIES[obCountry].taxRate;
+  // A18 + ADR-035 : aucune question d'impôts à l'onboarding et aucun
+  // taux automatique — les acomptes se saisissent comme des factures.
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
   ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: "", kind: "current",
@@ -6014,6 +5956,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (penEl) { const p = PENSIONS.find(x => x.id === penEl.dataset.penid); if (p) openPenSheet(p); return; }
   if (e.target.closest("[data-addpen]")) { openPenSheet(null); return; }
   if (e.target.closest("[data-printyear]")) { window.print(); return; }
+  if (e.target.closest("[data-addtaxbill]")) {
+    openBillSheet(null);
+    document.getElementById("bCat").value = "Impôts";
+    return;
+  }
   if (e.target.closest("[data-adjusttax]")) { openTaxSheet(); return; }
   const postRecBtn = e.target.closest("[data-postrec]");
   if (postRecBtn) {
@@ -8252,25 +8199,21 @@ document.getElementById("penDelete").addEventListener("click", () => {
 /* ---------- Feuille impôts (W4) ---------- */
 function openTaxSheet() {
   document.getElementById("taxForm").reset();
-  document.getElementById("txRate").value = ((S.taxRate ?? 0) * 100).toFixed(0);
   document.getElementById("txReserve").value = (S.taxReserve ?? 0).toFixed(2);
   document.getElementById("txError").textContent = "";
   openSheet("taxForm");
-  document.getElementById("txRate").focus();
+  document.getElementById("txReserve").focus();
 }
 document.getElementById("txCancel").addEventListener("click", () => closeSheet());
 document.getElementById("taxForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const err = document.getElementById("txError");
-  const rate = parseAmountField(document.getElementById("txRate").value);
-  if (!(rate >= 0 && rate <= 60)) { err.textContent = "Taux entre 0 et 60 %. Exemple : 30"; return; }
   const reserveRaw = document.getElementById("txReserve").value.trim();
   const reserve = reserveRaw === "" ? 0 : parseAmountField(reserveRaw);
-  if (Number.isNaN(reserve)) { err.textContent = "Ce montant mis de côté n'est pas valable. Exemple : 2400.00"; return; }
-  S.taxRate = Math.round(rate) / 100;
+  if (Number.isNaN(reserve) || reserve < 0) { err.textContent = "Ce montant mis de côté n'est pas valable. Exemple : 2400.00"; return; }
   S.taxReserve = reserve;
   saveState(); closeSheet();
-  toast(`Profil d'impôts mis à jour (taux ${Math.round(rate)} %)`);
+  toast("Report d'impôts mis à jour");
   render();
 });
 

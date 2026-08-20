@@ -1672,29 +1672,32 @@ await page.waitForTimeout(150);
 await page.click('#screen [data-more="taxes"]');
 await page.waitForTimeout(250);
 screenHTML = await page.$eval("#screen", el => el.innerHTML);
-// Le HÉROS lui-même doit dire que le chiffre est approché : trouver le mot
-// quelque part dans la page ne prouve rien, la note de bas de page le
-// contient toujours.
-check(/Il vous reste à payer, à peu près/.test(screenHTML),
-  "le héros Impôts annonce lui-même qu'il s'agit d'une approximation");
-for (const label53 of ["Pour toute l'année", "Déjà payé", "Déjà mis de côté", "Encore à mettre de côté"]) {
+// FE2-12 (décision propriétaire, 20.08.2026) : la page Impôts n'estime
+// plus rien — elle ADDITIONNE ce que l'utilisateur a noté, c'est tout.
+check(/Payé en \d{4}/.test(screenHTML),
+  "le héros Impôts dit un FAIT — ce qui a été payé — plus aucune estimation");
+for (const label53 of ["Déjà payé", "Déjà mis de côté"]) {
   check(screenHTML.includes(label53), `la stat « ${label53} » est présente et distincte`);
 }
-check(/(Vous avez tout mis de côté|Il manque .* de côté)/.test(screenHTML), "l'état de la réserve est écrit en pill");
+check(!screenHTML.includes("Pour toute l'année") && !/à peu près/.test(screenHTML)
+  && !screenHTML.includes("Encore à mettre de côté"),
+  "plus AUCUNE estimation dérivée d'un taux sur la page Impôts (ADR-035)");
+check(screenHTML.includes("Ajouter un acompte"),
+  "un bouton crée un acompte comme une facture — le geste demandé par le propriétaire");
+check(!screenHTML.includes("Changer le taux"),
+  "plus aucun réglage de taux : il n'y a plus rien d'automatique à régler");
 check(screenHTML.includes("pas un conseil fiscal"), "le disclaimer honnête est affiché");
-check(screenHTML.includes("On compte seulement ce que vous avez noté"), "la source du calcul est écrite en clair");
+check(screenHTML.includes("additionne seulement ce que vous notez"),
+  "la page dit sa règle en clair : elle additionne, elle ne calcule pas");
 const tax53 = await page.evaluate(() => {
   const s = taxSummary(cursor.y);
-  return { holds: s.estimated < s.paid || Math.abs(s.estimated - (s.paid + s.due)) < 0.005 };
+  return {
+    holds: Math.abs(s.reserved - (s.reservedFromMovements + s.reservedManual)) < 0.005,
+    sansEstimation: !("estimated" in s) && !("due" in s) && !("reserveGap" in s) && !("rate" in s),
+  };
 });
-check(tax53.holds, "identité chiffrée : estimé = payé + encore dû");
-// Utilisateur sans revenu comptabilisé : on le DIT, on n'invente rien.
-await page.evaluate(() => { window.__l6txs = transactions.splice(0, transactions.length); render(); });
-await page.waitForTimeout(200);
-screenHTML = await page.$eval("#screen", el => el.innerHTML);
-check(screenHTML.includes("Il manque des informations") && screenHTML.includes("On n'invente rien"),
-  "sans revenu : l'écran DIT que l'estimation est incomplète au lieu d'inventer un chiffre");
-await page.evaluate(() => { transactions.push(...window.__l6txs); delete window.__l6txs; render(); });
+check(tax53.holds, "identité chiffrée : mis de côté = envois + report saisi");
+check(tax53.sansEstimation, "taxSummary ne dérive plus rien d'un taux (ADR-035)");
 
 // ---------- Test 54 : Patrimoine + Prévoyance + Assurances + Récurrents L6 ----------
 currentTest = "patrimoine+prévoyance L6";
@@ -1975,16 +1978,16 @@ await p56.click("[data-obskipgoal]");
 await p56.waitForSelector("#tabbar button", { timeout: 10000 });
 const final56 = await p56.evaluate(() => ({
   taxRate: S.taxRate,
-  effort: snapshot(NOW.y, NOW.m).taxMonthlyEffort,
+  effortExpose: "taxMonthlyEffort" in snapshot(NOW.y, NOW.m),
   salary: RECURRINGS.find(r => r.type === "income")?.amount,
   accounts: ACCOUNTS.length,
   saved: localStorage.getItem(APP_STATE_KEY) !== null,
 }));
-// FE2-11 (décision propriétaire, 19.08.2026) : AUCUN impôt calculé
-// automatiquement — la provision est OPT-IN. Le taux démarre à zéro,
-// même en Suisse ; il ne s'active que dans Gérer → Impôts.
-check(final56.taxRate === 0, `aucun impôt automatique : le taux démarre à zéro (obtenu ${final56.taxRate})`);
-check(final56.effort === 0, `sans taux choisi, l'effort d'impôts du mois est nul même avec un salaire régulier (obtenu ${final56.effort})`);
+// FE2-12 (décision propriétaire, 20.08.2026) : AUCUN impôt calculé
+// automatiquement, jamais — le moteur n'a même plus de champ pour ça.
+// Les impôts sont des acomptes que l'utilisateur saisit, comme des factures.
+check(final56.taxRate === 0, `le champ hérité reste à zéro après l'onboarding (obtenu ${final56.taxRate})`);
+check(final56.effortExpose === false, "le moteur n'expose plus AUCUN effort d'impôts automatique (ADR-035)");
 check(final56.salary === 5000, "le salaire facultatif devient un paiement régulier existant");
 check(final56.accounts >= 2 && final56.saved, "la finalisation crée les comptes et écrit l'état UNE fois");
 await ctx56.close();
@@ -3378,30 +3381,39 @@ check(refund81.incomeAfter === refund81.incomeBefore,
 check(refund81.resultDelta === 120,
   `le résultat annuel doit s'améliorer de 120 une seule fois (obtenu ${refund81.resultDelta})`);
 
-// 82 — l'accueil et Impôts partagent le même manque annuel multi-mois.
+// 82 — FE2-12 : la vérité fiscale est MANUELLE — six salaires et un taux
+// hérité ne fabriquent AUCUNE estimation ; seuls comptent l'acompte payé,
+// les envois « Impôts » et le report saisi.
 currentTest = "correctness fiscalité";
 const tax82 = await page79.evaluate(() => {
   transactions.length = 0;
-  S.taxRate = 0.30;
+  S.taxRate = 0.30; // taux hérité d'avant — doit rester lettre morte
   S.taxReserve = 5000;
   for (let month = 1; month <= 6; month++) {
     addTx({ id: 8200 + month, y: NOW.y, m: month, d: 15, title: `Salaire ${month}`,
       amount: 10000, type: "income", cat: "Salaire", acc: "cur", dest: null, status: "posted" });
   }
+  addTx({ id: 8207, y: NOW.y, m: 2, d: 20, title: "Acompte", amount: 2000,
+    type: "taxPayment", cat: "Impôts", acc: "cur", dest: null, status: "posted" });
+  addTx({ id: 8208, y: NOW.y, m: 3, d: 20, title: "Provision", amount: 500,
+    type: "saving", cat: "Impôts", acc: "cur", dest: null, status: "posted" });
   const report = taxSummary(NOW.y);
   const home = snapshot(NOW.y, NOW.m);
   return {
-    estimated: report.estimated,
-    reportGap: report.reserveGap,
-    homeGap: home.taxGap,
+    paid: report.paid,
+    reserved: report.reserved,
+    fromMovements: report.reservedFromMovements,
+    manual: report.reservedManual,
+    resteAutomatique: ("estimated" in report) || ("due" in report) || ("reserveGap" in report)
+      || ("taxGap" in home) || ("taxMonthlyEffort" in home) || ("taxRecommended" in home),
   };
 });
-check(tax82.estimated === 18000,
-  `estimation fiscale attendue 18'000 (obtenu ${tax82.estimated})`);
-check(tax82.reportGap === 13000,
-  `manque fiscal attendu 13'000 (obtenu ${tax82.reportGap})`);
-check(tax82.homeGap === tax82.reportGap,
-  `Accueil (${tax82.homeGap}) et Impôts (${tax82.reportGap}) doivent être identiques`);
+check(tax82.paid === 2000,
+  `« déjà payé » additionne les paiements d'impôts saisis (obtenu ${tax82.paid})`);
+check(tax82.fromMovements === 500 && tax82.manual === 5000 && Math.abs(tax82.reserved - 5500) < 0.005,
+  `« mis de côté » = envois (${tax82.fromMovements}) + report saisi (${tax82.manual})`);
+check(tax82.resteAutomatique === false,
+  "six salaires × 30 % hérités = RIEN : plus aucun champ fiscal automatique nulle part (ADR-035)");
 
 // 83 — taux et devise historiques figés, sans repli silencieux 1:1.
 currentTest = "correctness devises";
@@ -4542,6 +4554,15 @@ currentTest = "états et noms jamais rognés";
 //     produit ;
 //   · dans les listes de GESTION (comptes, factures, factures mensuelles),
 //     le nom — qui EST l'information — était tronqué à 320 px.
+// Le mouvement « Prévu » mesuré est fourni PAR LE TEST : avant, il comptait
+// sur un reste du jeu de démonstration dont le statut dépend du jour du
+// mois — vert par accident, rouge dès que l'acompte du 20 est passé.
+await page.evaluate(() => {
+  transactions.push({ id: "t97-prevu", y: NOW.y, m: NOW.m, d: Math.min(28, NOW.d + 1),
+    title: "Mouvement prévu T97", amount: 42, type: "expense", cat: "Autre",
+    acc: defaultCashAccount(), dest: null, status: "planned" });
+  saveState(); render();
+});
 for (const largeur of [390, 320]) {
   await page.setViewportSize({ width: largeur, height: 844 });
   await goHome();
@@ -4603,6 +4624,11 @@ for (const largeur of [390, 320]) {
 await page.setViewportSize({ width: 390, height: 844 });
 await goHome();
 
+await page.evaluate(() => {
+  const i = transactions.findIndex(t => t.id === "t97-prevu");
+  if (i >= 0) transactions.splice(i, 1);
+  saveState(); render();
+});
 // ---------- Test 98 : identité installée cohérente ----------
 currentTest = "identité installée cohérente";
 // Le manifeste annonçait #07090e alors que l'app peint #090C12 : au
@@ -5551,9 +5577,8 @@ await goHome();
       avantReserve: avant.reserved, apresReserve: apres.reserved,
       depuisMouvements: apres.reservedFromMovements,
       report: apres.reservedManual,
-      gapAvant: avant.reserveGap, gapApres: apres.reserveGap,
-      // La même vérité doit servir le dashboard : jamais deux formules.
-      gapDashboard: snap.taxGap,
+      // FE2-12 : plus aucun écart automatique — ni ici ni sur l'accueil.
+      resteAutomatique: ("reserveGap" in apres) || ("taxGap" in snap),
     };
   });
   check(Math.abs((r.apresReserve - r.avantReserve) - 2500) < 0.02,
@@ -5562,10 +5587,8 @@ await goHome();
     `la part « vos envois » vaut exactement le mouvement (${r.depuisMouvements})`);
   check(r.report >= 0 && Math.abs(r.apresReserve - (r.depuisMouvements + r.report)) < 0.02,
     `le report saisi n'est pas effacé, il s'ajoute (report ${r.report})`);
-  check(r.gapApres <= r.gapAvant,
-    `ce qui reste à réserver diminue d'autant (${r.gapAvant} → ${r.gapApres})`);
-  check(Math.abs(r.gapDashboard - r.gapApres) < 0.02,
-    `l'accueil consomme la MÊME vérité que l'écran Impôts (${r.gapDashboard} vs ${r.gapApres})`);
+  check(r.resteAutomatique === false,
+    "plus aucun « écart à combler » calculé automatiquement — l'app additionne, elle ne prescrit pas (ADR-035)");
   // Un paiement d'impôts reste un paiement, pas une provision.
   const p = await page.evaluate(() => {
     const avant = taxSummary(NOW.y);
@@ -7685,28 +7708,31 @@ check(p11.options.includes("Impôts"),
 check(p11.ecran.emojis.length === 0,
   `zéro emoji sur l'écran Impôts (restants : ${p11.ecran.emojis.join(" ") || "aucun"})`);
 check(p11.ecran.glypheAcompte, "l'acompte listé porte le glyphe calendrier");
-// A18 : l'onboarding ne demande PLUS de taux — la seule saisie du taux est
-// la feuille Impôts, et sa borne 0–60 % est vérifiée EN VRAI : 61 refusé
-// avec message, 25 accepté, puis l'état d'origine est rendu.
+// FE2-12 : la feuille Impôts ne propose PLUS de taux — il n'y a plus rien
+// d'automatique à régler. Elle ne corrige que le report saisi à la main,
+// et refuse un montant invalide sans rien changer.
 const borne136 = await page.evaluate(() => {
   const sansOnboarding = !bindOnboarding.toString().includes("obTaxPct");
-  const avant = S.taxRate;
+  const avantReport = S.taxReserve;
   openTaxSheet();
-  document.getElementById("txRate").value = "61";
+  const champTaux = document.getElementById("txRate");
+  document.getElementById("txReserve").value = "abc";
   document.getElementById("taxForm").requestSubmit();
   const refus = document.getElementById("txError").textContent;
-  const tauxApresRefus = S.taxRate;
-  document.getElementById("txRate").value = "25";
+  const reportApresRefus = S.taxReserve;
+  document.getElementById("txReserve").value = "2400";
   document.getElementById("taxForm").requestSubmit();
-  const tauxApresAccord = S.taxRate;
-  S.taxRate = avant; saveState(); render();
-  return { sansOnboarding, refus, tauxApresRefus, tauxApresAccord, avant };
+  const reportApresAccord = S.taxReserve;
+  S.taxReserve = avantReport; saveState(); render();
+  return { sansOnboarding, champTaux: !!champTaux, refus, reportApresRefus, reportApresAccord, avantReport };
 });
 check(borne136.sansOnboarding, "l'onboarding ne demande plus de taux d'impôts (A18)");
-check(/entre 0 et 60/.test(borne136.refus) && borne136.tauxApresRefus === borne136.avant,
-  `la feuille Impôts refuse 61 % avec message, sans rien changer (obtenu « ${borne136.refus} »)`);
-check(borne136.tauxApresAccord === 0.25,
-  `la feuille Impôts accepte 25 % (obtenu ${borne136.tauxApresAccord})`);
+check(!borne136.champTaux,
+  "FE2-12 : la feuille Impôts n'offre PLUS de champ de taux — rien d'automatique à régler");
+check(borne136.refus.length > 0 && borne136.reportApresRefus === borne136.avantReport,
+  `un report invalide est refusé avec message, sans rien changer (obtenu « ${borne136.refus} »)`);
+check(borne136.reportApresAccord === 2400,
+  `le report saisi à la main est enregistré (obtenu ${borne136.reportApresAccord})`);
 
 // ---------- Test 137 : P12 Patrimoine — glyphes de sens, dettes honnêtes, mots ----------
 // Budget Prisme, lot P12. Étiquettes « par classe » et lignes biens/dettes
@@ -8580,24 +8606,21 @@ check(a15apres.planifiees === 1 && a15apres.postees === 0,
 check(/Prévu/.test(a15apres.statut) && !a15apres.boutonRestant,
   `la ligne planifiée dit « Prévu » et n'offre plus aucun bouton (${JSON.stringify(a15apres)})`);
 
-// ---------- Test 153 : A20 Prévision continue — l'impôt des revenus attendus est provisionné d'avance ----------
-// Audit propriétaire (18.08.2026, « regarde toutes les cohérences des
-// calculs ») : avant ce lot, confirmer un salaire ATTENDU faisait chuter
-// le disponible d'un coup — la provision d'impôts (taux × salaire)
-// n'apparaissait qu'après réception. Le disponible est une prévision :
-// le même geste attendu doit donner le même chiffre avant et après.
+// ---------- Test 153 : A20 Prévision continue — confirmée SANS aucun terme fiscal ----------
+// L'invariant A20 survit à FE2-12 : confirmer un salaire attendu ne change
+// pas le disponible. Et désormais, même un taux hérité de 50 % ne pèse
+// RIEN — la projection n'a plus aucun terme fiscal automatique.
 currentTest = "A20 prévision continue";
 const a20 = await page.evaluate(() => {
   const cash = ACCOUNTS.find(a => a.cash);
   const memoire = { taxRate: S.taxRate, taxReserve: S.taxReserve };
-  // Un taux haut et une réserve saisie nulle garantissent que la réserve
-  // d'impôts est réellement découverte pendant la mesure : sans cela, une
-  // réserve déjà suffisante absorberait l'anticipation et le contrôle
-  // négatif ne mordrait pas.
+  // Le pire des cas hérités : un taux très haut resté stocké.
   S.taxRate = 0.50; S.taxReserve = 0;
   RECURRINGS.push({ id: "r-a20-salaire", title: "Salaire A20", amount: 3000, type: "income",
     cat: "Salaire", day: 6, every: "month", accountId: cash.id });
   const avant = snapshot(NOW.y, NOW.m);
+  const identiteAvant = Math.round((avant.liquid + avant.plannedIncome + avant.recurringIncome
+    + avant.irregularIncome - avant.plannedOut - avant.recurringCharges) * 100) / 100;
   const { transaction } = materializeRecurring(
     RECURRINGS.find(r => r.id === "r-a20-salaire"), NOW.y, NOW.m);
   const apres = snapshot(NOW.y, NOW.m);
@@ -8607,33 +8630,27 @@ const a20 = await page.evaluate(() => {
   S.taxRate = memoire.taxRate; S.taxReserve = memoire.taxReserve;
   saveState(); render();
   return {
-    avant: avant.available, apres: apres.available,
-    gapAvant: avant.taxGapForecast, gapApres: apres.taxGapForecast,
-    anticipe: Math.round((avant.taxGapForecast - avant.taxGap) * 100) / 100,
+    avant: avant.available, apres: apres.available, identiteAvant,
     statutCree: transaction.status,
   };
 });
 check(a20.statutCree === "posted", `le salaire du test est bien comptabilisé (obtenu ${a20.statutCree})`);
-check(a20.anticipe >= 1500, `l'impôt du salaire attendu (50 % × 3'000) est provisionné AVANT réception (anticipé ${a20.anticipe})`);
-check(Math.abs(a20.avant - a20.apres) < 0.005 && Math.abs(a20.gapAvant - a20.gapApres) < 0.005,
-  `confirmer un salaire attendu ne change NI le disponible NI la réserve à prévoir (avant ${a20.avant} / après ${a20.apres} ; réserve ${a20.gapAvant} / ${a20.gapApres})`);
+check(Math.abs(a20.avant - a20.apres) < 0.005,
+  `confirmer un salaire attendu ne change pas le disponible (avant ${a20.avant} / après ${a20.apres})`);
+check(Math.abs(a20.identiteAvant - a20.avant) < 0.005,
+  `même un taux hérité de 50 % ne pèse RIEN : projection = argent + attendu − sorties saisies (identité ${a20.identiteAvant} vs ${a20.avant})`);
 
-// ---------- Test 154 : FE2-0 — l'écart fiscal ANNUEL n'écrase plus le mois ----------
-// Cahier propriétaire « Financial Engine V2 » (18.08.2026) : « s'il manque
-// CHF 30'000 de réserve fiscale annuelle, les 30'000 ne doivent pas peser
-// immédiatement sur la projection d'août ». La projection ne soustrait que
-// l'EFFORT DU MOIS — taux × revenus du mois, moins ce qui est déjà mis ou
-// engagé de côté pour les impôts — plafonné par l'écart annuel anticipé.
-currentTest = "FE2 effort fiscal mensuel";
+// ---------- Test 154 : FE2-12 — le moteur n'a plus AUCUN champ fiscal automatique ----------
+// Décision propriétaire (20.08.2026) : « ne calcule pas les impôts
+// automatiquement — toutes les données, c'est moi qui dois les rentrer ».
+// Même un gros revenu de l'année et un taux hérité de 30 % ne produisent
+// RIEN : la projection additionne seulement ce qui est saisi.
+currentTest = "FE2-12 impôts manuels";
 const fe2 = await page.evaluate(() => {
   const cash = ACCOUNTS.find(a => a.cash);
   const memoire = { taxRate: S.taxRate, taxReserve: S.taxReserve };
   S.taxRate = 0.30; S.taxReserve = 0;
   const injectes = [];
-  // Un gros revenu comptabilisé PLUS TÔT dans l'année crée un écart annuel
-  // énorme, étranger au mois courant. (En janvier, aucun mois passé de la
-  // même année n'existe : le scénario fort est alors non constructible et
-  // seule l'identité de formule est vérifiée.)
   const moisPasse = NOW.m > 1 ? { y: NOW.y, m: NOW.m - 1 } : null;
   if (moisPasse) {
     const gros = { id: ++txSeq, y: moisPasse.y, m: moisPasse.m, d: 5,
@@ -8643,18 +8660,12 @@ const fe2 = await page.evaluate(() => {
   }
   const s = snapshot(NOW.y, NOW.m);
   const identite = Math.round((s.liquid + s.plannedIncome + s.recurringIncome + s.irregularIncome
-    - s.plannedOut - s.recurringCharges - s.taxMonthlyEffort) * 100) / 100;
-  const effortFormule = Math.max(0, Math.min(
-    Math.round(((s.income + s.plannedIncome + s.recurringIncome + s.irregularIncome) * 0.30 - s.taxSetAsideMonth) * 100) / 100,
-    s.taxGapForecast
-  ));
+    - s.plannedOut - s.recurringCharges) * 100) / 100;
   const resultat = {
-    gapAnnuel: s.taxGapForecast,
-    effort: s.taxMonthlyEffort,
     disponible: s.available,
     identiteOK: identite === s.available,
-    effortOK: Math.abs(s.taxMonthlyEffort - effortFormule) < 0.01,
-    plafondRevenusDuMois: Math.round((s.income + s.plannedIncome + s.recurringIncome + s.irregularIncome) * 0.30 * 100) / 100,
+    sansChamps: !("taxMonthlyEffort" in s) && !("taxSetAsideMonth" in s)
+      && !("taxGapForecast" in s) && !("taxGap" in s) && !("taxRecommended" in s),
     scenarioFort: !!moisPasse,
   };
   for (const t of injectes) transactions.splice(transactions.indexOf(t), 1);
@@ -8662,14 +8673,10 @@ const fe2 = await page.evaluate(() => {
   saveState(); render();
   return resultat;
 });
-check(fe2.identiteOK && fe2.effortOK,
-  `la projection soustrait exactement l'effort fiscal DU MOIS (effort ${fe2.effort}, identité ${fe2.identiteOK})`);
-if (fe2.scenarioFort) {
-  check(fe2.gapAnnuel >= 25000,
-    `l'écart annuel du scénario est bien énorme (obtenu ${fe2.gapAnnuel})`);
-  check(fe2.effort <= fe2.plafondRevenusDuMois + 0.01 && fe2.gapAnnuel - fe2.effort >= 20000,
-    `l'écart annuel n'écrase PAS le mois — l'effort reste borné aux revenus du mois (effort ${fe2.effort}, écart ${fe2.gapAnnuel})`);
-}
+check(fe2.identiteOK,
+  `la projection = argent + attendu − sorties saisies, rien d'autre (obtenu ${fe2.disponible})`);
+check(fe2.sansChamps,
+  "le moteur n'expose plus AUCUN champ fiscal automatique — même avec un gros revenu et un taux hérité (ADR-035)");
 
 // ---------- Test 155 : FE2-1 — les vues d'argent (Maintenant / Fin du mois, fortune, épargne) ----------
 // Cahier propriétaire : « ne jamais présenter une projection comme de
@@ -8769,42 +8776,41 @@ check(fe25.comptesJuste,
 check(fe25.nwJuste,
   `la carte « Fortune liquide » du Patrimoine dit LE MÊME chiffre que Comptes, même avec un courant hors quotidien (obtenu ${fe25.carteNW})`);
 
-// ---------- 157. FE2-10 : la décomposition nomme l'impôt à mettre de côté ----------
-// Capture propriétaire (19.08.2026) : « pourquoi sortir 600 alors que je
-// n'ai même pas de facture ? » — la ligne « à sortir » fondait l'effort
-// d'impôts du mois (30 % × salaire attendu) avec les vraies sorties.
-// Désormais chaque terme réel est NOMMÉ et les termes à zéro se taisent.
-currentTest = "FE2-10 décomposition nommée";
+// ---------- 157. FE2-12 : le taux hérité est LETTRE MORTE — plus jamais de « − 600 d'impôts » ----------
+// Capture propriétaire (20.08.2026) : « il y a toujours les impôts qui
+// sont comptabilisés automatiquement » — son appareil portait encore le
+// taux 30 % d'avant, et la projection soustrayait 600 sans aucune
+// facture. Décision : PLUS AUCUN calcul d'impôts, jamais. Le scénario
+// exact de sa capture : 30 % stockés + salaire attendu de 2'000.
+currentTest = "FE2-12 taux hérité inerte";
 await goHome();
-const fe210 = await page.evaluate(() => {
+const fe212 = await page.evaluate(() => {
   const ancienTaux = S.taxRate;
-  S.taxRate = 0.3;
+  S.taxRate = 0.3; // le taux resté stocké sur l'appareil du propriétaire
   S.transactions.push({ id: "t157sal", title: "Salaire attendu", amount: 2000, type: "income",
     cat: "Salaire", acc: ACCOUNTS[0].id, dest: null, status: "planned",
     y: NOW.y, m: NOW.m, d: 28 });
   cursor = { y: NOW.y, m: NOW.m }; activeTab = "home"; moreView = null; heroVue = "finmois"; render();
   const s = snapshot(NOW.y, NOW.m);
   const note = [...document.querySelectorAll(".hero-note")].map(e => e.textContent).join(" ");
-  const sortiesReelles = round2(s.plannedOut + s.recurringCharges);
+  const attendu = Math.round((s.liquid + s.plannedIncome + s.recurringIncome + s.irregularIncome
+    - s.plannedOut - s.recurringCharges) * 100) / 100;
   const i = S.transactions.findIndex(t => t.id === "t157sal");
   if (i >= 0) S.transactions.splice(i, 1);
   S.taxRate = ancienTaux;
   heroVue = "maintenant"; render();
   return {
-    note, sortiesReelles,
-    effort: s.taxMonthlyEffort,
-    impotNomme: s.taxMonthlyEffort > 0
-      && note.includes("d'impôts à mettre de côté")
-      && note.includes(chf(s.taxMonthlyEffort)),
-    zeroTu: sortiesReelles > 0 ? note.includes(`${chf(sortiesReelles)} à sortir`) : !note.includes("à sortir"),
+    note, forecast: s.endOfMonthForecast, attendu,
+    impotMuet: !note.includes("impôts"),
+    salaireNomme: note.includes("à recevoir"),
   };
 });
-check(fe210.effort > 0,
-  `le scénario porte bien un effort d'impôts (obtenu ${fe210.effort})`);
-check(fe210.impotNomme,
-  `l'impôt à mettre de côté est NOMMÉ avec son montant — plus jamais fondu dans « à sortir » (note : ${fe210.note})`);
-check(fe210.zeroTu,
-  `un terme à zéro se tait, un terme réel garde son nom exact (sorties réelles ${fe210.sortiesReelles} — note : ${fe210.note})`);
+check(fe212.impotMuet,
+  `plus JAMAIS de ligne d'impôts automatique — même avec un taux hérité de 30 % stocké (note : ${fe212.note})`);
+check(fe212.salaireNomme,
+  `le salaire attendu reste nommé « à recevoir » (note : ${fe212.note})`);
+check(Math.abs(fe212.forecast - fe212.attendu) < 0.005,
+  `la projection additionne SEULEMENT ce qui est saisi (obtenu ${fe212.forecast}, attendu ${fe212.attendu})`);
 
 await browser.close();
 

@@ -6,9 +6,8 @@ enum OnboardingStep: Int, CaseIterable {
     case welcome
     case household
     case location
-    // A19 (parité PWA, lot A18) : plus d'étape « Provision d'impôts » —
-    // le taux garde son défaut (30 %) et se règle dans Impôts, borné par
-    // TaxService.maximumProvisionRate.
+    // A19 + ADR-035 : plus d'étape « Provision d'impôts » — l'app ne
+    // calcule aucun impôt ; les acomptes se saisissent comme des factures.
     case firstAccount
     /// Facultatif : salaire et loyer via les RecurringTransaction
     /// existantes — aucune nouvelle structure, même save atomique.
