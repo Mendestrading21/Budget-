@@ -792,6 +792,16 @@ patrimoine · à confirmer » ; aucun schéma touché. PWA : drapeau additif
 telle quelle avec « À confirmer : rente ou capital ? » — rien n'est
 réécrit en douce. Parcours 158 né rouge ; 2 tests natifs ajoutés ;
 suites web vertes ; captures Prévoyance inspectées.
+**IC0 — contrat du catalogue, fixture partagée et glyphes (ADR-037)** ·
+en PR (brouillon, comme #92 gouvernance et #93 P0 AVS — fusion sur ordre
+du propriétaire). Aucun changement de modèle ni d'écran. Livré :
+`fixtures/catalogue-identites.json` (octet-copie de la fixture du skill,
+garde de synchronisation exécutable), `fixtures/catalogue-glyph-map.json`
+(8 clés mappées PWA+iOS · 14 en repli commun `recurring` que IC1
+remplacera — jamais de repli divergent entre plateformes), suite Node
+`catalogue.test.mjs` branchée dans la CI avant les suites navigateur et
+dans l'audit du dépôt. V1 = monogrammes et glyphes seulement
+(`approved_asset` interdit avant BR1).
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

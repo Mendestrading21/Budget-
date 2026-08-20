@@ -29,6 +29,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Catalogue des identités (contrat ADR-037 + parité des glyphes)
+        run: node webapp/tests/catalogue.test.mjs
+
       # Le navigateur ne se retélécharge plus à chaque run — c'était la
       # source des pendaisons. Clé figée sur la version épinglée.
       - name: Cache du navigateur Playwright
