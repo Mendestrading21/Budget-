@@ -1,6 +1,6 @@
 {
- "version": 1,
- "rule": "Chaque plateforme rend entry[plateforme] si non nul, sinon fallback[plateforme]. Un repli est TOUJOURS le meme sens sur les deux plateformes (ADR-037) ; IC1 remplace les replis par de vrais glyphes de categorie.",
+ "version": 2,
+ "rule": "Chaque plateforme rend entry[plateforme] si non nul, sinon fallback[plateforme]. Depuis IC1, chaque glyphKey est mappé DIRECTEMENT sur un vrai glyphe de catégorie des deux côtés — plus aucun repli.",
  "glyphs": {
   "accounts": {
    "pwa": "accounts",
@@ -8,44 +8,29 @@
    "fallback": null
   },
   "ai": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "ai",
+   "ios": "ai",
+   "fallback": null
   },
   "bill": {
    "pwa": "bill",
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "ios": "bill",
+   "fallback": null
   },
   "cloud": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "cloud",
+   "ios": "cloud",
+   "fallback": null
   },
   "dating": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "dating",
+   "ios": "dating",
+   "fallback": null
   },
   "delivery": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "delivery",
+   "ios": "delivery",
+   "fallback": null
   },
   "family": {
    "pwa": "family",
@@ -53,28 +38,19 @@
    "fallback": null
   },
   "fitness": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "fitness",
+   "ios": "fitness",
+   "fallback": null
   },
   "gaming": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "gaming",
+   "ios": "gaming",
+   "fallback": null
   },
   "health": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "health",
+   "ios": "health",
+   "fallback": null
   },
   "home": {
    "pwa": "home",
@@ -92,20 +68,14 @@
    "fallback": null
   },
   "music": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "music",
+   "ios": "music",
+   "fallback": null
   },
   "press": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "press",
+   "ios": "press",
+   "fallback": null
   },
   "saving": {
    "pwa": "saving",
@@ -118,12 +88,9 @@
    "fallback": null
   },
   "software": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "software",
+   "ios": "software",
+   "fallback": null
   },
   "tax": {
    "pwa": "taxPayment",
@@ -131,28 +98,19 @@
    "fallback": null
   },
   "telecom": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "telecom",
+   "ios": "telecom",
+   "fallback": null
   },
   "transport": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "transport",
+   "ios": "transport",
+   "fallback": null
   },
   "video": {
-   "pwa": null,
-   "ios": null,
-   "fallback": {
-    "pwa": "recurring",
-    "ios": "recurring"
-   }
+   "pwa": "video",
+   "ios": "video",
+   "fallback": null
   }
  }
 }
