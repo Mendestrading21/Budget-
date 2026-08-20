@@ -8812,6 +8812,48 @@ check(fe212.salaireNomme,
 check(Math.abs(fe212.forecast - fe212.attendu) < 0.005,
   `la projection additionne SEULEMENT ce qui est saisi (obtenu ${fe212.forecast}, attendu ${fe212.attendu})`);
 
+// ---------- 158. P0 AVS : une rente n'est JAMAIS un capital (ADR-036) ----------
+// Programme Identités locales, alerte préalable du skill : une rente
+// mensuelle ou annuelle estimée (AVS) n'est pas de l'argent possédé —
+// l'additionner au patrimoine gonfle la fortune avec de l'argent qui
+// n'existe pas encore. Une ligne MARQUÉE « rente » sort des totaux ;
+// une ancienne ligne ambiguë (« AVS ») reste comptée TELLE QUELLE mais
+// porte « À confirmer » — jamais de réécriture silencieuse.
+currentTest = "P0 AVS rente hors patrimoine";
+await goHome();
+const avs158 = await page.evaluate(() => {
+  const netFormule = () => ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
+    + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
+    + pensionPositionsTotal() - liabilitiesTotal();
+  const avantTotal = pensionPositionsTotal();
+  const netAvant = netFormule();
+  PENSIONS.push({ id: "pen-avs-rente", name: "Rente AVS estimée", value: 2450, rente: true });
+  PENSIONS.push({ id: "pen-avs-ambigu", name: "AVS", value: 1200 });
+  const apresTotal = pensionPositionsTotal();
+  const netApres = netFormule();
+  activeTab = "more"; moreView = "insurance"; render();
+  const rows = Object.fromEntries([...document.querySelectorAll("#screen [data-penid]")]
+    .map(el => [el.dataset.penid, el.textContent]));
+  const formHasRente = !!document.getElementById("penRente");
+  for (const id of ["pen-avs-rente", "pen-avs-ambigu"]) {
+    const i = PENSIONS.findIndex(p => p.id === id);
+    if (i >= 0) PENSIONS.splice(i, 1);
+  }
+  activeTab = "home"; moreView = null; render();
+  return { avantTotal, apresTotal, netAvant, netApres, formHasRente,
+           renteRow: rows["pen-avs-rente"] || "", ambiguRow: rows["pen-avs-ambigu"] || "" };
+});
+check(Math.abs(avs158.apresTotal - (avs158.avantTotal + 1200)) < 0.005,
+  `une rente marquée n'entre JAMAIS dans le total de prévoyance ; l'ambiguë reste comptée en attendant confirmation (avant ${avs158.avantTotal}, après ${avs158.apresTotal})`);
+check(Math.abs(avs158.netApres - (avs158.netAvant + 1200)) < 0.005,
+  `le patrimoine net n'absorbe pas la rente marquée (avant ${avs158.netAvant}, après ${avs158.netApres})`);
+check(/rente/i.test(avs158.renteRow) && /hors patrimoine/i.test(avs158.renteRow),
+  `la ligne de rente se dit rente, hors patrimoine (obtenu : ${avs158.renteRow.slice(0, 100)})`);
+check(/À confirmer/.test(avs158.ambiguRow),
+  `une ancienne ligne « AVS » sans choix porte « À confirmer » (obtenu : ${avs158.ambiguRow.slice(0, 100)})`);
+check(avs158.formHasRente,
+  "la feuille Prévoyance offre le choix « c'est une rente, pas un capital »");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8821,4 +8863,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 157 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 158 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

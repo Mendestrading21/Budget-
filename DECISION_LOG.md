@@ -1,5 +1,59 @@
 # Budget decision log
 
+## ADR-036 — P0 AVS : une rente n'est jamais un capital
+
+Date: 2026-08-20
+Status: accepted
+
+### Contexte
+
+Alerte préalable du programme Identités locales : sur iOS, une position
+de prévoyance `pillar1` (AVS) porte une estimation de RENTE dans
+`currentValue` — le commentaire du modèle le disait — et ce montant
+était additionné au patrimoine (`NetWorthService.breakdown.pensionTotal`)
+et au « Capital de prévoyance »
+(`InsurancePensionService.totalPensionCapital`). Sur la PWA, une ligne
+de prévoyance saisie librement comme « AVS » avec une rente en « Valeur
+actuelle » entrait aussi au patrimoine. De l'argent qui n'existe pas
+encore gonflait la fortune.
+
+### Décision
+
+1. Une rente n'entre JAMAIS dans le capital de prévoyance, les
+   contributions, les projections, le patrimoine net ni les snapshots.
+2. iOS : le 1er pilier est structurellement une rente
+   (`InsurancePensionService.isAnnuity`) — exclu de tous les agrégats,
+   affiché dans sa propre section « Rentes estimées — hors patrimoine »,
+   « à confirmer » (par mois ou par an, précisé dans la note). Aucun
+   champ nouveau, aucun schéma, aucune migration : pas de risque de
+   données dans un P0.
+3. PWA : les positions gagnent un drapeau optionnel `rente` (case
+   « C'est une rente, pas un capital » dans la feuille) ; une position
+   marquée sort de `pensionPositionsTotal()` (donc du patrimoine et de
+   « Déjà mis de côté »), s'affiche « Rente estimée — hors patrimoine »
+   et ne peut pas être liée à un compte.
+4. Données anciennes ambiguës : JAMAIS réécrites ni recomptées en
+   douce. Une ligne PWA non marquée dont le nom évoque l'AVS/une rente
+   reste comptée telle quelle et porte « À confirmer : rente ou
+   capital ? » — c'est la personne qui tranche dans la feuille. Sur
+   iOS, `pillar1` n'est pas ambigu : le modèle documentait déjà la
+   rente ; l'exclusion corrige l'agrégation, la valeur stockée reste
+   intacte.
+5. 2e pilier, 3a et 3b restent des capitaux — calculs inchangés.
+6. Sauvegardes : aucune forme ne change côté iOS ; côté PWA le drapeau
+   est additif (`rente !== true` = comportement historique), les
+   anciennes sauvegardes se restaurent à l'identique, une valeur
+   hostile dans le drapeau est inerte (comparaison stricte, jamais de
+   markup).
+
+### Vérification
+
+Parcours e2e 158 né rouge (rente marquée comptée au patrimoine, aucune
+case dans la feuille, aucun « À confirmer ») ; tests natifs
+`testAnnuityEstimateNeverCountsAsCapital` et
+`testPensionAnnuityIsExcludedFromNetWorth` ; démo native sans pilier 1
+(tour inchangé) ; captures de la Prévoyance PWA inspectées.
+
 ## ADR-035 — Impôts 100 % manuels : le concept de taux disparaît, l'app additionne
 
 Date: 2026-08-20

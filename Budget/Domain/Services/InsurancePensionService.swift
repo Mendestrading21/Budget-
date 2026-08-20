@@ -63,11 +63,26 @@ struct InsurancePensionService {
 
     // MARK: - Pension totals
 
-    /// Capital per pillar (active positions), in pillar order.
+    /// ADR-036 (P0 AVS) : une RENTE n'est jamais un capital. Le 1er pilier
+    /// porte une estimation de rente dans `currentValue` — il est exclu de
+    /// tous les agrégats de capital, de contributions, de projection et du
+    /// patrimoine, et s'affiche À PART.
+    static func isAnnuity(_ asset: PensionAsset) -> Bool {
+        asset.pillar == .pillar1
+    }
+
+    /// Les estimations de rente actives (AVS), à afficher séparément —
+    /// jamais additionnées à quoi que ce soit.
+    func estimatedAnnuities(assets: [PensionAsset]) -> [PensionAsset] {
+        assets.filter { $0.isActive && Self.isAnnuity($0) }
+    }
+
+    /// Capital per pillar (active positions), in pillar order — annuity
+    /// pillars excluded (ADR-036).
     func pensionTotalsByPillar(assets: [PensionAsset]) -> [(pillar: PensionPillar, total: Decimal)] {
         PensionPillar.allCases.compactMap { pillar in
             let total = assets
-                .filter { $0.isActive && $0.pillar == pillar }
+                .filter { $0.isActive && !Self.isAnnuity($0) && $0.pillar == pillar }
                 .reduce(Decimal.zero) { $0 + $1.currentValue }
             return total > 0 ? (pillar, total) : nil
         }
@@ -75,17 +90,22 @@ struct InsurancePensionService {
 
     /// Grand total — by construction the exact sum of the pillar totals.
     func totalPensionCapital(assets: [PensionAsset]) -> Decimal {
-        assets.filter(\.isActive).reduce(.zero) { $0 + $1.currentValue }
+        assets.filter { $0.isActive && !Self.isAnnuity($0) }
+            .reduce(.zero) { $0 + $1.currentValue }
     }
 
+    /// Contributions vers un CAPITAL individuel — les cotisations AVS ne
+    /// construisent pas un avoir propre, elles restent hors de ce chiffre.
     func totalAnnualContributions(assets: [PensionAsset]) -> Decimal {
-        assets.filter(\.isActive).reduce(.zero) { $0 + $1.annualContribution }
+        assets.filter { $0.isActive && !Self.isAnnuity($0) }
+            .reduce(.zero) { $0 + $1.annualContribution }
     }
 
-    /// Sum of certificate projections, only when EVERY active position has
-    /// one — a partial sum would be misleading.
+    /// Sum of certificate projections, only when EVERY active capital
+    /// position has one — a partial sum would be misleading. Annuity
+    /// positions stay out: projeter une rente n'est pas projeter un capital.
     func totalProjectedAtRetirement(assets: [PensionAsset]) -> Decimal? {
-        let active = assets.filter(\.isActive)
+        let active = assets.filter { $0.isActive && !Self.isAnnuity($0) }
         guard !active.isEmpty else { return nil }
         var total: Decimal = .zero
         for asset in active {

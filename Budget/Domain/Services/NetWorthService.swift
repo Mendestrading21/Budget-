@@ -42,8 +42,10 @@ struct NetWorthService {
             assetsTotal: assets
                 .filter(\.includeInNetWorth)
                 .reduce(.zero) { $0 + $1.currentValue },
+            // ADR-036 : une estimation de rente (1er pilier) n'est pas un
+            // capital — elle n'entre jamais dans le patrimoine.
             pensionTotal: pensions
-                .filter(\.isActive)
+                .filter { $0.isActive && !InsurancePensionService.isAnnuity($0) }
                 .reduce(.zero) { $0 + $1.currentValue },
             liabilitiesTotal: liabilities
                 .filter(\.includeInNetWorth)

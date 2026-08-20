@@ -109,6 +109,38 @@ final class InsurancePensionServiceTests: XCTestCase {
 
     // MARK: - Pension totals reconcile
 
+    /// ADR-036 (P0 AVS) : une estimation de rente ne devient JAMAIS un
+    /// capital — ni dans le total, ni par pilier, ni en contributions, ni
+    /// en projection. Elle reste listée à part.
+    func testAnnuityEstimateNeverCountsAsCapital() {
+        let avs = PensionAsset(
+            pillar: .pillar1, institutionName: "AVS",
+            currentValue: Decimal("2450.00"),
+            annualContribution: Decimal("500.00"),
+            projectedValueAtRetirement: Decimal("29400.00")
+        )
+        let lpp = PensionAsset(
+            pillar: .pillar2, institutionName: "Caisse",
+            currentValue: Decimal("85000.00"),
+            annualContribution: Decimal("9600.00"),
+            projectedValueAtRetirement: Decimal("420000.00")
+        )
+        context.insert(avs)
+        context.insert(lpp)
+        let assets = [avs, lpp]
+
+        XCTAssertEqual(service.totalPensionCapital(assets: assets), Decimal("85000.00"),
+                       "la rente AVS n'entre pas dans le capital")
+        XCTAssertTrue(service.pensionTotalsByPillar(assets: assets).allSatisfy { $0.pillar != .pillar1 },
+                      "aucune carte « capital » pour le 1er pilier")
+        XCTAssertEqual(service.totalAnnualContributions(assets: assets), Decimal("9600.00"),
+                       "les cotisations AVS ne construisent pas un capital individuel")
+        XCTAssertEqual(service.totalProjectedAtRetirement(assets: assets), Decimal("420000.00"),
+                       "la projection ignore la rente — sinon elle mélangerait rente et capital")
+        XCTAssertEqual(service.estimatedAnnuities(assets: assets).map(\.id), [avs.id],
+                       "la rente reste visible, à part")
+    }
+
     func testPensionTotalsPerPillarSumToGrandTotal() {
         let lpp = PensionAsset(pillar: .pillar2, institutionName: "Caisse", currentValue: Decimal("85000.00"))
         let thirdA = PensionAsset(pillar: .pillar3a, institutionName: "Fondation", currentValue: Decimal("18190.00"))

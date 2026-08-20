@@ -191,8 +191,10 @@ final class PensionAsset {
     @Attribute(.unique) var id: UUID
     var pillarRawValue: String
     var institutionName: String
-    /// Current value from the latest statement (for pillar 1: the
-    /// estimated annuity reference, documented in `note`).
+    /// Current value from the latest statement. ADR-036 : pour le 1er
+    /// pilier ce champ porte une estimation de RENTE (par mois ou par an,
+    /// à préciser dans `note`) — jamais comptée comme capital ni dans le
+    /// patrimoine.
     var currentValue: Decimal
     var annualContribution: Decimal
     /// Projected value AT RETIREMENT as printed on the certificate — an

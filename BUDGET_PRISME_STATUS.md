@@ -781,6 +781,18 @@ son badge « Prévu » par accident du jeu de démo (l'acompte du jour 20) —
 il injecte désormais son propre mouvement prévu, déterministe quel que
 soit le jour du mois.
 
+**P0 AVS — une rente n'est pas un capital (ADR-036)** · en PR
+(brouillon, fusion sur ordre du propriétaire). Premier lot codé du
+programme Identités locales, exigé par l'alerte préalable du skill.
+iOS : le 1er pilier est exclu de tous les agrégats de capital et du
+patrimoine (`isAnnuity`), affiché à part « Rentes estimées — hors
+patrimoine · à confirmer » ; aucun schéma touché. PWA : drapeau additif
+`rente` (case dans la feuille), position marquée hors
+`pensionPositionsTotal()` et non liable ; ligne ambiguë « AVS » comptée
+telle quelle avec « À confirmer : rente ou capital ? » — rien n'est
+réécrit en douce. Parcours 158 né rouge ; 2 tests natifs ajoutés ;
+suites web vertes ; captures Prévoyance inspectées.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
