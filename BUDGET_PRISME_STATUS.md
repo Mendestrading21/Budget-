@@ -738,7 +738,10 @@ taux explicite. Données existantes non réécrites — le propriétaire
 passe son taux à 0 % d'un geste.
 
 **FE2-12 — Impôts 100 % manuels : le taux disparaît, l'app additionne
-(ADR-035)** · en PR. Le lendemain de FE2-11, la capture du propriétaire
+(ADR-035)** · `MERGED` + `PUBLISHED` — PR #89 fusionnée en squash,
+`main` = `97b1efbe`, CI verte sur le HEAD exact (`0803058a`, avec tour
+démo natif) puis sur `main` ; publié par dispatch au SHA exact (run
+`32347846802`, succès) le 20.08.2026. Le lendemain de FE2-11, la capture du propriétaire
 montrait toujours « − 600 d'impôts » : son appareil portait le taux 30 %
 stocké d'avant (jamais réécrit, par principe). Ordre définitif : « une
 page impôts où c'est moi qui mets combien je verse, comme une facture —
