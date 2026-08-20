@@ -54,7 +54,10 @@ const required = [
   "webapp/tests/e2e.test.mjs",
   "webapp/tests/parity.test.mjs",
   "webapp/tests/design.test.mjs",
+  "webapp/tests/catalogue.test.mjs",
   "fixtures/parity-fixtures.json",
+  "fixtures/catalogue-identites.json",
+  "fixtures/catalogue-glyph-map.json",
   "Budget/PrivacyInfo.xcprivacy",
   ".github/workflows/ci.yml",
   ".github/workflows/pages.yml",
@@ -66,7 +69,7 @@ for (const path of required) {
 }
 
 // 2. Syntaxe des scripts de test (node --check).
-for (const path of ["webapp/tests/e2e.test.mjs", "webapp/tests/parity.test.mjs", "webapp/tests/design.test.mjs"]) {
+for (const path of ["webapp/tests/e2e.test.mjs", "webapp/tests/parity.test.mjs", "webapp/tests/design.test.mjs", "webapp/tests/catalogue.test.mjs"]) {
   let ok = true;
   let detail = "";
   try {

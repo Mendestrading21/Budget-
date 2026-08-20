@@ -1,0 +1,158 @@
+{
+ "version": 1,
+ "rule": "Chaque plateforme rend entry[plateforme] si non nul, sinon fallback[plateforme]. Un repli est TOUJOURS le meme sens sur les deux plateformes (ADR-037) ; IC1 remplace les replis par de vrais glyphes de categorie.",
+ "glyphs": {
+  "accounts": {
+   "pwa": "accounts",
+   "ios": "accounts",
+   "fallback": null
+  },
+  "ai": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "bill": {
+   "pwa": "bill",
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "cloud": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "dating": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "delivery": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "family": {
+   "pwa": "family",
+   "ios": "children",
+   "fallback": null
+  },
+  "fitness": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "gaming": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "health": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "home": {
+   "pwa": "home",
+   "ios": "property",
+   "fallback": null
+  },
+  "investment": {
+   "pwa": "investment",
+   "ios": "investment",
+   "fallback": null
+  },
+  "liability": {
+   "pwa": "liability",
+   "ios": "debt",
+   "fallback": null
+  },
+  "music": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "press": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "saving": {
+   "pwa": "saving",
+   "ios": "setAside",
+   "fallback": null
+  },
+  "shield": {
+   "pwa": "shield",
+   "ios": "pension",
+   "fallback": null
+  },
+  "software": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "tax": {
+   "pwa": "taxPayment",
+   "ios": "taxes",
+   "fallback": null
+  },
+  "telecom": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "transport": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  },
+  "video": {
+   "pwa": null,
+   "ios": null,
+   "fallback": {
+    "pwa": "recurring",
+    "ios": "recurring"
+   }
+  }
+ }
+}

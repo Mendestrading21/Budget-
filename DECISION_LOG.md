@@ -1,5 +1,64 @@
 # Budget decision log
 
+## ADR-037 — Identités locales : contrat du catalogue, clés et glyphes (IC0)
+
+Date: 2026-08-20
+Status: accepted
+Note: l'ADR-036 (P0 AVS, rente ≠ capital) arrive par la PR #93 — la
+numérotation reste chronologique après fusion des deux brouillons.
+
+### Contexte
+
+Le programme Identités locales (skill compagnon, PR #91) apporte une
+fixture éditoriale de 164 identités CH/FR/BE. Avant tout code produit,
+il faut figer le contrat de données, une seule autorité éditoriale et la
+réconciliation des 22 `glyphKey` avec les registres RÉELS des deux
+plateformes — sans repli silencieux divergent.
+
+### Décision
+
+1. **Contrat du catalogue** figé (champs exclusifs) : `key` (kebab-case
+   ASCII), `displayName`, `aliases[]`, `markets[]` (GLOBAL/CH/FR/BE),
+   `entityKind`, `financialSense`, `category`, `cadenceHints[]`
+   (`four_weeks` ≠ `month`, toujours), `currencyHints[]` (devise, jamais
+   un montant), `glyphKey`, `markPolicy`, `monogram`, `assetKey`.
+   INTERDITS : prix, solde, quantité, date, statut actif, URL/HTML,
+   rang de popularité, promesse de connexion.
+2. **Une seule autorité éditoriale** : `fixtures/catalogue-identites.json`
+   est l'octet-copie de la fixture du skill — la suite `catalogue.test.mjs`
+   échoue si elles divergent. Le catalogue n'est PAS encore un bundle
+   runtime : aucune copie dans l'app avant IC1/P08-C.
+3. **V1 = glyphes et monogrammes seulement** : `markPolicy` ne peut pas
+   valoir `approved_asset` (assetKey null partout) tant que BR1 n'a pas
+   livré provenance, droits et checksums (LOGO_POLICY).
+4. **Réconciliation des glyphes** : `fixtures/catalogue-glyph-map.json`
+   est l'unique table `glyphKey → glyphe PWA / glyphe natif`. Règle :
+   chaque plateforme rend sa clé directe si elle existe, sinon le repli —
+   et un repli est LE MÊME nom canonique des deux côtés (`recurring`),
+   jamais un repli différent par plateforme. État au 20.08.2026 :
+   8 clés mappées des deux côtés (accounts, family→children,
+   home→property, investment, liability→debt, saving→setAside,
+   shield→pension, tax→taxPayment/taxes), 14 en repli commun — IC1 les
+   remplace par de vrais glyphes de catégorie.
+5. **Ordre de résolution d'une identité** (inchangé du skill) : choix
+   explicite > clé locale validée > alias confirmé > monogramme
+   déterministe > Budget Glyph générique. Seule une clé ASCII
+   allowlistée sera un jour persistée (lot ID1) — jamais un nom d'asset,
+   une URL ou du HTML.
+6. **Garde-fous exécutables** : la suite Node `catalogue.test.mjs`
+   (CI, avant les suites navigateur) valide contrat, unicité, textes
+   sûrs, politique V1 et l'existence RÉELLE de chaque glyphe résolu dans
+   `BUDGET_GLYPHS` (PWA) et `BudgetGlyph` (natif), par extraction des
+   sources.
+
+### Vérification
+
+Suite verte observée : « 164 identités conformes au contrat ADR-037 ·
+22 glyphKeys réconciliés sur les DEUX plateformes (8 mappés · 14 en
+repli commun, à remplacer par IC1) ». Contrôles négatifs : champ
+interdit injecté → contrat + garde de synchronisation mordent ; glyphe
+inexistant dans la carte → registre mord. Validateur du skill : exit 0,
+164 identités (CH 107 · FR 96 · BE 94).
 ## ADR-036 — P0 AVS : une rente n'est jamais un capital
 
 Date: 2026-08-20
