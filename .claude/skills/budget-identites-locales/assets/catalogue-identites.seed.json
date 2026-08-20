@@ -1,0 +1,3924 @@
+{
+  "version": 1,
+  "identities": [
+    {
+      "key": "rent",
+      "displayName": "Loyer ou hypothèque",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "housing",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "home",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "health-insurance",
+      "displayName": "Assurance maladie",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "health",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "health",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "household-insurance",
+      "displayName": "Assurance ménage et RC",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "car-insurance",
+      "displayName": "Assurance automobile",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "electricity",
+      "displayName": "Électricité",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "energy",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "bill",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "water",
+      "displayName": "Eau",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "water",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "bill",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "heating",
+      "displayName": "Chauffage",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "energy",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "bill",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "tax-installment",
+      "displayName": "Acompte d’impôts",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "tax",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "tax",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "childcare",
+      "displayName": "Crèche ou garde d’enfants",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "childcare",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "family",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "consumer-credit",
+      "displayName": "Crédit ou prêt",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "credit",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "liability",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "scheduled-savings",
+      "displayName": "Épargne programmée",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "set_aside",
+      "category": "saving",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "saving",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "pillar-3a-contribution",
+      "displayName": "Versement pilier 3a",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "generic",
+      "financialSense": "set_aside",
+      "category": "pension",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "broker-contribution",
+      "displayName": "Versement vers un courtier",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "set_aside",
+      "category": "investment",
+      "cadenceHints": [
+        "month",
+        "custom"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "mobile-plan",
+      "displayName": "Téléphone mobile",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "internet-tv",
+      "displayName": "Internet et télévision",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "regional-transit-pass",
+      "displayName": "Abonnement de transports régional",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "gym-membership",
+      "displayName": "Salle de sport",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "generic",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "four_weeks",
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "generic_glyph",
+      "monogram": null,
+      "assetKey": null
+    },
+    {
+      "key": "netflix",
+      "displayName": "Netflix",
+      "aliases": [
+        "netflix.com"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "N",
+      "assetKey": null
+    },
+    {
+      "key": "disney-plus",
+      "displayName": "Disney+",
+      "aliases": [
+        "disney plus"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "D",
+      "assetKey": null
+    },
+    {
+      "key": "prime-video",
+      "displayName": "Prime Video",
+      "aliases": [
+        "amazon prime video",
+        "primevideo"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "PV",
+      "assetKey": null
+    },
+    {
+      "key": "amazon-prime",
+      "displayName": "Amazon Prime",
+      "aliases": [
+        "amazon prime"
+      ],
+      "markets": [
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "delivery",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "delivery",
+      "markPolicy": "monogram",
+      "monogram": "AP",
+      "assetKey": null
+    },
+    {
+      "key": "apple-tv-plus",
+      "displayName": "Apple TV+",
+      "aliases": [
+        "apple tv",
+        "apple tv plus"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "AT",
+      "assetKey": null
+    },
+    {
+      "key": "max",
+      "displayName": "Max",
+      "aliases": [
+        "hbo max"
+      ],
+      "markets": [
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "M",
+      "assetKey": null
+    },
+    {
+      "key": "paramount-plus",
+      "displayName": "Paramount+",
+      "aliases": [
+        "paramount plus"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "P",
+      "assetKey": null
+    },
+    {
+      "key": "canal-plus",
+      "displayName": "Canal+",
+      "aliases": [
+        "canal plus",
+        "mycanal"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "C",
+      "assetKey": null
+    },
+    {
+      "key": "molotov",
+      "displayName": "Molotov",
+      "aliases": [
+        "molotov tv"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "M",
+      "assetKey": null
+    },
+    {
+      "key": "oneplus-ch",
+      "displayName": "oneplus",
+      "aliases": [
+        "one plus suisse"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "1+",
+      "assetKey": null
+    },
+    {
+      "key": "blue-sport",
+      "displayName": "blue Sport",
+      "aliases": [
+        "blue tv",
+        "blue plus"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "BS",
+      "assetKey": null
+    },
+    {
+      "key": "sky-sport-ch",
+      "displayName": "Sky Sport",
+      "aliases": [
+        "sky suisse",
+        "sky sport ch"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "SK",
+      "assetKey": null
+    },
+    {
+      "key": "dazn",
+      "displayName": "DAZN",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "DZ",
+      "assetKey": null
+    },
+    {
+      "key": "streamz",
+      "displayName": "Streamz",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "semiannual",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "ST",
+      "assetKey": null
+    },
+    {
+      "key": "crunchyroll",
+      "displayName": "Crunchyroll",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "CR",
+      "assetKey": null
+    },
+    {
+      "key": "mubi",
+      "displayName": "MUBI",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "MU",
+      "assetKey": null
+    },
+    {
+      "key": "spotify-premium",
+      "displayName": "Spotify Premium",
+      "aliases": [
+        "spotify"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "S",
+      "assetKey": null
+    },
+    {
+      "key": "apple-music",
+      "displayName": "Apple Music",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "AM",
+      "assetKey": null
+    },
+    {
+      "key": "youtube-premium",
+      "displayName": "YouTube Premium",
+      "aliases": [
+        "youtube music"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "video",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "video",
+      "markPolicy": "monogram",
+      "monogram": "YT",
+      "assetKey": null
+    },
+    {
+      "key": "deezer",
+      "displayName": "Deezer",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "D",
+      "assetKey": null
+    },
+    {
+      "key": "qobuz",
+      "displayName": "Qobuz",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "Q",
+      "assetKey": null
+    },
+    {
+      "key": "audible",
+      "displayName": "Audible",
+      "aliases": [
+        "amazon audible"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "AU",
+      "assetKey": null
+    },
+    {
+      "key": "storytel",
+      "displayName": "Storytel",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "music",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "music",
+      "markPolicy": "monogram",
+      "monogram": "ST",
+      "assetKey": null
+    },
+    {
+      "key": "icloud-plus",
+      "displayName": "iCloud+",
+      "aliases": [
+        "icloud",
+        "apple icloud"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "cloud",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "cloud",
+      "markPolicy": "monogram",
+      "monogram": "IC",
+      "assetKey": null
+    },
+    {
+      "key": "google-one",
+      "displayName": "Google One",
+      "aliases": [
+        "google storage"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "cloud",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "cloud",
+      "markPolicy": "monogram",
+      "monogram": "G1",
+      "assetKey": null
+    },
+    {
+      "key": "microsoft-365",
+      "displayName": "Microsoft 365",
+      "aliases": [
+        "office 365",
+        "m365"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "M3",
+      "assetKey": null
+    },
+    {
+      "key": "adobe-creative-cloud",
+      "displayName": "Adobe Creative Cloud",
+      "aliases": [
+        "adobe cc",
+        "creative cloud"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "AC",
+      "assetKey": null
+    },
+    {
+      "key": "dropbox",
+      "displayName": "Dropbox",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "cloud",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "cloud",
+      "markPolicy": "monogram",
+      "monogram": "DB",
+      "assetKey": null
+    },
+    {
+      "key": "canva",
+      "displayName": "Canva",
+      "aliases": [
+        "canva pro"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "CA",
+      "assetKey": null
+    },
+    {
+      "key": "notion",
+      "displayName": "Notion",
+      "aliases": [
+        "notion plus"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "NO",
+      "assetKey": null
+    },
+    {
+      "key": "chatgpt",
+      "displayName": "ChatGPT",
+      "aliases": [
+        "chatgpt plus",
+        "openai"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "ai",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "ai",
+      "markPolicy": "monogram",
+      "monogram": "AI",
+      "assetKey": null
+    },
+    {
+      "key": "proton",
+      "displayName": "Proton",
+      "aliases": [
+        "proton mail",
+        "proton vpn",
+        "proton drive"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "PR",
+      "assetKey": null
+    },
+    {
+      "key": "nordvpn",
+      "displayName": "NordVPN",
+      "aliases": [
+        "nord vpn"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "NV",
+      "assetKey": null
+    },
+    {
+      "key": "setapp",
+      "displayName": "Setapp",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "software",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "software",
+      "markPolicy": "monogram",
+      "monogram": "SE",
+      "assetKey": null
+    },
+    {
+      "key": "playstation-plus",
+      "displayName": "PlayStation Plus",
+      "aliases": [
+        "ps plus",
+        "ps+"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "PS",
+      "assetKey": null
+    },
+    {
+      "key": "xbox-game-pass",
+      "displayName": "Xbox Game Pass",
+      "aliases": [
+        "game pass"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "XB",
+      "assetKey": null
+    },
+    {
+      "key": "nintendo-switch-online",
+      "displayName": "Nintendo Switch Online",
+      "aliases": [
+        "nso"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "NS",
+      "assetKey": null
+    },
+    {
+      "key": "ea-play",
+      "displayName": "EA Play",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "EA",
+      "assetKey": null
+    },
+    {
+      "key": "ubisoft-plus",
+      "displayName": "Ubisoft+",
+      "aliases": [
+        "ubisoft plus"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "U",
+      "assetKey": null
+    },
+    {
+      "key": "apple-arcade",
+      "displayName": "Apple Arcade",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "AA",
+      "assetKey": null
+    },
+    {
+      "key": "geforce-now",
+      "displayName": "GeForce NOW",
+      "aliases": [
+        "nvidia geforce now"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "gaming",
+      "cadenceHints": [
+        "month",
+        "semiannual"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "gaming",
+      "markPolicy": "monogram",
+      "monogram": "GF",
+      "assetKey": null
+    },
+    {
+      "key": "basic-fit",
+      "displayName": "Basic-Fit",
+      "aliases": [
+        "basic fit"
+      ],
+      "markets": [
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "four_weeks",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "BF",
+      "assetKey": null
+    },
+    {
+      "key": "fitness-park",
+      "displayName": "Fitness Park",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "four_weeks",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "FP",
+      "assetKey": null
+    },
+    {
+      "key": "activ-fitness",
+      "displayName": "ACTIV FITNESS",
+      "aliases": [
+        "activ fitness"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "AF",
+      "assetKey": null
+    },
+    {
+      "key": "puregym-ch",
+      "displayName": "PureGym Suisse",
+      "aliases": [
+        "puregym"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "PG",
+      "assetKey": null
+    },
+    {
+      "key": "nonstop-gym",
+      "displayName": "NonStop Gym",
+      "aliases": [
+        "non stop gym"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "NG",
+      "assetKey": null
+    },
+    {
+      "key": "strava",
+      "displayName": "Strava",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "ST",
+      "assetKey": null
+    },
+    {
+      "key": "freeletics",
+      "displayName": "Freeletics",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "fitness",
+      "cadenceHints": [
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "fitness",
+      "markPolicy": "monogram",
+      "monogram": "FL",
+      "assetKey": null
+    },
+    {
+      "key": "swisscom",
+      "displayName": "Swisscom",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "SC",
+      "assetKey": null
+    },
+    {
+      "key": "sunrise",
+      "displayName": "Sunrise",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "SU",
+      "assetKey": null
+    },
+    {
+      "key": "salt",
+      "displayName": "Salt",
+      "aliases": [
+        "salt mobile"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "SA",
+      "assetKey": null
+    },
+    {
+      "key": "wingo",
+      "displayName": "Wingo",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "WI",
+      "assetKey": null
+    },
+    {
+      "key": "yallo",
+      "displayName": "yallo",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "YA",
+      "assetKey": null
+    },
+    {
+      "key": "netplus",
+      "displayName": "net+",
+      "aliases": [
+        "net plus"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "N+",
+      "assetKey": null
+    },
+    {
+      "key": "orange-fr",
+      "displayName": "Orange France",
+      "aliases": [
+        "orange"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "OR",
+      "assetKey": null
+    },
+    {
+      "key": "sfr",
+      "displayName": "SFR",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "SFR",
+      "assetKey": null
+    },
+    {
+      "key": "bouygues-telecom",
+      "displayName": "Bouygues Telecom",
+      "aliases": [
+        "bouygues"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "BT",
+      "assetKey": null
+    },
+    {
+      "key": "free-mobile",
+      "displayName": "Free Mobile",
+      "aliases": [
+        "free fr mobile"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "FM",
+      "assetKey": null
+    },
+    {
+      "key": "freebox",
+      "displayName": "Freebox",
+      "aliases": [
+        "free box"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "FB",
+      "assetKey": null
+    },
+    {
+      "key": "proximus",
+      "displayName": "Proximus",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "PX",
+      "assetKey": null
+    },
+    {
+      "key": "orange-be",
+      "displayName": "Orange Belgium",
+      "aliases": [
+        "orange belgique"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "OB",
+      "assetKey": null
+    },
+    {
+      "key": "telenet",
+      "displayName": "Telenet",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "TE",
+      "assetKey": null
+    },
+    {
+      "key": "voo",
+      "displayName": "VOO",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "VOO",
+      "assetKey": null
+    },
+    {
+      "key": "mobile-vikings",
+      "displayName": "Mobile Vikings",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "MV",
+      "assetKey": null
+    },
+    {
+      "key": "hey-telecom",
+      "displayName": "hey! telecom",
+      "aliases": [
+        "hey telecom"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "telecom",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "telecom",
+      "markPolicy": "monogram",
+      "monogram": "HY",
+      "assetKey": null
+    },
+    {
+      "key": "serafe",
+      "displayName": "Serafe",
+      "aliases": [
+        "redevance radio tv"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "bill",
+      "category": "other",
+      "cadenceHints": [
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "bill",
+      "markPolicy": "monogram",
+      "monogram": "SR",
+      "assetKey": null
+    },
+    {
+      "key": "cff-demi-tarif",
+      "displayName": "CFF Demi-tarif",
+      "aliases": [
+        "sbb halbtax",
+        "demi tarif"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "DT",
+      "assetKey": null
+    },
+    {
+      "key": "cff-ag",
+      "displayName": "CFF Abonnement général",
+      "aliases": [
+        "sbb ga",
+        "abonnement general"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "AG",
+      "assetKey": null
+    },
+    {
+      "key": "mobility",
+      "displayName": "Mobility",
+      "aliases": [
+        "mobility carsharing"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "MO",
+      "assetKey": null
+    },
+    {
+      "key": "navigo",
+      "displayName": "Navigo",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "NV",
+      "assetKey": null
+    },
+    {
+      "key": "sncf-max",
+      "displayName": "SNCF MAX",
+      "aliases": [
+        "max jeune",
+        "max actif"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "SM",
+      "assetKey": null
+    },
+    {
+      "key": "sncf-carte-avantage",
+      "displayName": "Carte Avantage SNCF",
+      "aliases": [
+        "carte avantage"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "CA",
+      "assetKey": null
+    },
+    {
+      "key": "velib",
+      "displayName": "Vélib’ Métropole",
+      "aliases": [
+        "velib"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "VM",
+      "assetKey": null
+    },
+    {
+      "key": "stib",
+      "displayName": "STIB / MIVB",
+      "aliases": [
+        "stib",
+        "mivb"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "ST",
+      "assetKey": null
+    },
+    {
+      "key": "sncb",
+      "displayName": "SNCB / NMBS",
+      "aliases": [
+        "sncb",
+        "nmbs"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "SN",
+      "assetKey": null
+    },
+    {
+      "key": "de-lijn",
+      "displayName": "De Lijn",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "DL",
+      "assetKey": null
+    },
+    {
+      "key": "tec",
+      "displayName": "TEC",
+      "aliases": [
+        "letec"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "transport",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "transport",
+      "markPolicy": "monogram",
+      "monogram": "TEC",
+      "assetKey": null
+    },
+    {
+      "key": "le-monde",
+      "displayName": "Le Monde",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "LM",
+      "assetKey": null
+    },
+    {
+      "key": "les-echos",
+      "displayName": "Les Echos",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "LE",
+      "assetKey": null
+    },
+    {
+      "key": "lequipe",
+      "displayName": "L’Équipe",
+      "aliases": [
+        "lequipe"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "EQ",
+      "assetKey": null
+    },
+    {
+      "key": "le-temps",
+      "displayName": "Le Temps",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "LT",
+      "assetKey": null
+    },
+    {
+      "key": "tribune-geneve",
+      "displayName": "Tribune de Genève",
+      "aliases": [
+        "tdg"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "semiannual",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "TG",
+      "assetKey": null
+    },
+    {
+      "key": "nzz",
+      "displayName": "NZZ",
+      "aliases": [
+        "neue zurcher zeitung"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "NZZ",
+      "assetKey": null
+    },
+    {
+      "key": "tages-anzeiger",
+      "displayName": "Tages-Anzeiger",
+      "aliases": [
+        "tages anzeiger"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "TA",
+      "assetKey": null
+    },
+    {
+      "key": "le-soir",
+      "displayName": "Le Soir",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "LS",
+      "assetKey": null
+    },
+    {
+      "key": "la-libre",
+      "displayName": "La Libre",
+      "aliases": [
+        "la libre belgique"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "LL",
+      "assetKey": null
+    },
+    {
+      "key": "de-standaard",
+      "displayName": "De Standaard",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "press",
+      "cadenceHints": [
+        "month",
+        "year"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "press",
+      "markPolicy": "monogram",
+      "monogram": "DS",
+      "assetKey": null
+    },
+    {
+      "key": "tinder",
+      "displayName": "Tinder",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "dating",
+      "cadenceHints": [
+        "month",
+        "semiannual",
+        "year"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "dating",
+      "markPolicy": "monogram",
+      "monogram": "T",
+      "assetKey": null
+    },
+    {
+      "key": "bumble",
+      "displayName": "Bumble",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "dating",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "semiannual"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "dating",
+      "markPolicy": "monogram",
+      "monogram": "B",
+      "assetKey": null
+    },
+    {
+      "key": "hinge",
+      "displayName": "Hinge",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "service",
+      "financialSense": "subscription",
+      "category": "dating",
+      "cadenceHints": [
+        "month",
+        "quarter",
+        "semiannual"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "dating",
+      "markPolicy": "monogram",
+      "monogram": "H",
+      "assetKey": null
+    },
+    {
+      "key": "ubs",
+      "displayName": "UBS",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "UBS",
+      "assetKey": null
+    },
+    {
+      "key": "postfinance",
+      "displayName": "PostFinance",
+      "aliases": [
+        "post finance"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "PF",
+      "assetKey": null
+    },
+    {
+      "key": "raiffeisen-ch",
+      "displayName": "Raiffeisen Suisse",
+      "aliases": [
+        "raiffeisen"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "RF",
+      "assetKey": null
+    },
+    {
+      "key": "zkb",
+      "displayName": "Zürcher Kantonalbank",
+      "aliases": [
+        "zkb"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "ZKB",
+      "assetKey": null
+    },
+    {
+      "key": "bcv",
+      "displayName": "Banque Cantonale Vaudoise",
+      "aliases": [
+        "bcv"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BCV",
+      "assetKey": null
+    },
+    {
+      "key": "bcge",
+      "displayName": "Banque Cantonale de Genève",
+      "aliases": [
+        "bcge"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BCG",
+      "assetKey": null
+    },
+    {
+      "key": "banque-migros",
+      "displayName": "Banque Migros",
+      "aliases": [
+        "migros bank"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BM",
+      "assetKey": null
+    },
+    {
+      "key": "bank-cler",
+      "displayName": "Bank Cler",
+      "aliases": [
+        "zak"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BC",
+      "assetKey": null
+    },
+    {
+      "key": "neon",
+      "displayName": "neon",
+      "aliases": [
+        "neon bank"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "fintech",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "NE",
+      "assetKey": null
+    },
+    {
+      "key": "yuh",
+      "displayName": "Yuh",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "fintech",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "Y",
+      "assetKey": null
+    },
+    {
+      "key": "swissquote",
+      "displayName": "Swissquote",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "SQ",
+      "assetKey": null
+    },
+    {
+      "key": "interactive-brokers",
+      "displayName": "Interactive Brokers",
+      "aliases": [
+        "ibkr"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "IB",
+      "assetKey": null
+    },
+    {
+      "key": "saxo",
+      "displayName": "Saxo",
+      "aliases": [
+        "saxo bank"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "SX",
+      "assetKey": null
+    },
+    {
+      "key": "degiro",
+      "displayName": "DEGIRO",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "DG",
+      "assetKey": null
+    },
+    {
+      "key": "viac",
+      "displayName": "VIAC",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "pension",
+      "category": "pension",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "V",
+      "assetKey": null
+    },
+    {
+      "key": "finpension",
+      "displayName": "finpension",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "pension",
+      "category": "pension",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "FP",
+      "assetKey": null
+    },
+    {
+      "key": "frankly",
+      "displayName": "frankly",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "pension",
+      "category": "pension",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "FR",
+      "assetKey": null
+    },
+    {
+      "key": "revolut",
+      "displayName": "Revolut",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "fintech",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "R",
+      "assetKey": null
+    },
+    {
+      "key": "wise",
+      "displayName": "Wise",
+      "aliases": [
+        "transferwise"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "fintech",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "W",
+      "assetKey": null
+    },
+    {
+      "key": "credit-agricole",
+      "displayName": "Crédit Agricole",
+      "aliases": [
+        "ca"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CA",
+      "assetKey": null
+    },
+    {
+      "key": "societe-generale",
+      "displayName": "SG / Société Générale",
+      "aliases": [
+        "sg",
+        "societe generale"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "SG",
+      "assetKey": null
+    },
+    {
+      "key": "credit-mutuel",
+      "displayName": "Crédit Mutuel",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CM",
+      "assetKey": null
+    },
+    {
+      "key": "banque-postale",
+      "displayName": "La Banque Postale",
+      "aliases": [
+        "lbp"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BP",
+      "assetKey": null
+    },
+    {
+      "key": "bnp-paribas-fr",
+      "displayName": "BNP Paribas",
+      "aliases": [
+        "bnp"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BNP",
+      "assetKey": null
+    },
+    {
+      "key": "banque-populaire",
+      "displayName": "Banque Populaire",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BP",
+      "assetKey": null
+    },
+    {
+      "key": "caisse-epargne",
+      "displayName": "Caisse d’Épargne",
+      "aliases": [
+        "caisse epargne"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CE",
+      "assetKey": null
+    },
+    {
+      "key": "cic",
+      "displayName": "CIC",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CIC",
+      "assetKey": null
+    },
+    {
+      "key": "boursobank",
+      "displayName": "BoursoBank",
+      "aliases": [
+        "boursorama",
+        "boursorama banque"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BO",
+      "assetKey": null
+    },
+    {
+      "key": "fortuneo",
+      "displayName": "Fortuneo",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "FO",
+      "assetKey": null
+    },
+    {
+      "key": "hello-bank",
+      "displayName": "Hello bank!",
+      "aliases": [
+        "hello bank"
+      ],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "HB",
+      "assetKey": null
+    },
+    {
+      "key": "n26",
+      "displayName": "N26",
+      "aliases": [],
+      "markets": [
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "fintech",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "N26",
+      "assetKey": null
+    },
+    {
+      "key": "trade-republic",
+      "displayName": "Trade Republic",
+      "aliases": [],
+      "markets": [
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "TR",
+      "assetKey": null
+    },
+    {
+      "key": "bourse-direct",
+      "displayName": "Bourse Direct",
+      "aliases": [],
+      "markets": [
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "BD",
+      "assetKey": null
+    },
+    {
+      "key": "bnp-paribas-fortis",
+      "displayName": "BNP Paribas Fortis",
+      "aliases": [
+        "bnp fortis"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BNP",
+      "assetKey": null
+    },
+    {
+      "key": "kbc",
+      "displayName": "KBC",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "KBC",
+      "assetKey": null
+    },
+    {
+      "key": "cbc",
+      "displayName": "CBC Banque",
+      "aliases": [
+        "cbc"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CBC",
+      "assetKey": null
+    },
+    {
+      "key": "belfius",
+      "displayName": "Belfius",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BF",
+      "assetKey": null
+    },
+    {
+      "key": "ing-belgium",
+      "displayName": "ING Belgique",
+      "aliases": [
+        "ing belgium",
+        "ing be"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "ING",
+      "assetKey": null
+    },
+    {
+      "key": "argenta",
+      "displayName": "Argenta",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "AR",
+      "assetKey": null
+    },
+    {
+      "key": "crelan",
+      "displayName": "Crelan",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "CR",
+      "assetKey": null
+    },
+    {
+      "key": "beobank",
+      "displayName": "Beobank",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "BE",
+      "assetKey": null
+    },
+    {
+      "key": "keytrade",
+      "displayName": "Keytrade Bank",
+      "aliases": [
+        "keytrade"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "account",
+      "category": "bank",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "accounts",
+      "markPolicy": "monogram",
+      "monogram": "KT",
+      "assetKey": null
+    },
+    {
+      "key": "bolero",
+      "displayName": "Bolero",
+      "aliases": [],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "BO",
+      "assetKey": null
+    },
+    {
+      "key": "rebel",
+      "displayName": "Belfius Re=Bel",
+      "aliases": [
+        "rebel",
+        "re bel"
+      ],
+      "markets": [
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "broker",
+      "category": "broker",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "EUR"
+      ],
+      "glyphKey": "investment",
+      "markPolicy": "monogram",
+      "monogram": "RB",
+      "assetKey": null
+    },
+    {
+      "key": "css",
+      "displayName": "CSS",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "CSS",
+      "assetKey": null
+    },
+    {
+      "key": "helsana",
+      "displayName": "Helsana",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "HE",
+      "assetKey": null
+    },
+    {
+      "key": "groupe-mutuel",
+      "displayName": "Groupe Mutuel",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "GM",
+      "assetKey": null
+    },
+    {
+      "key": "assura",
+      "displayName": "Assura",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "AS",
+      "assetKey": null
+    },
+    {
+      "key": "swica",
+      "displayName": "SWICA",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "SW",
+      "assetKey": null
+    },
+    {
+      "key": "sanitas",
+      "displayName": "Sanitas",
+      "aliases": [],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "SA",
+      "assetKey": null
+    },
+    {
+      "key": "axa",
+      "displayName": "AXA",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "AXA",
+      "assetKey": null
+    },
+    {
+      "key": "allianz",
+      "displayName": "Allianz",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "AL",
+      "assetKey": null
+    },
+    {
+      "key": "zurich-insurance",
+      "displayName": "Zurich",
+      "aliases": [
+        "zurich assurance"
+      ],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "ZU",
+      "assetKey": null
+    },
+    {
+      "key": "baloise",
+      "displayName": "Baloise",
+      "aliases": [
+        "baloise assurance"
+      ],
+      "markets": [
+        "CH",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "BA",
+      "assetKey": null
+    },
+    {
+      "key": "vaudoise",
+      "displayName": "Vaudoise Assurances",
+      "aliases": [
+        "vaudoise"
+      ],
+      "markets": [
+        "CH"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "VA",
+      "assetKey": null
+    },
+    {
+      "key": "helvetia",
+      "displayName": "Helvetia",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "HV",
+      "assetKey": null
+    },
+    {
+      "key": "generali",
+      "displayName": "Generali",
+      "aliases": [],
+      "markets": [
+        "CH",
+        "FR",
+        "BE"
+      ],
+      "entityKind": "institution",
+      "financialSense": "insurance",
+      "category": "insurance",
+      "cadenceHints": [
+        "none"
+      ],
+      "currencyHints": [
+        "CHF",
+        "EUR"
+      ],
+      "glyphKey": "shield",
+      "markPolicy": "monogram",
+      "monogram": "GE",
+      "assetKey": null
+    }
+  ]
+}
