@@ -1,6 +1,10 @@
 # Budget — authority for Claude Code
 
-Use only the project skill `/budget-prisme` for substantial work on Budget.
+Use the project skill `/budget-prisme` as the primary authority for substantial
+work on Budget. For catalogues, services, subscriptions, banks, brokers,
+insurers, local identities, logos, monograms or recurring cadence presets, also
+load the companion skill `/budget-identites-locales`. The companion never
+overrides Budget Prisme's financial, data, design, evidence or release rules.
 
 ## Active programme
 
@@ -24,8 +28,13 @@ Use only the project skill `/budget-prisme` for substantial work on Budget.
 - Skill references: `.claude/skills/budget-prisme/references/`
   (finance/data, language, page registry, page workflow, quality
   evidence, GitHub release) — they prevail over legacy skills.
+- Local identities companion:
+  `.claude/skills/budget-identites-locales/` (catalogue CH/FR/BE, safe
+  monograms, brand provenance, recurrence requirements and validator). Use it
+  only together with `/budget-prisme` on its declared scope.
 
-All other Budget skills (`/budget-v1`, `/budget-neon-ultra`,
+Except for the declared companion `/budget-identites-locales`, all other Budget
+skills (`/budget-v1`, `/budget-neon-ultra`,
 `/budget-horizon`, `/budget-master-evolution`, `/budget-2027`,
 `/budget-web`, `/budget-production-completion` included) are legacy
 references. Do not invoke them, combine their roadmaps, or let them
@@ -86,6 +95,11 @@ iconography — no functional emojis; country flags, user-chosen goal
 emojis and real-milestone 🎉 stay. Full rules in
 `.claude/skills/budget-prisme/references/` and the Neon Ultra
 constitution it builds on.
+
+Within `BudgetIdentityIcon` only, a safe monogram or a provenance-approved
+local brand asset may decorate an explicitly named service or institution.
+These identity marks never replace Budget Glyphs for actions, financial
+meaning, categories, navigation or status.
 
 Respect Dynamic Type, VoiceOver, WCAG AA body text (nothing under 10 px),
 44-point targets, reduced motion, increased contrast, and reduced

@@ -48,6 +48,12 @@ Avant toute décision :
 Dans un dépôt qui possède `.claude/skills/budget-prisme/`, traiter cette copie
 repo-locale comme l'autorité la plus récente pour Claude Code.
 
+Pour les catalogues de services ou d'établissements, banques, courtiers,
+assureurs, logos, monogrammes et cadences locales CH/FR/BE, charger aussi
+`.claude/skills/budget-identites-locales/SKILL.md`. Ce compagnon complète le
+travail; le présent skill conserve l'autorité sur la vérité financière, les
+données, le design, les preuves et la publication.
+
 ## Charger seulement les références utiles
 
 - Toujours pour une page : [PAGE_REGISTRY.md](references/PAGE_REGISTRY.md) et
