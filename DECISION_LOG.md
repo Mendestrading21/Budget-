@@ -1,5 +1,46 @@
 # Budget decision log
 
+## ADR-040 — REC2 : « toutes les quatre semaines » exact côté PWA
+
+Date: 2026-08-20
+Status: accepted — complète ADR-039
+
+### Contexte
+
+ADR-039 a livré trimestriel et semestriel sur la grille mensuelle de la
+PWA, mais « toutes les quatre semaines » (Basic-Fit, salles de sport) ne
+tient pas dans une grille : 13 échéances par an, et un mois porte DEUX
+échéances. Le natif savait déjà ((week, 4), occurrences par date,
+couverture par comptage) ; la PWA convertie en mensuel aurait volé une
+échéance sur treize.
+
+### Décision
+
+1. `every: "four_weeks"` avec une vraie DATE d'ancrage (`startOn`
+   {y, m, d}) : contrairement au mensuel (décision du 06.08 — pas de
+   « jour de paiement »), le jour fait PARTIE du rythme — la question
+   « Prochaine échéance » est légitime et posée seulement pour ce rythme.
+2. Le moteur passe au COMPTAGE d'échéances (`recurringDueCount`,
+   `recurringRemainingCount`) : N mouvements liés du mois couvrent les N
+   premières échéances — même règle que le natif. Un mois à double
+   échéance engage deux fois le montant dans la projection, attend deux
+   gestes dans le rituel (« (2 × ce mois) ») et refuse le troisième.
+3. Coût annuel : 13 × le montant, jamais 12.
+4. Les rythmes existants sont inchangés (dueCount 0/1 — comportements
+   byte-identiques) ; les données anciennes gardent leur sens ;
+   restauration : `four_weeks` sans date d'ancrage valide est refusé,
+   comme tout rythme inconnu.
+5. Fixture de parité « quatre-semaines-exactes » : juillet 2026 porte
+   les échéances des 2 et 30 (ancrage 15.01.2026) — 90 = 2 × 45 engagés,
+   prouvé côté PWA (fixture 9) ET côté natif (mêmes dates, mêmes francs).
+
+### Vérification
+
+Parcours 160 né rouge (moteur absent, 12 au lieu de 13, pas de champ
+date) ; fixture 9 née rouge (état refusé au chargement) ; couverture par
+comptage prouvée sur le mois double (2 gestes, 3e refusé) ; test natif
+miroir des mêmes dates ; 160 e2e + 9 parités + design + catalogue verts.
+
 ## ADR-039 — REC1 : cadences exactes — trimestriel et semestriel sur la PWA
 
 Date: 2026-08-20
