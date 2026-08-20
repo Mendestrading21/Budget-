@@ -1470,6 +1470,10 @@
       <label for="penAccount">Compte lié (facultatif)</label>
       <select id="penAccount"></select>
       <p class="caption" style="margin:4px 0 0">Reliez cette ligne au compte où vous versez : le total suivra vos versements tout seul, et rien ne sera compté deux fois dans votre patrimoine.</p>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="penRente" style="width:auto" /> C'est une rente (par exemple l'AVS), pas un capital
+      </label>
+      <p class="caption" style="margin:4px 0 0">Une rente n'entre jamais dans votre patrimoine : Budget l'affiche à part, comme une information.</p>
       <label for="penValue">Valeur actuelle (<span class="curlabel">CHF</span>)</label>
       <input id="penValue" data-primary-amount inputmode="decimal" placeholder="85000.00" autocomplete="off" />
       <label for="penProjection">Montant prévu à la retraite (<span class="curlabel">CHF</span>, selon votre certificat, facultatif)</label>
@@ -2333,12 +2337,19 @@ function pensionValue(p) {
   return toCHF(balance(compte.id), compte.currency);
 }
 /* Le cumul À AJOUTER au patrimoine : uniquement les positions NON liées.
-   Les autres sont déjà dans le solde des comptes. */
+   Les autres sont déjà dans le solde des comptes.
+   ADR-036 (P0 AVS) : une position marquée « rente » (par exemple l'AVS)
+   n'est PAS un capital — elle n'entre jamais dans ce total ni dans le
+   patrimoine. Une ancienne ligne ambiguë non marquée reste comptée telle
+   quelle : on l'affiche « À confirmer », on ne réécrit rien en douce. */
 function pensionPositionsTotal() {
-  return round2(PENSIONS.filter(p => !pensionIsLinked(p))
+  return round2(PENSIONS.filter(p => !pensionIsLinked(p) && p.rente !== true)
     .reduce((a, p) => a + (p.value || 0), 0));
 }
 /* Le total À MONTRER sur l'écran Prévoyance : tout, lié ou non. */
+function pensionDisplayTotal() {
+  return round2(PENSIONS.reduce((a, p) => a + pensionValue(p), 0));
+}
 /* C4 (07.08.2026) — OÙ VA CHAQUE FRANC MIS DE CÔTÉ.
    « Je veux pouvoir comprendre rapidement combien j'ai mis de côté, combien
    est destiné aux impôts, combien au 3e pilier, combien aux autres objectifs,
@@ -2372,9 +2383,6 @@ function misDeCoteParDestination(y, m) {
   };
 }
 
-function pensionDisplayTotal() {
-  return round2(PENSIONS.reduce((a, p) => a + pensionValue(p), 0));
-}
 const INSURANCES = S.insurances;
 
 function saveState() {
@@ -4479,7 +4487,10 @@ function renderInsurance() {
       <p>Ajoutez ce qui est écrit sur vos certificats pour voir votre total.</p>
     </div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>
-      <div class="meta"><div class="t">${esc(p.name)}</div><div class="s">${pensionIsLinked(p)
+      <div class="meta"><div class="t">${esc(p.name)}${p.rente !== true && !pensionIsLinked(p) && /\bavs\b|1er pilier|\brente\b/i.test(p.name)
+        ? '<span class="badge planned">À confirmer : rente ou capital ?</span>' : ""}</div><div class="s">${p.rente === true
+        ? "Rente estimée — hors patrimoine · montant tel que saisi"
+        : pensionIsLinked(p)
         ? `Suit le solde de « ${esc((ACCOUNTS.find(a => a.id === p.accountId) || {}).name || "")} »`
         : "Le montant de votre certificat"}</div></div>
       <span class="amount acct-total">${chf(pensionValue(p))}</span>
@@ -8156,6 +8167,14 @@ function openPenSheet(position) {
     + ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
       .map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
   sel.value = position && position.accountId ? position.accountId : "";
+  const renteBox = document.getElementById("penRente");
+  renteBox.checked = position ? position.rente === true : false;
+  // Une rente ne suit jamais un solde de compte : le lien se coupe.
+  sel.disabled = renteBox.checked;
+  renteBox.onchange = () => {
+    if (renteBox.checked) sel.value = "";
+    sel.disabled = renteBox.checked;
+  };
   if (position) {
     document.getElementById("penName").value = position.name;
     document.getElementById("penValue").value = (position.value || 0).toFixed(2);
@@ -8171,7 +8190,8 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const err = document.getElementById("penError");
   const name = document.getElementById("penName").value.trim();
   if (!name) { err.textContent = "Donnez un nom à cette prévoyance."; return; }
-  const accountId = document.getElementById("penAccount").value || null;
+  const rente = document.getElementById("penRente").checked === true;
+  const accountId = rente ? null : (document.getElementById("penAccount").value || null);
   const lie = !!accountId && ACCOUNTS.some(a => a.id === accountId);
   // Une position LIÉE tire sa valeur du compte : exiger un montant en plus
   // serait exactement la double saisie qu'on supprime.
@@ -8182,7 +8202,7 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const projectionRaw = document.getElementById("penProjection").value.trim();
   const projection = projectionRaw === "" ? null : parseAmountField(projectionRaw);
   if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Le montant prévu à 65 ans n'est pas valable."; return; }
-  const data = { name, value, projection, accountId };
+  const data = { name, value, projection, accountId, rente };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
   if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
   else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Prévoyance ajoutée"); }

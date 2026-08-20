@@ -60,7 +60,7 @@ struct PensionAssetFormView: View {
                 }
 
                 Section {
-                    TextField("Valeur actuelle (CHF)", text: $currentValueText)
+                    TextField(pillar == .pillar1 ? "Rente estimée (CHF)" : "Valeur actuelle (CHF)", text: $currentValueText)
                         .keyboardType(.decimalPad)
                     TextField("Contribution annuelle (CHF, facultatif)", text: $annualContributionText)
                         .keyboardType(.decimalPad)
@@ -71,7 +71,9 @@ struct PensionAssetFormView: View {
                 } header: {
                     Text("Montants du relevé")
                 } footer: {
-                    Text("Recopiez les chiffres de votre certificat LPP ou relevé 3a. La projection est celle de l'institution, pas un calcul de l'app.")
+                    Text(pillar == .pillar1
+                        ? "Pour l'AVS : recopiez l'estimation de RENTE de votre relevé et précisez dans la note si c'est par mois ou par an. Une rente n'est pas un capital — elle n'entrera ni dans le capital de prévoyance ni dans votre patrimoine."
+                        : "Recopiez les chiffres de votre certificat LPP ou relevé 3a. La projection est celle de l'institution, pas un calcul de l'app.")
                 }
 
                 Section("Source") {

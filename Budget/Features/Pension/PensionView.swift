@@ -43,6 +43,10 @@ struct PensionView: View {
 
     private var list: some View {
         let totals = service.pensionTotalsByPillar(assets: assets)
+        // ADR-036 : les rentes estimées (1er pilier) vivent dans leur
+        // propre section, hors de tous les totaux.
+        let capitalAssets = assets.filter { !InsurancePensionService.isAnnuity($0) }
+        let annuityAssets = assets.filter { InsurancePensionService.isAnnuity($0) }
         return ScrollView {
             VStack(spacing: BudgetSpacing.medium) {
                 GlassCard(style: .hero) {
@@ -81,13 +85,31 @@ struct PensionView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                    Text("Positions")
-                        .font(BudgetFont.sectionTitle)
-                        .foregroundStyle(.secondary)
-                    ForEach(assets) { asset in
-                        PensionRow(asset: asset)
-                            .onTapGesture { editedAsset = asset }
+                if !capitalAssets.isEmpty {
+                    VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                        Text("Positions")
+                            .font(BudgetFont.sectionTitle)
+                            .foregroundStyle(.secondary)
+                        ForEach(capitalAssets) { asset in
+                            PensionRow(asset: asset)
+                                .onTapGesture { editedAsset = asset }
+                        }
+                    }
+                }
+
+                if !annuityAssets.isEmpty {
+                    VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                        Text("Rentes estimées — hors patrimoine")
+                            .font(BudgetFont.sectionTitle)
+                            .foregroundStyle(.secondary)
+                        ForEach(annuityAssets) { asset in
+                            PensionRow(asset: asset)
+                                .onTapGesture { editedAsset = asset }
+                        }
+                        Text("Une rente (AVS) n'est pas un capital : elle n'entre ni dans le capital de prévoyance ni dans votre patrimoine. Montant tel que saisi — par mois ou par an, à confirmer sur votre estimation officielle.")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("pension.annuity.note")
                     }
                 }
 
@@ -153,7 +175,11 @@ struct PensionRow: View {
                     Text(FinanceFormatting.chf(asset.currentValue))
                         .font(BudgetFont.amount)
                         .fixedSize()
-                    if asset.annualContribution > 0 {
+                    if InsurancePensionService.isAnnuity(asset) {
+                        Text("Rente estimée · à confirmer")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    } else if asset.annualContribution > 0 {
                         Text("+\(FinanceFormatting.chf(asset.annualContribution)) / an")
                             .font(BudgetFont.caption)
                             .foregroundStyle(BudgetColor.positive)
@@ -163,7 +189,9 @@ struct PensionRow: View {
         }
         .opacity(asset.isActive ? 1 : 0.55)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(asset.pillar.displayName), \(asset.institutionName), \(FinanceFormatting.chf(asset.currentValue))")
+        .accessibilityLabel(InsurancePensionService.isAnnuity(asset)
+            ? "\(asset.pillar.displayName), \(asset.institutionName), rente estimée \(FinanceFormatting.chf(asset.currentValue)), hors patrimoine"
+            : "\(asset.pillar.displayName), \(asset.institutionName), \(FinanceFormatting.chf(asset.currentValue))")
         .accessibilityIdentifier("pension.row.\(asset.institutionName)")
     }
 }

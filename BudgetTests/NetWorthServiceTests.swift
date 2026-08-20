@@ -52,6 +52,23 @@ final class NetWorthServiceTests: XCTestCase {
         )
     }
 
+    /// ADR-036 (P0 AVS) : une rente estimée du 1er pilier n'entre pas
+    /// dans le patrimoine — de l'argent qui n'existe pas encore ne peut
+    /// pas gonfler la fortune.
+    func testPensionAnnuityIsExcludedFromNetWorth() {
+        let current = Account(name: "Courant", type: .current, openingBalance: Decimal("5000.00"))
+        let lpp = PensionAsset(pillar: .pillar2, institutionName: "Caisse", currentValue: Decimal("85000.00"))
+        let avs = PensionAsset(pillar: .pillar1, institutionName: "AVS", currentValue: Decimal("2450.00"))
+        context.insert(current)
+        context.insert(lpp)
+        context.insert(avs)
+
+        let breakdown = service.breakdown(accounts: [current], assets: [], pensions: [lpp, avs], liabilities: [])
+        XCTAssertEqual(breakdown.pensionTotal, Decimal("85000.00"),
+                       "le capital LPP compte, la rente AVS jamais")
+        XCTAssertEqual(breakdown.netWorth, Decimal("90000.00"))
+    }
+
     func testPositiveLiabilityIsSubtractedNeverAdded() {
         let debt = Liability(name: "Dette fiscale", kind: .taxDebt, outstandingAmount: Decimal("2000.00"))
         context.insert(debt)
