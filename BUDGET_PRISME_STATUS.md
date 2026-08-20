@@ -39,26 +39,21 @@ arrivé par la PR #91, `main` = `b6220fd`). Dernier lot publié : FE2-12
 20.08.2026 : l'ancienne ligne « lot actif : A2 » datait du 17.08 et
 contredisait les lots publiés depuis (A3–A7, FE2-1 à FE2-12).
 
-Prochain lot : **P0 AVS — une rente n'est pas un capital**. Audit du
-20.08.2026, défaut CONFIRMÉ côté natif : `PensionAsset.currentValue`
-d'une position `pillar1` porte « l'estimation de rente » (commentaire du
-modèle) et est additionné tel quel au patrimoine
-(`NetWorthService.breakdown.pensionTotal`) et au « capital de
-prévoyance » (`InsurancePensionService.totalPensionCapital`). Côté PWA,
-pas de champ structuré 1er pilier : une ligne de prévoyance saisie
-librement comme « AVS » avec une rente dans « Valeur actuelle » entre
-aussi au patrimoine — les données ambiguës passeront « À confirmer ».
-Ensuite, dans l'ordre du skill : IC0 (contrat + fixture + ADR), IC1
-(présentation), REC1 (cadences), P08-C, ID1, P05-C, P06/P16, P13-C,
-P10/P12-C, INV1, BR1 — une PR par lot, aucune fusion sans accord.
+Six lots livrés, fusionnés dans l'ordre (#92 → #97) sur ordre du
+propriétaire (« Publié et continue », 20.08.2026) et publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026 :
+gouvernance, P0 AVS (ADR-036), IC0 (ADR-037), IC1 (ADR-038), REC1
+(ADR-039), REC2 (ADR-040). CI verte sur chaque HEAD exact rebasé puis
+sur `main`. Prochain lot : **P08-C — catalogue des services et saisie
+libre sur « Ce qui revient »** ; ensuite ID1, P05-C, P06/P16, P13-C,
+P10/P12-C, INV1, BR1 — une PR par lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
 8 courtiers, 15 assureurs, 19 télécoms ; tout en `monogram` ou
 `generic_glyph`, aucun logo tiers.
 
-**IC1 — Fondation Présentation (ADR-038)** · en PR (brouillon, empilée
-sur IC0/#94 — la fusionner d'abord). Les 14 clés de catégories du
+**IC1 — Fondation Présentation (ADR-038)** · `MERGED` + `PUBLISHED` —
+PR #95 (`main` = `b15a480`), publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026. Les 14 clés de catégories du
 catalogue reçoivent de vrais glyphes des deux côtés (13 tracés PWA
 originaux + 14 cas `BudgetGlyph`), la carte passe en mappage 100 %
 direct ; monogramme déterministe partagé (`monogramFor` ↔
@@ -722,7 +717,9 @@ Réconciliée du premier coup ; contrôle négatif : somme naïve
 rebranchée → la fixture mord seule (obtenu 1'300, attendu 1'000).
 Suites : 7 parités + 156 e2e + design, vertes.
 
-**FE2-9 — Preuves visuelles des vues d'argent** · en PR. Deux dettes
+**FE2-9 — Preuves visuelles des vues d'argent** · `MERGED` +
+`PUBLISHED` (série FE2 close — marqueur « en PR » périmé, corrigé le
+20.08.2026). Deux dettes
 de preuve soldées :
 - **Web** : captures 390 px de l'état DISCRIMINANT de FE2-5 (compte
   d'épargne aussi « cash disponible ») — Comptes et Patrimoine disent
@@ -793,8 +790,8 @@ son badge « Prévu » par accident du jeu de démo (l'acompte du jour 20) —
 il injecte désormais son propre mouvement prévu, déterministe quel que
 soit le jour du mois.
 
-**P0 AVS — une rente n'est pas un capital (ADR-036)** · en PR
-(brouillon, fusion sur ordre du propriétaire). Premier lot codé du
+**P0 AVS — une rente n'est pas un capital (ADR-036)** · `MERGED` +
+`PUBLISHED` — PR #93 (`main` = `051f669`), publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026. Premier lot codé du
 programme Identités locales, exigé par l'alerte préalable du skill.
 iOS : le 1er pilier est exclu de tous les agrégats de capital et du
 patrimoine (`isAnnuity`), affiché à part « Rentes estimées — hors
@@ -805,8 +802,8 @@ telle quelle avec « À confirmer : rente ou capital ? » — rien n'est
 réécrit en douce. Parcours 158 né rouge ; 2 tests natifs ajoutés ;
 suites web vertes ; captures Prévoyance inspectées.
 **IC0 — contrat du catalogue, fixture partagée et glyphes (ADR-037)** ·
-en PR (brouillon, comme #92 gouvernance et #93 P0 AVS — fusion sur ordre
-du propriétaire). Aucun changement de modèle ni d'écran. Livré :
+`MERGED` + `PUBLISHED` — PR #94 (`main` = `b0f07d3`), publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026.
+Aucun changement de modèle ni d'écran. Livré :
 `fixtures/catalogue-identites.json` (octet-copie de la fixture du skill,
 garde de synchronisation exécutable), `fixtures/catalogue-glyph-map.json`
 (8 clés mappées PWA+iOS · 14 en repli commun `recurring` que IC1
@@ -816,7 +813,7 @@ dans l'audit du dépôt. V1 = monogrammes et glyphes seulement
 (`approved_asset` interdit avant BR1).
 
 **REC1 — Cadences exactes : trimestriel et semestriel PWA (ADR-039)** ·
-en PR (brouillon, fusion sur ordre du propriétaire). Le natif exprimait
+`MERGED` + `PUBLISHED` — PR #96 (`main` = `6b2c447`), publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026. Le natif exprimait
 déjà tous les rythmes ((month,3), (month,6), (week,4)) ; la PWA ne
 connaissait que mensuel/annuel. Elle gagne `quarter` et `semiannual`
 ancrés par `dueM` (formule unique : écart à l'ancrage multiple du pas),
@@ -829,7 +826,9 @@ native : test 13/an ajouté). Parcours 159 né rouge ; fixture de parité
 8 « cadences-exactes » (580 prévu) ; 2 tests natifs ; suites vertes.
 
 **REC2 — « toutes les quatre semaines » exact côté PWA (ADR-040)** ·
-en PR (brouillon, fusion sur ordre du propriétaire). La grille mensuelle
+`MERGED` + `PUBLISHED` — PR #97 (`main` = `58d5af2`), publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026.
+Après rebase de la pile, la numérotation e2e finale est : 158 P0 AVS ·
+159 IC1 · 160 REC1 · 161 REC2 (161 parcours verts). La grille mensuelle
 apprend le comptage d'échéances : `four_weeks` avec date d'ancrage
 (`startOn`), 13 échéances/an jamais 12, mois à double échéance engagé
 deux fois et attendant deux gestes (le 3e refusé), coût annuel × 13,
