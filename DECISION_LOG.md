@@ -1,5 +1,56 @@
 # Budget decision log
 
+## ADR-039 — REC1 : cadences exactes — trimestriel et semestriel sur la PWA
+
+Date: 2026-08-20
+Status: accepted
+
+### Contexte
+
+Le catalogue des identités suggère des rythmes réels (électricité
+trimestrielle, assurances semestrielles, Basic-Fit toutes les 4
+semaines). Le natif les exprime déjà exactement (RecurrenceUnit ×
+intervalCount, occurrences par date, couverture par comptage). La PWA ne
+connaissait que mensuel et annuel : un trimestriel saisi en mensuel
+aurait pesé douze fois au lieu de quatre.
+
+### Décision
+
+1. La PWA gagne `every: "quarter"` et `"semiannual"` — grille mensuelle
+   conservée : `dueM` devient le mois d'ANCRAGE, l'engagement tombe
+   quand l'écart à l'ancrage est un multiple du pas (3 ou 6 ; l'annuel
+   est le cas pas = 12 de la même formule). Jamais réparti sur les
+   autres mois ; résilié = plus jamais engagé ; coût annuel exact
+   (× 4, × 2).
+2. Champs ADDITIFS : une récurrence sans `every` reste mensuelle — le
+   sens des données déjà enregistrées ne bouge pas. La restauration
+   refuse un rythme inconnu et un rythme non mensuel sans mois
+   d'ancrage (jamais de valeur devinée).
+3. Formulaire : quatre pastilles (mensuel, trimestriel, semestriel,
+   annuel) ; le mois d'ancrage est demandé pour tout rythme non
+   mensuel ; la note dit le nombre d'échéances par an et la comparaison
+   mensuelle. Écran Abonnements : pilule et coût comparable par rythme ;
+   « Vos charges du foyer » totalise désormais le coût ANNUEL exact
+   (des rythmes différents ne s'additionnent pas tels quels).
+4. `four_weeks` (toutes les 4 semaines) n'entre PAS dans ce lot côté
+   PWA : 13 échéances par an dont un mois à DEUX échéances — la grille
+   mensuelle (une occurrence liée par mois) ne peut pas l'exprimer sans
+   identité d'occurrence par date. Le natif est déjà exact (prouvé par
+   test : 13/an, un mois à 2). Lot dédié REC2, à livrer AVANT que
+   P08-C ne suggère `four_weeks` ; en attendant, aucune conversion
+   silencieuse vers mensuel, nulle part.
+5. `week` et `custom` : non exposés (aucun besoin de la fixture pour
+   `week` ; `custom` = 1 seule identité, suggestion facultative).
+
+### Vérification
+
+Parcours 159 né rouge (trimestriel compté 12 ×, 2160 au lieu de 720 ;
+delta mensuel 420 au lieu de 180 ; pastilles absentes ; restauration
+muette) ; fixture de parité 8 « cadences-exactes » (juin : 300 + 120
+dus, semestriel silencieux, prévu 580) réconciliée web↔natif ; tests
+natifs des ancrages (month,3)/(month,6) et de la preuve 13/an en
+(week,4) ; contrôle négatif par sabotage du pas.
+
 ## ADR-038 — Fondation Présentation : glyphes de catégories et monogramme partagé
 
 Date: 2026-08-20

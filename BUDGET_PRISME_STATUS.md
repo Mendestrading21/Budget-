@@ -815,6 +815,19 @@ remplacera — jamais de repli divergent entre plateformes), suite Node
 dans l'audit du dépôt. V1 = monogrammes et glyphes seulement
 (`approved_asset` interdit avant BR1).
 
+**REC1 — Cadences exactes : trimestriel et semestriel PWA (ADR-039)** ·
+en PR (brouillon, fusion sur ordre du propriétaire). Le natif exprimait
+déjà tous les rythmes ((month,3), (month,6), (week,4)) ; la PWA ne
+connaissait que mensuel/annuel. Elle gagne `quarter` et `semiannual`
+ancrés par `dueM` (formule unique : écart à l'ancrage multiple du pas),
+coût annuel exact ×4/×2, jamais réparti, résiliation identique, quatre
+pastilles au formulaire, restauration stricte (rythme inconnu ou sans
+ancrage refusé). `four_weeks` PWA volontairement hors lot : 13/an dont
+un mois à DEUX échéances — incompatible avec la grille mensuelle sans
+identité d'occurrence par date → lot REC2 dédié AVANT P08-C (preuve
+native : test 13/an ajouté). Parcours 159 né rouge ; fixture de parité
+8 « cadences-exactes » (580 prévu) ; 2 tests natifs ; suites vertes.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

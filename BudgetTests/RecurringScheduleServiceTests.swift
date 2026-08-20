@@ -503,4 +503,38 @@ extension RecurringScheduleServiceTests {
         )
         XCTAssertEqual(service.closedStreak(endingAt: now, recurrings: [rent], transactions: [april]), 0)
     }
+
+    // MARK: - REC1 (ADR-039) : parité des cadences exactes
+
+    /// La fixture partagée « cadences-exactes » : ancré en mars avec un pas
+    /// de 3, le trimestriel tombe en juin ; ancré en janvier avec un pas de
+    /// 6, le semestriel n'y tombe pas ; l'annuel de juin tombe. Le natif
+    /// savait déjà — la PWA vient d'apprendre les mêmes règles.
+    func testQuarterlyAndSemiannualAnchorsMatchTheSharedFixture() {
+        let quarterly = makeRecurring(amount: Decimal("300.00"), count: 3, first: date(15, 3))
+        let semiannual = makeRecurring(amount: Decimal("240.00"), count: 6, first: date(15, 1))
+        let annual = makeRecurring(amount: Decimal("120.00"), unit: .year, first: date(15, 6))
+        let charges = service.monthForecast(
+            recurrings: [quarterly, semiannual, annual], in: june(), transactions: []
+        ).reduce(Decimal.zero) { $0 + $1.amount }
+        XCTAssertEqual(charges, Decimal("420.00"),
+                       "juin engage le trimestriel ancré en mars et l'annuel de juin — jamais le semestriel de janvier")
+    }
+
+    /// « Toutes les 4 semaines » = 13 échéances par an, jamais 12 — et au
+    /// moins un mois en porte DEUX : c'est exactement pourquoi la grille
+    /// mensuelle de la PWA exige un lot dédié (REC2) pour ce rythme.
+    func testFourWeeklyRhythmYieldsThirteenOccurrencesAYear() {
+        let gym = makeRecurring(amount: Decimal("29.90"), unit: .week, count: 4, first: date(5, 1))
+        var perMonth: [Int] = []
+        for month in 1...12 {
+            let interval = MonthInterval(containing: date(15, month), calendar: calendar)
+            perMonth.append(service.occurrenceDates(of: gym, in: interval).count)
+        }
+        XCTAssertEqual(perMonth.reduce(0, +), 13,
+                       "13 échéances annuelles exactes, jamais 12 (\(perMonth))")
+        XCTAssertTrue(perMonth.contains(2),
+                      "au moins un mois porte deux échéances (\(perMonth))")
+    }
 }
+
