@@ -57,6 +57,18 @@ observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
 8 courtiers, 15 assureurs, 19 télécoms ; tout en `monogram` ou
 `generic_glyph`, aucun logo tiers.
 
+**IC1 — Fondation Présentation (ADR-038)** · en PR (brouillon, empilée
+sur IC0/#94 — la fusionner d'abord). Les 14 clés de catégories du
+catalogue reçoivent de vrais glyphes des deux côtés (13 tracés PWA
+originaux + 14 cas `BudgetGlyph`), la carte passe en mappage 100 %
+direct ; monogramme déterministe partagé (`monogramFor` ↔
+`BudgetMonogram`) prouvé par la fixture commune
+`fixtures/monogram-cases.json` ; tuiles décoratives `identityTile` /
+`BudgetIdentityIcon` (texte pur, aria-hidden, jamais d'image). Test
+catalogue rouge d'abord (28 « absent du registre réel »), e2e 158-IC1 né
+rouge ; consommation de `BudgetIcon` par P05/P08/P12/P13 reportée aux
+lots d'écrans (décision ADR-038).
+
 **Fondation finale** · langue des opérations + champs morts
 
 - État : `MERGED` + `PUBLISHED`. **Dernier lot du registre P00–P18.**

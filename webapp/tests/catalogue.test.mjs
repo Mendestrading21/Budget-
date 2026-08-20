@@ -120,4 +120,4 @@ if (failures.length) {
   for (const f of failures) console.error("  ✗ " + f);
   process.exit(1);
 }
-console.log(`SUITE CATALOGUE : ${identities.length} identités conformes au contrat ADR-037 · ${usedGlyphKeys.length} glyphKeys réconciliés sur les DEUX plateformes (${fullyMapped} mappés · ${viaFallback} en repli commun, à remplacer par IC1) · fixture synchronisée avec le skill ✓`);
+console.log(`SUITE CATALOGUE : ${identities.length} identités conformes au contrat ADR-037 · ${usedGlyphKeys.length} glyphKeys réconciliés sur les DEUX plateformes (${fullyMapped} mappés · ${viaFallback} en repli commun) · fixture synchronisée avec le skill ✓`);

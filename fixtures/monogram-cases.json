@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "rule": "mots = suites de lettres/chiffres Unicode ; monogramme = premiere lettre des deux premiers mots, en majuscules ; vide => repli glyphe. Meme algorithme PWA (monogramFor) et iOS (BudgetMonogram.letters).",
+ "cases": [
+  {
+   "name": "Netflix",
+   "monogram": "N"
+  },
+  {
+   "name": "Basic-Fit",
+   "monogram": "BF"
+  },
+  {
+   "name": "la banque postale",
+   "monogram": "LB"
+  },
+  {
+   "name": "1Password",
+   "monogram": "1"
+  },
+  {
+   "name": "école du village",
+   "monogram": "ÉD"
+  },
+  {
+   "name": "  UBS  ",
+   "monogram": "U"
+  },
+  {
+   "name": "Caisse d'Épargne",
+   "monogram": "CD"
+  },
+  {
+   "name": "<img src=x onerror=alert(1)>",
+   "monogram": "IS"
+  },
+  {
+   "name": "— · —",
+   "monogram": ""
+  },
+  {
+   "name": "",
+   "monogram": ""
+  }
+ ]
+}

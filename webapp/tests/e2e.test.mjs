@@ -8854,6 +8854,38 @@ check(/À confirmer/.test(avs158.ambiguRow),
 check(avs158.formHasRente,
   "la feuille Prévoyance offre le choix « c'est une rente, pas un capital »");
 
+// ---------- 159. IC1 : monogramme déterministe partagé, sûr et décoratif ----------
+// Fondation Présentation (ADR-038) : toute saisie libre reçoit une tuile
+// monogramme locale — même algorithme que BudgetMonogram natif, prouvé
+// par la MÊME fixture. Une chaîne hostile ne produit jamais de balise :
+// la tuile écrit du texte, rien d'autre.
+currentTest = "IC1 monogramme partagé";
+const monogramCases = JSON.parse(
+  fs.readFileSync(path.resolve(HERE, "..", "..", "fixtures", "monogram-cases.json"), "utf8")).cases;
+const mono158 = await page.evaluate(cases => {
+  const fn = typeof monogramFor === "function" ? monogramFor : () => "(absent)";
+  const results = cases.map(c => ({ ...c, got: fn(c.name) }));
+  const tile = document.createElement("div");
+  tile.innerHTML = typeof identityTile === "function"
+    ? identityTile("<img src=x onerror=window.__mono158=1>") : "";
+  const el = tile.firstElementChild;
+  return {
+    results,
+    tuileTexte: el ? el.textContent.trim() : null,
+    tuileDecorative: el ? el.getAttribute("aria-hidden") === "true" : false,
+    aucuneImage: !tile.querySelector("img"),
+    aucuneExecution: window.__mono158 === undefined,
+  };
+}, monogramCases);
+for (const r of mono158.results) {
+  check(r.got === r.monogram,
+    `monogramme de ${JSON.stringify(r.name)} : attendu ${JSON.stringify(r.monogram)}, obtenu ${JSON.stringify(r.got)}`);
+}
+check(mono158.aucuneImage && mono158.aucuneExecution && mono158.tuileTexte === "IS",
+  `une chaîne hostile devient du TEXTE (« IS »), jamais une balise ni une exécution (obtenu ${JSON.stringify(mono158.tuileTexte)})`);
+check(mono158.tuileDecorative,
+  "la tuile monogramme est décorative (aria-hidden) — le nom reste le libellé");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8863,4 +8895,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 158 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 159 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

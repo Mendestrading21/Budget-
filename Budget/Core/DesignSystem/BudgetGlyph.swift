@@ -42,6 +42,23 @@ enum BudgetGlyph: String, CaseIterable, Equatable, Hashable {
     case customGoal
     case other
 
+    // Catégories du catalogue des identités locales (IC1, ADR-038) —
+    // mêmes clés que fixtures/catalogue-glyph-map.json.
+    case bill
+    case video
+    case music
+    case cloud
+    case software
+    case ai
+    case gaming
+    case fitness
+    case health
+    case press
+    case telecom
+    case transport
+    case dating
+    case delivery
+
     // Actions et états génériques
     case previous
     case next
@@ -83,6 +100,20 @@ enum BudgetGlyph: String, CaseIterable, Equatable, Hashable {
         case .emergency: "umbrella"
         case .customGoal: "target"
         case .other: "tray"
+        case .bill: "doc.plaintext"
+        case .video: "play.rectangle"
+        case .music: "music.note"
+        case .cloud: "cloud"
+        case .software: "app.badge"
+        case .ai: "wand.and.stars"
+        case .gaming: "gamecontroller"
+        case .fitness: "dumbbell"
+        case .health: "cross.case"
+        case .press: "newspaper"
+        case .telecom: "antenna.radiowaves.left.and.right"
+        case .transport: "tram"
+        case .dating: "heart"
+        case .delivery: "shippingbox"
         case .previous: "chevron.left"
         case .next: "chevron.right"
         case .add: "plus"

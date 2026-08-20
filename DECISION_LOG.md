@@ -1,5 +1,51 @@
 # Budget decision log
 
+## ADR-038 — Fondation Présentation : glyphes de catégories et monogramme partagé
+
+Date: 2026-08-20
+Status: accepted
+
+### Contexte
+
+IC0 (ADR-037) a réconcilié les 22 `glyphKey` de la fixture avec les
+registres réels : 8 étaient mappés, 14 vivaient sur un repli commun
+`recurring` — utilisable mais muet. Le programme exige aussi un
+monogramme local sûr pour toute saisie libre, identique sur les deux
+plateformes.
+
+### Décision
+
+1. Les 14 clés de catégories reçoivent de VRAIS glyphes : 13 tracés
+   originaux Budget côté PWA (stroke 1.75, viewBox 24, currentColor)
+   et 14 cas `BudgetGlyph` natifs (SF Symbols de repli, même pratique
+   que les catégories existantes). La carte
+   `fixtures/catalogue-glyph-map.json` passe en mappage 100 % direct —
+   le test catalogue casse si un glyphe manque d'un côté.
+2. Monogramme déterministe PARTAGÉ (`monogramFor` PWA ↔
+   `BudgetMonogram.letters` natif) : mots = suites de lettres/chiffres
+   Unicode, première lettre des DEUX premiers mots, en majuscules ; un
+   seul mot donne une lettre ; sans lettre → repli glyphe. La MÊME
+   fixture `fixtures/monogram-cases.json` prouve les deux
+   implémentations (e2e 158-IC1 et `BudgetMonogramTests`).
+3. Tuile d'identité DÉCORATIVE (`identityTile` PWA,
+   `BudgetIdentityIcon` natif) : texte pur dans le puits mat Budget,
+   `aria-hidden`/`accessibilityHidden`, jamais un remplacement du
+   libellé, jamais une image, jamais du HTML issu d'une valeur.
+4. Aucune persistance, aucun écran modifié : IC1 est une fondation.
+   La consommation de `BudgetIcon` par les lignes P05/P08/P12/P13 iOS
+   est REPORTÉE aux lots d'écrans correspondants — changer le visuel de
+   quatre écrans sans captures propres à chacun contredirait le plus
+   petit lot vertical.
+
+### Vérification
+
+Carte passée en direct AVANT les glyphes : test catalogue rouge (28
+échecs « absent du registre réel ») puis vert ; e2e 158-IC1 né rouge
+(monogrammes « (absent) ») puis vert ; la fixture a corrigé une
+attente fausse (« 1Password » → « 1 », un seul mot = une lettre) ;
+planche des 13 tracés + tuiles inspectée
+(`docs/neon-ultra/budget-prisme/ic1/`).
+
 ## ADR-037 — Identités locales : contrat du catalogue, clés et glyphes (IC0)
 
 Date: 2026-08-20
