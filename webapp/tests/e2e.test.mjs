@@ -8957,6 +8957,74 @@ check(rec159.restaureQuarterSansMois === "refusé" && rec159.restaureQuarterAvec
     && rec159.restaureInconnu === "refusé",
   `restauration : trimestriel sans mois d'ancrage refusé, avec ancrage accepté, rythme inconnu refusé (obtenu ${rec159.restaureQuarterSansMois} / ${rec159.restaureQuarterAvecMois} / ${rec159.restaureInconnu})`);
 
+// ---------- 161. REC2 : « toutes les quatre semaines » — 13 échéances par an, jamais 12 ----------
+// Basic-Fit et les salles de sport prélèvent toutes les QUATRE SEMAINES :
+// 13 fois par an, avec un mois à double échéance. Simplifier en mensuel
+// volerait une échéance ; le natif sait déjà le faire ((week, 4)), la
+// parité arrive côté web avec une couverture PAR COMPTAGE : N gestes
+// couvrent les N premières échéances du mois.
+currentTest = "REC2 quatre semaines";
+await goHome();
+const rec160 = await page.evaluate(() => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  const chips = [...document.querySelectorAll("#rEveryGrid [data-revery]")].map(b => b.dataset.revery);
+  if (typeof recurringDueCount !== "function" || typeof recurringRemainingCount !== "function") {
+    return { moteurAbsent: true, chips, champDate: !!document.getElementById("rStartOn") };
+  }
+  RECURRINGS.push({ id: "r-rec2-fit", title: "Salle de sport", amount: 45, type: "expense",
+    cat: "Autre", day: 1, every: "four_weeks", startOn: { y: NOW.y, m: 1, d: 15 }, accountId: cash.id });
+  const fit = RECURRINGS.find(r => r.id === "r-rec2-fit");
+  const parMois = [];
+  for (let mm = 1; mm <= 12; mm++) parMois.push(recurringDueCount(fit, NOW.y, mm));
+  const totalAnnee = parMois.reduce((a, b) => a + b, 0);
+  const moisDouble = parMois.findIndex(c => c === 2) + 1;
+  const premier = materializeRecurring(fit, NOW.y, moisDouble);
+  const restantApresUn = recurringRemainingCount(fit, NOW.y, moisDouble);
+  const second = materializeRecurring(fit, NOW.y, moisDouble);
+  const restantApresDeux = recurringRemainingCount(fit, NOW.y, moisDouble);
+  const troisieme = materializeRecurring(fit, NOW.y, moisDouble);
+  const probe = recur => {
+    const clone = JSON.parse(JSON.stringify(S));
+    clone.recurrings = [...clone.recurrings.filter(r => !String(r.id).startsWith("r-rec2-")), recur];
+    clone.transactions = clone.transactions.filter(t => t.recurringId !== "r-rec2-fit");
+    try { validatedRestoreState(clone, {}); return "accepté"; }
+    catch (e) { return "refusé"; }
+  };
+  const resultat = {
+    moteurAbsent: false, chips,
+    champDate: !!document.getElementById("rStartOn"),
+    totalAnnee, parMois, moisDouble,
+    doubles: parMois.filter(c => c === 2).length,
+    annuel: recurringYearlyCost(fit),
+    deuxCrees: premier.created === true && second.created === true,
+    restantApresUn, restantApresDeux,
+    troisiemeRefuse: troisieme.created === false,
+    restaureSansDate: probe({ id: "rx4", title: "T", amount: 10, type: "expense",
+      cat: "Autre", day: 1, every: "four_weeks", accountId: cash.id }),
+    restaureAvecDate: probe({ id: "rx5", title: "T", amount: 10, type: "expense",
+      cat: "Autre", day: 1, every: "four_weeks", startOn: { y: 2026, m: 1, d: 15 }, accountId: cash.id }),
+  };
+  for (const t of transactions.filter(t => t.recurringId === "r-rec2-fit")) {
+    transactions.splice(transactions.indexOf(t), 1);
+  }
+  const i = RECURRINGS.findIndex(r => r.id === "r-rec2-fit");
+  if (i >= 0) RECURRINGS.splice(i, 1);
+  saveState(); render();
+  return resultat;
+});
+check(rec160.moteurAbsent !== true,
+  "le moteur des quatre semaines existe (recurringDueCount / recurringRemainingCount)");
+check(rec160.totalAnnee === 13 && rec160.doubles === 1,
+  `13 échéances sur l'année — jamais 12 — dont UN mois à double échéance (obtenu ${rec160.totalAnnee}, répartition ${JSON.stringify(rec160.parMois)})`);
+check(rec160.annuel === 585,
+  `coût annuel exact : 13 × 45 = 585 (obtenu ${rec160.annuel})`);
+check(rec160.deuxCrees && rec160.restantApresUn === 1 && rec160.restantApresDeux === 0 && rec160.troisiemeRefuse,
+  `couverture par comptage sur le mois double : deux gestes couvrent les deux échéances, le troisième est refusé (restants ${rec160.restantApresUn} puis ${rec160.restantApresDeux})`);
+check(rec160.chips.includes("four_weeks") && rec160.champDate,
+  `le formulaire propose « toutes les 4 semaines » avec sa date d'ancrage (chips : ${rec160.chips.join(", ")})`);
+check(rec160.restaureSansDate === "refusé" && rec160.restaureAvecDate === "accepté",
+  `restauration : quatre semaines sans date d'ancrage refusé, avec date accepté (obtenu ${rec160.restaureSansDate} / ${rec160.restaureAvecDate})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -8966,4 +9034,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 160 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 161 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

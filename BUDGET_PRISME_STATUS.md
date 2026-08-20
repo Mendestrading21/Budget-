@@ -828,6 +828,17 @@ identité d'occurrence par date → lot REC2 dédié AVANT P08-C (preuve
 native : test 13/an ajouté). Parcours 159 né rouge ; fixture de parité
 8 « cadences-exactes » (580 prévu) ; 2 tests natifs ; suites vertes.
 
+**REC2 — « toutes les quatre semaines » exact côté PWA (ADR-040)** ·
+en PR (brouillon, fusion sur ordre du propriétaire). La grille mensuelle
+apprend le comptage d'échéances : `four_weeks` avec date d'ancrage
+(`startOn`), 13 échéances/an jamais 12, mois à double échéance engagé
+deux fois et attendant deux gestes (le 3e refusé), coût annuel × 13,
+restauration stricte (date d'ancrage exigée). Rythmes existants
+byte-identiques (dueCount 0/1). Parcours 160 né rouge ; fixture de
+parité 9 « quatre-semaines-exactes » née rouge (juillet 2026 : échéances
+des 2 et 30, 90 = 2 × 45) ; test natif miroir aux mêmes dates ; 160 e2e
++ 9 parités + design + catalogue verts.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

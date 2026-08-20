@@ -521,9 +521,26 @@ extension RecurringScheduleServiceTests {
                        "juin engage le trimestriel ancré en mars et l'annuel de juin — jamais le semestriel de janvier")
     }
 
+    /// REC2 (ADR-040) : la fixture partagée « quatre-semaines-exactes » —
+    /// ancré au 15 janvier 2026, juillet porte DEUX échéances (le 2 et le
+    /// 30). Les mêmes dates que la PWA, franc pour franc : 2 × 45 = 90.
+    func testFourWeeklyJulyCarriesTwoOccurrencesLikeTheSharedFixture() {
+        let gym = makeRecurring(amount: Decimal("45.00"), unit: .week, count: 4, first: date(15, 1))
+        let july = MonthInterval(containing: date(15, 7), calendar: calendar)
+        let dates = service.occurrenceDates(of: gym, in: july)
+        XCTAssertEqual(dates.count, 2, "juillet 2026 porte deux échéances")
+        XCTAssertEqual(
+            dates.map { calendar.component(.day, from: $0) }, [2, 30],
+            "les 2 et 30 juillet — mêmes dates que la fixture de parité PWA"
+        )
+        let charges = service.monthForecast(recurrings: [gym], in: july, transactions: [])
+            .reduce(Decimal.zero) { $0 + $1.amount }
+        XCTAssertEqual(charges, Decimal("90.00"), "les deux échéances pèsent : 2 × 45")
+    }
+
     /// « Toutes les 4 semaines » = 13 échéances par an, jamais 12 — et au
-    /// moins un mois en porte DEUX : c'est exactement pourquoi la grille
-    /// mensuelle de la PWA exige un lot dédié (REC2) pour ce rythme.
+    /// moins un mois en porte DEUX : la grille mensuelle de la PWA a
+    /// appris ce rythme en REC2 (couverture par comptage, comme ici).
     func testFourWeeklyRhythmYieldsThirteenOccurrencesAYear() {
         let gym = makeRecurring(amount: Decimal("29.90"), unit: .week, count: 4, first: date(5, 1))
         var perMonth: [Int] = []

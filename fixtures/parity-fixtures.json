@@ -669,6 +669,64 @@
      "cur": 1000.0
     }
    }
+  },
+  {
+   "id": "quatre-semaines-exactes",
+   "title": "REC2 : toutes les quatre semaines — juillet 2026 porte DEUX échéances (2 et 30), jamais lissé, jamais 12/an",
+   "month": {
+    "y": 2026,
+    "m": 7
+   },
+   "state": {
+    "accounts": [
+     {
+      "id": "cur",
+      "name": "Courant",
+      "kind": "current",
+      "opening": 1000,
+      "cash": true,
+      "currency": "CHF"
+     }
+    ],
+    "liabilities": [],
+    "transactions": [],
+    "recurrings": [
+     {
+      "id": "r-fit",
+      "title": "Salle de sport",
+      "amount": 45.0,
+      "type": "expense",
+      "cat": "Autre",
+      "day": 1,
+      "every": "four_weeks",
+      "startOn": {
+       "y": 2026,
+       "m": 1,
+       "d": 15
+      },
+      "accountId": "cur"
+     }
+    ]
+   },
+   "expected": {
+    "snapshot": {
+     "income": 0.0,
+     "living": 0.0,
+     "savings": 0.0,
+     "invest": 0.0,
+     "taxes": 0.0,
+     "plannedIncome": 0.0,
+     "plannedOut": 0.0,
+     "liquid": 1000.0,
+     "available": 910.0,
+     "endOfMonthForecast": 910.0,
+     "cashFlow": 0.0
+    },
+    "balances": {
+     "cur": 1000.0
+    },
+    "allFinite": true
+   }
   }
  ]
 }
