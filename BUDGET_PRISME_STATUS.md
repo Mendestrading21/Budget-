@@ -1,6 +1,6 @@
 # Budget Prisme — statut vivant
 
-Mis à jour le 18.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
+Mis à jour le 20.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
 la CI, ni les ADR, ni le code. Ne pas y recopier un journal de commits.
 
 ## Source vérifiée
@@ -33,8 +33,29 @@ Toujours résoudre de nouveau ces informations sur GitHub avant une action.
 
 ## Lot actif
 
-Le lot actif est **A2 — Formatage et alignement** (voir « Améliorations
-continues » ci-dessous).
+Programme **Budget Identités locales** (skill `budget-identites-locales`,
+arrivé par la PR #91, `main` = `b6220fd`). Dernier lot publié : FE2-12
+(ADR-035, run `32347846802`). Réconciliation de gouvernance faite le
+20.08.2026 : l'ancienne ligne « lot actif : A2 » datait du 17.08 et
+contredisait les lots publiés depuis (A3–A7, FE2-1 à FE2-12).
+
+Prochain lot : **P0 AVS — une rente n'est pas un capital**. Audit du
+20.08.2026, défaut CONFIRMÉ côté natif : `PensionAsset.currentValue`
+d'une position `pillar1` porte « l'estimation de rente » (commentaire du
+modèle) et est additionné tel quel au patrimoine
+(`NetWorthService.breakdown.pensionTotal`) et au « capital de
+prévoyance » (`InsurancePensionService.totalPensionCapital`). Côté PWA,
+pas de champ structuré 1er pilier : une ligne de prévoyance saisie
+librement comme « AVS » avec une rente dans « Valeur actuelle » entre
+aussi au patrimoine — les données ambiguës passeront « À confirmer ».
+Ensuite, dans l'ordre du skill : IC0 (contrat + fixture + ADR), IC1
+(présentation), REC1 (cadences), P08-C, ID1, P05-C, P06/P16, P13-C,
+P10/P12-C, INV1, BR1 — une PR par lot, aucune fusion sans accord.
+
+Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
+observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
+8 courtiers, 15 assureurs, 19 télécoms ; tout en `monogram` ou
+`generic_glyph`, aucun logo tiers.
 
 **Fondation finale** · langue des opérations + champs morts
 
