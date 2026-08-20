@@ -2,7 +2,15 @@
 
 Décision propriétaire (18.08.2026, message d'audit complet). Ce document est
 la transcription opérationnelle de son cahier « Financial Engine V2 ». Il
-prime sur les anciens libellés de l'accueil. La règle d'or :
+prime sur les anciens libellés de l'accueil.
+
+**Amendement ADR-035 (20.08.2026)** : « ne calcule pas les impôts
+automatiquement — toutes les données, c'est moi qui dois les rentrer. »
+L'« effort fiscal du mois » du cahier initial est SUPPRIMÉ : la projection
+n'a plus aucun terme fiscal automatique, et la page Impôts additionne ce que
+l'utilisateur a noté (paiements, envois « Impôts », report, acomptes en
+factures). Les règles ci-dessous se lisent avec cet amendement. La règle
+d'or :
 
 > Ne jamais présenter une projection comme de l'argent possédé.
 
@@ -13,7 +21,7 @@ prime sur les anciens libellés de l'accueil. La règle d'or :
 | Disponible maintenant | Argent réellement présent, utilisable au quotidien | soldes des comptes `cash` (courant + espèces) |
 | Épargne accessible | Argent réellement présent sur les comptes d'épargne | soldes des comptes `savings` |
 | Fortune liquide | Disponible maintenant + épargne accessible | somme des deux |
-| Prévu fin de mois | Projection : solde actuel + revenus attendus − sorties encore attendues − effort fiscal du mois | l'ancien `available`, corrigé (voir impôts) |
+| Prévu fin de mois | Projection : solde actuel + revenus attendus − sorties encore attendues (ADR-035 : aucun terme fiscal automatique) | l'ancien `available`, corrigé |
 | Fortune totale actuelle | Tous les actifs réels − toutes les dettes réelles | formule du Patrimoine (comptes + biens + prévoyance − dettes) — source unique |
 
 Stock ≠ flux : « Mis de côté ce mois » (flux) ne s'additionne jamais à
@@ -27,10 +35,11 @@ Stock ≠ flux : « Mis de côté ce mois » (flux) ne s'additionne jamais à
    même règle côté Swift (`TransactionPostingPolicy` reste pour le STATUT
    INITIAL d'une saisie manuelle datée d'aujourd'hui ou avant — saisir une
    dépense d'hier crée bien un mouvement comptabilisé, c'est un geste).
-2. **L'écart fiscal ANNUEL ne pèse plus sur le mois.** La projection du mois
-   soustrait seulement l'« effort fiscal du mois » : taux × revenus du mois
-   (comptabilisés + attendus) − mises de côté « Impôts » du mois, plancher 0.
-   L'écart annuel reste dans Impôts (et la priorité du mois peut le nommer).
+2. **Aucun impôt automatique (remplacée par ADR-035).** La version du
+   18.08 soustrayait un « effort fiscal du mois » dérivé d'un taux. Depuis
+   le 20.08, PLUS AUCUN montant d'impôts n'est dérivé : un acompte pèse sur
+   le mois par sa facture ou son mouvement prévu, comme toute sortie
+   saisie. Un taux hérité encore stocké est lettre morte.
 3. **Un seul patrimoine.** La fortune totale a UNE formule (celle du
    Patrimoine / NetWorthService). Aucun autre agrégat ne s'appelle
    « patrimoine » ou « fortune » avec une autre formule.
@@ -52,10 +61,11 @@ Stock ≠ flux : « Mis de côté ce mois » (flux) ne s'additionne jamais à
 ## Lots
 
 - **FE2-0** — Moteur PWA : agrégats explicites (`availableNow`,
-  `savingsAccessible`, `liquidWealth`, `endOfMonthForecast`,
-  `taxMonthlyEffort`), suppression de la promotion automatique par date,
-  effort fiscal mensuel. Tests rouges d'abord ; les tests qui validaient
-  l'ancien comportement sont réécrits EN MÊME TEMPS que le moteur.
+  `savingsAccessible`, `liquidWealth`, `endOfMonthForecast`), suppression
+  de la promotion automatique par date. Tests rouges d'abord ; les tests
+  qui validaient l'ancien comportement sont réécrits EN MÊME TEMPS que le
+  moteur. (L'agrégat `taxMonthlyEffort` du cahier initial a vécu du 18 au
+  20.08, puis a été retiré par ADR-035.)
 - **FE2-1** — Écrans PWA : carte deux positions, Comptes, vue Épargne,
   Patrimoine (fortune liquide + totale). Captures avant/après.
 - **FE2-2** — Parité Swift : mêmes agrégats dans MonthlySnapshotService,

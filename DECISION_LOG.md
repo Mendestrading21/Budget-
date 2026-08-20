@@ -1,5 +1,58 @@
 # Budget decision log
 
+## ADR-035 — Impôts 100 % manuels : le concept de taux disparaît, l'app additionne
+
+Date: 2026-08-20
+Status: accepted — remplace la partie « opt-in » d'ADR-034
+
+### Contexte
+
+Le lendemain d'ADR-034, la capture du propriétaire montrait toujours
+« − CHF 600.00 d'impôts à mettre de côté » : son appareil portait encore
+le taux 30 % stocké avant le changement de défaut (ADR-034 ne réécrivait
+pas les données). Son ordre est devenu plus net : « Il faut que tu me
+fasses une page impôts où c'est moi qui mets combien je verse, comme une
+facture ponctuelle. Ne mets pas tout à jour automatiquement. Toutes les
+données, c'est moi qui dois les rentrer. »
+
+### Décision
+
+1. Le CONCEPT de taux de provision disparaît du produit : plus aucune
+   formule ne lit `S.taxRate` (web) ni `taxProvisionRate`/`provisionRate`
+   (natif). Un taux hérité stocké devient lettre morte — c'est ce qui
+   éteint le « − 600 » du propriétaire SANS réécrire ses données.
+2. Le moteur perd tous ses champs fiscaux dérivés (`taxMonthlyEffort`,
+   `taxSetAsideMonth`, `taxGapForecast`, `taxGap`, `taxRecommended` web ;
+   `taxMonthlyEffort`, `taxReserveGap`, `TaxProvisionSummary` natif).
+   Projection = argent présent + attendu − sorties saisies.
+3. La page Impôts ADDITIONNE ce que l'utilisateur a noté : payé (ses
+   `taxPayment`), mis de côté (envois « Impôts » + report saisi),
+   prochains acomptes (factures « Impôts », bouton « Ajouter un
+   acompte »). Natif : le montant annuel reste une SAISIE facultative
+   (`estimatedAnnualTaxOverride`) — jamais une estimation.
+4. La feuille web ne règle plus que le report ; la feuille de taux
+   native disparaît ; l'assistant et la priorité du mois ne prescrivent
+   plus de réserve fiscale.
+5. Les champs stockés (`taxRate`, `taxReserve`, `taxProvisionRate`,
+   `provisionRate`) RESTENT stockés et tolérés à la restauration —
+   aucune donnée réécrite, aucune migration risquée ; ils ne sont plus
+   jamais lus par un calcul.
+6. Un acompte pèse sur le mois par sa facture ou son mouvement prévu,
+   comme n'importe quelle sortie saisie — c'est déjà le canal P11
+   (payer une facture « Impôts » crée un `taxPayment`).
+
+### Vérification
+
+Parcours 157 réécrit sur le scénario exact de la capture (taux hérité
+0.3 + salaire attendu 2'000), né rouge : « − CHF 900.00 d'impôts à
+mettre de côté » apparaissait encore. Tests 53/56/82/107/136/153/154
+réécrits sur la nouvelle vérité (page manuelle, moteur sans champs
+fiscaux, feuille sans taux). Fixture de parité renommée
+`impots-manuels-taux-herite` : le state garde `taxRate: 0.3` EXPRÈS et
+la projection ne le voit plus (107'160 → 108'300). Miroir natif complet
+(TaxService manuel, snapshot sans terme fiscal, TaxesView additionneuse,
+8 fichiers de tests réécrits). FINANCIAL_ENGINE_V2.md amendé.
+
 ## ADR-034 — La provision d'impôts est OPT-IN : aucun impôt calculé automatiquement
 
 Date: 2026-08-19

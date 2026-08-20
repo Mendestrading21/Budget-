@@ -17,9 +17,7 @@ struct MonthlySnapshotService {
         household: Household?,
         accounts: [Account],
         transactions: [BudgetTransaction],
-        recurrings: [RecurringTransaction] = [],
-        taxProfile: TaxProfile? = nil,
-        taxProvisions: [TaxProvision] = []
+        recurrings: [RecurringTransaction] = []
     ) -> MonthSnapshot {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let inMonth = transactions.filter { interval.contains($0.date) }
@@ -56,27 +54,6 @@ struct MonthlySnapshotService {
             - totalTaxPayments
             - totalDebtPayments
 
-        // The dashboard and Impôts module use the exact same annual report.
-        // Comparing one month's recommendation with an annual reserve could
-        // incorrectly hide a large year-to-date gap.
-        let provisionYear = calendar.component(.year, from: interval.start)
-        let yearProvision = taxProvisions.first { $0.year == provisionYear }
-        let taxReport = TaxService(calendar: calendar).report(
-            year: provisionYear,
-            profile: taxProfile,
-            provision: yearProvision,
-            transactions: transactions,
-            fallbackRate: household?.taxProvisionRate ?? .zero
-        )
-        let taxProvision = TaxProvisionSummary(
-            rate: taxReport.rate,
-            recommended: taxReport.estimatedTax,
-            paid: taxReport.paid,
-            reserved: taxReport.reserved,
-            arrears: taxReport.arrears,
-            gap: taxReport.reserveGap
-        )
-
         let liquidBalance = accounts
             .filter { $0.isActive && $0.includeInAvailableCash }
             .reduce(Decimal.zero) { $0 + balanceService.balance(of: $1) }
@@ -96,40 +73,17 @@ struct MonthlySnapshotService {
             .filter { [.expense, .saving, .investment, .taxPayment, .debtPayment].contains($0.type) }
             .reduce(Decimal.zero) { $0 + $1.amount }
 
-        // FE2 (cahier propriétaire, 18.08.2026) : la projection du mois ne
-        // porte que l'effort fiscal DU MOIS — même formule que la PWA :
-        // taux × revenus du mois (comptabilisés + attendus) − mises de côté
-        // « Impôts » du mois (comptabilisées, prévues ou engagées — pas de
-        // double compte), plafonné par l'écart annuel ANTICIPÉ (arriérés
-        // compris, réserve déduite ; une année couverte → zéro).
-        let expectedAllIncome = plannedIncome + recurringIncome
-        let isTaxSetAside: (BudgetTransaction) -> Bool = {
-            ($0.type == .saving || $0.type == .investment) && $0.category?.name == "Impôts"
-        }
-        let taxRecurringIDs = Set(recurrings
-            .filter { ($0.type == .saving || $0.type == .investment) && $0.category?.name == "Impôts" }
-            .map(\.id))
-        let taxSetAsideMonth = posted.filter(isTaxSetAside).reduce(Decimal.zero) { $0 + $1.amount }
-            + planned.filter(isTaxSetAside).reduce(Decimal.zero) { $0 + $1.amount }
-            + forecast.filter { taxRecurringIDs.contains($0.recurringID) }
-                .reduce(Decimal.zero) { $0 + $1.amount }
-        let dueForecast = max(.zero, taxReport.estimatedTax
-            + FinanceMath.roundedToCents(expectedAllIncome * taxReport.rate)
-            - taxReport.paid)
-        let gapForecast = max(.zero, dueForecast + taxReport.arrears - taxReport.reserved)
-        let taxMonthlyEffort = max(.zero, min(
-            FinanceMath.roundedToCents((totalIncome + expectedAllIncome) * taxReport.rate) - taxSetAsideMonth,
-            gapForecast
-        ))
-
+        // ADR-035 (décision propriétaire, 20.08.2026) : AUCUN impôt calculé
+        // automatiquement. La projection additionne seulement ce qui est
+        // saisi — un acompte pèse par sa facture ou son mouvement prévu,
+        // comme n'importe quelle sortie. Le taux hérité encore stocké
+        // (Household.taxProvisionRate) n'est plus jamais lu ici.
         let available = AvailableBreakdown(
             liquidBalance: liquidBalance,
             expectedIncome: plannedIncome,
             committedCharges: plannedOutflows,
             recurringIncome: recurringIncome,
-            recurringCharges: recurringCharges,
-            taxReserveGap: taxProvision.gap,
-            taxMonthlyEffort: taxMonthlyEffort
+            recurringCharges: recurringCharges
         )
 
         let daysRemaining = self.daysRemaining(in: interval, now: now)
@@ -159,7 +113,6 @@ struct MonthlySnapshotService {
             available: available,
             daysRemaining: daysRemaining,
             dailyAvailableBudget: dailyBudget,
-            taxProvision: taxProvision,
             netWorth: netWorth,
             previousMonth: comparison(
                 interval: interval,

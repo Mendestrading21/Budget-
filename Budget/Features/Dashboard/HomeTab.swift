@@ -6,15 +6,15 @@ import SwiftData
 /// amounts are still calculated by `MonthlySnapshotService`.
 enum HomePilotDisplay {
     static func toPay(_ available: AvailableBreakdown) -> Decimal {
-        // FE2 : « à sortir » = engagements du mois + effort fiscal du mois —
-        // jamais l'écart annuel entier.
-        available.committedCharges + available.recurringCharges + available.taxMonthlyEffort
+        // ADR-035 : « à sortir » = engagements du mois, rien d'autre —
+        // plus aucun terme fiscal automatique.
+        available.committedCharges + available.recurringCharges
     }
 
-    /// FE2-10 (capture propriétaire, 19.08.2026) : « pourquoi sortir 600
-    /// alors que je n'ai pas de facture ? » — l'effort d'impôts du mois
-    /// était fondu dans « à sortir ». La décomposition NOMME chaque terme
-    /// réel et tait les termes à zéro. Même phrase que la PWA.
+    /// FE2-10 : la décomposition NOMME chaque terme réel et tait les
+    /// termes à zéro. FE2-12 (ADR-035) : plus AUCUN terme d'impôts
+    /// automatique — seuls les mouvements saisis existent. Même phrase
+    /// que la PWA.
     static func forecastDecomposition(_ available: AvailableBreakdown) -> String {
         var parts = ["\(FinanceFormatting.chf(available.liquidBalance)) maintenant"]
         let expected = available.expectedIncome + available.recurringIncome
@@ -24,9 +24,6 @@ enum HomePilotDisplay {
         let realOut = available.committedCharges + available.recurringCharges
         if realOut > 0 {
             parts.append("− \(FinanceFormatting.chf(realOut)) à sortir")
-        }
-        if available.taxMonthlyEffort > 0 {
-            parts.append("− \(FinanceFormatting.chf(available.taxMonthlyEffort)) d'impôts à mettre de côté")
         }
         return parts.joined(separator: " ") + "."
     }
@@ -255,8 +252,6 @@ struct HomeTab: View {
     @Query private var accounts: [Account]
     @Query private var households: [Household]
     @Query private var recurrings: [RecurringTransaction]
-    @Query private var taxProfiles: [TaxProfile]
-    @Query private var taxProvisions: [TaxProvision]
     /// Pour l'annonce de progrès quand « Marquer payée » alimente un
     /// compte relié à un objectif (mise de côté mensuelle).
     @Query private var goals: [FinancialGoal]
@@ -323,9 +318,7 @@ struct HomeTab: View {
             household: households.first,
             accounts: accounts,
             transactions: transactions,
-            recurrings: recurrings,
-            taxProfile: taxProfiles.first,
-            taxProvisions: taxProvisions
+            recurrings: recurrings
         )
     }
 

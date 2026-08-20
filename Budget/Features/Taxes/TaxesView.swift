@@ -1,9 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Tax module: provision states (estimated / paid / reserved / outstanding
-/// / arrears), due dates, visible assumptions, manual overrides.
-/// Everything is an organizational estimate — the disclaimer says so.
+/// Tax module, 100 % manual (ADR-035) : the user notes what they pay
+/// (taxPayment movements), what they set aside, their arrears, their due
+/// dates, and — if they know it — the year's total amount. The app adds
+/// these numbers up; it never estimates taxes from a rate.
 struct TaxesView: View {
     @Environment(AppContainer.self) private var appContainer
     @Environment(\.modelContext) private var modelContext
@@ -20,7 +21,7 @@ struct TaxesView: View {
     @State private var errorMessage: String?
 
     private enum SheetKind: String, Identifiable {
-        case rate, reserved, arrears, override
+        case reserved, arrears, override
         var id: String { rawValue }
     }
 
@@ -42,10 +43,8 @@ struct TaxesView: View {
     private func makeReport() -> TaxYearReport {
         taxService.report(
             year: currentYear,
-            profile: profile,
             provision: provision,
-            transactions: transactions,
-            fallbackRate: households.first?.taxProvisionRate ?? .zero
+            transactions: transactions
         )
     }
 
@@ -80,8 +79,7 @@ struct TaxesView: View {
                     }
                     Button("Ajuster la réserve", systemImage: "tray.and.arrow.down") { openSheet(.reserved) }
                     Button("Saisir des arriérés", systemImage: "clock.arrow.circlepath") { openSheet(.arrears) }
-                    Button("Corriger l'estimation annuelle", systemImage: "pencil") { openSheet(.override) }
-                    Button("Modifier le taux", systemImage: "percent") { openSheet(.rate) }
+                    Button("Dire le montant de l'année", systemImage: "pencil") { openSheet(.override) }
                     Button("Ajouter une échéance", systemImage: "calendar.badge.plus") {
                         isPresentingDueDateSheet = true
                     }
@@ -130,26 +128,26 @@ struct TaxesView: View {
     private func heroCard(_ report: TaxYearReport) -> some View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("Il vous reste à payer, à peu près")
+                Text("Payé en \(String(currentYear))")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                AmountText(
-                    amount: report.totalDue,
-                    role: .hero,
-                    emphasis: report.totalDue > 0 ? .warning : .positive
-                )
-                if report.reserveGap > 0 {
-                    Label("Il manque \(FinanceFormatting.chf(report.reserveGap)) de côté", systemImage: "exclamationmark.triangle")
+                AmountText(amount: report.paid, role: .hero, emphasis: .positive)
+                if report.totalDue > 0 {
+                    Label("Encore à payer, selon vos saisies : \(FinanceFormatting.chf(report.totalDue))", systemImage: "exclamationmark.triangle")
                         .font(BudgetFont.caption.weight(.semibold))
                         .foregroundStyle(BudgetColor.warning)
-                } else {
-                    Label("Vous avez tout mis de côté", systemImage: "checkmark.seal")
+                } else if report.annualTax != nil {
+                    Label("Tout est payé, selon votre montant", systemImage: "checkmark.seal")
                         .font(BudgetFont.caption)
                         .foregroundStyle(BudgetColor.positive)
+                } else {
+                    Label("L'app additionne ce que vous notez — elle ne calcule aucun impôt", systemImage: "hand.raised")
+                        .font(BudgetFont.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Impôts \(String(currentYear)) : il vous reste à payer environ \(FinanceFormatting.chf(report.totalDue)), et il manque \(FinanceFormatting.chf(report.reserveGap)) de côté")
+            .accessibilityLabel("Impôts \(String(currentYear)) : vous avez payé \(FinanceFormatting.chf(report.paid))")
         }
     }
 
@@ -157,8 +155,8 @@ struct TaxesView: View {
         // Colonnes adaptatives : deux colonnes à 390 pt, UNE seule à
         // 320 pt — libellés et montants gardent toute leur largeur.
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 165), spacing: BudgetSpacing.medium)], spacing: BudgetSpacing.medium) {
-            stateCard("Pour toute l'année", report.estimatedTax, icon: "function",
-                      detail: report.isOverridden ? "Vous l'avez corrigée" : "Vos revenus, à \(FinanceFormatting.percent(report.rate))")
+            stateCard("Pour toute l'année", report.annualTax ?? .zero, icon: "square.and.pencil",
+                      detail: report.annualTax != nil ? "Le montant que vous avez saisi" : "À saisir si vous le connaissez — rien n'est estimé")
             stateCard("Déjà payé", report.paid, icon: "checkmark.circle", tint: BudgetColor.positive,
                       detail: "Les paiements d'impôts que vous avez notés")
             stateCard("Déjà mis de côté", report.reserved, icon: "tray.and.arrow.down", tint: BudgetColor.electricBlue,
@@ -254,12 +252,12 @@ struct TaxesView: View {
     private func assumptionsCard(_ report: TaxYearReport) -> some View {
         GlassCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
-                Text("D'où vient ce chiffre")
+                Text("D'où viennent ces chiffres")
                     .font(BudgetFont.cardLabel)
                     .foregroundStyle(.secondary)
-                assumptionRow("Votre taux", FinanceFormatting.percent(report.rate))
-                assumptionRow("Revenus imposables \(String(currentYear))", FinanceFormatting.chf(report.taxableIncome))
-                assumptionRow("Point de départ", report.isOverridden ? "Le montant que vous avez saisi" : "Vos revenus notés, à votre taux")
+                assumptionRow("La règle", "Vous notez, l'app additionne")
+                assumptionRow("Payé", "Vos paiements d'impôts de \(String(currentYear))")
+                assumptionRow("Pour toute l'année", report.annualTax != nil ? "Le montant que vous avez saisi" : "Pas saisi — rien n'est estimé")
                 if let profile, !profile.canton.isEmpty {
                     assumptionRow("Canton", SwissCanton(rawValue: profile.canton)?.displayName ?? profile.canton)
                 }
@@ -281,7 +279,7 @@ struct TaxesView: View {
 
     private var disclaimer: some View {
         Label {
-            Text("Ce sont des estimations pour vous organiser. Elles ne remplacent ni votre déclaration ni les décomptes officiels de votre canton.")
+            Text("Ces chiffres additionnent ce que vous avez noté. Ils ne remplacent ni votre déclaration ni les décomptes officiels de votre canton.")
                 .font(BudgetFont.caption)
                 .foregroundStyle(.secondary)
         } icon: {
@@ -300,24 +298,18 @@ struct TaxesView: View {
 
     private func amountSheet(for kind: SheetKind) -> some View {
         let (title, footer, initial): (String, String, Decimal?) = switch kind {
-        case .rate:
-            ("Votre taux", "La part de vos revenus que vous mettez de côté. Zéro tant que vous n'avez rien choisi : l'app ne calcule aucun impôt à votre place.", (profile?.provisionRate ?? households.first?.taxProvisionRate ?? .zero) * 100)
         case .reserved:
             ("Déjà mis de côté", "L'argent que vous avez déjà réservé pour vos impôts \(String(currentYear)).", provision?.reservedAmount)
         case .arrears:
             ("Arriérés", "Ce que vous devez encore pour les années passées : décomptes finaux, rattrapages.", provision?.arrearsAmount)
         case .override:
-            ("Pour toute l'année", "Remplace le calcul automatique (vos revenus, à votre taux). Laissez vide pour y revenir.", provision?.estimatedAnnualTaxOverride)
+            ("Pour toute l'année", "Le montant total de vos impôts \(String(currentYear)), si vous le connaissez. Laissez vide sinon : l'app n'estime rien à votre place.", provision?.estimatedAnnualTaxOverride)
         }
         return AmountEntrySheet(
             title: title,
             footer: footer,
             initialValue: initial,
-            allowsEmpty: kind == .override,
-            // A17 (risque n° 4) : le taux est borné comme sur la PWA —
-            // 0 à 60 % — via la constante unique de TaxService.
-            maximum: kind == .rate ? TaxService.maximumProvisionRate * 100 : nil,
-            maximumMessage: kind == .rate ? "Taux entre 0 et 60 %. Exemple : 30" : nil
+            allowsEmpty: kind == .override
         ) { value in
             apply(kind: kind, value: value)
         }
@@ -329,12 +321,6 @@ struct TaxesView: View {
             let profile = try taxService.ensureProfile(context: modelContext, household: households.first, now: now)
             let provision = try taxService.ensureProvision(year: currentYear, profile: profile, context: modelContext, now: now)
             switch kind {
-            case .rate:
-                let percent = value ?? Decimal("30")
-                profile.provisionRate = FinanceMath.roundedToCents(percent / 100)
-                profile.updatedAt = now
-                // Keep the legacy seed coherent for pre-V4 codepaths.
-                households.first?.taxProvisionRate = profile.provisionRate
             case .reserved:
                 provision.reservedAmount = FinanceMath.roundedToCents(value ?? .zero)
             case .arrears:
@@ -417,10 +403,6 @@ struct AmountEntrySheet: View {
     let footer: String
     let initialValue: Decimal?
     let allowsEmpty: Bool
-    /// Borne haute optionnelle (ex. 60 pour un taux en %) — au-delà, la
-    /// saisie est refusée avec `maximumMessage`, jamais tronquée en silence.
-    var maximum: Decimal?
-    var maximumMessage: String?
     let onSave: (Decimal?) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -477,10 +459,6 @@ struct AmountEntrySheet: View {
         }
         guard let parsed = FinanceFormatting.parseAmount(trimmed), parsed >= 0 else {
             errorMessage = "Ce montant n'est pas valable. Exemple : 4'500.00"
-            return
-        }
-        if let maximum, parsed > maximum {
-            errorMessage = maximumMessage ?? "Cette valeur dépasse le maximum autorisé."
             return
         }
         onSave(parsed)

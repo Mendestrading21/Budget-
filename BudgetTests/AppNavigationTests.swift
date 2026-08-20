@@ -141,31 +141,29 @@ final class AppNavigationTests: XCTestCase {
         )
     }
 
-    /// FE2-10 : « pourquoi sortir 600 alors que je n'ai pas de facture ? »
-    /// — l'effort d'impôts était fondu dans « à sortir ». Chaque terme
-    /// réel est nommé, un terme à zéro se tait.
-    func testForecastDecompositionNamesTheTaxAndSilencesZeroTerms() {
-        let sansSorties = AvailableBreakdown(
+    /// FE2-12 (capture propriétaire, 20.08.2026) : « il y a toujours les
+    /// impôts qui sont comptabilisés automatiquement » — plus JAMAIS de
+    /// terme fiscal dans la décomposition ; les termes réels restent
+    /// nommés et les termes à zéro se taisent.
+    func testForecastDecompositionNeverInventsATaxTerm() {
+        let scenarioProprietaire = AvailableBreakdown(
             liquidBalance: Decimal("10000.00"), expectedIncome: Decimal("2000.00"),
-            committedCharges: .zero, recurringIncome: .zero, recurringCharges: .zero,
-            taxReserveGap: .zero, taxMonthlyEffort: Decimal("600.00")
+            committedCharges: .zero, recurringIncome: .zero, recurringCharges: .zero
         )
-        let phrase = HomePilotDisplay.forecastDecomposition(sansSorties)
-        XCTAssertTrue(phrase.contains("d'impôts à mettre de côté"),
-                      "L'impôt du mois est NOMMÉ : \(phrase)")
-        XCTAssertTrue(phrase.contains(FinanceFormatting.chf(Decimal("600.00"))),
-                      "Avec son montant exact : \(phrase)")
+        let phrase = HomePilotDisplay.forecastDecomposition(scenarioProprietaire)
+        XCTAssertFalse(phrase.contains("impôts"),
+                       "PLUS JAMAIS de ligne d'impôts automatique : \(phrase)")
+        XCTAssertTrue(phrase.contains("à recevoir"),
+                      "Le salaire attendu reste nommé : \(phrase)")
         XCTAssertFalse(phrase.contains("à sortir"),
                        "Aucune vraie sortie → « à sortir » se tait : \(phrase)")
 
-        let sansImpot = AvailableBreakdown(
+        let avecSortie = AvailableBreakdown(
             liquidBalance: Decimal("5000.00"), expectedIncome: .zero,
-            committedCharges: Decimal("600.00"), recurringIncome: .zero, recurringCharges: .zero,
-            taxReserveGap: .zero, taxMonthlyEffort: .zero
+            committedCharges: Decimal("600.00"), recurringIncome: .zero, recurringCharges: .zero
         )
-        let phrase2 = HomePilotDisplay.forecastDecomposition(sansImpot)
+        let phrase2 = HomePilotDisplay.forecastDecomposition(avecSortie)
         XCTAssertTrue(phrase2.contains("à sortir"), "La vraie sortie garde son nom : \(phrase2)")
-        XCTAssertFalse(phrase2.contains("impôts"), "Effort nul → pas de terme fiscal : \(phrase2)")
         XCTAssertFalse(phrase2.contains("à recevoir"), "Rien d'attendu → pas de terme : \(phrase2)")
     }
 

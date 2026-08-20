@@ -43,16 +43,15 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertNotNil(model.validationMessage)
     }
 
-    /// A19 (parité PWA, lot A18) : l'onboarding ne demande PLUS de taux
-    /// d'impôts. Le défaut (30 %) s'applique, et la seule saisie du taux —
-    /// la feuille Impôts — reste bornée par l'unique constante 0–60 %
-    /// (`TaxService.maximumProvisionRate`, lot A17).
+    /// A19 + ADR-035 : l'onboarding ne demande PLUS de taux d'impôts, et
+    /// il n'existe plus aucun taux à régler nulle part — les acomptes se
+    /// saisissent comme des factures.
     func testOnboardingNoLongerAsksForATaxRate() {
         XCTAssertFalse(
             OnboardingStep.allCases.map { String(describing: $0) }.contains("taxRate")
         )
-        XCTAssertEqual(makeValidModel().taxProvisionRate, .zero, "FE2-11 : aucun impot automatique, opt-in")
-        XCTAssertEqual(TaxService.maximumProvisionRate, Decimal("0.60"))
+        XCTAssertEqual(makeValidModel().taxProvisionRate, .zero,
+                       "ADR-035 : le champ herite reste a zero — plus aucune formule ne le lit")
     }
 
     func testEmptyBalanceDefaultsToZero() {

@@ -28,8 +28,6 @@ struct MonthSnapshot: Equatable {
     let daysRemaining: Int
     let dailyAvailableBudget: Decimal
 
-    let taxProvision: TaxProvisionSummary
-
     /// Sum of balances of accounts included in net worth (signed
     /// convention: debt balances are negative). FE2 : ce n'est PAS la
     /// fortune totale — biens, prévoyance manuelle et dettes hors comptes
@@ -42,9 +40,9 @@ struct MonthSnapshot: Equatable {
 
 /// The end-of-month projection with its full, visible decomposition:
 /// total = liquidBalance + expectedIncome + recurringIncome
-///         − committedCharges − recurringCharges − taxMonthlyEffort.
-/// FE2 : l'écart fiscal ANNUEL (`taxReserveGap`) reste exposé pour
-/// l'écran Impôts, mais seul l'effort DU MOIS pèse sur la projection.
+///         − committedCharges − recurringCharges.
+/// ADR-035 : plus AUCUN terme fiscal automatique — un acompte pèse par sa
+/// facture ou son mouvement prévu, comme n'importe quelle sortie saisie.
 struct AvailableBreakdown: Equatable {
     /// Current balance of accounts flagged include-in-available-cash.
     let liquidBalance: Decimal
@@ -60,37 +58,11 @@ struct AvailableBreakdown: Equatable {
     /// Recurring charge occurrences of the month not yet materialized —
     /// every active recurring charge appears in the forecast exactly once.
     let recurringCharges: Decimal
-    /// Remaining recommended reserve for the selected calendar year, after
-    /// posted tax payments and cash explicitly reserved by the user.
-    /// FE2 : information annuelle — n'entre PLUS dans le total.
-    let taxReserveGap: Decimal
-    /// FE2 : l'effort d'impôts DU MOIS — taux × revenus du mois
-    /// (comptabilisés + attendus), moins ce qui est déjà mis ou engagé de
-    /// côté pour les impôts ce mois, plafonné par l'écart annuel anticipé.
-    let taxMonthlyEffort: Decimal
 
     var total: Decimal {
         liquidBalance + expectedIncome + recurringIncome
-            - committedCharges - recurringCharges - taxMonthlyEffort
+            - committedCharges - recurringCharges
     }
-}
-
-/// Tax provision for the calendar year containing the selected month.
-/// Every value comes from TaxService.report — the SAME truth as the Impôts
-/// module (annual income, payments, reserve, override and arrears).
-struct TaxProvisionSummary: Equatable {
-    /// Configured household rate (fraction).
-    let rate: Decimal
-    /// Estimated tax for the year (or the user's annual override).
-    let recommended: Decimal
-    /// Posted tax payments of the year.
-    let paid: Decimal
-    /// Annual cash reserved in the Impôts module, counted as cover.
-    let reserved: Decimal
-    /// User-entered arrears from previous years, still due.
-    let arrears: Decimal
-    /// TaxYearReport.reserveGap (outstanding + arrears − reserved, floor 0).
-    let gap: Decimal
 }
 
 struct MonthComparison: Equatable {

@@ -1,19 +1,16 @@
 import Foundation
 import SwiftData
 
-/// Derived tax picture for one year. Every amount is either user-entered
-/// (reserved, arrears, override) or derived from posted transactions.
-/// `outstanding` is floored at zero, so an overpayment is represented by
-/// `paid > estimatedTax` rather than by a negative outstanding balance.
+/// Manual tax picture for one year (ADR-035, décision propriétaire du
+/// 20.08.2026). Every amount is USER-ENTERED (annual amount, reserved,
+/// arrears) or the plain sum of posted taxPayment movements (paid).
+/// Nothing is derived from a rate anymore: the app adds up what the user
+/// noted, it never estimates taxes on their behalf.
 struct TaxYearReport: Equatable {
     let year: Int
-    /// Fraction used when no override is set.
-    let rate: Decimal
-    /// Posted income of the year (assumed taxable in V1).
-    let taxableIncome: Decimal
-    /// Override, or taxableIncome × rate.
-    let estimatedTax: Decimal
-    let isOverridden: Bool
+    /// Annual tax the user typed for the year — nil while unknown. The app
+    /// never invents this number.
+    let annualTax: Decimal?
     /// Posted taxPayment transactions of the year.
     let paid: Decimal
     /// Cash explicitly set aside by the user.
@@ -21,35 +18,23 @@ struct TaxYearReport: Equatable {
     /// Previous years' tax debts (user-entered).
     let arrears: Decimal
 
-    /// Still to pay for this year: estimate − paid, floored at zero.
-    var outstanding: Decimal { max(.zero, estimatedTax - paid) }
+    /// Still to pay for this year — meaningful only once the user gave the
+    /// annual amount; zero (silent) while it is unknown.
+    var outstanding: Decimal { max(.zero, (annualTax ?? paid) - paid) }
     /// Cash missing to cover what remains due (this year + arrears).
     var reserveGap: Decimal { max(.zero, outstanding + arrears - reserved) }
     /// Everything still owed, arrears included.
     var totalDue: Decimal { outstanding + arrears }
 }
 
-/// Tax provisioning arithmetic + lazy profile/provision creation.
+/// Manual tax bookkeeping + lazy profile/provision creation. The legacy
+/// provision-rate fields (Household.taxProvisionRate, TaxProfile
+/// .provisionRate) stay STORED for backup compatibility but are never read
+/// by any computation anymore (ADR-035).
 struct TaxService {
     let calendar: Calendar
 
-    /// A17 (risque n° 4, parité PWA) : borne UNIQUE du taux de provision —
-    /// 0 à 60 %, comme l'onboarding et la page Impôts de la PWA. Une seule
-    /// source de vérité pour toutes les saisies natives du taux.
-    static let maximumProvisionRate = Decimal("0.60")
-
     // MARK: - Derivations (pure)
-
-    /// Posted income of a calendar year.
-    func taxableIncome(year: Int, transactions: [BudgetTransaction]) -> Decimal {
-        transactions
-            .filter {
-                $0.status == .posted
-                    && $0.type == .income
-                    && calendar.component(.year, from: $0.date) == year
-            }
-            .reduce(.zero) { $0 + $1.amount }
-    }
 
     /// Posted tax payments of a calendar year.
     func paidTaxes(year: Int, transactions: [BudgetTransaction]) -> Decimal {
@@ -64,21 +49,12 @@ struct TaxService {
 
     func report(
         year: Int,
-        profile: TaxProfile?,
         provision: TaxProvision?,
-        transactions: [BudgetTransaction],
-        fallbackRate: Decimal = .zero
+        transactions: [BudgetTransaction]
     ) -> TaxYearReport {
-        let rate = profile?.provisionRate ?? fallbackRate
-        let income = taxableIncome(year: year, transactions: transactions)
-        let derived = FinanceMath.roundedToCents(income * rate)
-        let override = provision?.estimatedAnnualTaxOverride
-        return TaxYearReport(
+        TaxYearReport(
             year: year,
-            rate: rate,
-            taxableIncome: income,
-            estimatedTax: override ?? derived,
-            isOverridden: override != nil,
+            annualTax: provision?.estimatedAnnualTaxOverride,
             paid: paidTaxes(year: year, transactions: transactions),
             reserved: provision?.reservedAmount ?? .zero,
             arrears: provision?.arrearsAmount ?? .zero

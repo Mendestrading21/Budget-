@@ -37,7 +37,7 @@ final class ObsidianPilotTests: XCTestCase {
         MonthlySnapshotService(calendar: calendar).snapshot(
             monthOf: now, now: now, household: household,
             accounts: accounts, transactions: transactions,
-            recurrings: recurrings, taxProfile: nil, taxProvisions: []
+            recurrings: recurrings
         )
     }
 
@@ -62,8 +62,7 @@ final class ObsidianPilotTests: XCTestCase {
         XCTAssertEqual(
             toPay,
             snapshot.available.committedCharges
-                + snapshot.available.recurringCharges
-                + snapshot.available.taxMonthlyEffort,
+                + snapshot.available.recurringCharges,
             "« À payer » doit être la somme EXACTE des composantes déjà calculées"
         )
         XCTAssertEqual(
@@ -105,7 +104,6 @@ final class ObsidianPilotTests: XCTestCase {
             + snapshot.available.recurringIncome
             - snapshot.available.committedCharges
             - snapshot.available.recurringCharges
-            - snapshot.available.taxMonthlyEffort
         XCTAssertEqual(snapshot.available.total, expected, "identité du disponible inchangée")
         // L'épargne n'est JAMAIS une dépense de vie.
         XCTAssertEqual(snapshot.totalLivingExpenses, Decimal("150.00"))
