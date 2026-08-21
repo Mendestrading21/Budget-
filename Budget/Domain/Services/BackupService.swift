@@ -28,6 +28,9 @@ struct BackupFile: Codable {
     var documents: [DocumentDTO]
     // Optional: absent from backups made before the round-trip audit.
     var importBatches: [ImportBatchDTO]?
+    /// INV1 (ADR-047) : optionnelles — les sauvegardes d'avant les
+    /// positions n'ont pas ce champ et se restaurent à l'identique.
+    var positions: [PositionDTO]?
 
     struct HouseholdDTO: Codable {
         var id: UUID; var name: String; var currency: String; var canton: String
@@ -125,6 +128,11 @@ struct BackupFile: Codable {
         var id: UUID; var fileName: String; var importedAt: Date
         var totalRows: Int; var importedCount: Int; var duplicateCount: Int
         var invalidCount: Int; var createdCategories: Int
+    }
+    struct PositionDTO: Codable {
+        var id: UUID; var instrumentName: String; var tickerOrISIN: String?
+        var quantity: String; var manualPrice: String; var priceCurrency: String
+        var valuationDate: Date; var costBasis: String?; var accountID: UUID?
     }
 }
 
@@ -351,6 +359,16 @@ struct BackupService {
                       totalRows: $0.totalRows, importedCount: $0.importedCount,
                       duplicateCount: $0.duplicateCount, invalidCount: $0.invalidCount,
                       createdCategories: $0.createdCategories)
+            },
+            positions: try fetch(BrokeragePosition.self).map {
+                .init(id: $0.id, instrumentName: $0.instrumentName,
+                      tickerOrISIN: $0.tickerOrISIN,
+                      quantity: decimalString($0.quantity),
+                      manualPrice: decimalString($0.manualPrice),
+                      priceCurrency: $0.priceCurrency,
+                      valuationDate: $0.valuationDate,
+                      costBasis: $0.costBasis.map(decimalString),
+                      accountID: $0.account?.id)
             }
         )
         let encoder = JSONEncoder()
@@ -440,6 +458,7 @@ struct BackupService {
         try requireUnique(file.netWorthSnapshots.map(\.id), entity: "instantané de patrimoine")
         try requireUnique(file.documents.map(\.id), entity: "document")
         try requireUnique((file.importBatches ?? []).map(\.id), entity: "lot d'import")
+        try requireUnique((file.positions ?? []).map(\.id), entity: "position")
 
         let householdIDs = Set(file.households.map(\.id))
         let memberIDs = Set(file.members.map(\.id))
@@ -805,6 +824,21 @@ struct BackupService {
                 createdCategories: dto.createdCategories
             ))
         }
+        // INV1 (ADR-047) : les positions EXPLIQUENT un solde — restaurer
+        // n'en recalcule aucun. Un fichier d'avant les positions n'a pas
+        // ce champ et se restaure à l'identique.
+        for dto in file.positions ?? [] {
+            context.insert(BrokeragePosition(
+                id: dto.id, instrumentName: dto.instrumentName,
+                tickerOrISIN: dto.tickerOrISIN,
+                quantity: try decimal(dto.quantity),
+                manualPrice: try decimal(dto.manualPrice),
+                priceCurrency: dto.priceCurrency,
+                valuationDate: dto.valuationDate,
+                costBasis: try dto.costBasis.map { try decimal($0) },
+                account: try resolved(dto.accountID, in: accounts, field: "position.compte")
+            ))
+        }
     }
 
     // MARK: Complete deletion
@@ -843,6 +877,7 @@ struct BackupService {
                 context.delete(item)
             }
         }
+        try wipe(BrokeragePosition.self)
         try wipe(BudgetTransaction.self)
         try wipe(BudgetLine.self)
         try wipe(MonthlyBudget.self)

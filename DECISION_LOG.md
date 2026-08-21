@@ -1,5 +1,53 @@
 # Budget decision log
 
+## ADR-047 — INV1 : les positions expliquent le solde, elles ne s'y ajoutent jamais
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot INV1 (« classe finance/données, projet
+séparé — spécifier avant de coder »). Un compte titres n'avait que son
+solde : rien ne disait CE qu'il contient. Le piège classique est le
+double compte : additionner des positions à un solde qui les contient
+déjà (44'000 + 40'000 = 84'000 de fortune fantôme).
+
+### Décision
+
+1. AUTORITÉ DE PATRIMOINE : le solde du compte titres. Les positions
+   l'EXPLIQUENT — valeur des positions + espèces/non réparti = solde.
+   Aucune fortune, aucun total, aucun agrégat ne lit jamais une
+   position (44'000, jamais 84'000). Un dépassement s'affiche en
+   espèces NÉGATIVES avec un avertissement — jamais ramené à zéro.
+2. Contrat de données (champs du skill) : `instrumentName`,
+   `tickerOrISIN?`, `quantity`, `manualPrice`, `priceCurrency`,
+   `valuationDate`, `costBasis?`, compte porteur. La devise du prix est
+   celle du compte (aucune addition multi-devises).
+3. HONNÊTETÉ DU PRIX : une valeur manuelle dit « Prix saisi le … » —
+   les mots « en direct », « cours actuel », « temps réel » sont
+   interdits et testés. La date est celle de la SAISIE.
+4. PWA : clé d'état ADDITIVE `positions` (ancien état normalisé à `[]`,
+   restauration : une position illisible ou orpheline est RETIRÉE sans
+   faire échouer le fichier — elle n'a aucun pouvoir financier) ;
+   section « Positions » sur la fiche du compte titres, feuille
+   `posForm` (nom, symbole facultatif, quantité, prix, date, prix
+   d'achat facultatif).
+5. Natif : `BrokeragePosition` (@Model additif, `BudgetSchemaV10`,
+   doctrine ADR-015), `BrokeragePositionMath` (total expliqué +
+   espèces, testable), section dans `AccountDetailView` (comptes
+   `.broker`), `PositionFormView`, DTO de sauvegarde OPTIONNEL (un
+   fichier d'avant les positions se restaure à l'identique), garde de
+   suppression de compte (« des positions expliquent ce compte »).
+
+### Vérification
+
+Parcours 168 né rouge (6 échecs nommés : section absente, champs du
+contrat, 40'000 + 4'000 = 44'000, fortune inchangée, « Prix saisi
+le… », persistance) ; `BrokeragePositionTests` natif (math 44k/40k/4k,
+dépassement négatif, round-trip Decimal exact, fichier ancien) ;
+contrôle négatif par sabotage ; captures 320/390 inspectées.
+
 ## ADR-046 — P10/P12-C : l'icône choisie est préservée, jamais réécrite
 
 Date: 2026-08-21

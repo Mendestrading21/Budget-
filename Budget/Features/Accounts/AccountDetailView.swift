@@ -17,6 +17,8 @@ struct AccountDetailView: View {
     @State private var isConfirmingArchive = false
     @State private var isConfirmingDelete = false
     @State private var actionErrorMessage: String?
+    @State private var isPresentingNewPosition = false
+    @State private var editedPosition: BrokeragePosition?
 
     private var balanceService: AccountBalanceService { appContainer.balanceService }
 
@@ -51,6 +53,15 @@ struct AccountDetailView: View {
     // récurrentes n'ont pas de règle .deny).
     @Query private var allRecurrings: [RecurringTransaction]
     @Query private var allGoals: [FinancialGoal]
+    // INV1 (ADR-047) : les positions du compte titres — décoratives et
+    // explicatives, jamais lues par un agrégat.
+    @Query private var allPositions: [BrokeragePosition]
+
+    private var accountPositions: [BrokeragePosition] {
+        allPositions
+            .filter { $0.account?.id == account.id }
+            .sorted { $0.value > $1.value }
+    }
 
     private var deletionBlocker: String? {
         if hasMovements {
@@ -65,6 +76,9 @@ struct AccountDetailView: View {
         if allGoals.contains(where: { $0.linkedAccount?.id == account.id }) {
             return "Un objectif suit ce compte — déliez-le d'abord, sinon sa progression retomberait à zéro."
         }
+        if allPositions.contains(where: { $0.account?.id == account.id }) {
+            return "Des positions expliquent ce compte — supprimez-les d'abord."
+        }
         return nil
     }
 
@@ -76,6 +90,7 @@ struct AccountDetailView: View {
                     balanceCard
                     monthFlowCard
                     contributionCard
+                    positionsSection
                     optionsCard
                     historySection
                     if let actionErrorMessage {
@@ -126,6 +141,12 @@ struct AccountDetailView: View {
         }
         .sheet(isPresented: $isPresentingReconcile) {
             ReconcileSheet(account: account)
+        }
+        .sheet(isPresented: $isPresentingNewPosition) {
+            PositionFormView(mode: .create(account))
+        }
+        .sheet(item: $editedPosition) { position in
+            PositionFormView(mode: .edit(position))
         }
         .confirmationDialog(
             "Archiver ce compte ?",
@@ -187,6 +208,69 @@ struct AccountDetailView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Solde actuel : \(FinanceFormatting.chf(currentBalance))\(account.isActive ? "" : ", compte archivé")")
+        }
+    }
+
+    /// INV1 (ADR-047) : les positions EXPLIQUENT le solde du compte
+    /// titres — valeur des positions + espèces/non réparti = solde. La
+    /// fortune lit le solde, jamais les positions (44'000, jamais 84'000).
+    @ViewBuilder
+    private var positionsSection: some View {
+        if account.type == .broker {
+            let positions = accountPositions
+            let unallocated = BrokeragePositionMath.unallocated(balance: currentBalance, positions: positions)
+            GlassCard {
+                VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+                    Text("Positions")
+                        .font(BudgetFont.cardLabel)
+                        .foregroundStyle(.secondary)
+                    if positions.isEmpty {
+                        Text("Notez ici ce que contient ce compte — actions, fonds, ETF. Les positions expliquent le solde, elles ne s'y ajoutent jamais.")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(positions) { position in
+                        Button {
+                            editedPosition = position
+                        } label: {
+                            HStack(spacing: BudgetSpacing.small) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(position.instrumentName)
+                                        .font(BudgetFont.body.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text("\(position.quantity) × \(FinanceFormatting.chf(position.manualPrice)) · Prix saisi le \(FinanceFormatting.swissDate(position.valuationDate))")
+                                        .font(BudgetFont.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: BudgetSpacing.small)
+                                AmountText(amount: position.value, emphasis: .neutral)
+                            }
+                        }
+                        .accessibilityIdentifier("position.\(position.id.uuidString)")
+                    }
+                    if !positions.isEmpty {
+                        HStack {
+                            Text("Espèces / non réparti")
+                                .font(BudgetFont.body)
+                            Spacer(minLength: BudgetSpacing.small)
+                            AmountText(amount: unallocated, emphasis: unallocated < 0 ? .negative : .neutral)
+                        }
+                        if unallocated < 0 {
+                            Text("Vos positions dépassent le solde du compte. Mettez le solde à jour, ou corrigez un prix saisi.")
+                                .font(BudgetFont.caption)
+                                .foregroundStyle(BudgetColor.negative)
+                        }
+                        Text("La valeur des positions plus les espèces égale le solde du compte : \(FinanceFormatting.chf(currentBalance)). Votre fortune lit ce solde — les positions l'expliquent, elles ne s'y ajoutent jamais.")
+                            .font(BudgetFont.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("Ajouter une position", systemImage: "plus") {
+                        isPresentingNewPosition = true
+                    }
+                    .font(BudgetFont.body)
+                    .accessibilityIdentifier("account.addPosition")
+                }
+            }
         }
     }
 
