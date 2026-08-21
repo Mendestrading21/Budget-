@@ -1211,6 +1211,8 @@
       <p class="caption" id="fCurNote" style="margin:4px 0 0;display:none"></p>
       <label for="fCat" id="fCatLabel">Catégorie</label>
       <select id="fCat"></select>
+      <input id="fCatLibre" placeholder="IKEA, Poulet, Cadeaux…" autocomplete="off"
+        aria-label="Votre catégorie" style="display:none;margin-top:8px" />
       <div id="destWrap" style="display:none">
         <label for="fDest">Vers le compte</label>
         <select id="fDest"></select>
@@ -2077,6 +2079,33 @@ const CATEGORIES = {
   Alimentation: "expense", Transports: "expense", "Restaurants et sorties": "expense",
   Épargne: "saving", "Pilier 3a": "investment", Impôts: "tax",
 };
+/* CAT1 (ADR-051, demande propriétaire du 21.08.2026) : la personne écrit
+   SA catégorie — « IKEA », « Poulet ». Une catégorie libre garde le SENS
+   de son type de naissance (dépense ou revenu) ; épargne, pilier,
+   impôts et virements gardent leurs listes (sens financier protégé). */
+function customCategories() { return S.customCategories || (S.customCategories = []); }
+function categoryKind(cat) {
+  if (CATEGORIES[cat]) return CATEGORIES[cat];
+  const perso = customCategories().find(c => c.name === cat);
+  return perso ? perso.kind : undefined;
+}
+function categoriesOfKinds(kinds) {
+  return Object.entries(CATEGORIES).filter(([, k]) => kinds.includes(k)).map(([c]) => c)
+    .concat(customCategories().filter(c => kinds.includes(c.kind)).map(c => c.name));
+}
+/* Retient une catégorie écrite (pliée pour la déduplication) ; rend le
+   nom canonique — celui déjà retenu si elle existe, builtin comprise. */
+function rememberCustomCategory(rawName, kind) {
+  const name = rawName.trim().slice(0, 40);
+  if (!name) return null;
+  const plie = fold(name);
+  const builtin = Object.keys(CATEGORIES).find(c => fold(c) === plie);
+  if (builtin) return builtin;
+  const existante = customCategories().find(c => fold(c.name) === plie);
+  if (existante) return existante.name;
+  customCategories().push({ name, kind });
+  return name;
+}
 
 
 /* ---------- P08-C (ADR-041) : catalogue local des identités ----------
@@ -2325,6 +2354,7 @@ function seedState(country = "CH") {
     pensions: PENSIONS_SEED.map(p => ({ ...p })),
     insurances: INSURANCES_SEED.map(i => ({ ...i })),
     positions: [],
+    customCategories: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2363,6 +2393,7 @@ function emptyState() {
     bills: [], documents: [], budgets: {},
     transactions: [], accounts: [], recurrings: [], goals: [],
     assets: [], liabilities: [], pensions: [], insurances: [], positions: [],
+    customCategories: [],
   };
 }
 
@@ -2396,7 +2427,7 @@ function loadState() {
   }
   if (s.version !== 1) { loadReason = "corrupt"; rescueRawState(raw); return null; }
   try {
-    for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances", "positions"]) {
+    for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances", "positions", "customCategories"]) {
       if (!Array.isArray(s[key])) s[key] = [];
     }
     if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0;
@@ -3064,7 +3095,7 @@ function budgetLines(y, m) {
 function budgetReport(y, m) {
   const monthTx = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
   const lines = budgetLines(y, m).map(({ cat, amount: plannedAmt }) => {
-    const kind = CATEGORIES[cat];
+    const kind = categoryKind(cat);
     const types = kind === "expense" ? ["expense", "debtPayment"] : kind === "saving" ? ["saving"]
                 : kind === "investment" ? ["investment"] : kind === "tax" ? ["taxPayment"] : ["income"];
     let actualC = 0; // accumulation en centimes entiers (G01)
@@ -5200,7 +5231,7 @@ function analyzeCSV(textContent, mappingOverride, accountId) {
         state: "ready",
         // Convention des exports suisses : négatif = dépense, positif = revenu.
         tx: { ...date, amount, title, type,
-              cat: CATEGORIES[cat] ? cat : null },
+              cat: categoryKind(cat) ? cat : null },
       };
     };
     rows.push({ line: i + 1, raw, ...evaluate() });
@@ -6937,6 +6968,7 @@ function dismissSheetGuarded() {
 function refreshCatOptions() {
   const type = document.getElementById("fType").value;
   const reserveChoice = type === "saving" || type === "investment";
+  document.getElementById("fCatLibre").style.display = "none";
   document.getElementById("fCatLabel").textContent = reserveChoice
     ? "Je mets de côté pour"
     : "Catégorie";
@@ -6957,9 +6989,12 @@ function refreshCatOptions() {
     return;
   }
   catSelect.disabled = false;
-  catSelect.innerHTML = Object.entries(CATEGORIES)
-    .filter(([, k]) => kinds.includes(k))
-    .map(([c]) => `<option>${esc(c)}</option>`).join("");
+  // CAT1 : catégories retenues du même sens, puis l'écriture libre —
+  // impôts gardent leur liste (sens financier protégé).
+  const libre = type !== "taxPayment"
+    ? '<option value="__libre__">Écrire ma catégorie…</option>' : "";
+  catSelect.innerHTML = categoriesOfKinds(kinds)
+    .map(c => `<option>${esc(c)}</option>`).join("") + libre;
 }
 const PREFERRED_DEST_KIND = { saving: "savings", investment: "brokerage", transfer: "cash" };
 function refreshDestOptions(preselect) {
@@ -7100,6 +7135,10 @@ function clearFieldErrors() {
 document.getElementById("fType").addEventListener("change", () => { refreshCatOptions(); refreshDestOptions(); syncTypeChips(); updateSheetNotes(); });
 document.getElementById("fAccount").addEventListener("change", () => { refreshDestOptions(); updateSheetNotes(); });
 document.getElementById("fCat").addEventListener("change", () => {
+  const champLibre = document.getElementById("fCatLibre");
+  const libreChoisi = catSelect.value === "__libre__";
+  champLibre.style.display = libreChoisi ? "" : "none";
+  if (libreChoisi) champLibre.focus();
   const select = document.getElementById("fType");
   if (["saving", "investment"].includes(select.value)
       && CATEGORIES_DE_RESERVE.has(catSelect.value)) {
@@ -7226,7 +7265,13 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   const editingExisting = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   let type = (editingExisting && editingExisting.type === "adjustment")
     ? "adjustment" : document.getElementById("fType").value;
-  const cat = type === "transfer" || type === "adjustment" ? null : catSelect.value;
+  let cat = type === "transfer" || type === "adjustment" ? null : catSelect.value;
+  if (cat === "__libre__") {
+    // CAT1 : la catégorie écrite garde le sens du type de naissance.
+    const kind = type === "income" ? "income" : "expense";
+    cat = rememberCustomCategory(document.getElementById("fCatLibre").value, kind);
+    if (!cat) { fieldError("fCatLibre", "Écrivez votre catégorie. Exemple : IKEA"); return; }
+  }
   if (["saving", "investment"].includes(type) && CATEGORIES_DE_RESERVE.has(cat)) {
     type = cat === "Pilier 3a" ? "investment" : "saving";
   }
@@ -7667,6 +7712,20 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   // INV1 (ADR-047) : les positions n'ont AUCUN pouvoir financier — une
   // entrée illisible ou orpheline est RETIRÉE sans faire échouer la
   // restauration ni toucher les comptes (elles expliquent, rien de plus).
+  // CAT1 (ADR-051) : les catégories retenues n'ont aucun pouvoir
+  // financier direct — une entrée illisible est RETIRÉE sans faire
+  // échouer la restauration, et les doublons pliés sont fusionnés.
+  {
+    const vues = new Set();
+    state.customCategories = (state.customCategories || []).filter(c => {
+      if (!isPlainRecord(c) || typeof c.name !== "string" || !c.name.trim()
+          || c.name.length > 40 || !["expense", "income"].includes(c.kind)) return false;
+      const plie = c.name.trim().toLowerCase();
+      if (vues.has(plie)) return false;
+      vues.add(plie);
+      return true;
+    });
+  }
   state.positions = (state.positions || []).filter(p => isPlainRecord(p)
     && typeof p.id === "string" && p.id
     && typeof p.accountId === "string" && accountIds.has(p.accountId)
@@ -7908,7 +7967,7 @@ function openLineSheet(cat) {
     document.getElementById("lAmount").value = line ? line.amount.toFixed(2) : "";
   } else {
     const taken = new Set(lines.map(l => l.cat));
-    const available = Object.keys(CATEGORIES).filter(c => !taken.has(c) && CATEGORIES[c] !== "income");
+    const available = categoriesOfKinds(["expense", "saving", "investment", "tax"]).filter(c => !taken.has(c));
     if (!available.length) {
       toast("Toutes vos catégories ont déjà un budget ce mois-ci.");
       return;
@@ -8082,9 +8141,10 @@ function refreshRecCatOptions() {
   const kind = document.getElementById("rType").value === "income" ? "income" : "expense";
   const isReserve = document.getElementById("rFamily").value === "reserve"
     && document.getElementById("rType").value !== "income";
-  document.getElementById("rCat").innerHTML = Object.entries(CATEGORIES)
-    .filter(([category, k]) => isReserve ? CATEGORIES_DE_RESERVE.has(category) : k === kind)
-    .map(([c]) => `<option>${esc(c)}</option>`).join("");
+  document.getElementById("rCat").innerHTML = (isReserve
+    ? Object.keys(CATEGORIES).filter(category => CATEGORIES_DE_RESERVE.has(category))
+    : categoriesOfKinds([kind]))
+    .map(c => `<option>${esc(c)}</option>`).join("");
 }
 document.getElementById("rType").addEventListener("change", refreshRecCatOptions);
 function fillAccountOptions(selectId, selectedId) {
@@ -8996,9 +9056,8 @@ function openBillSheet(bill) {
   // P11 : « Impôts » (genre tax) est proposable — l'écran Impôts liste ces
   // factures comme acomptes, et depuis le P0 « acompte-impots » les payer
   // crée un taxPayment, jamais une dépense de vie.
-  catSelectBill.innerHTML = Object.entries(CATEGORIES)
-    .filter(([, k]) => k === "expense" || k === "tax")
-    .map(([c]) => `<option>${esc(c)}</option>`).join("");
+  catSelectBill.innerHTML = categoriesOfKinds(["expense", "tax"])
+    .map(c => `<option>${esc(c)}</option>`).join("");
   fillAccountOptions("bAccount", bill && bill.accountId);
   if (bill) {
     document.getElementById("bName").value = bill.name;

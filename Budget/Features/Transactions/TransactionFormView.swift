@@ -64,6 +64,10 @@ struct TransactionFormView: View {
     @FocusState private var amountFocused: Bool
     /// L5 : suppression toujours CONFIRMÉE — jamais en un geste.
     @State private var isConfirmingDelete = false
+    // CAT1 (ADR-051, demande propriétaire) : la personne écrit SA
+    // catégorie — « IKEA », « Poulet » — avec le sens du type courant.
+    @State private var isWritingCategory = false
+    @State private var newCategoryName = ""
 
     private var validationService: TransactionValidationService {
         TransactionValidationService(calendar: appContainer.calendar)
@@ -270,6 +274,13 @@ struct TransactionFormView: View {
                                 Text(category.name).tag(BudgetCategory?.some(category))
                             }
                         }
+                        if type == .expense || type == .income || type == .refund {
+                            Button("Écrire ma catégorie…") {
+                                newCategoryName = ""
+                                isWritingCategory = true
+                            }
+                            .accessibilityIdentifier("transaction.writeCategory")
+                        }
                     }
                     .listRowBackground(NeonUltraColor.surface)
                 }
@@ -366,6 +377,13 @@ struct TransactionFormView: View {
                 }
             }
             .onAppear(perform: populate)
+            .alert("Votre catégorie", isPresented: $isWritingCategory) {
+                TextField("IKEA, Poulet, Cadeaux…", text: $newCategoryName)
+                Button("Ajouter") { addCustomCategory() }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text("Elle garde le sens de ce type — \(type == .income ? "revenu" : "dépense") — et reste disponible partout ensuite.")
+            }
         }
         // La teinte vit sur le NavigationStack, PAS sur le `Form` : posée
         // sur le contenu, elle colore bien les sélecteurs mais la barre de
@@ -383,6 +401,32 @@ struct TransactionFormView: View {
             saveErrorMessage = "La duplication a échoué. Réessayez ; aucune donnée n'a été perdue."
         }) {
             dismiss()
+        }
+    }
+
+    /// CAT1 (ADR-051) : retient la catégorie écrite — pliée pour la
+    /// déduplication (une existante est simplement resélectionnée), sens
+    /// du type courant, jamais un montant ni un calcul.
+    private func addCustomCategory() {
+        let trimmed = String(newCategoryName.trimmingCharacters(in: .whitespaces).prefix(40))
+        guard !trimmed.isEmpty else { return }
+        func folded(_ value: String) -> String {
+            value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_CH"))
+        }
+        if let existing = allCategories.first(where: { folded($0.name) == folded(trimmed) }) {
+            category = existing
+            return
+        }
+        let created = BudgetCategory(
+            name: trimmed,
+            kind: type == .income ? .income : .expense,
+            sortOrder: (allCategories.map(\.sortOrder).max() ?? 0) + 1
+        )
+        modelContext.insert(created)
+        if modelContext.saveOrRollback(onError: { _ in
+            saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."
+        }) {
+            category = created
         }
     }
 

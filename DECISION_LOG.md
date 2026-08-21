@@ -1,5 +1,47 @@
 # Budget decision log
 
+## ADR-051 — CAT1 : la personne écrit sa catégorie — « IKEA », « Poulet »
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Demande propriétaire du 21.08.2026, capture à l'appui : la liste fixe
+de catégories ne suffit pas — « il faut aussi laisser la personne
+mettre ce qu'elle veut, par exemple Poulet ou IKEA ». Le rapport de
+budget avait de plus un repli silencieux : une catégorie inconnue
+était traitée comme un revenu.
+
+### Décision
+
+1. PWA : clé d'état ADDITIVE `customCategories` (`{name ≤ 40, kind
+   expense|income}`) — la catégorie libre naît sur la feuille de
+   saisie (« Écrire ma catégorie… » + champ), garde le SENS de son
+   type de naissance, est dédupliquée pliée (une existante — builtin
+   comprise — est réutilisée), et réapparaît PARTOUT du même sens :
+   saisie, récurrents, factures, lignes de budget. Épargne, pilier,
+   impôts et virements gardent leurs listes (sens financier protégé).
+2. `categoryKind(cat)` remplace les lectures directes de `CATEGORIES`
+   (rapport de budget, import CSV) — le repli « income » silencieux
+   est mort : une catégorie retenue compte selon SON sens.
+3. Restauration tolérante : une entrée illisible est RETIRÉE sans faire
+   échouer le fichier ; doublons pliés fusionnés ; ancien état → `[]`.
+4. Natif (parité) : « Écrire ma catégorie… » sous le Picker de
+   `TransactionFormView` — alerte avec champ, déduplication pliée,
+   `BudgetCategory` existant réutilisé, sens du type courant ; le
+   modèle, le schéma et la sauvegarde ne changent pas (les catégories
+   personnalisées y vivaient déjà).
+
+### Vérification
+
+Parcours 173 né rouge (5 échecs nommés : option absente, vide accepté,
+catégorie non portée, non reproposée, budget à 0) ; vide refusé sans
+perdre la saisie ; « IKEA » jamais proposée en revenu ; budget sur
+« IKEA » compte 50, pas 0 ; contrôle négatif par sabotage ; captures
+320/390 inspectées.
+
+
 ## ADR-050 — INV1-C : le type d'un compte qui porte des positions ne change pas en silence
 
 Date: 2026-08-21
