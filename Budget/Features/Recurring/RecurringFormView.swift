@@ -95,6 +95,9 @@ struct RecurringFormView: View {
     @State private var cancellationDeadline = Date()
     @State private var showsAdvancedOptions = false
     @State private var isPickingService = false
+    /// ID1 (ADR-042) : la clé choisie au catalogue — stable même si le
+    /// nom change ; persistée seulement à l'enregistrement.
+    @State private var identityKey: String?
     @State private var errorMessage: String?
 
     private let validationService = TransactionValidationService()
@@ -307,6 +310,7 @@ struct RecurringFormView: View {
     /// P08-C : applique UNIQUEMENT des suggestions — le montant, le
     /// compte, la prochaine date et l'activation restent intacts.
     private func applyServiceSuggestion(_ entry: BudgetIdentityEntry) {
+        identityKey = entry.key
         title = entry.displayName
         switch entry.financialSense {
         case "subscription":
@@ -343,6 +347,7 @@ struct RecurringFormView: View {
     private func populate() {
         if let recurring = editedRecurring {
             title = recurring.title
+            identityKey = BudgetIdentityKey.sanitized(recurring.identityKey)
             amountText = "\(recurring.amount)"
             type = recurring.type
             switch recurring.type {
@@ -454,6 +459,7 @@ struct RecurringFormView: View {
             recurring.isActive = isActive
             recurring.renewalDate = (isSubscription && hasRenewalDate) ? renewalDate : nil
             recurring.cancellationDeadline = (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil
+            recurring.identityKey = BudgetIdentityKey.sanitized(identityKey)
             recurring.updatedAt = now
         } else {
             let recurring = RecurringTransaction(
@@ -469,6 +475,7 @@ struct RecurringFormView: View {
                 isSubscription: isSubscription,
                 renewalDate: (isSubscription && hasRenewalDate) ? renewalDate : nil,
                 cancellationDeadline: (isSubscription && hasCancellationDeadline) ? cancellationDeadline : nil,
+                identityKey: identityKey,
                 createdAt: now,
                 updatedAt: now,
                 account: account,

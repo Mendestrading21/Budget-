@@ -178,8 +178,18 @@ enum BudgetSchemaV8: VersionedSchema {
     }
 }
 
+/// Schema v9.0.0 — adds the optional RecurringTransaction.identityKey
+/// (ID1, ADR-042). Purely additive.
+enum BudgetSchemaV9: VersionedSchema {
+    static let versionIdentifier = Schema.Version(9, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        BudgetSchemaV8.models
+    }
+}
+
 // V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
-// change from V1 to V8 was strictly additive (ADR-015). A staged
+// change from V1 to V9 was strictly additive (ADR-015). A staged
 // SchemaMigrationPlan is deliberately absent — because the versioned
 // schema enums above all reference the SAME live @Model classes, every
 // stage would carry an identical model checksum and
@@ -206,7 +216,7 @@ enum PersistenceFactory {
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV8.self),
+            for: Schema(versionedSchema: BudgetSchemaV9.self),
             configurations: [configuration]
         )
     }

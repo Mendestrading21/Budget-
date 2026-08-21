@@ -851,6 +851,17 @@ CI) ; iOS limité CH+GLOBAL (base CHF). Parcours 162 né rouge ;
 `BudgetIdentityCatalogTests` ; sélecteur natif
 (`IdentityServicePickerView`) branché dans le formulaire récurrent.
 
+**ID1 — Clé d'identité optionnelle, validation, schéma et sauvegardes
+(ADR-042)** · en PR (brouillon, empilée sur P08-C/#99 — la fusionner
+d'abord). Choisir Netflix persiste `identityKey: "netflix"` à
+l'enregistrement — renommer « Mes films » garde l'identité (tuile
+« N »). Règle de clé UNE et partagée (kebab 1-40, fixture 12 cas +
+garde littérale PWA/natif) ; clé hostile retirée sans perdre la ligne
+(restauration PWA, init du modèle natif, fichier de sauvegarde
+trafiqué) ; clé inconnue conservée et repli monogramme (catalogue
+extensible) ; `BudgetSchemaV9` additif, DTO optionnel, fichier ancien
+restauré à l'identique. Parcours 163 né rouge ; 3 tests natifs ajoutés.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

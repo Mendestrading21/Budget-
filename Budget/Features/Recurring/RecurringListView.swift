@@ -228,10 +228,18 @@ struct RecurringRow: View {
     var body: some View {
         GlassCard(style: .row) {
             HStack(alignment: .top, spacing: BudgetSpacing.medium) {
-                Image(systemName: rowIcon)
-                    .foregroundStyle(rowColor)
-                    .frame(width: 28)
-                    .accessibilityHidden(true)
+                // ID1 (ADR-042) : l'identité choisie prime — clé connue →
+                // monogramme du catalogue, stable même si le nom change ;
+                // sinon le glyphe de sens habituel.
+                if let entry = BudgetIdentityKey.catalogEntry(for: recurring.identityKey) {
+                    BudgetIdentityIcon(name: entry.displayName)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: rowIcon)
+                        .foregroundStyle(rowColor)
+                        .frame(width: 28)
+                        .accessibilityHidden(true)
+                }
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(recurring.title)

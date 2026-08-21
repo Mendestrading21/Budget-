@@ -70,6 +70,9 @@ struct BackupFile: Codable {
         var renewalDate: Date?; var cancellationDeadline: Date?; var note: String?
         var accountID: UUID?; var destinationAccountID: UUID?
         var categoryID: UUID?; var memberID: UUID?
+        /// ID1 (ADR-042) : optionnelle — les anciennes sauvegardes n'ont
+        /// pas ce champ et se restaurent à l'identique.
+        var identityKey: String?
     }
     struct TaxProfileDTO: Codable {
         var id: UUID; var canton: String; var municipality: String
@@ -282,7 +285,8 @@ struct BackupService {
                       isSubscription: $0.isSubscription, renewalDate: $0.renewalDate,
                       cancellationDeadline: $0.cancellationDeadline, note: $0.note,
                       accountID: $0.account?.id, destinationAccountID: $0.destinationAccount?.id,
-                      categoryID: $0.category?.id, memberID: $0.member?.id)
+                      categoryID: $0.category?.id, memberID: $0.member?.id,
+                      identityKey: $0.identityKey)
             },
             taxProfiles: try fetch(TaxProfile.self).map {
                 .init(id: $0.id, canton: $0.canton, municipality: $0.municipality,
@@ -684,6 +688,9 @@ struct BackupService {
                 isProfessional: dto.isProfessional, isSubscription: dto.isSubscription,
                 renewalDate: dto.renewalDate, cancellationDeadline: dto.cancellationDeadline,
                 note: dto.note,
+                // ID1 : clé hostile ou hors alphabet RETIRÉE (init la
+                // sanitise) — la ligne, elle, n'est jamais perdue.
+                identityKey: dto.identityKey,
                 account: try resolved(dto.accountID, in: accounts, field: "récurrent.compte"),
                 destinationAccount: try resolved(dto.destinationAccountID, in: accounts, field: "récurrent.compte destination"),
                 category: try resolved(dto.categoryID, in: categories, field: "récurrent.catégorie"),
