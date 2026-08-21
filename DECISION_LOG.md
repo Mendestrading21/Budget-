@@ -1,5 +1,50 @@
 # Budget decision log
 
+## ADR-045 — P13-C : choisir son assureur remplit un nom, jamais une prime
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot P13-C (« réutiliser le registre sans
+nouvelle architecture ; garder assureur/institution distinct du type de
+contrat ou de pilier »). Le catalogue compte 13 assureurs
+(institutions, sens `insurance`) mais la feuille Assurance gardait un
+champ libre anonyme et la liste n'affichait aucune identité.
+L'ambiguïté rente/capital est déjà corrigée (P0 AVS, ADR-036).
+
+### Décision
+
+1. Le MÊME sélecteur gagne une TROISIÈME porte strictement séparée :
+   mode `insurers` — `entityKind: institution` ET
+   `financialSense: insurance` seulement. Jamais une banque (UBS),
+   jamais un service (Netflix), jamais un besoin générique
+   (« Assurance ménage et RC » reste `generic` et n'y apparaît pas).
+2. Choisir remplit UNIQUEMENT le champ « Assureur » ; le nom du
+   contrat, la prime, la fréquence et les dates reviennent tels quels
+   (instantané/restauration `svcInsSnapshot`), rien n'est créé.
+   L'assureur reste DISTINCT du type de contrat : le type (LAMal, RC,
+   véhicule…) ne bouge pas quand l'assureur change.
+3. La liste des assurances décore par la MÊME correspondance exacte
+   nom/alias pliée que les banques (`institutionEntryFor` PWA,
+   `institutionEntry(matching:)` natif — helper réutilisé, aucune
+   nouvelle architecture) ; l'inconnu garde son bouclier (PWA) ou le
+   glyphe du type (natif) ; aucun total ne change.
+4. Générateur : `insurerEntries` ajouté à `BudgetIdentityCatalog`
+   (toujours la seule source, garde de dérive en CI) ;
+   `IdentityServicePickerView.Mode` gagne `.insurers` (titres,
+   exemples et saisie libre propres) ; libellé de sens
+   « Assureur » des deux côtés.
+
+### Vérification
+
+Parcours 166 né rouge (4 échecs nommés : bouton absent, filtre du mode,
+remplissage seul, tuile/bouclier) ; `testInsurerEntriesStayOnTheirDoor`
+natif ; contrôle négatif par sabotage ; captures 320/390 inspectées ;
+l'écran Assurances ne dit jamais « connecté », « synchronisé » ni
+« en direct » (assertion du parcours 166).
+
 ## ADR-044 — P06/P16 : la fiche réutilise l'identité, l'onboarding la propose en option
 
 Date: 2026-08-21

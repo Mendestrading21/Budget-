@@ -9333,6 +9333,72 @@ check(p06.promesses === false,
   await ctx165.close();
 }
 
+// ---------- 166. P13-C : choisir son assureur remplit un nom, jamais une prime (ADR-045) ----------
+// Programme Identités locales : la feuille Assurance gagne un mode
+// « assureurs » du même sélecteur — 13 assureurs (institutions, sens
+// insurance), jamais une banque ni un service, jamais les besoins
+// génériques (Assurance ménage). Choisir remplit SEULEMENT le champ
+// assureur ; la liste décore par correspondance exacte, l'inconnu garde
+// son bouclier ; l'assureur reste distinct du type de contrat.
+currentTest = "P13-C assureurs";
+await goHome();
+const p13c = await page.evaluate(() => {
+  const resultat = { insAvant: INSURANCES.length };
+  openInsSheet(null);
+  resultat.bouton = !!document.getElementById("insPickInsurer");
+  if (resultat.bouton) {
+    document.getElementById("insName").value = "RC ménage";
+    document.getElementById("insPremium").value = "30.00";
+    document.getElementById("insPickInsurer").click();
+    const search = document.getElementById("svcSearch");
+    resultat.feuille = document.getElementById("svcForm").style.display !== "none";
+    resultat.titre = document.getElementById("svcSheetTitle").textContent;
+    resultat.sectionFrancaise = [...document.querySelectorAll("#svcResults .svc-section")]
+      .some(s => s.textContent.trim() === "Assureurs");
+    search.value = "css"; search.dispatchEvent(new Event("input"));
+    resultat.trouve = !!document.querySelector('#svcResults [data-svckey="css"]');
+    search.value = "ubs"; search.dispatchEvent(new Event("input"));
+    resultat.ubsAbsent = !document.querySelector('#svcResults [data-svckey="ubs"]');
+    search.value = "assurance"; search.dispatchEvent(new Event("input"));
+    resultat.generiquesAbsents = !document.querySelector('#svcResults [data-svckey="household-insurance"]')
+      && !document.querySelector('#svcResults [data-svckey="car-insurance"]');
+    search.value = "css"; search.dispatchEvent(new Event("input"));
+    document.querySelector('#svcResults [data-svckey="css"]').click();
+    resultat.assureur = document.getElementById("insInsurer").value;
+    resultat.nom = document.getElementById("insName").value;
+    resultat.prime = document.getElementById("insPremium").value;
+    resultat.insApres = INSURANCES.length;
+  }
+  closeSheet();
+  INSURANCES.push({ id: "ins-p13", name: "Caisse maladie", insurer: "CSS",
+    premium: 320, unit: "month" });
+  INSURANCES.push({ id: "ins-p13b", name: "RC ménage", insurer: "Ma petite assurance",
+    premium: 30, unit: "month" });
+  activeTab = "more"; moreView = "insurance"; render();
+  const ecran = document.getElementById("screen");
+  const rowCss = ecran.querySelector('[data-insid="ins-p13"]');
+  const rowLibre = ecran.querySelector('[data-insid="ins-p13b"]');
+  resultat.tuile = rowCss && rowCss.querySelector(".identity-tile")
+    ? rowCss.querySelector(".identity-tile").textContent.trim() : null;
+  resultat.inconnuSansTuile = rowLibre && !rowLibre.querySelector(".identity-tile");
+  resultat.promesses = /connecté|synchronis|en direct/i.test(ecran.textContent);
+  INSURANCES.splice(INSURANCES.findIndex(i => i.id === "ins-p13"), 1);
+  INSURANCES.splice(INSURANCES.findIndex(i => i.id === "ins-p13b"), 1);
+  activeTab = "home"; moreView = null; render();
+  return resultat;
+});
+check(p13c.bouton && p13c.feuille && p13c.titre === "Quel assureur ?",
+  `la feuille Assurance offre le choix d'un assureur du catalogue (obtenu « ${p13c.titre} »)`);
+check(p13c.trouve && p13c.ubsAbsent && p13c.generiquesAbsents && p13c.sectionFrancaise,
+  `le mode assureurs montre CSS en français, jamais une banque ni un besoin générique (CSS ${p13c.trouve} / UBS absent ${p13c.ubsAbsent} / génériques absents ${p13c.generiquesAbsents} / section « Assureurs » ${p13c.sectionFrancaise})`);
+check(p13c.assureur === "CSS" && p13c.nom === "RC ménage" && p13c.prime === "30.00"
+    && p13c.insApres === p13c.insAvant,
+  `choisir remplit SEULEMENT l'assureur — nom, prime et contrats intacts (obtenu « ${p13c.assureur} » / « ${p13c.nom} » / ${p13c.prime} / ${p13c.insAvant}→${p13c.insApres})`);
+check(p13c.tuile === "C" && p13c.inconnuSansTuile === true,
+  `un assureur connu porte sa tuile (monogramme partagé IC1, comme UBS → U), l'inconnu garde son bouclier (obtenu ${p13c.tuile} / inconnu sans tuile ${p13c.inconnuSansTuile})`);
+check(p13c.promesses === false,
+  "aucune promesse de connexion, de synchronisation ni de direct");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9342,4 +9408,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 165 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 166 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
