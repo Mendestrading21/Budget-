@@ -838,6 +838,19 @@ parité 9 « quatre-semaines-exactes » née rouge (juillet 2026 : échéances
 des 2 et 30, 90 = 2 × 45) ; test natif miroir aux mêmes dates ; 160 e2e
 + 9 parités + design + catalogue verts.
 
+**P08-C — Catalogue des services et saisie libre (ADR-041)** · en PR
+(brouillon, fusion sur ordre du propriétaire). « Ce qui revient » gagne
+« Choisir un service du catalogue » : 105 services/besoins (abonnements,
+factures, mises de côté) filtrés par pays, recherche pliée avec alias,
+sections par catégorie, « Je ne trouve pas mon service » qui restaure la
+saisie. Choisir remplit AU PLUS nom + nature + catégorie sûre + rythme
+compatible — jamais un montant, un compte, une date ni une ligne créée.
+Une seule autorité : copie structurelle embarquée PWA (garde
+exécutable) + `BudgetIdentityCatalog.swift` GÉNÉRÉ (garde de dérive en
+CI) ; iOS limité CH+GLOBAL (base CHF). Parcours 162 né rouge ;
+`BudgetIdentityCatalogTests` ; sélecteur natif
+(`IdentityServicePickerView`) branché dans le formulaire récurrent.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

@@ -32,6 +32,9 @@ jobs:
       - name: Catalogue des identités (contrat ADR-037 + parité des glyphes)
         run: node webapp/tests/catalogue.test.mjs
 
+      - name: Catalogue natif généré (aucune dérive vs la fixture)
+        run: node .github/scripts/generate-identity-catalog.mjs --check
+
       # Le navigateur ne se retélécharge plus à chaque run — c'était la
       # source des pendaisons. Clé figée sur la version épinglée.
       - name: Cache du navigateur Playwright

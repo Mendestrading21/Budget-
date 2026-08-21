@@ -9025,6 +9025,72 @@ check(rec160.chips.includes("four_weeks") && rec160.champDate,
 check(rec160.restaureSansDate === "refusé" && rec160.restaureAvecDate === "accepté",
   `restauration : quatre semaines sans date d'ancrage refusé, avec date accepté (obtenu ${rec160.restaureSansDate} / ${rec160.restaureAvecDate})`);
 
+// ---------- 162. P08-C : le catalogue SUGGÈRE, il n'invente jamais le budget (ADR-041) ----------
+// Programme Identités locales : choisir « Netflix » remplit au plus le
+// nom, la nature, la catégorie et un rythme compatible — JAMAIS un
+// montant, un compte, une date ni une ligne créée sans confirmation.
+// La recherche est locale, filtrée par pays, insensible aux accents, et
+// une chaîne hostile ne rend aucune balise.
+currentTest = "P08-C catalogue services";
+await goHome();
+const p08c = await page.evaluate(() => {
+  const recAvant = RECURRINGS.length;
+  const paysAvant = S.country;
+  const resultat = { recAvant };
+  openRecSheet(null);
+  resultat.bouton = !!document.getElementById("rPickService");
+  if (resultat.bouton) {
+    document.getElementById("rPickService").click();
+    const search = document.getElementById("svcSearch");
+    resultat.feuille = !!search && document.getElementById("svcForm").style.display !== "none";
+    search.value = "netflik";
+    search.dispatchEvent(new Event("input"));
+    resultat.fauteVide = !document.querySelector('#svcResults [data-svckey="netflix"]');
+    search.value = "NETFLIX";
+    search.dispatchEvent(new Event("input"));
+    resultat.trouve = !!document.querySelector('#svcResults [data-svckey="netflix"]');
+    search.value = "navigo";
+    search.dispatchEvent(new Event("input"));
+    resultat.navigoCH = !!document.querySelector("#svcResults [data-svckey]");
+    S.country = "FR";
+    search.dispatchEvent(new Event("input"));
+    resultat.navigoFR = !!document.querySelector('#svcResults [data-svckey="navigo"]');
+    S.country = paysAvant;
+    search.value = '<img src=x onerror="window.__p08pwned=1">';
+    search.dispatchEvent(new Event("input"));
+    resultat.injectionImg = document.querySelectorAll("#svcResults img").length;
+    resultat.pwned = !!window.__p08pwned;
+    search.value = "netflix";
+    search.dispatchEvent(new Event("input"));
+    document.querySelector('#svcResults [data-svckey="netflix"]').click();
+    resultat.titre = document.getElementById("rTitle").value;
+    resultat.nature = document.getElementById("rFamily").value;
+    resultat.rythme = document.getElementById("rEvery").value;
+    resultat.montant = document.getElementById("rAmount").value;
+    resultat.recApres = RECURRINGS.length;
+    document.getElementById("rTitle").value = "Mon club local";
+    document.getElementById("rPickService").click();
+    document.getElementById("svcFree").click();
+    resultat.libreTitre = document.getElementById("rTitle").value;
+  }
+  closeSheet();
+  return resultat;
+});
+check(p08c.bouton && p08c.feuille,
+  "la feuille « Ce qui revient » offre le choix d'un service du catalogue local");
+check(p08c.trouve && p08c.fauteVide,
+  `la recherche trouve Netflix et ne devine pas une faute (trouvé ${p08c.trouve}, faute ${p08c.fauteVide})`);
+check(p08c.navigoCH === false && p08c.navigoFR === true,
+  `« Services pour votre pays » : Navigo invisible en Suisse, visible en France (CH ${p08c.navigoCH} / FR ${p08c.navigoFR})`);
+check(p08c.injectionImg === 0 && !p08c.pwned,
+  "une recherche hostile ne rend aucune balise et n'exécute rien");
+check(p08c.titre === "Netflix" && p08c.nature === "abonnement" && p08c.rythme === "month",
+  `choisir remplit nom + nature + rythme compatible (obtenu « ${p08c.titre} » / ${p08c.nature} / ${p08c.rythme})`);
+check(p08c.montant === "" && p08c.recApres === p08c.recAvant,
+  `JAMAIS de montant prérempli ni de ligne créée sans confirmation (montant « ${p08c.montant} », lignes ${p08c.recAvant} → ${p08c.recApres})`);
+check(p08c.libreTitre === "Mon club local",
+  "« Je ne trouve pas mon service » revient à la saisie libre SANS perdre ce qui était écrit");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9034,4 +9100,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 161 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 162 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
