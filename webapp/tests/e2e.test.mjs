@@ -9641,6 +9641,43 @@ check(/position/i.test(invc.erreur || "") && invc.typeIntact === "brokerage",
 check(invc.typeApres === "savings",
   "sans position, le changement de type reste libre");
 
+// ---------- 172. INV1-D : la restauration filtre les positions sans jamais échouer (ADR-047, verrou) ----------
+// La sonde du 21.08 a prouvé le comportement ; ce parcours le VERROUILLE :
+// une position valide est gardée, une hostile (quantité illisible, date
+// impossible, markup) est retirée, une orpheline aussi — et le fichier
+// se restaure quand même (les positions n'ont aucun pouvoir financier).
+currentTest = "INV1-D restauration des positions";
+const invd = await page.evaluate(() => {
+  const base = {
+    version: 1, onboarded: true, isDemo: false, profile: { name: "T" },
+    baseCurrency: "CHF", fxRates: { EUR: 0.93, USD: 0.8 },
+    transactions: [],
+    accounts: [{ id: "acc-t", name: "Titres", kind: "brokerage", opening: 1000, cash: false, currency: "CHF" }],
+    recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+    insurances: [], bills: [], documents: [], budgets: {},
+    positions: [
+      { id: "ok", accountId: "acc-t", instrumentName: "Bon", tickerOrISIN: null,
+        quantity: 2, manualPrice: 10, priceCurrency: "CHF", valuationDate: "2026-08-01", costBasis: null },
+      { id: "qte-illisible", accountId: "acc-t", instrumentName: "Quantité folle", tickerOrISIN: null,
+        quantity: "beaucoup", manualPrice: 10, priceCurrency: "CHF", valuationDate: "2026-08-01", costBasis: null },
+      { id: "date-impossible", accountId: "acc-t", instrumentName: "Date folle", tickerOrISIN: null,
+        quantity: 1, manualPrice: 10, priceCurrency: "CHF", valuationDate: "hier", costBasis: null },
+      { id: "prix-illisible", accountId: "acc-t", instrumentName: "Prix fou", tickerOrISIN: null,
+        quantity: 1, manualPrice: "cher", priceCurrency: "CHF", valuationDate: "2026-08-01", costBasis: null },
+      { id: "orpheline", accountId: "acc-disparu", instrumentName: "Perdue", tickerOrISIN: null,
+        quantity: 1, manualPrice: 5, priceCurrency: "CHF", valuationDate: "2026-08-01", costBasis: null },
+    ],
+  };
+  try {
+    const state = validatedRestoreState(JSON.parse(JSON.stringify(base)));
+    return { ok: true, gardees: state.positions.map(p => p.id) };
+  } catch (e) { return { ok: false, erreur: e.message }; }
+});
+check(invd.ok === true,
+  `un fichier aux positions douteuses se restaure quand même (obtenu ${JSON.stringify(invd.erreur || "ok")})`);
+check(Array.isArray(invd.gardees) && invd.gardees.length === 1 && invd.gardees[0] === "ok",
+  `seule la position valide survit — quantité illisible, date impossible, prix illisible et orpheline retirées, chacune pour SA raison (obtenu ${JSON.stringify(invd.gardees)})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9650,4 +9687,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 171 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 172 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
