@@ -5640,6 +5640,17 @@ const MORE_GROUPS = [
       return `${actives.length} ligne${actives.length > 1 ? "s" : ""}`
         + (sorties.length ? ` · ${chf(parMois)} à prévoir par mois` : "");
     }],
+    // SUB1 (ADR-052, demande propriétaire du 21.08.2026) : les
+    // abonnements — la famille n° 3 — ont leur porte visible, avec le
+    // coût par mois. Elle ouvre « Ce qui revient » déjà filtré.
+    ["subs", "recurring", "Mes abonnements", () => {
+      const abonnements = RECURRINGS.filter(recurringIsActive)
+        .filter(r => r.type !== "income" && recurringNature(r) === "abonnement");
+      if (!abonnements.length) return "Netflix, Spotify, téléphone… tout ce qui revient tout seul";
+      const parMois = fromCents(Math.round(
+        abonnements.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
+      return `${abonnements.length} abonnement${abonnements.length > 1 ? "s" : ""} · ${chf(parMois)} / mois`;
+    }],
     ["bills", "bill", "Factures ponctuelles", () => {
       const late = (S.bills || []).filter(billIsOverdue).length;
       const open = (S.bills || []).filter(b => !billIsCovered(b)).length;
