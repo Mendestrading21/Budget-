@@ -108,6 +108,13 @@ enum GoalStatus: String, CaseIterable, Codable, Identifiable {
 /// derived balance or from a manually maintained amount — never both.
 @Model
 final class FinancialGoal {
+    /// P10 (ADR-046) : l'emoji est un CHOIX — il ne suit le type que tant
+    /// qu'il n'a jamais été personnalisé. Un emoji restauré ou choisi
+    /// survit à toute modification, y compris un changement de type.
+    static func emojiAfterEditing(current: String?, from oldKind: GoalKind, to newKind: GoalKind) -> String? {
+        (current == nil || current == oldKind.defaultEmoji) ? newKind.defaultEmoji : current
+    }
+
     @Attribute(.unique) var id: UUID
     var name: String
     var kindRawValue: String

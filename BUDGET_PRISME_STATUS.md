@@ -49,8 +49,8 @@ continue », 21.08.2026) — **non publiés** : le site sert toujours le run
 `32413719185` (`58d5af29`), la publication attend un ordre explicite.
 Lots en PR brouillon (fusion sur ordre explicite), empilés dans
 l'ordre : **P05-C** (#101, CI verte sur `9145896`) → **P06/P16** (#102,
-CI verte sur `f1c1903`) → **P13-C** (empilée sur P06/P16). Ensuite
-P10/P12-C, INV1, BR1 — une PR par lot.
+CI verte sur `f1c1903`) → **P13-C** (#103, CI verte sur `09ec379`) →
+**P10/P12-C** (empilée sur P13-C). Ensuite INV1, BR1 — une PR par lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -920,6 +920,19 @@ nouvelle architecture), l'inconnu garde son bouclier. Natif :
 (4 échecs nommés) ; `testInsurerEntriesStayOnTheirDoor` natif ; 166 e2e
 + 9 parités + design + catalogue + audit verts ; captures 320/390
 inspectées.
+
+**P10/P12-C — Icône choisie préservée (ADR-046)** · en PR (brouillon,
+empilée sur P13-C/#103 — la fusionner d'abord). Deux défauts réels
+corrigés sur P10 : la PWA imposait 🎯 à la modification d'un objectif
+sans emoji (désormais le défaut ne s'applique qu'à la création, vide
+reste vide) ; le natif réécrivait `goal.emoji = kind.defaultEmoji` à
+chaque enregistrement, détruisant un emoji restauré — règle unique
+testable `FinancialGoal.emojiAfterEditing` (l'emoji ne suit le type que
+tant qu'il n'a jamais été personnalisé). P12 vérifié conforme des deux
+côtés (glyphes dérivés du type, emoji stocké jamais rendu) et
+verrouillé par le test. Parcours 167 né rouge (« obtenu 🎯 ») ;
+`FinancialGoalEmojiTests` natif ; 167 e2e + 9 parités + design +
+catalogue + audit verts ; captures 320/390 inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

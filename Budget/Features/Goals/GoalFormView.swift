@@ -179,8 +179,10 @@ struct GoalFormView: View {
 
         if let goal = editedGoal {
             goal.name = trimmedName
+            // P10 (ADR-046) : jamais réécrire un emoji personnalisé — il ne
+            // suit le type que s'il n'a pas été choisi.
+            goal.emoji = FinancialGoal.emojiAfterEditing(current: goal.emoji, from: goal.kind, to: kind)
             goal.kind = kind
-            goal.emoji = kind.defaultEmoji
             goal.targetAmount = FinanceMath.roundedToCents(target)
             goal.targetDate = hasTargetDate ? targetDate : nil
             goal.linkedAccount = linkedAccount
