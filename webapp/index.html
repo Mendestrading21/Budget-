@@ -7948,8 +7948,11 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
   // la variable inexistante faisait échouer silencieusement TOUT
   // enregistrement d'objectif).
   if (!dueMatch) { err.textContent = "Choisissez une échéance."; return; }
+  // P10 (ADR-046) : l'emoji est un CHOIX — vide reste vide à la
+  // modification (le glyphe neutre est aussi un choix) ; le défaut 🎯
+  // ne s'applique qu'à la création.
   const data = {
-    name, emoji: document.getElementById("gEmoji").value.trim() || "🎯",
+    name, emoji: document.getElementById("gEmoji").value.trim() || (editingGoalId ? "" : "🎯"),
     target, manualCurrent, monthly,
     linked: document.getElementById("gLinked").value || null,
     dueY: Number(dueMatch[1]), dueM: Number(dueMatch[2]),

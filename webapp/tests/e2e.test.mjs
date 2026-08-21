@@ -9399,6 +9399,77 @@ check(p13c.tuile === "C" && p13c.inconnuSansTuile === true,
 check(p13c.promesses === false,
   "aucune promesse de connexion, de synchronisation ni de direct");
 
+// ---------- 167. P10/P12-C : l'icône choisie est préservée, jamais réécrite (ADR-046) ----------
+// Programme Identités locales : l'emoji d'un objectif est un CHOIX — le
+// modifier ne le réécrit pas, et un objectif sans emoji (glyphe neutre)
+// ne reçoit pas 🎯 dans le dos de la personne. Les biens et dettes
+// dérivent leur icône du type (glyphe peint), jamais d'une marque ni
+// d'un emoji stocké.
+currentTest = "P10/P12-C icônes";
+await goHome();
+const p10c = await page.evaluate(() => {
+  const resultat = {};
+  // Un objectif AVEC emoji choisi et un objectif SANS emoji (restauré tel
+  // quel : le glyphe neutre est aussi un choix).
+  GOALS.push({ id: "g-p10a", name: "Ma voiture", emoji: "🚗", target: 5000,
+    manualCurrent: 100, monthly: 100, linked: null, dueY: 2027, dueM: 6, priority: false, achieved: false });
+  GOALS.push({ id: "g-p10b", name: "Réserve discrète", emoji: "", target: 3000,
+    manualCurrent: 50, monthly: 50, linked: null, dueY: 2027, dueM: 6, priority: false, achieved: false });
+  activeTab = "more"; moreView = "goals"; render();
+  const carte = id => document.querySelector(`[data-goalid="${id}"] .goal-title`);
+  resultat.avantAvec = carte("g-p10a") ? carte("g-p10a").textContent.includes("🚗") : null;
+  resultat.avantSans = carte("g-p10b") ? !!carte("g-p10b").querySelector("svg.budget-glyph") : null;
+  // Modifier chaque objectif SANS toucher l'emoji : rien ne doit changer.
+  for (const id of ["g-p10a", "g-p10b"]) {
+    openGoalSheet(GOALS.find(g => g.id === id));
+    document.getElementById("gName").value = GOALS.find(g => g.id === id).name + " 2";
+    document.getElementById("goalForm").dispatchEvent(new Event("submit"));
+  }
+  render();
+  resultat.apresAvec = GOALS.find(g => g.id === "g-p10a").emoji;
+  resultat.apresSans = GOALS.find(g => g.id === "g-p10b").emoji;
+  resultat.glyphePreserve = carte("g-p10b") ? !!carte("g-p10b").querySelector("svg.budget-glyph") : null;
+  // Un objectif NEUF sans emoji reçoit le défaut 🎯 — à la création
+  // seulement.
+  openGoalSheet(null);
+  document.getElementById("gName").value = "Tout neuf";
+  document.getElementById("gTarget").value = "1000";
+  document.getElementById("gLinked").value = "";
+  document.getElementById("gDue").value = "2027-06";
+  document.getElementById("goalForm").dispatchEvent(new Event("submit"));
+  const neuf = GOALS.find(g => g.name === "Tout neuf");
+  resultat.defautCreation = neuf ? neuf.emoji : null;
+  // P12 : biens et dettes dérivent leur glyphe du type — l'emoji stocké
+  // (🚗, 📄 des données de démo ou restaurées) n'est JAMAIS rendu.
+  ASSETS.push({ id: "as-p12", name: "Vélo cargo", icon: "🚲", value: 4000, include: true });
+  LIABILITIES.push({ id: "li-p12", name: "Prêt vélo", icon: "📄", value: 2000, include: true });
+  activeTab = "more"; moreView = "networth"; render();
+  const rowAsset = document.querySelector('[data-assetid="as-p12"]');
+  const rowLiab = document.querySelector('[data-liabid="li-p12"]');
+  resultat.glypheBien = rowAsset ? !!rowAsset.querySelector(".ico svg.budget-glyph") : null;
+  resultat.glypheDette = rowLiab ? !!rowLiab.querySelector(".ico svg.budget-glyph") : null;
+  const ecran = document.getElementById("screen").textContent;
+  resultat.emojiRendu = ecran.includes("🚲") || ecran.includes("📄");
+  // Nettoyage.
+  for (const id of ["g-p10a", "g-p10b"]) GOALS.splice(GOALS.findIndex(g => g.id === id), 1);
+  if (neuf) GOALS.splice(GOALS.findIndex(g => g.id === neuf.id), 1);
+  ASSETS.splice(ASSETS.findIndex(a => a.id === "as-p12"), 1);
+  LIABILITIES.splice(LIABILITIES.findIndex(l => l.id === "li-p12"), 1);
+  saveState();
+  activeTab = "home"; moreView = null; render();
+  return resultat;
+});
+check(p10c.avantAvec === true && p10c.avantSans === true,
+  `avant modification : l'emoji choisi s'affiche, l'absence d'emoji peint le glyphe neutre (obtenu ${p10c.avantAvec}/${p10c.avantSans})`);
+check(p10c.apresAvec === "🚗",
+  `modifier ne réécrit pas l'emoji choisi (obtenu « ${p10c.apresAvec} »)`);
+check(p10c.apresSans === "" && p10c.glyphePreserve === true,
+  `modifier un objectif sans emoji ne lui impose pas 🎯 — le glyphe neutre reste (obtenu « ${p10c.apresSans} » / glyphe ${p10c.glyphePreserve})`);
+check(p10c.defautCreation === "🎯",
+  `à la CRÉATION seulement, le défaut 🎯 s'applique (obtenu « ${p10c.defautCreation} »)`);
+check(p10c.glypheBien === true && p10c.glypheDette === true && p10c.emojiRendu === false,
+  `biens et dettes dérivent leur glyphe du type, l'emoji stocké n'est jamais rendu (bien ${p10c.glypheBien} / dette ${p10c.glypheDette} / emoji rendu ${p10c.emojiRendu})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9408,4 +9479,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 166 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 167 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

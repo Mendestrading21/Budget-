@@ -1,5 +1,47 @@
 # Budget decision log
 
+## ADR-046 — P10/P12-C : l'icône choisie est préservée, jamais réécrite
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot P10/P12-C (« P10 : préserver l'emoji
+ou le glyphe explicitement choisi, ne pas le réécrire lors d'une
+modification ; P12 : dériver une icône du type de bien/dette, les
+marques commerciales ne sont pas nécessaires par défaut »). Mesure :
+deux défauts réels sur P10 — la PWA imposait 🎯 à la modification d'un
+objectif sans emoji (le glyphe neutre est pourtant un choix), et le
+natif réécrivait TOUJOURS `goal.emoji = kind.defaultEmoji` à
+l'enregistrement, détruisant un emoji restauré ou personnalisé
+(BackupService transporte `goal.emoji`). P12 était déjà conforme des
+deux côtés (glyphe `asset`/`liability` PWA, `kind.systemImage` natif).
+
+### Décision
+
+1. L'emoji d'un objectif est un CHOIX. PWA : le défaut 🎯 ne s'applique
+   qu'à la CRÉATION ; à la modification, vide reste vide (glyphe
+   neutre) et l'emoji saisi reste tel quel.
+2. Natif : règle unique testable
+   `FinancialGoal.emojiAfterEditing(current:from:to:)` — l'emoji ne
+   suit le type que tant qu'il n'a jamais été personnalisé (nil ou
+   égal au défaut de l'ANCIEN type) ; un emoji personnalisé survit à
+   toute modification, y compris un changement de type.
+3. P12 reste sur des icônes DÉRIVÉES du type : glyphes peints
+   `asset`/`liability` (PWA) et `kind.systemImage` (natif) — jamais une
+   marque, jamais un emoji stocké rendu à l'écran (les champs `icon`
+   hérités des données restaurées restent inertes).
+
+### Vérification
+
+Parcours 167 né rouge sur le défaut PWA (« obtenu 🎯 ») ; le même
+parcours verrouille la préservation de l'emoji choisi, le défaut à la
+création seule, et les glyphes dérivés P12 (emoji stocké jamais rendu).
+`FinancialGoalEmojiTests` natif (survie au changement de type, défaut
+qui suit, emoji restauré préservé) ; contrôle négatif par sabotage ;
+captures 320/390 inspectées.
+
 ## ADR-045 — P13-C : choisir son assureur remplit un nom, jamais une prime
 
 Date: 2026-08-21
