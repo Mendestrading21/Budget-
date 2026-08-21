@@ -39,6 +39,9 @@ final class OnboardingViewModel {
 
     // Premier compte
     var accountName: String = "Compte courant"
+    /// P16 (ADR-044) : la banque du premier compte — purement facultative,
+    /// un nom et rien d'autre, écrite avec tout le reste dans le même save.
+    var institutionName: String = ""
     var accountType: AccountType = .current
     var openingBalanceText: String = ""
 
@@ -164,6 +167,7 @@ final class OnboardingViewModel {
 
         let account = Account(
             name: accountName.trimmingCharacters(in: .whitespaces),
+            institutionName: institutionName.trimmingCharacters(in: .whitespaces),
             type: accountType,
             openingBalance: FinanceMath.roundedToCents(openingBalance),
             createdAt: now,

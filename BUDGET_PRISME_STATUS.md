@@ -47,9 +47,9 @@ sur `main`. Depuis : P08-C (#99, `main` = `6cef3ac`) et ID1 (#100,
 `main` = `4a0646f`) fusionnés sur ordre du propriétaire (« Fusionne et
 continue », 21.08.2026) — **non publiés** : le site sert toujours le run
 `32413719185` (`58d5af29`), la publication attend un ordre explicite.
-Lot actif : **P05-C — établissements sur « Comptes »** (en PR
-brouillon) ; ensuite P06/P16, P13-C, P10/P12-C, INV1, BR1 — une PR par
-lot.
+Lots en PR brouillon (fusion sur ordre explicite) : **P05-C** (#101, CI
+verte sur `9145896`) puis **P06/P16** (empilée sur P05-C). Ensuite
+P13-C, P10/P12-C, INV1, BR1 — une PR par lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -889,6 +889,20 @@ en ligne). Parcours 164 né rouge ; 2 tests natifs ajoutés
 (`testInstitutionEntriesStayOnTheirDoor`,
 `testInstitutionMatchingIsExactNeverContains`) ; 164 e2e + 9 parités +
 design + catalogue + audit verts ; captures 320/390 inspectées.
+
+**P06/P16 — Fiche et onboarding (ADR-044)** · en PR (brouillon, empilée
+sur P05-C/#101 — la fusionner d'abord). La fiche de compte P06 porte la
+MÊME tuile d'identité que la liste (correspondance exacte, un inconnu
+reste sans tuile) ; l'étape comptes de l'onboarding P16 propose la
+banque en OPTION — champ libre + « Choisir ma banque… » (sélecteur
+d'institutions filtré par le pays choisi à l'étape 1, `svcCountry()`),
+Annuler ne change rien, et RIEN n'est écrit avant la fin : le nom
+devient l'`inst` du premier compte dans la même sauvegarde atomique
+(PWA `finishOnboarding`, natif `OnboardingViewModel.finish`). Appelant
+explicite du sélecteur (`svcPickerCaller` rec/acc/ob). Parcours 165 né
+rouge (7 échecs nommés) ; `testFinishCarriesOptionalInstitutionName`
+natif ; 165 e2e + 9 parités + design + catalogue + audit verts ;
+captures 320/390 inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

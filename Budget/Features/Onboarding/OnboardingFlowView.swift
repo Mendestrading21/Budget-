@@ -10,6 +10,7 @@ struct OnboardingFlowView: View {
 
     @State private var model = OnboardingViewModel()
     @State private var saveErrorMessage: String?
+    @State private var isPickingInstitution = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -42,6 +43,11 @@ struct OnboardingFlowView: View {
             .padding(.top, BudgetSpacing.medium)
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: model.step)
+        .sheet(isPresented: $isPickingInstitution) {
+            IdentityServicePickerView(mode: .institutions) { entry in
+                model.institutionName = entry.displayName
+            }
+        }
     }
 
     // MARK: - Header
@@ -182,6 +188,18 @@ struct OnboardingFlowView: View {
                         TextField("2'500.00", text: Bindable(model).openingBalanceText)
                             .keyboardType(.decimalPad)
                     }
+                    // P16 (ADR-044) : la banque est une OPTION — un nom et
+                    // rien d'autre, choisi au catalogue ou écrit librement,
+                    // enregistré à la fin avec tout le reste.
+                    labeledField("Banque ou institution (facultatif)") {
+                        TextField("UBS, PostFinance…", text: Bindable(model).institutionName)
+                    }
+                    Button {
+                        isPickingInstitution = true
+                    } label: {
+                        Label("Choisir ma banque…", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("onboarding.pickInstitution")
                 }
             }
         }

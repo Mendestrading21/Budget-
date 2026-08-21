@@ -2094,6 +2094,10 @@ const SVC_SENSE_LABEL = { subscription: "Abonnement", bill: "Facture", set_aside
    pas parmi les abonnements. */
 const INST_SENSES = new Set(["account", "broker", "pension"]);
 let svcPickerMode = "services";
+/* P06/P16 (ADR-044) : qui a ouvert le sélecteur — la feuille récurrente
+   (« rec »), la feuille compte (« acc ») ou l'étape comptes de
+   l'onboarding (« ob ») — pour rendre la main au bon endroit. */
+let svcPickerCaller = "rec";
 /* ID1 (ADR-042) : la clé d'identité est une chaîne kebab ASCII de 1 à
    40 caractères — la même règle que fixtures/identity-key-cases.json et
    que le natif (BudgetIdentityKey). Tout le reste est RETIRÉ sans
@@ -2123,8 +2127,15 @@ function identityNameFor(record) {
   }
   return record ? record.title : "";
 }
+/* P16 (ADR-044) : pendant l'onboarding, le pays choisi à l'étape 1 sert
+   déjà au sélecteur — S.country n'existe qu'à la fin (sauvegarde
+   atomique, rien n'est écrit avant « C'est parti »). */
+function svcCountry() {
+  const code = S.onboarded ? S.country : obCountry;
+  return COUNTRIES[code] ? code : "CH";
+}
 function svcEntries() {
-  const country = COUNTRIES[S.country] ? S.country : "CH";
+  const country = svcCountry();
   const institutions = svcPickerMode === "institutions";
   return IDENTITY_CATALOG.identities.filter(e =>
     (institutions
@@ -3958,6 +3969,7 @@ function renderAccountDetail(a) {
   const accSel = accChartSel && accChartSel.id === a.id ? accChartSel.i : null;
   return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0 12px">
       <button class="btn secondary" data-accback style="width:auto;padding:8px 14px;font-size:13px">‹ Comptes</button>
+      ${(() => { const entry = institutionEntryFor(a.inst); return entry ? identityTile(entry.displayName) : ""; })()}
       <h2 class="screen-title" style="margin:0;font-size:24px">${esc(a.name)}</h2>
     </div>
     <div class="card hero">
@@ -5643,6 +5655,9 @@ let obSalary = null;
 let obSalary2 = null;
 let obSalaryPhase = 1;
 let obOpeningVal = 0;
+/* P16 (ADR-044) : la banque du premier compte — purement facultative,
+   un nom et rien d'autre, écrite seulement à la fin avec tout le reste. */
+let obInstVal = "";
 let obGoal = null; // préréglage d'objectif choisi à la bienvenue
 let obAccounts = { savings: true, pension: false, brokerage: false };
 // Montants saisis aux deux écrans de charges : { clé du préréglage → montant }.
@@ -5798,6 +5813,9 @@ function renderOnboarding() {
     <form id="obForm3" class="ob-form">
       <input id="obOpening" inputmode="decimal" placeholder="Solde actuel (${obBase})"
         aria-label="Solde actuel du compte courant (${obBase})" autocomplete="off" style="margin-top:10px" />
+      <input id="obInst" placeholder="Banque (facultatif)" aria-label="Banque ou institution du compte courant (facultatif)"
+        autocomplete="off" style="margin-top:10px" value="${esc(obInstVal)}" />
+      <button type="button" class="btn secondary" id="obPickInst" style="margin-top:10px">Choisir ma banque…</button>
       ${accToggle("savings", "Épargne", "saving")}
       ${accToggle("pension", L("pensionKind"), "shield")}
       ${accToggle("brokerage", "Bourse / titres", "investment")}
@@ -5888,7 +5906,13 @@ function bindOnboarding() {
     form3.addEventListener("submit", (e) => {
       e.preventDefault();
       obOpeningVal = parseAmountField(document.getElementById("obOpening").value) || 0;
+      obInstVal = document.getElementById("obInst").value.trim();
       obStep = 6; render(); scrollTop();
+    });
+    document.getElementById("obPickInst").addEventListener("click", () => {
+      svcPickerCaller = "ob";
+      obInstVal = document.getElementById("obInst").value.trim();
+      openSvcPicker("institutions");
     });
   }
   // Les deux écrans de charges partagent exactement la même mécanique : on
@@ -5946,7 +5970,7 @@ function finishOnboarding() {
   // taux automatique — les acomptes se saisissent comme des factures.
   S.baseCurrency = obBase;
   S.fxRates = { ...FX_DEFAULTS[obBase] };
-  ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: "", kind: "current",
+  ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Compte courant", inst: obInstVal, kind: "current",
                   opening, cash: true, currency: obBase });
   if (obAccounts.savings) ACCOUNTS.push({ id: "acc-" + txSeq++, name: "Épargne", inst: "",
     kind: "savings", opening: 0, cash: false, currency: obBase });
@@ -8129,7 +8153,7 @@ function renderSvcResults() {
     if (!groups.has(e.category)) groups.set(e.category, []);
     groups.get(e.category).push(e);
   }
-  const countryName = (COUNTRIES[S.country] || COUNTRIES.CH).name;
+  const countryName = COUNTRIES[svcCountry()].name;
   list.innerHTML = `<p class="svc-section">${svcPickerMode === "institutions"
     ? "Établissements pour votre pays" : "Services pour votre pays"} — ${esc(countryName)}</p>`
     + [...groups.entries()]
@@ -8173,6 +8197,7 @@ function openSvcPicker(mode) {
   document.getElementById("svcSearch").focus();
 }
 document.getElementById("rPickService").addEventListener("click", () => {
+  svcPickerCaller = "rec";
   svcRecSnapshot = snapshotRecFields();
   openSvcPicker("services");
 });
@@ -8198,6 +8223,7 @@ function reopenAccWith(snap) {
   document.getElementById("aOpening").value = snap.opening;
 }
 document.getElementById("aPickInst").addEventListener("click", () => {
+  svcPickerCaller = "acc";
   svcAccSnapshot = snapshotAccFields();
   openSvcPicker("institutions");
 });
@@ -8207,7 +8233,14 @@ document.getElementById("svcResults").addEventListener("click", (e) => {
   if (!btn) return;
   const entry = svcEntries().find(x => x.key === btn.dataset.svckey);
   if (!entry) return;
-  if (svcPickerMode === "institutions") {
+  if (svcPickerCaller === "ob") {
+    // P16 : l'onboarding reçoit SEULEMENT le nom — le compte n'existe
+    // pas encore, il naît à la fin en une seule sauvegarde.
+    obInstVal = entry.displayName;
+    closeSheet();
+    const champ = document.getElementById("obInst");
+    if (champ) champ.value = entry.displayName;
+  } else if (svcPickerMode === "institutions") {
     // Choisir remplit SEULEMENT l'établissement — le reste de la saisie
     // revient tel quel, et rien n'est créé.
     reopenAccWith(svcAccSnapshot);
@@ -8218,6 +8251,9 @@ document.getElementById("svcResults").addEventListener("click", (e) => {
   }
 });
 function svcReturnToCaller() {
+  // P16 : l'étape d'onboarding est restée derrière la feuille — fermer
+  // suffit, la saisie n'a pas bougé.
+  if (svcPickerCaller === "ob") { closeSheet(); return; }
   if (svcPickerMode === "institutions") reopenAccWith(svcAccSnapshot);
   else reopenRecWith(svcRecSnapshot);
 }

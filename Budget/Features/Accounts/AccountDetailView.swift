@@ -151,6 +151,12 @@ struct AccountDetailView: View {
         GlassCard(style: .hero) {
             VStack(alignment: .leading, spacing: BudgetSpacing.small) {
                 HStack {
+                    // P06 (ADR-044) : la fiche porte la MÊME identité que la
+                    // liste — correspondance exacte, sinon rien. Décoratif :
+                    // le solde et les agrégats ne changent jamais.
+                    if let entry = BudgetIdentityCatalog.institutionEntry(matching: account.institutionName) {
+                        BudgetIdentityIcon(name: entry.displayName)
+                    }
                     Label(account.type.displayName, systemImage: account.type.systemImage)
                         .font(BudgetFont.cardLabel)
                         .foregroundStyle(.secondary)
