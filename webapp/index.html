@@ -1472,6 +1472,30 @@
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer</button>
     </form>
 
+    <form class="sheet nu-pilot-sheet" id="posForm" style="display:none">
+      <h3 id="posSheetTitle">Nouvelle position</h3>
+      <label for="pName">Nom du placement</label>
+      <input id="pName" placeholder="Actions Monde" autocomplete="off" />
+      <label for="pTicker">Symbole ou ISIN (facultatif)</label>
+      <input id="pTicker" placeholder="VWRL" autocomplete="off" />
+      <label for="pQty">Quantité</label>
+      <input id="pQty" inputmode="decimal" placeholder="100" autocomplete="off" />
+      <label for="pPrice">Prix par part (<span class="curlabel">CHF</span>)</label>
+      <input id="pPrice" data-primary-amount inputmode="decimal" placeholder="400.00" autocomplete="off" />
+      <label for="pDate">Prix saisi le</label>
+      <input id="pDate" type="date" aria-describedby="pDateHint" />
+      <p class="caption" id="pDateHint" style="margin:4px 0 0">La date de VOTRE saisie — Budget n'affiche aucun cours du marché et n'en promet pas.</p>
+      <label for="pCost">Prix d'achat total (<span class="curlabel">CHF</span>, facultatif)</label>
+      <input id="pCost" inputmode="decimal" placeholder="36000.00" autocomplete="off" />
+      <div class="error" id="pError" role="alert"></div>
+      <div class="actions sticky">
+        <button type="button" class="btn secondary" id="pCancel">Annuler</button>
+        <button type="submit" class="btn nu-cta">Enregistrer</button>
+      </div>
+      <button type="button" class="btn secondary" id="pDelete"
+              style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette position</button>
+    </form>
+
     <form class="sheet nu-pilot-sheet" id="insForm" style="display:none">
       <h3 id="insSheetTitle">Nouvelle assurance</h3>
       <label for="insName">Nom du contrat</label>
@@ -2300,6 +2324,7 @@ function seedState(country = "CH") {
     liabilities: LIABILITIES_SEED.map(l => ({ ...l })),
     pensions: PENSIONS_SEED.map(p => ({ ...p })),
     insurances: INSURANCES_SEED.map(i => ({ ...i })),
+    positions: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2337,7 +2362,7 @@ function emptyState() {
     fxRates: { EUR: 0.93, USD: 0.80 },
     bills: [], documents: [], budgets: {},
     transactions: [], accounts: [], recurrings: [], goals: [],
-    assets: [], liabilities: [], pensions: [], insurances: [],
+    assets: [], liabilities: [], pensions: [], insurances: [], positions: [],
   };
 }
 
@@ -2347,6 +2372,7 @@ function emptyState() {
 const RESTORE_ARRAY_KEYS = [
   "transactions", "accounts", "recurrings", "goals", "assets",
   "liabilities", "pensions", "insurances", "bills", "documents",
+  "positions",
 ];
 const RESTORE_TRANSACTION_TYPES = new Set([
   "income", "expense", "refund", "saving", "investment", "transfer",
@@ -2370,7 +2396,7 @@ function loadState() {
   }
   if (s.version !== 1) { loadReason = "corrupt"; rescueRawState(raw); return null; }
   try {
-    for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances"]) {
+    for (const key of ["recurrings", "goals", "assets", "liabilities", "pensions", "insurances", "positions"]) {
       if (!Array.isArray(s[key])) s[key] = [];
     }
     if (typeof s.taxRate !== "number" || !(s.taxRate >= 0 && s.taxRate <= 1)) s.taxRate = 0;
@@ -2534,6 +2560,10 @@ function misDeCoteParDestination(y, m) {
 }
 
 const INSURANCES = S.insurances;
+/* INV1 (ADR-047) : positions manuelles DATÉES d'un compte titres. Elles
+   EXPLIQUENT le solde du compte — jamais elles ne s'y ajoutent : aucune
+   fortune, aucun total, aucun agrégat ne les lit. */
+const POSITIONS = S.positions;
 
 function saveState() {
   try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(S)); }
@@ -3956,6 +3986,30 @@ function chartScrubHTML(kind, opts) {
       <p class="caption" data-chartcaption="${kind}" aria-live="polite" style="margin-top:8px">${sel !== null ? opts.caps[sel] : opts.hint}</p>`;
 }
 
+/* INV1 (ADR-047) : les positions EXPLIQUENT le solde du compte titres —
+   valeur des positions + espèces/non réparti = solde. La fortune lit le
+   solde, jamais les positions (44'000, jamais 84'000). */
+function positionValue(p) { return round2(p.quantity * p.manualPrice); }
+function renderPositionsSection(a, bal) {
+  const list = POSITIONS.filter(p => p.accountId === a.id);
+  const total = round2(list.reduce((sum, p) => sum + positionValue(p), 0));
+  const cash = round2(bal - total);
+  const cur = a.currency || baseCurrency();
+  const fmtDate = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+  return `<p class="section-title">Positions</p>
+    ${list.length === 0 ? `<div class="card row"><span class="caption">Notez ici ce que contient ce compte — actions, fonds, ETF. Les positions expliquent le solde, elles ne s'y ajoutent jamais.</span></div>` : ""}
+    ${list.map(p => `<div class="card row tx read-row" data-posid="${esc(p.id)}" role="button" tabindex="0" style="cursor:pointer">
+      <div class="ico" aria-hidden="true">${budgetGlyph("investment")}</div>
+      <div class="meta"><div class="t">${esc(p.instrumentName)}${p.tickerOrISIN ? ` <span class="caption">${esc(p.tickerOrISIN)}</span>` : ""}</div>
+      <div class="s">${p.quantity} × ${money(p.manualPrice, cur)} · Prix saisi le ${fmtDate(p.valuationDate)}</div></div>
+      <span class="amount">${money(positionValue(p), cur)}</span></div>`).join("")}
+    ${list.length ? `<div class="card row"><div class="meta"><div class="t">Espèces / non réparti</div>
+      <div class="s">Solde du compte moins la valeur des positions</div></div>
+      <span class="amount${cash < 0 ? " neg" : ""}">${money(cash, cur)}</span></div>
+    ${cash < 0 ? `<div class="card row"><span class="caption warn">Vos positions dépassent le solde du compte. Mettez le solde à jour, ou corrigez un prix saisi.</span></div>` : ""}
+    <p class="caption" style="padding:0 4px">La valeur des positions plus les espèces égale le solde du compte : ${money(bal, cur)}. Votre fortune lit ce solde — les positions l'expliquent, elles ne s'y ajoutent jamais.</p>` : ""}
+    <button class="btn secondary" data-addpos="${esc(a.id)}" style="margin-top:4px">Ajouter une position</button>`;
+}
 function renderAccountDetail(a) {
   const bal = balance(a.id);
   const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
@@ -4000,6 +4054,7 @@ function renderAccountDetail(a) {
     </div>
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
     <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
+    ${a.kind === "brokerage" ? renderPositionsSection(a, bal) : ""}
     <p class="section-title">Historique</p>
     ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucune opération sur ce compte.</span></div>`}`;
 }
@@ -6212,6 +6267,10 @@ document.getElementById("screen").addEventListener("click", (e) => {
   const liabEl = e.target.closest("[data-liabid]");
   if (liabEl) { openItemSheet("liability", liabEl.dataset.liabid); return; }
   if (e.target.closest("[data-additem]")) { openItemSheet("asset", null); return; }
+  const posEl = e.target.closest("[data-posid]");
+  if (posEl) { const p = POSITIONS.find(x => x.id === posEl.dataset.posid); if (p) openPosSheet(p.accountId, p); return; }
+  const addPosEl = e.target.closest("[data-addpos]");
+  if (addPosEl) { openPosSheet(addPosEl.dataset.addpos, null); return; }
   const lineEl = e.target.closest("[data-linecat]");
   if (lineEl) { openLineSheet(lineEl.dataset.linecat); return; }
   if (e.target.closest("[data-addline]")) { openLineSheet(null); return; }
@@ -6629,7 +6688,8 @@ function undoLast() {
   // Les alias pointent dans S : restauration EN PLACE, jamais par réaffectation.
   const lists = [[transactions, restored.transactions], [ACCOUNTS, restored.accounts],
     [RECURRINGS, restored.recurrings], [GOALS, restored.goals], [ASSETS, restored.assets],
-    [LIABILITIES, restored.liabilities], [PENSIONS, restored.pensions], [INSURANCES, restored.insurances]];
+    [LIABILITIES, restored.liabilities], [PENSIONS, restored.pensions], [INSURANCES, restored.insurances],
+    [POSITIONS, restored.positions]];
   for (const [live, saved] of lists) { live.length = 0; live.push(...(saved || [])); }
   S.budgets = restored.budgets || {};
   S.documents = restored.documents || [];
@@ -6667,7 +6727,7 @@ function toast(message, undoable) {
 /* ---------- Feuille mouvement : ajout, édition, suppression ---------- */
 const backdrop = document.getElementById("sheetBackdrop");
 const catSelect = document.getElementById("fCat");
-const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm", "widgetForm", "svcForm"];
+const SHEET_IDS = ["txForm", "accForm", "lineForm", "goalForm", "recForm", "itemForm", "insForm", "penForm", "taxForm", "codeForm", "docForm", "billForm", "quickMenu", "salaryForm", "fxForm", "reconForm", "nameForm", "baseForm", "countryForm", "widgetForm", "svcForm", "posForm"];
 let openSheetId = null;
 let openSheetSnapshot = "";
 let sheetOpener = null;
@@ -7597,6 +7657,17 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     state.lockCode = null;
   }
 
+  // INV1 (ADR-047) : les positions n'ont AUCUN pouvoir financier — une
+  // entrée illisible ou orpheline est RETIRÉE sans faire échouer la
+  // restauration ni toucher les comptes (elles expliquent, rien de plus).
+  state.positions = (state.positions || []).filter(p => isPlainRecord(p)
+    && typeof p.id === "string" && p.id
+    && typeof p.accountId === "string" && accountIds.has(p.accountId)
+    && typeof p.instrumentName === "string" && p.instrumentName
+    && Number.isFinite(p.quantity) && p.quantity > 0
+    && Number.isFinite(p.manualPrice) && p.manualPrice >= 0
+    && typeof p.valuationDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.valuationDate)
+    && (p.costBasis == null || (Number.isFinite(p.costBasis) && p.costBasis >= 0)));
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -7674,6 +7745,7 @@ function deleteAllData() {
   LIABILITIES.length = 0;
   PENSIONS.length = 0;
   INSURANCES.length = 0;
+  POSITIONS.length = 0;
   S.documents.length = 0;
   S.lastImport = null;
   S.bills.length = 0;
@@ -8675,6 +8747,67 @@ document.getElementById("insDelete").addEventListener("click", () => {
   const index = INSURANCES.findIndex(i => i.id === editingInsId);
   if (index >= 0) INSURANCES.splice(index, 1);
   saveState(); closeSheet(); toast("Assurance supprimée", true); render();
+});
+
+/* ---------- Feuille position (INV1, ADR-047) ---------- */
+let editingPosId = null;
+let posAccountId = null;
+function openPosSheet(accountId, position) {
+  posAccountId = accountId;
+  editingPosId = position ? position.id : null;
+  document.getElementById("posForm").reset();
+  document.getElementById("posSheetTitle").textContent = position ? "Modifier la position" : "Nouvelle position";
+  document.getElementById("pDelete").style.display = position ? "block" : "none";
+  const cur = accountCurrency(accountId);
+  document.querySelectorAll("#posForm .curlabel").forEach(el => { el.textContent = cur; });
+  if (position) {
+    document.getElementById("pName").value = position.instrumentName;
+    document.getElementById("pTicker").value = position.tickerOrISIN || "";
+    document.getElementById("pQty").value = String(position.quantity);
+    document.getElementById("pPrice").value = position.manualPrice.toFixed(2);
+    document.getElementById("pDate").value = position.valuationDate;
+    document.getElementById("pCost").value = position.costBasis != null ? position.costBasis.toFixed(2) : "";
+  } else {
+    document.getElementById("pDate").value = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  }
+  document.getElementById("pError").textContent = "";
+  openSheet("posForm");
+  document.getElementById("pName").focus();
+}
+document.getElementById("pCancel").addEventListener("click", () => closeSheet());
+document.getElementById("posForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const err = document.getElementById("pError");
+  const instrumentName = document.getElementById("pName").value.trim();
+  if (!instrumentName) { err.textContent = "Donnez un nom à ce placement."; return; }
+  const quantity = parseAmountField(document.getElementById("pQty").value);
+  if (!(quantity > 0)) { err.textContent = "Cette quantité n'est pas valable. Exemple : 100"; return; }
+  const manualPrice = parseAmountField(document.getElementById("pPrice").value);
+  if (!(manualPrice >= 0)) { err.textContent = "Ce prix n'est pas un montant valable. Exemple : 400.00"; return; }
+  const valuationDate = document.getElementById("pDate").value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(valuationDate)) { err.textContent = "Choisissez la date de votre saisie."; return; }
+  const costRaw = document.getElementById("pCost").value.trim();
+  const costBasis = costRaw === "" ? null : parseAmountField(costRaw);
+  if (costBasis !== null && !(costBasis >= 0)) { err.textContent = "Le prix d'achat n'est pas un montant valable."; return; }
+  const data = {
+    accountId: posAccountId, instrumentName,
+    tickerOrISIN: document.getElementById("pTicker").value.trim() || null,
+    quantity, manualPrice, priceCurrency: accountCurrency(posAccountId),
+    valuationDate, costBasis,
+  };
+  const existing = editingPosId ? POSITIONS.find(p => p.id === editingPosId) : null;
+  if (existing) { Object.assign(existing, data); toast("Position modifiée"); }
+  else { POSITIONS.push({ id: "pos-" + Date.now().toString(36), ...data }); toast("Position ajoutée"); }
+  saveState();
+  closeSheet();
+  render();
+});
+document.getElementById("pDelete").addEventListener("click", () => {
+  if (!editingPosId || !confirm("Supprimer cette position ? Le solde du compte ne change pas.")) return;
+  pushUndo();
+  const index = POSITIONS.findIndex(p => p.id === editingPosId);
+  if (index >= 0) POSITIONS.splice(index, 1);
+  saveState(); closeSheet(); toast("Position supprimée", true); render();
 });
 
 /* ---------- Feuille prévoyance (W4) ---------- */

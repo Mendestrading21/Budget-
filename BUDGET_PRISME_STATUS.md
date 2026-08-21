@@ -43,14 +43,18 @@ Six lots livrés, fusionnés dans l'ordre (#92 → #97) sur ordre du
 propriétaire (« Publié et continue », 20.08.2026) et publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026 :
 gouvernance, P0 AVS (ADR-036), IC0 (ADR-037), IC1 (ADR-038), REC1
 (ADR-039), REC2 (ADR-040). CI verte sur chaque HEAD exact rebasé puis
-sur `main`. Depuis : P08-C (#99, `main` = `6cef3ac`) et ID1 (#100,
-`main` = `4a0646f`) fusionnés sur ordre du propriétaire (« Fusionne et
-continue », 21.08.2026) — **non publiés** : le site sert toujours le run
-`32413719185` (`58d5af29`), la publication attend un ordre explicite.
-Lots en PR brouillon (fusion sur ordre explicite), empilés dans
-l'ordre : **P05-C** (#101, CI verte sur `9145896`) → **P06/P16** (#102,
-CI verte sur `f1c1903`) → **P13-C** (#103, CI verte sur `09ec379`) →
-**P10/P12-C** (empilée sur P13-C). Ensuite INV1, BR1 — une PR par lot.
+sur `main`. Depuis, six lots supplémentaires fusionnés dans l'ordre sur
+ordres du propriétaire : P08-C (#99, `6cef3ac`) et ID1 (#100,
+`4a0646f`, « Fusionne et continue » du 21.08), puis la pile P05-C
+(#101, `909d9e8`) → P06/P16 (#102, `2098a92`) → P13-C (#103,
+`173b813`) → P10/P12-C (#104, `ff9bdba`) sur « Publié et continue fini
+tout les lots en cours » du 21.08 — chaque PR rebasée à arbre
+byte-identique et CI verte sur son HEAD exact, puis CI verte sur `main`
+(pas de déploiement excepté). **Publiés ensemble** par dispatch au SHA
+exact `ff9bdba` : run `32469395779`, succès, 21.08.2026 — le site sert
+désormais P08-C, ID1, P05-C, P06/P16, P13-C et P10/P12-C. Lot actif :
+**INV1 — positions manuelles datées** (en PR brouillon) ; ensuite BR1 —
+une PR par lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -844,9 +848,8 @@ des 2 et 30, 90 = 2 × 45) ; test natif miroir aux mêmes dates ; 160 e2e
 + 9 parités + design + catalogue verts.
 
 **P08-C — Catalogue des services et saisie libre (ADR-041)** ·
-`MERGED` — PR #99 (`main` = `6cef3ac`), fusionnée le 21.08.2026 sur
-ordre du propriétaire (« Fusionne et continue ») — **non publié** (la
-publication Pages attend un ordre explicite). « Ce qui revient » gagne
+`MERGED` + `PUBLISHED` — PR #99 (`main` = `6cef3ac`), fusionnée le
+21.08.2026, publiée par dispatch au SHA exact `ff9bdba` (run `32469395779`, succès) le 21.08.2026. « Ce qui revient » gagne
 « Choisir un service du catalogue » : 105 services/besoins (abonnements,
 factures, mises de côté) filtrés par pays, recherche pliée avec alias,
 sections par catégorie, « Je ne trouve pas mon service » qui restaure la
@@ -859,10 +862,10 @@ CI) ; iOS limité CH+GLOBAL (base CHF). Parcours 162 né rouge ;
 (`IdentityServicePickerView`) branché dans le formulaire récurrent.
 
 **ID1 — Clé d'identité optionnelle, validation, schéma et sauvegardes
-(ADR-042)** · `MERGED` — PR #100 (`main` = `4a0646f`), rebasée sur
+(ADR-042)** · `MERGED` + `PUBLISHED` — PR #100 (`main` = `4a0646f`), rebasée sur
 #99 fusionné (arbre byte-identique vérifié), CI verte sur le HEAD
-exact, fusionnée le 21.08.2026 sur ordre du propriétaire (« Fusionne et
-continue ») — **non publié**. Choisir Netflix persiste `identityKey: "netflix"` à
+exact, fusionnée le 21.08.2026, publiée par dispatch au SHA exact
+`ff9bdba` (run `32469395779`, succès) le 21.08.2026. Choisir Netflix persiste `identityKey: "netflix"` à
 l'enregistrement — renommer « Mes films » garde l'identité (tuile
 « N »). Règle de clé UNE et partagée (kebab 1-40, fixture 12 cas +
 garde littérale PWA/natif) ; clé hostile retirée sans perdre la ligne
@@ -871,8 +874,9 @@ trafiqué) ; clé inconnue conservée et repli monogramme (catalogue
 extensible) ; `BudgetSchemaV9` additif, DTO optionnel, fichier ancien
 restauré à l'identique. Parcours 163 né rouge ; 3 tests natifs ajoutés.
 
-**P05-C — Établissements sur « Comptes » (ADR-043)** · en PR
-(brouillon, fusion sur ordre du propriétaire). Le MÊME sélecteur sert
+**P05-C — Établissements sur « Comptes » (ADR-043)** · `MERGED` +
+`PUBLISHED` — PR #101 (`main` = `909d9e8`), fusionnée puis publiée par
+dispatch au SHA exact `ff9bdba` (run `32469395779`, succès) le 21.08.2026. Le MÊME sélecteur sert
 deux portes jamais mélangées : services (« Ce qui revient ») et
 institutions (« Comptes » — 44 banques, courtiers et caisses de
 prévoyance filtrés par pays, dont 19 pour la Suisse ; les assureurs
@@ -891,8 +895,10 @@ en ligne). Parcours 164 né rouge ; 2 tests natifs ajoutés
 `testInstitutionMatchingIsExactNeverContains`) ; 164 e2e + 9 parités +
 design + catalogue + audit verts ; captures 320/390 inspectées.
 
-**P06/P16 — Fiche et onboarding (ADR-044)** · en PR (brouillon, empilée
-sur P05-C/#101 — la fusionner d'abord). La fiche de compte P06 porte la
+**P06/P16 — Fiche et onboarding (ADR-044)** · `MERGED` + `PUBLISHED` —
+PR #102 (`main` = `2098a92`), rebasée à arbre byte-identique, CI verte
+sur le HEAD exact, fusionnée puis publiée par dispatch au SHA exact
+`ff9bdba` (run `32469395779`, succès) le 21.08.2026. La fiche de compte P06 porte la
 MÊME tuile d'identité que la liste (correspondance exacte, un inconnu
 reste sans tuile) ; l'étape comptes de l'onboarding P16 propose la
 banque en OPTION — champ libre + « Choisir ma banque… » (sélecteur
@@ -905,8 +911,10 @@ rouge (7 échecs nommés) ; `testFinishCarriesOptionalInstitutionName`
 natif ; 165 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 inspectées.
 
-**P13-C — Assureurs (ADR-045)** · en PR (brouillon, empilée sur
-P06/P16/#102 — la fusionner d'abord). Le sélecteur gagne une troisième
+**P13-C — Assureurs (ADR-045)** · `MERGED` + `PUBLISHED` — PR #103
+(`main` = `173b813`), rebasée à arbre byte-identique, CI verte sur le
+HEAD exact, fusionnée puis publiée par dispatch au SHA exact `ff9bdba`
+(run `32469395779`, succès) le 21.08.2026. Le sélecteur gagne une troisième
 porte strictement séparée : mode assureurs — institutions au sens
 `insurance` seulement (13 assureurs, CSS→Generali), jamais une banque,
 jamais un besoin générique (« Assurance ménage » reste `generic`).
@@ -921,8 +929,10 @@ nouvelle architecture), l'inconnu garde son bouclier. Natif :
 + 9 parités + design + catalogue + audit verts ; captures 320/390
 inspectées.
 
-**P10/P12-C — Icône choisie préservée (ADR-046)** · en PR (brouillon,
-empilée sur P13-C/#103 — la fusionner d'abord). Deux défauts réels
+**P10/P12-C — Icône choisie préservée (ADR-046)** · `MERGED` +
+`PUBLISHED` — PR #104 (`main` = `ff9bdba`), rebasée à arbre
+byte-identique, CI verte sur le HEAD exact, fusionnée puis publiée par
+dispatch au SHA exact `ff9bdba` (run `32469395779`, succès) le 21.08.2026. Deux défauts réels
 corrigés sur P10 : la PWA imposait 🎯 à la modification d'un objectif
 sans emoji (désormais le défaut ne s'applique qu'à la création, vide
 reste vide) ; le natif réécrivait `goal.emoji = kind.defaultEmoji` à
@@ -933,6 +943,25 @@ côtés (glyphes dérivés du type, emoji stocké jamais rendu) et
 verrouillé par le test. Parcours 167 né rouge (« obtenu 🎯 ») ;
 `FinancialGoalEmojiTests` natif ; 167 e2e + 9 parités + design +
 catalogue + audit verts ; captures 320/390 inspectées.
+
+**INV1 — Positions manuelles datées (ADR-047)** · en PR (brouillon,
+fusion sur ordre du propriétaire). Autorité de patrimoine : le SOLDE du
+compte titres — les positions l'expliquent (valeur + espèces/non
+réparti = solde, 44'000 jamais 84'000, dépassement en négatif averti,
+jamais ramené à zéro). Champs du contrat du skill (`instrumentName`,
+`tickerOrISIN?`, `quantity`, `manualPrice`, `priceCurrency`,
+`valuationDate`, `costBasis?`) ; « Prix saisi le … », jamais « en
+direct » ni « cours actuel » (interdits et testés). PWA : clé d'état
+additive `positions` (ancien état → `[]`, restauration tolérante — une
+position illisible/orpheline est retirée sans faire échouer le
+fichier), section sur la fiche du compte titres + feuille `posForm`.
+Natif : `BrokeragePosition` (`BudgetSchemaV10` additif, ADR-015),
+`BrokeragePositionMath` testable, section `AccountDetailView`
+(`.broker`), `PositionFormView`, DTO de sauvegarde optionnel (fichier
+ancien restauré à l'identique), garde de suppression de compte.
+Parcours 168 né rouge (6 échecs nommés) ; `BrokeragePositionTests`
+natif (4 tests) ; 168 e2e + 9 parités + design + catalogue + audit
+verts ; captures 320/390 inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

@@ -9470,6 +9470,88 @@ check(p10c.defautCreation === "🎯",
 check(p10c.glypheBien === true && p10c.glypheDette === true && p10c.emojiRendu === false,
   `biens et dettes dérivent leur glyphe du type, l'emoji stocké n'est jamais rendu (bien ${p10c.glypheBien} / dette ${p10c.glypheDette} / emoji rendu ${p10c.emojiRendu})`);
 
+// ---------- 168. INV1 : les positions expliquent le solde, elles ne s'y ajoutent jamais (ADR-047) ----------
+// Programme Identités locales : positions manuelles DATÉES sur un compte
+// titres. Autorité de patrimoine : le solde du compte — 44'000 avec
+// 40'000 de positions = 44'000 de fortune, jamais 84'000, et la
+// différence s'affiche en « Espèces / non réparti ». Une valeur manuelle
+// dit « Prix saisi le… », jamais « en direct » ni « cours actuel ».
+currentTest = "INV1 positions";
+{
+  const ctx168 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p168 = await ctx168.newPage();
+  p168.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[INV1] ${msg.text()}`); });
+  await p168.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Titres" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "acc-t", name: "Compte titres", inst: "", kind: "brokerage",
+        opening: 44000, cash: false, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p168.goto(APP_URL);
+  await p168.waitForSelector("#tabbar button");
+  const inv = await p168.evaluate(() => {
+    const resultat = {};
+    const fortune = () => {
+      activeTab = "accounts"; accountView = null; moreView = null; render();
+      const ligne = [...document.querySelectorAll(".breakdown div")]
+        .find(d => /Fortune totale/.test(d.textContent));
+      return ligne ? ligne.textContent.trim() : document.getElementById("screen").textContent.match(/Fortune[^C]*CHF[\s\S]{0,20}/)?.[0] || null;
+    };
+    resultat.fortuneAvant = fortune();
+    activeTab = "accounts"; accountView = "acc-t"; render();
+    resultat.section = /Positions/.test(document.getElementById("screen").textContent);
+    resultat.bouton = !!document.querySelector("[data-addpos]");
+    if (!resultat.bouton) return resultat;
+    document.querySelector("[data-addpos]").click();
+    resultat.feuille = document.getElementById("posForm").style.display !== "none";
+    document.getElementById("pName").value = "Actions Monde";
+    document.getElementById("pTicker").value = "VWRL";
+    document.getElementById("pQty").value = "100";
+    document.getElementById("pPrice").value = "400.00";
+    document.getElementById("pDate").value = "2026-08-15";
+    document.getElementById("posForm").dispatchEvent(new Event("submit"));
+    const stocke = (S.positions || [])[0];
+    resultat.stocke = stocke ? {
+      compte: stocke.accountId, nom: stocke.instrumentName, ticker: stocke.tickerOrISIN,
+      qte: stocke.quantity, prix: stocke.manualPrice, date: stocke.valuationDate,
+    } : null;
+    activeTab = "accounts"; accountView = "acc-t"; render();
+    const ecran = document.getElementById("screen").textContent;
+    resultat.valeur = /40[ ']000\.00/.test(ecran);
+    // Montant EXACT de la ligne Espèces — un « 44'000.00 » saboté
+    // contiendrait « 4'000.00 » : on lit la ligne, pas l'écran entier.
+    const ligneEspeces = [...document.querySelectorAll(".card.row")]
+      .find(l => /Espèces/.test(l.textContent));
+    resultat.especes = ligneEspeces
+      ? ligneEspeces.querySelector(".amount").textContent.replace(/[\u00A0\u202F]/g, " ").trim()
+      : null;
+    resultat.prixSaisi = /Prix saisi le 15\.08\.2026/.test(ecran);
+    resultat.jargonDirect = /en direct|cours actuel|temps réel/i.test(ecran);
+    resultat.fortuneApres = fortune();
+    // Persistance : la position survit au rechargement de l'état.
+    resultat.persiste = (JSON.parse(localStorage.getItem("budget-app-state-v1")).positions || []).length === 1;
+    return resultat;
+  });
+  check(inv.section === true && inv.bouton === true && inv.feuille === true,
+    "la fiche du compte titres offre des positions manuelles datées");
+  check(inv.stocke && inv.stocke.compte === "acc-t" && inv.stocke.nom === "Actions Monde"
+      && inv.stocke.ticker === "VWRL" && inv.stocke.qte === 100 && inv.stocke.prix === 400
+      && inv.stocke.date === "2026-08-15",
+    `la position stocke les champs du contrat, rien d'autre (obtenu ${JSON.stringify(inv.stocke)})`);
+  check(inv.valeur === true && inv.especes === "CHF 4'000.00",
+    `40'000 de positions + 4'000 d'espèces expliquent le solde de 44'000 (valeur ${inv.valeur} / espèces « ${inv.especes} »)`);
+  check(inv.fortuneApres === inv.fortuneAvant && /44[ ']000\.00/.test(inv.fortuneApres || ""),
+    `la fortune reste 44'000 — jamais 84'000 (avant « ${inv.fortuneAvant} » / après « ${inv.fortuneApres} »)`);
+  check(inv.prixSaisi === true && inv.jargonDirect === false,
+    `une valeur manuelle dit « Prix saisi le… », jamais « en direct » (obtenu ${inv.prixSaisi} / jargon ${inv.jargonDirect})`);
+  check(inv.persiste === true, "la position est enregistrée avec l'état local");
+  await ctx168.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9479,4 +9561,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 167 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 168 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
