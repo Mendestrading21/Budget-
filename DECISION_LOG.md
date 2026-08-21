@@ -1,5 +1,50 @@
 # Budget decision log
 
+## ADR-044 — P06/P16 : la fiche réutilise l'identité, l'onboarding la propose en option
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot P06/P16 (« après P05, réutiliser
+exactement la même identité dans la fiche de compte, puis l'onboarding
+en option facultative avec Passer et sauvegarde atomique »). La liste
+des comptes décorait (ADR-043) mais la fiche P06 restait nue, et
+l'onboarding P16 créait le premier compte sans établissement.
+
+### Décision
+
+1. La fiche de compte P06 porte la MÊME tuile d'identité que la liste :
+   correspondance EXACTE nom/alias pliée via la même fonction
+   (`institutionEntryFor` PWA, `institutionEntry(matching:)` natif) —
+   un établissement inconnu garde sa fiche sans tuile, jamais de
+   devinette, jamais d'effet sur le solde.
+2. L'étape comptes de l'onboarding P16 gagne une OPTION banque : un
+   champ libre « Banque (facultatif) » et « Choisir ma banque… » qui
+   ouvre le sélecteur d'institutions (ADR-043). Annuler et « Je ne
+   trouve pas » referment la feuille sans rien changer ; choisir
+   remplit le champ et rend la main à l'étape.
+3. La sauvegarde reste ATOMIQUE : rien n'est écrit avant « C'est
+   parti » (PWA) / « Créer mon ménage » (natif) — le nom choisi vit
+   dans l'état de l'onboarding et devient l'`inst` du premier compte à
+   la fin, dans le même save que tout le reste.
+4. Le sélecteur filtre par le pays choisi à l'ÉTAPE 1 de l'onboarding
+   (`svcCountry()`) — `S.country` n'existe qu'à la fin ; après
+   l'onboarding, le pays enregistré reprend la main.
+5. Le sélecteur gagne un appelant explicite (`svcPickerCaller`
+   rec/acc/ob) : chaque porte rend la main au bon endroit, sans jamais
+   rouvrir une feuille qui n'était pas ouverte.
+
+### Vérification
+
+Parcours 165 né rouge (7 échecs nommés : tuile de fiche absente, champ
+et bouton absents, Annuler, filtre pays, remplissage sans création,
+compte final sans banque, tuile absente sur Comptes) ;
+`testFinishCarriesOptionalInstitutionName` natif (nom plié dans le même
+save, vide reste vide, correspondance retrouvée) ; contrôle négatif par
+sabotage ; captures 320/390 inspectées.
+
 ## ADR-043 — P05-C : choisir sa banque remplit un nom, jamais un solde
 
 Date: 2026-08-21

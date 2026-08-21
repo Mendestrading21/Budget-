@@ -9230,6 +9230,109 @@ check(p05.tuile === "U",
 check(p05.promesses === false,
   "aucune promesse de connexion, de synchronisation ni de direct");
 
+// ---------- 165. P06/P16 : la fiche réutilise l'identité, l'onboarding la propose en option (ADR-044) ----------
+// Programme Identités locales : la fiche de compte P06 porte la MÊME tuile
+// d'identité que la liste (correspondance exacte, sinon rien) ; l'onboarding
+// P16 propose la banque en OPTION — champ libre + sélecteur institutions,
+// Annuler ne change rien, et le compte n'est créé qu'à la fin (atomique).
+currentTest = "P06/P16 identité";
+const p06 = await page.evaluate(() => {
+  const resultat = {};
+  ACCOUNTS.push({ id: "acc-p06", name: "Courant UBS", inst: "UBS", kind: "current",
+    opening: 0, cash: true, currency: "CHF" });
+  activeTab = "accounts"; accountView = "acc-p06"; moreView = null; render();
+  const ecran = document.getElementById("screen");
+  resultat.tuileFiche = ecran.querySelector(".identity-tile")
+    ? ecran.querySelector(".identity-tile").textContent.trim() : null;
+  resultat.promesses = /connecté|synchronis|en direct/i.test(ecran.textContent);
+  const acc = ACCOUNTS.find(a => a.id === "acc-p06");
+  acc.inst = "Ma petite banque"; render();
+  resultat.tuileInconnue = !!ecran.querySelector(".identity-tile");
+  accountView = null;
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "acc-p06"), 1);
+  activeTab = "home"; render();
+  return resultat;
+});
+check(p06.tuileFiche === "U",
+  `la fiche de compte porte la tuile de son établissement (obtenu ${p06.tuileFiche})`);
+check(p06.tuileInconnue === false,
+  "un établissement inconnu garde sa fiche sans tuile — jamais de devinette");
+check(p06.promesses === false,
+  "la fiche ne promet ni connexion, ni synchronisation, ni direct");
+{
+  const ctx165 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p165 = await ctx165.newPage();
+  p165.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[P06/P16] ${msg.text()}`); });
+  await p165.goto(APP_URL);
+  await p165.waitForSelector('[data-obcountry="CH"]');
+  await p165.click('[data-obcountry="CH"]');
+  await p165.click('[data-obhh="solo"]');
+  await p165.fill("#obName", "Léa"); await p165.click('#obForm1 button[type="submit"]');
+  await p165.fill("#obSalary", "5000"); await p165.click('#obForm2 button[type="submit"]');
+  await p165.waitForSelector("#obOpening", { state: "visible" });
+  const ob = await p165.evaluate(() => {
+    const resultat = {
+      champ: !!document.getElementById("obInst"),
+      bouton: !!document.getElementById("obPickInst"),
+    };
+    if (!resultat.champ || !resultat.bouton) return resultat;
+    // Annuler d'abord : le champ reste tel quel (option vraiment facultative).
+    document.getElementById("obPickInst").click();
+    resultat.feuille = document.getElementById("svcForm").style.display !== "none";
+    document.getElementById("svcCancel").click();
+    resultat.champApresAnnuler = document.getElementById("obInst").value;
+    resultat.etapeIntacte = !!document.getElementById("obOpening");
+    // Puis choisir : UBS proposé (pays de l'onboarding, pas encore S.country),
+    // jamais Netflix ; la sélection remplit le champ et rend la main à l'étape.
+    document.getElementById("obPickInst").click();
+    const search = document.getElementById("svcSearch");
+    search.value = "ubs"; search.dispatchEvent(new Event("input"));
+    resultat.trouve = !!document.querySelector('#svcResults [data-svckey="ubs"]');
+    search.value = "netflix"; search.dispatchEvent(new Event("input"));
+    resultat.netflixAbsent = !document.querySelector('#svcResults [data-svckey="netflix"]');
+    search.value = "ubs"; search.dispatchEvent(new Event("input"));
+    document.querySelector('#svcResults [data-svckey="ubs"]').click();
+    // La feuille part en animation : l'état vrai est openSheetId/backdrop.
+    resultat.feuilleFermee = openSheetId === null
+      && !document.getElementById("sheetBackdrop").classList.contains("open");
+    resultat.champRempli = document.getElementById("obInst").value;
+    resultat.comptesAvant = ACCOUNTS.length;
+    return resultat;
+  });
+  check(ob.champ && ob.bouton,
+    "l'étape comptes propose la banque en option — champ libre + sélecteur");
+  check(ob.feuille === true && ob.champApresAnnuler === "" && ob.etapeIntacte === true,
+    "Annuler le sélecteur ne change rien : champ vide, étape intacte");
+  check(ob.trouve === true && ob.netflixAbsent === true,
+    "le sélecteur de l'onboarding filtre par le pays choisi et ne montre jamais un service");
+  check(ob.feuilleFermee === true && ob.champRempli === "UBS" && ob.comptesAvant === 0,
+    `choisir remplit le champ et ne crée RIEN avant la fin (obtenu « ${ob.champRempli} », ${ob.comptesAvant} compte)`);
+  await p165.fill("#obOpening", "2000");
+  await p165.click('#obForm3 button[type="submit"]');
+  await p165.waitForSelector("#obFormCharges", { state: "visible" });
+  await p165.click("[data-obskipcharges]");
+  await p165.waitForSelector("#obFormSubs", { state: "visible" });
+  await p165.click("[data-obskipsubs]");
+  await p165.waitForSelector("[data-obskipgoal]", { state: "visible" });
+  await p165.click("[data-obskipgoal]");
+  await p165.waitForSelector("#tabbar button");
+  const fin = await p165.evaluate(() => {
+    activeTab = "accounts"; moreView = null; render();
+    const ligne = document.querySelector("[data-accid]");
+    return {
+      inst: ACCOUNTS[0] ? ACCOUNTS[0].inst : null,
+      solde: ACCOUNTS[0] ? ACCOUNTS[0].opening : null,
+      tuile: ligne && ligne.querySelector(".identity-tile")
+        ? ligne.querySelector(".identity-tile").textContent.trim() : null,
+    };
+  });
+  check(fin.inst === "UBS" && fin.solde === 2000,
+    `la fin de l'onboarding crée le compte en un seul geste — banque « ${fin.inst} », solde ${fin.solde}`);
+  check(fin.tuile === "U",
+    `le compte créé à l'onboarding porte sa tuile sur Comptes (obtenu ${fin.tuile})`);
+  await ctx165.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9239,4 +9342,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 164 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 165 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

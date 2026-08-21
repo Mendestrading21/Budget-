@@ -97,6 +97,26 @@ final class OnboardingViewModelTests: XCTestCase {
         XCTAssertEqual(categories.count, DefaultCategories.all.count)
     }
 
+    /// P16 (ADR-044) : la banque est une OPTION — un nom pour le premier
+    /// compte, rien d'autre, dans le MÊME save atomique. Vide reste vide.
+    func testFinishCarriesOptionalInstitutionName() throws {
+        let model = makeValidModel()
+        model.step = .income
+        model.institutionName = "  UBS "
+        try model.finish(context: context, calendar: utcCalendar, now: Date(timeIntervalSince1970: 1_781_524_800))
+
+        let account = try XCTUnwrap(try context.fetch(FetchDescriptor<Account>()).first)
+        XCTAssertEqual(account.institutionName, "UBS", "le nom arrive plié, jamais un solde ni un accès")
+        XCTAssertEqual(account.openingBalance, Decimal("2500.00"), "l'identité ne touche pas l'argent")
+        XCTAssertEqual(
+            BudgetIdentityCatalog.institutionEntry(matching: account.institutionName)?.key, "ubs",
+            "la fiche P06 retrouvera la même identité par correspondance exacte"
+        )
+
+        let vierge = makeValidModel()
+        XCTAssertEqual(vierge.institutionName, "", "sans choix, aucun établissement n'est inventé")
+    }
+
     func testFinishDoesNothingWhenInvalid() throws {
         let model = makeValidModel()
         model.step = .firstAccount
