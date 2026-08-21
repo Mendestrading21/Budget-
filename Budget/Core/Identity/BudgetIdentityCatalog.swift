@@ -206,4 +206,28 @@ enum BudgetIdentityCatalog {
     static var serviceEntries: [BudgetIdentityEntry] {
         iosMarketEntries.filter { serviceSenses.contains($0.financialSense) }
     }
+
+    /// P05-C (ADR-043) : institutions proposées sur « Comptes » —
+    /// banques, courtiers et prévoyance (les assureurs attendent P13-C).
+    static let institutionSenses: Set<String> = ["account", "broker", "pension"]
+
+    static var institutionEntries: [BudgetIdentityEntry] {
+        iosMarketEntries.filter { $0.entityKind == "institution" && institutionSenses.contains($0.financialSense) }
+    }
+
+    /// L'entrée d'institution qui correspond EXACTEMENT à un nom saisi
+    /// (nom ou alias, plié accents/casse) — jamais un « contient » :
+    /// « CA » ou « BP » ne devinent rien (règle du skill).
+    static func institutionEntry(matching name: String) -> BudgetIdentityEntry? {
+        let needle = folded(name.trimmingCharacters(in: .whitespaces))
+        guard !needle.isEmpty else { return nil }
+        return all.first { entry in
+            entry.entityKind == "institution"
+                && ([entry.displayName] + entry.aliases).contains { folded($0) == needle }
+        }
+    }
+
+    private static func folded(_ value: String) -> String {
+        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_CH"))
+    }
 }

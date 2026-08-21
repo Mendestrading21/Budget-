@@ -37,6 +37,31 @@ final class BudgetIdentityCatalogTests: XCTestCase {
                        "choisir une banque ne se fait pas depuis « Ce qui revient »")
     }
 
+    // P05-C (ADR-043) : les institutions proposées sur « Comptes » —
+    // banques, courtiers, prévoyance ; les assureurs attendent P13-C.
+    func testInstitutionEntriesStayOnTheirDoor() {
+        let entries = BudgetIdentityCatalog.institutionEntries
+        XCTAssertTrue(entries.allSatisfy { $0.entityKind == "institution" })
+        let senses = Set(entries.map(\.financialSense))
+        XCTAssertEqual(senses.subtracting(["account", "broker", "pension"]), [],
+                       "les assureurs attendent P13-C")
+        let keys = Set(entries.map(\.key))
+        XCTAssertTrue(keys.contains("ubs"), "les banques suisses sont proposées")
+        XCTAssertFalse(keys.contains("netflix"), "un service n'est jamais une institution")
+    }
+
+    func testInstitutionMatchingIsExactNeverContains() {
+        XCTAssertEqual(BudgetIdentityCatalog.institutionEntry(matching: "UBS")?.key, "ubs")
+        XCTAssertEqual(BudgetIdentityCatalog.institutionEntry(matching: "  ubs ")?.key, "ubs",
+                       "pliage casse + espaces : la reconnaissance reste exacte")
+        XCTAssertNil(BudgetIdentityCatalog.institutionEntry(matching: "Netflix"),
+                     "un service connu n'est pas une institution")
+        XCTAssertNil(BudgetIdentityCatalog.institutionEntry(matching: "Ma petite banque"),
+                     "un nom inconnu garde son glyphe de type de compte")
+        XCTAssertNil(BudgetIdentityCatalog.institutionEntry(matching: ""),
+                     "vide : jamais de correspondance")
+    }
+
     func testSuggestionMappingNeverInventsACategory() {
         XCTAssertEqual(IdentityServicePickerView.appCategoryName(for: "video"), "Restaurants et sorties")
         XCTAssertEqual(IdentityServicePickerView.appCategoryName(for: "telecom"), "Logement")

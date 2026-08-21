@@ -1248,6 +1248,8 @@
       <input id="aName" placeholder="Compte courant UBS" autocomplete="off" />
       <label for="aInst">Banque / institution (facultatif)</label>
       <input id="aInst" placeholder="Banque Exemple" autocomplete="off" />
+      <button type="button" class="btn secondary" id="aPickInst" style="margin:2px 0 6px">Choisir ma banque ou mon courtier</button>
+      <p class="caption" style="margin:0 0 6px">Choisir remplit seulement le nom de l'établissement — jamais un solde, un accès ou une connexion.</p>
       <label for="aKind">Type de compte</label>
       <select id="aKind">
         <option value="current">Compte courant</option>
@@ -1531,14 +1533,14 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="svcForm" style="display:none">
-      <h3>Quel service ?</h3>
+      <h3 id="svcSheetTitle">Quel service ?</h3>
       <label for="svcSearch">Cherchez un nom</label>
       <input id="svcSearch" placeholder="Netflix, Swisscom, CFF…" autocomplete="off" />
-      <p class="caption" style="margin:4px 0 8px">Choisir un service propose seulement un nom et un rythme. Le montant, le compte et la date restent à vous.</p>
+      <p class="caption" id="svcSheetCaption" style="margin:4px 0 8px">Choisir un service propose seulement un nom et un rythme. Le montant, le compte et la date restent à vous.</p>
       <div id="svcResults" style="max-height:46vh;overflow-y:auto"></div>
       <div class="actions sticky">
         <button type="button" class="btn secondary" id="svcCancel">Annuler</button>
-        <button type="button" class="btn secondary" id="svcFree">Je ne trouve pas mon service</button>
+        <button type="button" class="btn secondary" id="svcFree">Je ne trouve pas</button>
       </div>
     </form>
 
@@ -2082,8 +2084,16 @@ const SVC_CATEGORY_LABEL = {
   housing: "Logement", transport: "Transports", health: "Santé",
   childcare: "Famille", credit: "Crédits", tax: "Impôts", saving: "Épargne",
   investment: "Placements", pension: "Prévoyance", other: "Autres",
+  bank: "Banques", broker: "Courtiers", fintech: "Banques en ligne",
 };
-const SVC_SENSE_LABEL = { subscription: "Abonnement", bill: "Facture", set_aside: "Mise de côté" };
+const SVC_SENSE_LABEL = { subscription: "Abonnement", bill: "Facture", set_aside: "Mise de côté",
+  account: "Banque", broker: "Courtier", pension: "Prévoyance" };
+/* P05-C (ADR-043) : le MÊME sélecteur sert deux portes — les services
+   de « Ce qui revient » et les institutions de « Comptes ». Jamais
+   mélangés : Netflix n'apparaît pas parmi les banques, UBS n'apparaît
+   pas parmi les abonnements. */
+const INST_SENSES = new Set(["account", "broker", "pension"]);
+let svcPickerMode = "services";
 /* ID1 (ADR-042) : la clé d'identité est une chaîne kebab ASCII de 1 à
    40 caractères — la même règle que fixtures/identity-key-cases.json et
    que le natif (BudgetIdentityKey). Tout le reste est RETIRÉ sans
@@ -2096,6 +2106,15 @@ function sanitizeIdentityKey(value) {
 /* Le nom d'identité AFFICHÉ : l'entrée du catalogue si la clé est
    connue, sinon le titre de la ligne — une clé inconnue ou retirée
    retombe sans erreur (catalogue extensible). */
+/* L'entrée d'institution EXACTE (nom ou alias, plié) — jamais un
+   « contient » : « CA » ou « BP » ne devinent rien (règle du skill). */
+function institutionEntryFor(name) {
+  const needle = fold(String(name || "").trim());
+  if (!needle) return null;
+  return IDENTITY_CATALOG.identities.find(e =>
+    e.entityKind === "institution"
+    && [e.displayName, ...(e.aliases || [])].some(a => fold(a) === needle)) || null;
+}
 function identityNameFor(record) {
   const key = record && sanitizeIdentityKey(record.identityKey);
   if (key) {
@@ -2106,8 +2125,11 @@ function identityNameFor(record) {
 }
 function svcEntries() {
   const country = COUNTRIES[S.country] ? S.country : "CH";
+  const institutions = svcPickerMode === "institutions";
   return IDENTITY_CATALOG.identities.filter(e =>
-    SVC_SENSES.has(e.financialSense)
+    (institutions
+      ? e.entityKind === "institution" && INST_SENSES.has(e.financialSense)
+      : SVC_SENSES.has(e.financialSense))
     && (e.markets.includes("GLOBAL") || e.markets.includes(country)));
 }
 function svcMatches(entry, needle) {
@@ -4063,7 +4085,9 @@ function renderAccounts() {
               perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
           : "";
         return `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
-        <div class="ico" aria-hidden="true">${budgetGlyph(ACCOUNT_GLYPH[a.kind] || "accounts")}</div>
+        ${institutionEntryFor(a.inst)
+          ? identityTile(institutionEntryFor(a.inst).displayName)
+          : `<div class="ico" aria-hidden="true">${budgetGlyph(ACCOUNT_GLYPH[a.kind] || "accounts")}</div>`}
         <div class="meta"><div class="t">${esc(a.name)}</div>
           <div class="s">${esc(a.inst || kindLabel(a.kind))}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}${a.cash ? "" : " · pas dans l'argent disponible"}${(() => { const f = accountFreshness(a.id); return f ? " · " + esc(f) : ""; })()}</div>${contribLine}</div>
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
@@ -8106,7 +8130,8 @@ function renderSvcResults() {
     groups.get(e.category).push(e);
   }
   const countryName = (COUNTRIES[S.country] || COUNTRIES.CH).name;
-  list.innerHTML = `<p class="svc-section">Services pour votre pays — ${esc(countryName)}</p>`
+  list.innerHTML = `<p class="svc-section">${svcPickerMode === "institutions"
+    ? "Établissements pour votre pays" : "Services pour votre pays"} — ${esc(countryName)}</p>`
     + [...groups.entries()]
       .sort((a, b) => (SVC_CATEGORY_LABEL[a[0]] || a[0]).localeCompare(SVC_CATEGORY_LABEL[b[0]] || b[0], "fr"))
       .map(([cat, items]) => `<p class="svc-section">${esc(SVC_CATEGORY_LABEL[cat] || cat)}</p>`
@@ -8132,22 +8157,72 @@ function applySvcSelection(entry) {
   }
   document.getElementById("rAmount").focus();
 }
-document.getElementById("rPickService").addEventListener("click", () => {
-  svcRecSnapshot = snapshotRecFields();
+function openSvcPicker(mode) {
+  svcPickerMode = mode;
+  document.getElementById("svcSheetTitle").textContent =
+    mode === "institutions" ? "Quelle banque, quel courtier ?" : "Quel service ?";
+  document.getElementById("svcSearch").placeholder =
+    mode === "institutions" ? "UBS, Swissquote, VIAC…" : "Netflix, Swisscom, CFF…";
+  document.getElementById("svcSheetCaption").textContent =
+    mode === "institutions"
+      ? "Choisir un établissement propose seulement un nom. Le solde, les comptes et l'argent restent à vous — rien ne se connecte."
+      : "Choisir un service propose seulement un nom et un rythme. Le montant, le compte et la date restent à vous.";
   openSheet("svcForm");
   document.getElementById("svcSearch").value = "";
   renderSvcResults();
   document.getElementById("svcSearch").focus();
+}
+document.getElementById("rPickService").addEventListener("click", () => {
+  svcRecSnapshot = snapshotRecFields();
+  openSvcPicker("services");
+});
+/* P05-C : la feuille Compte garde sa saisie pendant le choix. */
+let svcAccSnapshot = null;
+function snapshotAccFields() {
+  return {
+    name: document.getElementById("aName").value,
+    inst: document.getElementById("aInst").value,
+    kind: document.getElementById("aKind").value,
+    currency: document.getElementById("aCurrency").value,
+    opening: document.getElementById("aOpening").value,
+  };
+}
+function reopenAccWith(snap) {
+  const editing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
+  openAccSheet(editing);
+  if (!snap) return;
+  document.getElementById("aName").value = snap.name;
+  document.getElementById("aInst").value = snap.inst;
+  document.getElementById("aKind").value = snap.kind;
+  document.getElementById("aCurrency").value = snap.currency;
+  document.getElementById("aOpening").value = snap.opening;
+}
+document.getElementById("aPickInst").addEventListener("click", () => {
+  svcAccSnapshot = snapshotAccFields();
+  openSvcPicker("institutions");
 });
 document.getElementById("svcSearch").addEventListener("input", renderSvcResults);
 document.getElementById("svcResults").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-svckey]");
   if (!btn) return;
   const entry = svcEntries().find(x => x.key === btn.dataset.svckey);
-  if (entry) applySvcSelection(entry);
+  if (!entry) return;
+  if (svcPickerMode === "institutions") {
+    // Choisir remplit SEULEMENT l'établissement — le reste de la saisie
+    // revient tel quel, et rien n'est créé.
+    reopenAccWith(svcAccSnapshot);
+    document.getElementById("aInst").value = entry.displayName;
+    document.getElementById("aName").focus();
+  } else {
+    applySvcSelection(entry);
+  }
 });
-document.getElementById("svcFree").addEventListener("click", () => reopenRecWith(svcRecSnapshot));
-document.getElementById("svcCancel").addEventListener("click", () => reopenRecWith(svcRecSnapshot));
+function svcReturnToCaller() {
+  if (svcPickerMode === "institutions") reopenAccWith(svcAccSnapshot);
+  else reopenRecWith(svcRecSnapshot);
+}
+document.getElementById("svcFree").addEventListener("click", svcReturnToCaller);
+document.getElementById("svcCancel").addEventListener("click", svcReturnToCaller);
 
 /* La destination n'apparaît que pour une mise de côté, et n'y est jamais
    facultative : sans compte d'arrivée, l'argent disparaît du patrimoine. */

@@ -22,6 +22,7 @@ struct AccountFormView: View {
     @State private var isShared = false
     @State private var includeInAvailableCash = true
     @State private var includeInNetWorth = true
+    @State private var isPickingInstitution = false
     @State private var errorMessage: String?
 
     private var editedAccount: Account? {
@@ -40,6 +41,15 @@ struct AccountFormView: View {
                 Section("Compte") {
                     TextField("Nom", text: $name)
                     TextField("Établissement (facultatif)", text: $institutionName)
+                    // P05-C (ADR-043) : choisir remplit SEULEMENT le nom
+                    // de l'établissement — jamais un solde, un accès ou
+                    // une connexion.
+                    Button {
+                        isPickingInstitution = true
+                    } label: {
+                        Label("Choisir ma banque ou mon courtier", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("account.pickInstitution")
                     Picker("Type", selection: $type) {
                         ForEach(AccountType.allCases) { type in
                             Text(type.displayName).tag(type)
@@ -88,6 +98,11 @@ struct AccountFormView: View {
                 }
             }
             .onAppear(perform: populateFromAccount)
+            .sheet(isPresented: $isPickingInstitution) {
+                IdentityServicePickerView(mode: .institutions) { entry in
+                    institutionName = entry.displayName
+                }
+            }
         }
     }
 

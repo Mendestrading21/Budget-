@@ -1,5 +1,55 @@
 # Budget decision log
 
+## ADR-043 — P05-C : choisir sa banque remplit un nom, jamais un solde
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, lot P05-C. Le catalogue compte 57
+institutions (44 banques, courtiers et caisses de prévoyance,
+13 assureurs) mais « Comptes »
+ne proposait rien : l'établissement restait un champ libre anonyme, et
+aucune identité ne décorait la liste des comptes.
+
+### Décision
+
+1. Le MÊME sélecteur sert deux portes STRICTEMENT séparées : mode
+   `services` (« Ce qui revient », sens subscription/bill/set_aside)
+   et mode `institutions` (« Comptes », entityKind `institution` et
+   sens account/broker/pension). Netflix n'apparaît jamais parmi les
+   banques, UBS jamais parmi les abonnements. Les assureurs (sens
+   `insurance`) attendent P13-C.
+2. Choisir un établissement remplit UNIQUEMENT le champ « Établissement »
+   avec le nom du catalogue. Jamais un solde, un accès, une connexion,
+   un nom de compte ni un montant — la légende du formulaire le dit.
+   « Je ne trouve pas mon établissement » et Annuler ramènent la saisie
+   telle quelle.
+3. La liste des comptes reconnaît un établissement par correspondance
+   EXACTE (nom ou alias, plié accents/casse/espaces — jamais un
+   « contient » : « CA » ou « BP » ne devinent rien) et le décore par
+   `BudgetIdentityIcon` ; sinon le glyphe du type de compte reste.
+   L'identité décore : aucun agrégat, aucun solde ne change.
+4. Natif : `BudgetIdentityCatalog` généré gagne `institutionEntries` et
+   `institutionEntry(matching:)` (générateur = seule source) ;
+   `IdentityServicePickerView` gagne `Mode` ; `AccountFormView` ouvre le
+   sélecteur en mode institutions ; `AccountRow` décore. PWA : miroir
+   exact (`INST_SENSES`, `svcPickerMode`, `institutionEntryFor`,
+   snapshot/restauration du formulaire compte).
+5. Les catégories d'institutions gagnent leurs libellés français des
+   DEUX côtés (Banques, Courtiers, Banques en ligne) — aucun mot
+   technique anglais en interface.
+
+### Vérification
+
+Parcours 164 né rouge (bouton absent, mode mélangé, champ non rempli,
+tuile absente) ; `testInstitutionEntriesStayOnTheirDoor` et
+`testInstitutionMatchingIsExactNeverContains` natifs ; garde de dérive du
+générateur en CI ; l'écran compte ne dit jamais « connecté »,
+« synchronisé » ni « en direct » (assertion du parcours 164) ; contrôle
+négatif par sabotage ; captures 320/390 inspectées.
+
 ## ADR-042 — ID1 : une clé d'identité optionnelle, stable et inoffensive
 
 Date: 2026-08-20

@@ -264,10 +264,18 @@ struct AccountRow: View {
     var body: some View {
         GlassCard(style: .row) {
             HStack(spacing: BudgetSpacing.medium) {
-                Image(systemName: account.type.systemImage)
-                    .font(.title3)
-                    .foregroundStyle(BudgetColor.brand)
-                    .frame(width: 32)
+                // P05-C (ADR-043) : un établissement du catalogue est
+                // reconnu par son nom EXACT — l'identité décore, le solde
+                // et les agrégats ne changent jamais.
+                if let entry = BudgetIdentityCatalog.institutionEntry(matching: account.institutionName) {
+                    BudgetIdentityIcon(name: entry.displayName)
+                        .frame(width: 32)
+                } else {
+                    Image(systemName: account.type.systemImage)
+                        .font(.title3)
+                        .foregroundStyle(BudgetColor.brand)
+                        .frame(width: 32)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: BudgetSpacing.micro) {
                         Text(account.name)
