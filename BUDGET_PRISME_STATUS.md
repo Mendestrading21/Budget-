@@ -347,8 +347,11 @@ par dispatch au SHA exact le 18.08.2026.
   5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a10/`.
 
-**A11 — Structure du dossier** · `VERIFYING_AUTOMATED` — PR depuis
-`agent/prisme-a11-dossier`.
+**A11 — Structure du dossier** · `MERGED` + `PUBLISHED` — PR #50
+fusionnée en squash (`main` = `444f0a1`) ; lot documentaire publié avec
+les dispatches suivants (marqueur « VERIFYING_AUTOMATED » périmé,
+réconcilié le 21.08.2026 — `docs/INDEX.md` est sur `main`, `CLAUDE.md`
+réaligné).
 
 - Les quatre familles, suite (« la structure du dossier, tout ») :
   - **`CLAUDE.md` réécrit** pour dire la vérité opérationnelle : skill
@@ -721,7 +724,9 @@ FE2-0..7 ; les lots FE2-6/7 sont natifs (la PWA publiée est celle de
 `0091d449`, inchangée depuis).
 
 **FE2-8 — Fixture de parité n° 7 : l'union de la fortune liquide** ·
-en PR. Le scénario `fortune-liquide-union` grave la règle FE2-5 dans
+`MERGED` + `PUBLISHED` — PR #82 fusionnée en squash (`main` =
+`b1e1dc3`), série FE2 close (marqueur « en PR » périmé, réconcilié le
+21.08.2026). Le scénario `fortune-liquide-union` grave la règle FE2-5 dans
 le contrat de parité web↔natif : quatre comptes (courant hors
 quotidien 1'000, quotidien 200, épargne 500, épargne marquée cash
 300) → `liquid` 500, `savingsAccessible` 800, `liquidWealth` 1'000 —
