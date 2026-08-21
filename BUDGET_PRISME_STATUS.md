@@ -996,6 +996,18 @@ Suite catalogue née rouge (3 échecs nommés) ; parcours 169 ; contrôle
 négatif par sabotage ; captures 320/390 inspectées. Approuver un
 premier actif réel = micro-lot futur déclenché par le propriétaire.
 
+**INV1-B — Garde de suppression des positions (ADR-049)** · en PR
+(brouillon, empilée sur GOV-3/#107). Chasse aux défauts
+post-programme : la PWA ignorait les positions dans
+`accountDeleteBlocker` — supprimer un compte titres laissait ses
+positions orphelines en silence (perte muette à la restauration) ; le
+natif avait déjà la garde. Corrigé : même règle des deux côtés (« Des
+positions expliquent ce compte — supprimez-les d'abord sur sa
+fiche »), et « Effacer les opérations » DIT désormais qu'il efface
+aussi les positions (confirmation + confidentialité). Parcours 170 né
+rouge (2 échecs nommés) ; 170 e2e + 9 parités + design + catalogue +
+audit verts ; captures 320/390 inspectées.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

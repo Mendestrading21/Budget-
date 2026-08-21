@@ -1,5 +1,38 @@
 # Budget decision log
 
+## ADR-049 — INV1-B : un compte qui porte des positions ne se supprime pas en silence
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Chasse aux défauts après le programme Identités locales. INV1
+(ADR-047) a donné la garde de suppression au natif
+(`AccountDetailView.deletionBlocker`) mais PAS à la PWA :
+`accountDeleteBlocker` ignorait les positions. Supprimer un compte
+titres laissait ses positions ORPHELINES en silence — invisibles à
+l'écran, puis retirées à la prochaine restauration (perte muette).
+Second défaut d'honnêteté : « Effacer les opérations » efface les
+positions depuis INV1 sans le dire (confirmation et texte de
+confidentialité muets).
+
+### Décision
+
+1. `accountDeleteBlocker` gagne la même règle que le natif : « Des
+   positions expliquent ce compte — supprimez-les d'abord sur sa
+   fiche. » Les autres gardes ne changent pas.
+2. La double confirmation d'« Effacer les opérations » et le texte de
+   confidentialité disent désormais « positions » dans l'énumération.
+
+### Vérification
+
+Parcours 170 né rouge (2 échecs nommés : blocage absent, texte muet) ;
+le même parcours prouve que SANS position la suppression redevient
+possible ; contrôle négatif par sabotage (garde retirée → le parcours
+170 mord seul) ; captures 320/390 inspectées (message visible dans la
+feuille).
+
 ## ADR-048 — BR1 : la provenance des marques garde la porte, le monogramme reste la norme
 
 Date: 2026-08-21
