@@ -9552,6 +9552,29 @@ currentTest = "INV1 positions";
   await ctx168.close();
 }
 
+// ---------- 169. BR1 : la mention des marques est VISIBLE, le manifeste garde la porte (ADR-048) ----------
+// La suite catalogue vérifie le manifeste de provenance et les checksums ;
+// ici on prouve que la personne VOIT la mention dans les réglages.
+currentTest = "BR1 marques";
+await goHome();
+const br1 = await page.evaluate(() => {
+  activeTab = "more"; moreView = "settings"; render();
+  const ecran = document.getElementById("screen");
+  const carte = [...ecran.querySelectorAll("details")]
+    .find(d => /Marques et logos/.test(d.querySelector("summary")?.textContent || ""));
+  const resultat = { carte: !!carte };
+  if (carte) {
+    carte.open = true;
+    resultat.mention = /ni affilié, ni sponsorisé, ni connecté/.test(carte.textContent);
+    resultat.monogramme = /monogramme neutre/.test(carte.textContent);
+  }
+  activeTab = "home"; moreView = null; render();
+  return resultat;
+});
+check(br1.carte === true, "les réglages portent une carte « Marques et logos »");
+check(br1.mention === true && br1.monogramme === true,
+  "la mention dit l'indépendance (ni affilié, ni sponsorisé, ni connecté) et le monogramme neutre");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9561,4 +9584,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 168 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 169 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

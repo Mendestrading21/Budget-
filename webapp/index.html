@@ -5419,6 +5419,11 @@ const PRIVACY = [
   "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, opérations, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
   "« Charger la démonstration » remplace vos données actuelles par des données fictives après confirmation ; votre prénom est conservé.",
 ]
+/* BR1 (ADR-048) : mention exigée par la politique des marques. */
+const BRANDS_NOTICE = [
+  "Les noms et marques appartiennent à leurs propriétaires respectifs. Leur présence sert uniquement à identifier le choix de l'utilisateur. Budget n'est ni affilié, ni sponsorisé, ni connecté à ces établissements, sauf mention explicite.",
+  "Budget n'affiche aucun logo tiers : les services et établissements sont identifiés par leur nom et un monogramme neutre dessiné par Budget.",
+];
 const METHODOLOGY = [
   "Vraiment disponible = argent disponible inclus + revenus attendus (prévus et réguliers) − charges engagées (prévues et régulières) − réserve d'impôts manquante.",
   "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
@@ -5514,7 +5519,9 @@ function renderSettings() {
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Confidentialité</summary>
       ${PRIVACY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Méthodologie des calculs</summary>
-      ${METHODOLOGY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>`;
+      ${METHODOLOGY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
+    <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Marques et logos</summary>
+      ${BRANDS_NOTICE.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>`;
 }
 
 // Menu « Gérer » regroupé par intention (blueprint B07). Le sous-titre

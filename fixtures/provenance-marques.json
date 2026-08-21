@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "policy": "LOGO_POLICY.md (.claude/skills/budget-identites-locales/references/) — un actif tiers (approved_asset) exige une entrée complète ici : source officielle, conditions lues, SHA-256 de la source et du dérivé, revue humaine consignée (reviewedBy/reviewedAt), fallback sûr. Zéro entrée est une couverture complète : le monogramme n'est pas un échec.",
+  "entries": []
+}

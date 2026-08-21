@@ -1,5 +1,54 @@
 # Budget decision log
 
+## ADR-048 — BR1 : la provenance des marques garde la porte, le monogramme reste la norme
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Programme Identités locales, dernier lot BR1 (« ajouter un fournisseur
+à la fois selon LOGO_POLICY.md, avec preuve, checksum, fallback et
+captures ; aucun lot importer tous les logos »). La politique exige
+pour tout `approved_asset` une source officielle aux conditions lues,
+des SHA-256, un fallback sûr et une VALIDATION HUMAINE consignée
+(`reviewedBy`/`reviewedAt`) AVANT le passage. Cette validation
+appartient au propriétaire : aucun actif ne peut être approuvé par
+l'agent seul.
+
+### Décision
+
+1. Le manifeste de provenance versionné existe :
+   `fixtures/provenance-marques.json` (version 1, `entries: []`) — ZÉRO
+   entrée est une couverture complète, le monogramme n'est pas un échec
+   (`catalogCoverage` = 100 %, `verifiedLogoCoverage` = 0 %).
+2. Le validateur vit dans la suite catalogue (CI, avant les suites
+   navigateur) : toute identité `approved_asset` SANS entrée complète
+   de manifeste échoue ; toute entrée exige les 13 champs de la
+   politique, une clé existante au catalogue, un fallback sûr, des
+   SHA-256 hexadécimaux et un CHECKSUM EXACT recalculé sur le fichier ;
+   une entrée orpheline échoue aussi.
+3. La mention légale de la politique est VISIBLE des deux côtés
+   (réglages, « Marques et logos ») : « Les noms et marques
+   appartiennent à leurs propriétaires respectifs… Budget n'est ni
+   affilié, ni sponsorisé, ni connecté… » — et dit qu'aucun logo tiers
+   n'est affiché aujourd'hui.
+4. Approuver un premier actif reste un micro-lot futur DÉCLENCHÉ PAR LE
+   PROPRIÉTAIRE : source officielle choisie, conditions lues, revue
+   consignée — alors seulement `markPolicy` passe à `approved_asset`.
+5. Correctif d'honnêteté au passage : la méthodologie native parlait
+   encore d'un « taux configuré (30 % par défaut) » — texte aligné sur
+   ADR-035 (aucun taux, les impôts se saisissent comme des paiements).
+
+### Vérification
+
+Suite catalogue née rouge (3 échecs nommés : manifeste absent, mention
+PWA absente, mention native absente) ; parcours 169 (carte visible et
+dépliée) ; contrôle négatif par sabotage (identité passée
+`approved_asset` sans manifeste → la suite échoue en la nommant) ;
+`testPrivacyAndMethodologyTextsStayHonest` reste vert (« Estimé = payé
++ encore dû » conservé) ; captures 320/390 inspectées.
+
 ## ADR-047 — INV1 : les positions expliquent le solde, elles ne s'y ajoutent jamais
 
 Date: 2026-08-21
