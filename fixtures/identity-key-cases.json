@@ -1,0 +1,18 @@
+{
+ "version": 1,
+ "rule": "kebab-case ASCII ^[a-z0-9]+(?:-[a-z0-9]+)*$, longueur 1-40. kept=true : la cle survit a la restauration ; kept=false : la cle est retiree SANS toucher a la ligne (jamais de perte de donnees, jamais de markup).",
+ "cases": [
+  { "value": "netflix", "kept": true, "note": "cle connue du catalogue" },
+  { "value": "pillar-3a-contribution", "kept": true, "note": "kebab long du catalogue reel" },
+  { "value": "future-service", "kept": true, "note": "inconnue mais saine — catalogue extensible, repli monogramme au rendu" },
+  { "value": "a", "kept": true, "note": "minimum" },
+  { "value": "Netflix", "kept": false, "note": "majuscule hors alphabet" },
+  { "value": "net_flix", "kept": false, "note": "underscore interdit" },
+  { "value": "-netflix", "kept": false, "note": "tiret initial" },
+  { "value": "netflix-", "kept": false, "note": "tiret final" },
+  { "value": "net flix", "kept": false, "note": "espace" },
+  { "value": "<img src=x onerror=alert(1)>", "kept": false, "note": "hostile — jamais de markup" },
+  { "value": "javascript:alert(1)", "kept": false, "note": "hostile — jamais d'URL" },
+  { "value": "abcdefghij-abcdefghij-abcdefghij-abcdefghi", "kept": false, "note": "41 caracteres, au-dela de 40" }
+ ]
+}

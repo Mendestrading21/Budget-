@@ -1,5 +1,48 @@
 # Budget decision log
 
+## ADR-042 — ID1 : une clé d'identité optionnelle, stable et inoffensive
+
+Date: 2026-08-20
+Status: accepted
+
+### Contexte
+
+P08-C (ADR-041) dérivait l'identité du titre : renommer « Netflix » en
+« Mes films » perdait le choix. ID1 rend le choix STABLE sans jamais
+créer de risque de données.
+
+### Décision
+
+1. Les lignes régulières gagnent une clé OPTIONNELLE `identityKey` —
+   kebab ASCII 1-40 (`^[a-z0-9]+(?:-[a-z0-9]+)*$`), la même règle
+   LITTÉRALE sur les deux plateformes (`sanitizeIdentityKey` PWA,
+   `BudgetIdentityKey` natif), prouvée par la fixture partagée
+   `fixtures/identity-key-cases.json` (12 cas) et une garde exécutable.
+2. La clé n'est écrite qu'à l'ENREGISTREMENT du formulaire, jamais à la
+   sélection ; « Je ne trouve pas », Annuler et l'édition la
+   transportent avec le reste de la saisie.
+3. Une clé absente, inconnue, hostile ou retirée RETOMBE sur le
+   monogramme du titre — sans erreur, sans markup, sans perte : à la
+   restauration, la clé invalide est retirée, la ligne est conservée ;
+   une clé saine mais inconnue est CONSERVÉE (catalogue extensible).
+   Le natif sanitise dès l'init du modèle : une clé hostile ne peut
+   même pas entrer dans le store.
+4. Schéma natif : `BudgetSchemaV9` (ajout additif du champ, mêmes
+   modèles, doctrine ADR-015 de migration légère automatique) ; DTO de
+   sauvegarde optionnel — un fichier d'avant ID1 se restaure à
+   l'identique, un fichier trafiqué perd la clé, jamais la ligne.
+5. Rendu : la tuile d'identité suit la CLÉ (displayName du catalogue),
+   pas le titre — c'est la promesse « choix stable même si le nom
+   change » ; sans clé, rien ne change.
+
+### Vérification
+
+Parcours 163 né rouge (clé non persistée, clés hostiles conservées) ;
+`BudgetIdentityKeyTests` (mêmes 12 cas), sanitation à l'init,
+`testIdentityKeySurvivesBackupAndHostileKeyIsDropped` (round-trip,
+fichier trafiqué, fichier ancien) ; garde de règle partagée dans la
+suite catalogue ; capture de la tuile stable inspectée.
+
 ## ADR-041 — P08-C : le catalogue des services suggère, il n'invente jamais
 
 Date: 2026-08-20

@@ -2084,6 +2084,26 @@ const SVC_CATEGORY_LABEL = {
   investment: "Placements", pension: "Prévoyance", other: "Autres",
 };
 const SVC_SENSE_LABEL = { subscription: "Abonnement", bill: "Facture", set_aside: "Mise de côté" };
+/* ID1 (ADR-042) : la clé d'identité est une chaîne kebab ASCII de 1 à
+   40 caractères — la même règle que fixtures/identity-key-cases.json et
+   que le natif (BudgetIdentityKey). Tout le reste est RETIRÉ sans
+   toucher la ligne : jamais de perte de données, jamais de markup. */
+const IDENTITY_KEY_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+function sanitizeIdentityKey(value) {
+  return typeof value === "string" && value.length >= 1 && value.length <= 40
+    && IDENTITY_KEY_RE.test(value) ? value : undefined;
+}
+/* Le nom d'identité AFFICHÉ : l'entrée du catalogue si la clé est
+   connue, sinon le titre de la ligne — une clé inconnue ou retirée
+   retombe sans erreur (catalogue extensible). */
+function identityNameFor(record) {
+  const key = record && sanitizeIdentityKey(record.identityKey);
+  if (key) {
+    const entry = IDENTITY_CATALOG.identities.find(e => e.key === key);
+    if (entry) return entry.displayName;
+  }
+  return record ? record.title : "";
+}
 function svcEntries() {
   const country = COUNTRIES[S.country] ? S.country : "CH";
   return IDENTITY_CATALOG.identities.filter(e =>
@@ -4924,7 +4944,9 @@ function subsBody() {
       </div>`;
     return `<div class="card row tx sub-row" data-recid="${esc(r.id)}" role="button" tabindex="0"
          style="cursor:pointer" aria-label="Modifier ${esc(r.title)}${share === null ? "" : ` — ${share} % du coût annuel`}">
-      <div class="ico t-expense" aria-hidden="true">${budgetGlyph("recurring")}</div>
+      ${sanitizeIdentityKey(r.identityKey)
+        ? identityTile(identityNameFor(r))
+        : `<div class="ico t-expense" aria-hidden="true">${budgetGlyph("recurring")}</div>`}
       <div class="meta"><div class="t"><span class="t-label">${esc(r.title)}</span> ${rhythm}</div>
         <div class="s">${when} · ${compare}${endedNote}</div>${shareBar}</div>
       <span class="amount neg">−${chf(amount)}</span></div>`;
@@ -7340,6 +7362,14 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     // le sens des sauvegardes antérieures est donc strictement préservé.
     // Une valeur PRÉSENTE mais illisible fait refuser la restauration
     // plutôt que d'être silencieusement ramenée à une valeur par défaut.
+    if (recurring.identityKey !== undefined) {
+      // ID1 (ADR-042) : une clé absente, inconnue, hostile ou retirée
+      // retombe sur le monogramme SANS perte — on retire la clé, jamais
+      // la ligne (règle partagée : fixtures/identity-key-cases.json).
+      const cleSaine = sanitizeIdentityKey(recurring.identityKey);
+      if (cleSaine) recurring.identityKey = cleSaine;
+      else delete recurring.identityKey;
+    }
     if (recurring.every !== undefined
         && !["month", "four_weeks", "quarter", "semiannual", "year"].includes(recurring.every)) {
       throw new Error("rythme de paiement régulier invalide");
@@ -7914,6 +7944,7 @@ function fillAccountOptions(selectId, selectedId) {
 }
 function openRecSheet(rec) {
   editingRecId = rec ? rec.id : null;
+  svcSelectedKey = rec ? (sanitizeIdentityKey(rec.identityKey) ?? null) : null;
   document.getElementById("recForm").reset();
   document.getElementById("recSheetTitle").textContent = rec
     ? "Modifier ce qui revient"
@@ -8021,6 +8052,9 @@ document.getElementById("rKind").addEventListener("change", applyRecKind);
    suggestions, « Je ne trouve pas » ou Annuler restaure la saisie telle
    qu'elle était — rien n'est perdu, rien n'est créé. */
 let svcRecSnapshot = null;
+/* La clé choisie pour la ligne EN COURS d'édition — persistée seulement
+   à l'enregistrement, comme tout le reste du formulaire. */
+let svcSelectedKey = null;
 function snapshotRecFields() {
   return {
     kind: document.getElementById("rKind").value,
@@ -8030,6 +8064,7 @@ function snapshotRecFields() {
     every: document.getElementById("rEvery").value,
     dueM: document.getElementById("rDueM").value,
     startOn: document.getElementById("rStartOn").value,
+    identityKey: svcSelectedKey,
   };
 }
 function reopenRecWith(snap) {
@@ -8048,6 +8083,7 @@ function reopenRecWith(snap) {
   everySel.dispatchEvent(new Event("change"));
   document.getElementById("rDueM").value = snap.dueM;
   document.getElementById("rStartOn").value = snap.startOn;
+  svcSelectedKey = snap.identityKey ?? null;
 }
 function renderSvcResults() {
   const needle = fold(document.getElementById("svcSearch").value.trim());
@@ -8080,6 +8116,7 @@ function renderSvcResults() {
 function applySvcSelection(entry) {
   const snap = svcRecSnapshot;
   reopenRecWith(snap);
+  svcSelectedKey = entry.key;
   const kindSel = document.getElementById("rKind");
   kindSel.value = SVC_NATURE[entry.financialSense] || "facture";
   kindSel.dispatchEvent(new Event("change"));
@@ -8225,6 +8262,7 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     // existant — les données du propriétaire ne se réécrivent pas parce
     // qu'un champ a disparu de l'écran — et on ancre les nouveaux au 1er.
     day: existing && Number.isInteger(existing.day) ? existing.day : 1,
+    identityKey: sanitizeIdentityKey(svcSelectedKey),
     nature: NATURES.includes(document.getElementById("rFamily").value)
       ? document.getElementById("rFamily").value : "facture",
     type: document.getElementById("rType").value,
@@ -8254,6 +8292,7 @@ document.getElementById("recForm").addEventListener("submit", (e) => {
     Object.assign(existing, data);
     if (data.dueM === undefined) delete existing.dueM;
     if (data.startOn === undefined) delete existing.startOn;
+    if (data.identityKey === undefined) delete existing.identityKey;
     if (data.destAccountId === undefined) delete existing.destAccountId;
     toast(`${label} modifiée`);
   } else {

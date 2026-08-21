@@ -9091,6 +9091,83 @@ check(p08c.montant === "" && p08c.recApres === p08c.recAvant,
 check(p08c.libreTitre === "Mon club local",
   "« Je ne trouve pas mon service » revient à la saisie libre SANS perdre ce qui était écrit");
 
+// ---------- 163. ID1 : la clé d'identité survit au renommage, jamais aux clés hostiles (ADR-042) ----------
+// Programme Identités locales : choisir Netflix PERSISTE une clé stable
+// (`identityKey`) — renommer la ligne « Mes films » garde l'identité.
+// À la restauration : clé saine conservée (même inconnue — catalogue
+// extensible), clé hostile ou hors alphabet RETIRÉE sans toucher la
+// ligne. La règle vit dans fixtures/identity-key-cases.json, partagée
+// avec le natif.
+currentTest = "ID1 clé d'identité";
+const keyCases = JSON.parse(
+  fs.readFileSync(path.resolve(HERE, "..", "..", "fixtures", "identity-key-cases.json"), "utf8")).cases;
+await goHome();
+const id1 = await page.evaluate((cases) => {
+  const cash = ACCOUNTS.find(a => a.cash);
+  const resultat = {};
+  // 1. Choisir Netflix puis CONFIRMER une vraie ligne.
+  openRecSheet(null);
+  document.getElementById("rPickService").click();
+  const search = document.getElementById("svcSearch");
+  search.value = "netflix";
+  search.dispatchEvent(new Event("input"));
+  document.querySelector('#svcResults [data-svckey="netflix"]').click();
+  document.getElementById("rAmount").value = "17.90";
+  document.getElementById("rAccount").value = cash.id;
+  document.getElementById("recForm").requestSubmit();
+  const ligne = RECURRINGS.find(r => r.title === "Netflix");
+  resultat.cleEnregistree = ligne ? ligne.identityKey : null;
+  // 2. Renommer : l'identité choisie reste.
+  if (ligne) {
+    openRecSheet(ligne);
+    document.getElementById("rTitle").value = "Mes films";
+    document.getElementById("recForm").requestSubmit();
+    resultat.cleApresRenommage = ligne.identityKey;
+    resultat.titreApres = ligne.title;
+    activeTab = "more"; moreView = "subs"; render();
+    const row = document.querySelector(`[data-recid="${ligne.id}"]`);
+    const tile = row && row.querySelector(".identity-tile");
+    resultat.tuile = tile ? tile.textContent.trim() : null;
+  }
+  // 3. Restauration : chaque cas de la fixture partagée.
+  resultat.cas = cases.map(c => {
+    const clone = JSON.parse(JSON.stringify(S));
+    clone.recurrings = clone.recurrings.filter(r => r.title !== "Netflix" && r.title !== "Mes films");
+    clone.recurrings.push({ id: "rid1-cas", title: "Ligne testée", amount: 10, type: "expense",
+      cat: "Autre", day: 1, accountId: cash.id, identityKey: c.value });
+    try {
+      const valide = validatedRestoreState(clone, {});
+      const restauree = valide.recurrings.find(r => r.id === "rid1-cas");
+      if (!restauree) return { value: c.value, verdict: "ligne perdue" };
+      return { value: c.value, verdict: restauree.identityKey === c.value ? "gardée"
+        : (restauree.identityKey === undefined ? "retirée" : "réécrite") };
+    } catch (e) {
+      return { value: c.value, verdict: "restauration refusée" };
+    }
+  });
+  // 4. Clé inconnue au rendu : repli sans crash ni markup.
+  if (ligne) {
+    ligne.identityKey = "future-service";
+    render();
+    resultat.repliOK = !!document.querySelector(`[data-recid="${ligne.id}"]`);
+    resultat.images = document.querySelectorAll("#screen img").length;
+    const i = RECURRINGS.indexOf(ligne);
+    if (i >= 0) RECURRINGS.splice(i, 1);
+  }
+  saveState();
+  activeTab = "home"; moreView = null; render();
+  return resultat;
+}, keyCases);
+check(id1.cleEnregistree === "netflix",
+  `confirmer une ligne choisie au catalogue persiste sa clé (obtenu ${id1.cleEnregistree})`);
+check(id1.cleApresRenommage === "netflix" && id1.titreApres === "Mes films" && id1.tuile === "N",
+  `renommer garde l'identité : clé ${id1.cleApresRenommage}, titre « ${id1.titreApres} », tuile « ${id1.tuile} » (le N de Netflix, pas MF)`);
+const casKO = (id1.cas || []).filter((c, i) => c.verdict !== (keyCases[i].kept ? "gardée" : "retirée"));
+check(casKO.length === 0,
+  `restauration : clé saine gardée, clé hostile retirée SANS perdre la ligne (écarts : ${JSON.stringify(casKO)})`);
+check(id1.repliOK === true && id1.images === 0,
+  "une clé inconnue retombe sur le monogramme du nom — aucun crash, aucune image");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9100,4 +9177,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 162 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 163 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

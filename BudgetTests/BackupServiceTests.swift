@@ -145,6 +145,71 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(accounts.count, 4)
     }
 
+    /// ID1 (ADR-042) : la clé d'identité voyage dans la sauvegarde ; une
+    /// clé hostile injectée dans le fichier est RETIRÉE à la restauration
+    /// sans perdre la ligne ; un fichier ancien (sans le champ) se
+    /// restaure à l'identique.
+    func testIdentityKeySurvivesBackupAndHostileKeyIsDropped() throws {
+        let account = Account(name: "Courant", type: .current)
+        context.insert(account)
+        context.insert(RecurringTransaction(
+            title: "Mes films", amount: Decimal("17.90"), type: .expense,
+            firstOccurrence: now, isSubscription: true,
+            identityKey: "netflix", account: account
+        ))
+        try context.save()
+        let data = try service.makeBackup(context: context, now: now)
+
+        // 1. Round-trip : la clé survit, stable malgré le titre libre.
+        let fresh = try PersistenceFactory.makeInMemoryContainer()
+        let freshContext = ModelContext(fresh)
+        try service.restore(data: data, context: freshContext, documentFileStore: nil)
+        let restored = try XCTUnwrap(
+            try freshContext.fetch(FetchDescriptor<RecurringTransaction>())
+                .first { $0.title == "Mes films" }
+        )
+        XCTAssertEqual(restored.identityKey, "netflix")
+
+        // 2. Fichier trafiqué : clé hostile → retirée, ligne conservée.
+        var json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        var recurrings = json["recurrings"] as! [[String: Any]]
+        recurrings = recurrings.map { dto in
+            var dto = dto
+            if dto["title"] as? String == "Mes films" {
+                dto["identityKey"] = "<img src=x onerror=alert(1)>"
+            }
+            return dto
+        }
+        json["recurrings"] = recurrings
+        let tampered = try JSONSerialization.data(withJSONObject: json)
+        let second = try PersistenceFactory.makeInMemoryContainer()
+        let secondContext = ModelContext(second)
+        try service.restore(data: tampered, context: secondContext, documentFileStore: nil)
+        let sanitized = try XCTUnwrap(
+            try secondContext.fetch(FetchDescriptor<RecurringTransaction>())
+                .first { $0.title == "Mes films" }
+        )
+        XCTAssertNil(sanitized.identityKey, "clé hostile retirée — jamais stockée")
+
+        // 3. Fichier ANCIEN : sans le champ, restauration identique.
+        recurrings = (try JSONSerialization.jsonObject(with: data) as! [String: Any])["recurrings"] as! [[String: Any]]
+        recurrings = recurrings.map { dto in
+            var dto = dto
+            dto.removeValue(forKey: "identityKey")
+            return dto
+        }
+        json["recurrings"] = recurrings
+        let legacy = try JSONSerialization.data(withJSONObject: json)
+        let third = try PersistenceFactory.makeInMemoryContainer()
+        let thirdContext = ModelContext(third)
+        try service.restore(data: legacy, context: thirdContext, documentFileStore: nil)
+        let old = try XCTUnwrap(
+            try thirdContext.fetch(FetchDescriptor<RecurringTransaction>())
+                .first { $0.title == "Mes films" }
+        )
+        XCTAssertNil(old.identityKey, "une sauvegarde d'avant ID1 se restaure sans invention")
+    }
+
     func testRestoreRejectsNewerSchema() throws {
         try populateSampleStore()
         var json = try JSONSerialization.jsonObject(

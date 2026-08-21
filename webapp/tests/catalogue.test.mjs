@@ -131,6 +131,24 @@ for (const [key, entry] of Object.entries(glyphMap.glyphs)) {
   }
 }
 
+// ---------- 6. ID1 : la règle des clés est UNE et partagée (ADR-042) ----------
+{
+  const KEY_RULE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const cases = JSON.parse(read("fixtures/identity-key-cases.json")).cases;
+  check(cases.length >= 10, "fixture des clés : au moins 10 cas");
+  for (const c of cases) {
+    const kept = typeof c.value === "string" && c.value.length >= 1 && c.value.length <= 40
+      && KEY_RULE.test(c.value);
+    check(kept === c.kept, `cas « ${c.value} » : attendu kept=${c.kept}`);
+  }
+  const htmlSource = read("webapp/index.html");
+  check(htmlSource.includes("^[a-z0-9]+(?:-[a-z0-9]+)*$"),
+    "la PWA porte LITTÉRALEMENT la même règle de clé (sanitizeIdentityKey)");
+  const swiftKey = read("Budget/Core/Identity/BudgetIdentityKey.swift");
+  check(swiftKey.includes("^[a-z0-9]+(?:-[a-z0-9]+)*$"),
+    "le natif porte LITTÉRALEMENT la même règle de clé (BudgetIdentityKey)");
+}
+
 // ---------- Rapport ----------
 if (failures.length) {
   console.error(`CATALOGUE : ${failures.length} échec(s) :`);

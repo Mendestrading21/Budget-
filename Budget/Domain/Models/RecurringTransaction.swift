@@ -49,6 +49,10 @@ final class RecurringTransaction {
     var cancellationDeadline: Date?
 
     var note: String?
+    /// ID1 (ADR-042) : clé optionnelle du catalogue des identités —
+    /// stable même si le titre change. Validée par BudgetIdentityKey ;
+    /// une valeur absente/inconnue/hostile retombe sur le monogramme.
+    var identityKey: String?
     var createdAt: Date
     var updatedAt: Date
 
@@ -96,6 +100,7 @@ final class RecurringTransaction {
         renewalDate: Date? = nil,
         cancellationDeadline: Date? = nil,
         note: String? = nil,
+        identityKey: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         account: Account? = nil,
@@ -117,6 +122,7 @@ final class RecurringTransaction {
         self.renewalDate = renewalDate
         self.cancellationDeadline = cancellationDeadline
         self.note = note
+        self.identityKey = BudgetIdentityKey.sanitized(identityKey)
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.account = account
