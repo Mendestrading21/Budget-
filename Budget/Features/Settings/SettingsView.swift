@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State private var errorMessage: String?
     @State private var isShowingPrivacy = false
     @State private var isShowingMethodology = false
+    @State private var isShowingBrands = false
     @State private var didAutoPromptRestore = false
 
     private var backupService: BackupService { BackupService() }
@@ -96,6 +97,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isShowingMethodology) {
             InfoSheet(title: "Méthodologie", paragraphs: Self.methodologyParagraphs)
+        }
+        .sheet(isPresented: $isShowingBrands) {
+            InfoSheet(title: "Marques et logos", paragraphs: Self.brandsParagraphs)
         }
         .onAppear {
             // Preuve UI (workflow Demo) : ouvre le VRAI résumé de
@@ -196,6 +200,11 @@ struct SettingsView: View {
                 isShowingMethodology = true
             } label: {
                 Label("Méthodologie des calculs", systemImage: "function")
+            }
+            Button {
+                isShowingBrands = true
+            } label: {
+                Label("Marques et logos", systemImage: "tag")
             }
         }
     }
@@ -331,9 +340,16 @@ struct SettingsView: View {
         "Vraiment disponible = liquidités incluses + revenus attendus (prévus et récurrents) − charges engagées (prévues et récurrentes) − réserve d'impôts manquante.",
         "Taux d'épargne = (épargne + investissements) ÷ revenus du mois ; zéro quand il n'y a pas de revenus.",
         "Les virements internes déplacent l'argent entre vos comptes : ils ne comptent ni comme revenu, ni comme dépense, et ne changent pas votre fortune.",
-        "Provision d'impôts = revenus × votre taux configuré (30 % par défaut), corrigeable manuellement. Estimé = payé + encore dû, toujours.",
+        // ADR-035 : plus aucun taux d'impôts nulle part — le texte suit.
+        "Les impôts se saisissent comme des paiements : rien n'est calculé automatiquement. Estimé = payé + encore dû, toujours.",
         "Tout ce qui est à vous, c'est vos comptes, vos biens et votre prévoyance, moins ce que vous devez. Les montants de retraite affichés viennent de vos certificats : l'app ne les calcule jamais.",
         "Le prévu et le dépensé ne sont jamais mélangés : une opération prévue n'entre dans aucun solde tant qu'elle n'a pas eu lieu.",
+    ]
+
+    /// BR1 (ADR-048) : mention exigée par la politique des marques.
+    static let brandsParagraphs: [String] = [
+        "Les noms et marques appartiennent à leurs propriétaires respectifs. Leur présence sert uniquement à identifier le choix de l'utilisateur. Budget n'est ni affilié, ni sponsorisé, ni connecté à ces établissements, sauf mention explicite.",
+        "Budget n'affiche aucun logo tiers : les services et établissements sont identifiés par leur nom et un monogramme neutre dessiné par Budget.",
     ]
 }
 

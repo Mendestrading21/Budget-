@@ -51,10 +51,14 @@ ordres du propriétaire : P08-C (#99, `6cef3ac`) et ID1 (#100,
 tout les lots en cours » du 21.08 — chaque PR rebasée à arbre
 byte-identique et CI verte sur son HEAD exact, puis CI verte sur `main`
 (pas de déploiement excepté). **Publiés ensemble** par dispatch au SHA
-exact `ff9bdba` : run `32469395779`, succès, 21.08.2026 — le site sert
-désormais P08-C, ID1, P05-C, P06/P16, P13-C et P10/P12-C. Lot actif :
-**INV1 — positions manuelles datées** (en PR brouillon) ; ensuite BR1 —
-une PR par lot.
+exact `ff9bdba` : run `32469395779`, succès, 21.08.2026. Puis INV1
+(#105, `main` = `2192faa`) fusionné et publié sur « Continue et
+publie » du 21.08 — dispatch au SHA exact `2192faa`, run
+`32475209448`, succès : le site sert P08-C, ID1, P05-C, P06/P16,
+P13-C, P10/P12-C et INV1. Dernier lot du programme : **BR1 —
+provenance des marques** (en PR brouillon) ; approuver un premier actif
+réel restera un micro-lot déclenché par le propriétaire
+(LOGO_POLICY : revue humaine consignée obligatoire).
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -944,8 +948,10 @@ verrouillé par le test. Parcours 167 né rouge (« obtenu 🎯 ») ;
 `FinancialGoalEmojiTests` natif ; 167 e2e + 9 parités + design +
 catalogue + audit verts ; captures 320/390 inspectées.
 
-**INV1 — Positions manuelles datées (ADR-047)** · en PR (brouillon,
-fusion sur ordre du propriétaire). Autorité de patrimoine : le SOLDE du
+**INV1 — Positions manuelles datées (ADR-047)** · `MERGED` +
+`PUBLISHED` — PR #105 (`main` = `2192faa`), fusionnée puis publiée par
+dispatch au SHA exact `2192faa` (run `32475209448`, succès) le
+21.08.2026. Autorité de patrimoine : le SOLDE du
 compte titres — les positions l'expliquent (valeur + espèces/non
 réparti = solde, 44'000 jamais 84'000, dépassement en négatif averti,
 jamais ramené à zéro). Champs du contrat du skill (`instrumentName`,
@@ -962,6 +968,21 @@ ancien restauré à l'identique), garde de suppression de compte.
 Parcours 168 né rouge (6 échecs nommés) ; `BrokeragePositionTests`
 natif (4 tests) ; 168 e2e + 9 parités + design + catalogue + audit
 verts ; captures 320/390 inspectées.
+
+**BR1 — Provenance des marques (ADR-048)** · en PR (brouillon, fusion
+sur ordre du propriétaire). Le manifeste versionné
+`fixtures/provenance-marques.json` (version 1, zéro entrée = couverture
+complète, le monogramme n'est pas un échec) et son validateur en CI
+(suite catalogue) : `approved_asset` interdit sans entrée complète —
+13 champs de LOGO_POLICY, clé existante, fallback sûr, SHA-256 et
+checksum EXACT recalculé sur le fichier, entrées orphelines refusées.
+Mention légale visible des deux côtés (réglages « Marques et logos » :
+« ni affilié, ni sponsorisé, ni connecté », aucun logo tiers
+aujourd'hui). Correctif d'honnêteté : la méthodologie native parlait
+encore d'un « taux configuré (30 % par défaut) » — alignée sur ADR-035.
+Suite catalogue née rouge (3 échecs nommés) ; parcours 169 ; contrôle
+négatif par sabotage ; captures 320/390 inspectées. Approuver un
+premier actif réel = micro-lot futur déclenché par le propriétaire.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

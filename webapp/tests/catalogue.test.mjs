@@ -6,6 +6,7 @@
 // texte dangereux, clé hors alphabet, repli de glyphe divergent entre
 // plateformes.
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -147,6 +148,62 @@ for (const [key, entry] of Object.entries(glyphMap.glyphs)) {
   const swiftKey = read("Budget/Core/Identity/BudgetIdentityKey.swift");
   check(swiftKey.includes("^[a-z0-9]+(?:-[a-z0-9]+)*$"),
     "le natif porte LITTÉRALEMENT la même règle de clé (BudgetIdentityKey)");
+}
+
+// ---------- 7. BR1 (ADR-048) : provenance des marques — le manifeste garde la porte ----------
+// Un actif tiers (`approved_asset`) n'existe que validé : entrée de
+// manifeste complète, fichier présent, checksum exact, revue humaine
+// consignée. Zéro entrée est une couverture complète — le monogramme
+// n'est pas un échec (LOGO_POLICY).
+{
+  let manifest = null;
+  try { manifest = JSON.parse(read("fixtures/provenance-marques.json")); }
+  catch (e) { manifest = null; }
+  check(manifest && manifest.version === 1 && Array.isArray(manifest.entries),
+    "le manifeste de provenance existe (fixtures/provenance-marques.json, version 1, entries)");
+  const entries = manifest && Array.isArray(manifest.entries) ? manifest.entries : [];
+  const manifestKeys = new Set(entries.map(e => e.identityKey));
+  const REQUIRED = ["identityKey", "assetPath", "sourceUrl", "sourceKind", "downloadedAt",
+    "termsUrl", "allowedUse", "territories", "sourceSha256", "derivedSha256",
+    "reviewedBy", "reviewedAt", "fallback"];
+  for (const entry of entries) {
+    const label = `provenance ${entry.identityKey || "?"}`;
+    for (const field of REQUIRED) {
+      check(entry[field] != null && entry[field] !== "", `${label} : champ « ${field} » exigé`);
+    }
+    check(identities.some(i => i.key === entry.identityKey),
+      `${label} : la clé doit exister au catalogue`);
+    check(["monogram", "generic_glyph"].includes(entry.fallback),
+      `${label} : fallback sûr exigé (monogram ou generic_glyph)`);
+    check(/^[0-9a-f]{64}$/.test(entry.sourceSha256 || "") && /^[0-9a-f]{64}$/.test(entry.derivedSha256 || ""),
+      `${label} : SHA-256 exigés sur la source ET le dérivé`);
+    let fileBytes = null;
+    try { fileBytes = readFileSync(path.join(ROOT, "webapp", entry.assetPath || "")); } catch (e) {}
+    check(fileBytes !== null, `${label} : le fichier ${entry.assetPath} doit exister`);
+    if (fileBytes !== null) {
+      const digest = createHash("sha256").update(fileBytes).digest("hex");
+      check(digest === entry.derivedSha256,
+        `${label} : checksum du dérivé exact (obtenu ${digest.slice(0, 12)}…)`);
+    }
+  }
+  for (const id of identities) {
+    if (id.markPolicy === "approved_asset") {
+      check(manifestKeys.has(id.key),
+        `${id.key} : approved_asset SANS entrée de manifeste — interdit, repli monogramme obligatoire`);
+      check(typeof id.assetKey === "string" && id.assetKey,
+        `${id.key} : approved_asset exige un assetKey`);
+    }
+  }
+  for (const key of manifestKeys) {
+    check(identities.some(i => i.key === key && i.markPolicy === "approved_asset"),
+      `provenance ${key} : entrée orpheline — aucune identité approved_asset ne la porte`);
+  }
+  // La mention légale reste visible sur les DEUX plateformes.
+  const phrase = "ni affilié, ni sponsorisé, ni connecté";
+  check(read("webapp/index.html").includes(phrase),
+    "la PWA porte la mention « Budget n'est ni affilié, ni sponsorisé, ni connecté »");
+  check(read("Budget/Features/Settings/SettingsView.swift").includes(phrase),
+    "le natif porte la même mention dans les réglages");
 }
 
 // ---------- Rapport ----------
