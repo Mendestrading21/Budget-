@@ -9575,6 +9575,37 @@ check(br1.carte === true, "les réglages portent une carte « Marques et logos �
 check(br1.mention === true && br1.monogramme === true,
   "la mention dit l'indépendance (ni affilié, ni sponsorisé, ni connecté) et le monogramme neutre");
 
+// ---------- 170. INV1-B : un compte qui porte des positions ne se supprime pas en silence (ADR-049) ----------
+// Le natif garde déjà cette porte ; la PWA doit la garder aussi — sinon
+// les positions deviennent orphelines (retirées à la prochaine
+// restauration, perte muette). Et « Effacer les opérations » DIT
+// désormais qu'il efface aussi les positions.
+currentTest = "INV1-B garde positions";
+await goHome();
+const invb = await page.evaluate(() => {
+  const resultat = {};
+  ACCOUNTS.push({ id: "acc-invb", name: "Titres", inst: "", kind: "brokerage",
+    opening: 1000, cash: false, currency: "CHF" });
+  POSITIONS.push({ id: "pos-invb", accountId: "acc-invb", instrumentName: "Test",
+    tickerOrISIN: null, quantity: 1, manualPrice: 100, priceCurrency: "CHF",
+    valuationDate: "2026-08-01", costBasis: null });
+  resultat.bloque = accountDeleteBlocker("acc-invb");
+  POSITIONS.splice(POSITIONS.findIndex(x => x.id === "pos-invb"), 1);
+  resultat.libre = accountDeleteBlocker("acc-invb");
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "acc-invb"), 1);
+  // Les textes d'effacement disent les positions.
+  const source = document.documentElement.outerHTML;
+  resultat.confirmDit = /Effacer vos OPÉRATIONS[^"]*positions/.test(source) || null;
+  resultat.privacyDit = PRIVACY.some(t => /positions/.test(t));
+  return resultat;
+});
+check(typeof invb.bloque === "string" && /position/i.test(invb.bloque),
+  `supprimer un compte qui porte des positions est BLOQUÉ en le disant (obtenu ${JSON.stringify(invb.bloque)})`);
+check(invb.libre === null,
+  "sans position, la suppression redevient possible (les autres gardes inchangées)");
+check(invb.privacyDit === true,
+  "le texte de confidentialité dit que l'effacement retire aussi les positions");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9584,4 +9615,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 169 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 170 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

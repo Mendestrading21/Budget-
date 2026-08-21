@@ -5415,7 +5415,7 @@ const PRIVACY = [
   "Le code cache vos montants sur cet appareil. Ce n'est pas un coffre-fort. L'app iPhone, elle, utilise Face ID et la protection d'iOS.",
   "Des documents, l'app ne garde que le nom et le type : aucun fichier n'est stocké dans la version web.",
   "Aucune analyse d'usage, aucun traceur, aucune publicité.",
-  "« Effacer les opérations » efface vos opérations, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
+  "« Effacer les opérations » efface vos opérations, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, positions, factures et documents ; les comptes, budgets, taux et réglages restent (annulable 6 secondes).",
   "« Réinitialiser complètement l'application » efface TOUT de ce navigateur — comptes, opérations, budgets, taux, prénom, code de verrouillage — et revient à l'écran de bienvenue (deux confirmations, définitif).",
   "« Charger la démonstration » remplace vos données actuelles par des données fictives après confirmation ; votre prénom est conservé.",
 ]
@@ -7742,7 +7742,7 @@ function restoreFromFile(file) {
   reader.readAsText(file);
 }
 function deleteAllData() {
-  if (!confirm("Effacer vos OPÉRATIONS : dépenses, revenus, mises de côté, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, factures et documents ? Les comptes, budgets, taux et réglages restent.")) return;
+  if (!confirm("Effacer vos OPÉRATIONS : dépenses, revenus, mises de côté, objectifs, paiements réguliers, patrimoine, assurances, prévoyance, positions, factures et documents ? Les comptes, budgets, taux et réglages restent.")) return;
   if (!confirm("Vraiment ? (annulable pendant 6 secondes après coup)")) return;
   pushUndo();
   transactions.length = 0;
@@ -7859,6 +7859,11 @@ function accountDeleteBlocker(id) {
   // P06 : une position de prévoyance liée perdait son compte sans un mot.
   if (PENSIONS.some(p => p.accountId === id)) {
     return "Une position de prévoyance est liée à ce compte — déliez-la d'abord dans Prévoyance.";
+  }
+  // INV1-B (ADR-049) : mêmes règles que le natif — des positions
+  // orphelines seraient retirées en silence à la prochaine restauration.
+  if (POSITIONS.some(p => p.accountId === id)) {
+    return "Des positions expliquent ce compte — supprimez-les d'abord sur sa fiche.";
   }
   return null;
 }
