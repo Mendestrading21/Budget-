@@ -1,5 +1,34 @@
 # Budget decision log
 
+## ADR-050 — INV1-C : le type d'un compte qui porte des positions ne change pas en silence
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Suite de la chasse aux défauts INV1. Changer le type d'un compte
+titres (« Bourse / titres » → autre) rendait ses positions INVISIBLES
+— la section Positions ne vit que sur la fiche d'un compte titres —
+alors que la suppression du compte restait bloquée (ADR-049) en
+pointant une fiche qui ne les montrait plus : une impasse, sur les
+DEUX plateformes.
+
+### Décision
+
+Le type reste la vérité (règle P05-C) : quitter « Bourse / titres »
+avec des positions est BLOQUÉ en le disant — « Des positions
+expliquent ce compte — supprimez-les avant de changer son type. » —
+même règle PWA (`accForm` submit) et natif (`AccountFormView.save`).
+Sans position, le changement de type reste libre.
+
+### Vérification
+
+Parcours 171 né rouge (« type savings » obtenu en silence) → vert ; le
+même parcours prouve la liberté retrouvée sans position ; contrôle
+négatif par sabotage ; captures 320/390 inspectées (message visible,
+données intactes).
+
 ## ADR-049 — INV1-B : un compte qui porte des positions ne se supprime pas en silence
 
 Date: 2026-08-21

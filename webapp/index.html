@@ -7824,6 +7824,13 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const currencyLocked = !!(existing
     && transactions.some(t => t.acc === existing.id || t.dest === existing.id));
   const currency = currencyLocked ? existing.currency : document.getElementById("aCurrency").value;
+  // INV1-C (ADR-050) : quitter « Bourse / titres » rendrait les positions
+  // invisibles alors que la suppression resterait bloquée — impasse.
+  if (existing && existing.kind === "brokerage" && kind !== "brokerage"
+      && POSITIONS.some(p => p.accountId === existing.id)) {
+    err.textContent = "Des positions expliquent ce compte — supprimez-les avant de changer son type.";
+    return;
+  }
   if (existing) {
     Object.assign(existing, { name, inst, kind, opening, cash, currency });
     toast("Compte modifié");

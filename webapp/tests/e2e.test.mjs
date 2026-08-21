@@ -9606,6 +9606,41 @@ check(invb.libre === null,
 check(invb.privacyDit === true,
   "le texte de confidentialité dit que l'effacement retire aussi les positions");
 
+// ---------- 171. INV1-C : le type d'un compte qui porte des positions ne change pas en silence (ADR-050) ----------
+// Changer « Bourse / titres » en autre chose rendrait les positions
+// INVISIBLES (la section ne vit que sur la fiche d'un compte titres)
+// alors que la suppression resterait bloquée en pointant cette fiche —
+// une impasse. Le type reste la vérité : on le protège en le disant.
+currentTest = "INV1-C type et positions";
+await goHome();
+const invc = await page.evaluate(() => {
+  const resultat = {};
+  ACCOUNTS.push({ id: "acc-invc", name: "Titres", inst: "", kind: "brokerage",
+    opening: 1000, cash: false, currency: "CHF" });
+  POSITIONS.push({ id: "pos-invc", accountId: "acc-invc", instrumentName: "Test",
+    tickerOrISIN: null, quantity: 1, manualPrice: 100, priceCurrency: "CHF",
+    valuationDate: "2026-08-01", costBasis: null });
+  openAccSheet(ACCOUNTS.find(a => a.id === "acc-invc"));
+  document.getElementById("aKind").value = "savings";
+  document.getElementById("accForm").dispatchEvent(new Event("submit"));
+  resultat.erreur = document.getElementById("aError").textContent;
+  resultat.typeIntact = ACCOUNTS.find(a => a.id === "acc-invc").kind;
+  // Sans position, le changement de type redevient libre.
+  POSITIONS.splice(POSITIONS.findIndex(x => x.id === "pos-invc"), 1);
+  document.getElementById("aKind").value = "savings";
+  document.getElementById("accForm").dispatchEvent(new Event("submit"));
+  resultat.typeApres = ACCOUNTS.find(a => a.id === "acc-invc").kind;
+  ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "acc-invc"), 1);
+  saveState();
+  closeSheet();
+  activeTab = "home"; render();
+  return resultat;
+});
+check(/position/i.test(invc.erreur || "") && invc.typeIntact === "brokerage",
+  `changer le type d'un compte qui porte des positions est BLOQUÉ en le disant (obtenu « ${invc.erreur} » / type ${invc.typeIntact})`);
+check(invc.typeApres === "savings",
+  "sans position, le changement de type reste libre");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9615,4 +9650,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 170 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 171 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
