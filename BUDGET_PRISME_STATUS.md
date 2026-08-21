@@ -62,10 +62,15 @@ le contenu servi est bien celui de `2192faa` (les enregistrements de
 déploiement au HEAD de la branche du workflow sont la comptabilité
 interne de `deploy-pages`, sans effet). La lecture directe de
 `github.io` est bloquée par la politique réseau de l'environnement —
-vérification par les logs du run, pas par le site rendu. Dernier lot du programme : **BR1 —
-provenance des marques** (en PR brouillon) ; approuver un premier actif
-réel restera un micro-lot déclenché par le propriétaire
-(LOGO_POLICY : revue humaine consignée obligatoire).
+vérification par les logs du run, pas par le site rendu. Puis, sur « Publié tout alors » du
+21.08.2026, la pile #106 → #110 (BR1, GOV-3, INV1-B, INV1-C, INV1-D) a
+été fusionnée dans l'ordre — chaque PR rebasée à arbre byte-identique,
+CI verte sur chaque HEAD exact puis sur `main` — et **publiée** par
+dispatch au SHA exact `c265d7d` (run `32506184992`, succès) le 21.08.2026 :
+le site sert désormais TOUT `main` (`c265d7d`). Le programme Identités
+locales est clos. Approuver un premier actif de marque réel reste un
+micro-lot déclenché par le propriétaire (LOGO_POLICY : revue humaine
+consignée obligatoire).
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -981,8 +986,8 @@ Parcours 168 né rouge (6 échecs nommés) ; `BrokeragePositionTests`
 natif (4 tests) ; 168 e2e + 9 parités + design + catalogue + audit
 verts ; captures 320/390 inspectées.
 
-**BR1 — Provenance des marques (ADR-048)** · en PR (brouillon, fusion
-sur ordre du propriétaire). Le manifeste versionné
+**BR1 — Provenance des marques (ADR-048)** · `MERGED` + `PUBLISHED` —
+PR #106 (`main` = `2116550`), fusionnée puis publiée par dispatch au SHA exact `c265d7d` (run `32506184992`, succès) le 21.08.2026. Le manifeste versionné
 `fixtures/provenance-marques.json` (version 1, zéro entrée = couverture
 complète, le monogramme n'est pas un échec) et son validateur en CI
 (suite catalogue) : `approved_asset` interdit sans entrée complète —
@@ -996,8 +1001,9 @@ Suite catalogue née rouge (3 échecs nommés) ; parcours 169 ; contrôle
 négatif par sabotage ; captures 320/390 inspectées. Approuver un
 premier actif réel = micro-lot futur déclenché par le propriétaire.
 
-**INV1-B — Garde de suppression des positions (ADR-049)** · en PR
-(brouillon, empilée sur GOV-3/#107). Chasse aux défauts
+**INV1-B — Garde de suppression des positions (ADR-049)** · `MERGED`
++ `PUBLISHED` — PR #108 (`main` = `943dbf4`), rebasée à arbre
+byte-identique, fusionnée puis publiée par dispatch au SHA exact `c265d7d` (run `32506184992`, succès) le 21.08.2026. Chasse aux défauts
 post-programme : la PWA ignorait les positions dans
 `accountDeleteBlocker` — supprimer un compte titres laissait ses
 positions orphelines en silence (perte muette à la restauration) ; le
@@ -1009,7 +1015,8 @@ rouge (2 échecs nommés) ; 170 e2e + 9 parités + design + catalogue +
 audit verts ; captures 320/390 inspectées.
 
 **INV1-C — Le type d'un compte à positions ne change pas en silence
-(ADR-050)** · en PR (brouillon, empilée sur INV1-B/#108). Changer le
+(ADR-050)** · `MERGED` + `PUBLISHED` — PR #109 (`main` = `a169c27`),
+rebasée à arbre byte-identique, fusionnée puis publiée par dispatch au SHA exact `c265d7d` (run `32506184992`, succès) le 21.08.2026. Changer le
 type d'un compte titres rendait ses positions invisibles alors que la
 suppression restait bloquée (ADR-049) en pointant une fiche qui ne les
 montrait plus — impasse des deux côtés. Corrigé : quitter « Bourse /
@@ -1020,7 +1027,8 @@ en silence) ; 171 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 inspectées.
 
 **INV1-D — Verrou de la restauration des positions (ADR-047, suite)**
-· en PR (brouillon, empilée sur INV1-C/#109). Lot de test pur : la
+· `MERGED` + `PUBLISHED` — PR #110 (`main` = `c265d7d`), rebasée à
+arbre byte-identique, fusionnée puis publiée par dispatch au SHA exact `c265d7d` (run `32506184992`, succès) le 21.08.2026. Lot de test pur : la
 sonde du 21.08 a prouvé le filtre de `validatedRestoreState` correct
 (valide gardée, hostile et orpheline retirées, fichier jamais refusé
 pour une position) mais RIEN ne le verrouillait. Le parcours 172 grave
