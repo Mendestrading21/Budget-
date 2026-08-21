@@ -1019,6 +1019,18 @@ changement reste libre. Parcours 171 né rouge (« type savings » obtenu
 en silence) ; 171 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 inspectées.
 
+**INV1-D — Verrou de la restauration des positions (ADR-047, suite)**
+· en PR (brouillon, empilée sur INV1-C/#109). Lot de test pur : la
+sonde du 21.08 a prouvé le filtre de `validatedRestoreState` correct
+(valide gardée, hostile et orpheline retirées, fichier jamais refusé
+pour une position) mais RIEN ne le verrouillait. Le parcours 172 grave
+le comportement avec UNE entrée hostile par condition (quantité
+illisible, date impossible, prix illisible, orpheline) — le premier
+contrôle négatif a montré qu'un défaut unique pouvait être masqué par
+une autre condition ; le test durci fait mordre chaque condition
+seule (prouvé par deux sabotages distincts, chacun nommant l'entrée
+ressuscitée). 172 e2e verts ; aucun code applicatif touché.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
