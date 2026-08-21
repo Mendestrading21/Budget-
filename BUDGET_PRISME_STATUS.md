@@ -55,7 +55,14 @@ exact `ff9bdba` : run `32469395779`, succès, 21.08.2026. Puis INV1
 (#105, `main` = `2192faa`) fusionné et publié sur « Continue et
 publie » du 21.08 — dispatch au SHA exact `2192faa`, run
 `32475209448`, succès : le site sert P08-C, ID1, P05-C, P06/P16,
-P13-C, P10/P12-C et INV1. Dernier lot du programme : **BR1 —
+P13-C, P10/P12-C et INV1. Audit de publication du 21.08.2026 : le log
+du run `32475209448` prouve `TARGET_SHA = 2192faa…`, « CI verte
+confirmée » pour ce SHA exact et « Checkout du SHA validé » en succès —
+le contenu servi est bien celui de `2192faa` (les enregistrements de
+déploiement au HEAD de la branche du workflow sont la comptabilité
+interne de `deploy-pages`, sans effet). La lecture directe de
+`github.io` est bloquée par la politique réseau de l'environnement —
+vérification par les logs du run, pas par le site rendu. Dernier lot du programme : **BR1 —
 provenance des marques** (en PR brouillon) ; approuver un premier actif
 réel restera un micro-lot déclenché par le propriétaire
 (LOGO_POLICY : revue humaine consignée obligatoire).
