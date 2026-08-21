@@ -55,7 +55,14 @@ exact `ff9bdba` : run `32469395779`, succès, 21.08.2026. Puis INV1
 (#105, `main` = `2192faa`) fusionné et publié sur « Continue et
 publie » du 21.08 — dispatch au SHA exact `2192faa`, run
 `32475209448`, succès : le site sert P08-C, ID1, P05-C, P06/P16,
-P13-C, P10/P12-C et INV1. Dernier lot du programme : **BR1 —
+P13-C, P10/P12-C et INV1. Audit de publication du 21.08.2026 : le log
+du run `32475209448` prouve `TARGET_SHA = 2192faa…`, « CI verte
+confirmée » pour ce SHA exact et « Checkout du SHA validé » en succès —
+le contenu servi est bien celui de `2192faa` (les enregistrements de
+déploiement au HEAD de la branche du workflow sont la comptabilité
+interne de `deploy-pages`, sans effet). La lecture directe de
+`github.io` est bloquée par la politique réseau de l'environnement —
+vérification par les logs du run, pas par le site rendu. Dernier lot du programme : **BR1 —
 provenance des marques** (en PR brouillon) ; approuver un premier actif
 réel restera un micro-lot déclenché par le propriétaire
 (LOGO_POLICY : revue humaine consignée obligatoire).
@@ -347,8 +354,11 @@ par dispatch au SHA exact le 18.08.2026.
   5 parités ; design vert ; captures avant/après dans
   `docs/neon-ultra/budget-prisme/a10/`.
 
-**A11 — Structure du dossier** · `VERIFYING_AUTOMATED` — PR depuis
-`agent/prisme-a11-dossier`.
+**A11 — Structure du dossier** · `MERGED` + `PUBLISHED` — PR #50
+fusionnée en squash (`main` = `444f0a1`) ; lot documentaire publié avec
+les dispatches suivants (marqueur « VERIFYING_AUTOMATED » périmé,
+réconcilié le 21.08.2026 — `docs/INDEX.md` est sur `main`, `CLAUDE.md`
+réaligné).
 
 - Les quatre familles, suite (« la structure du dossier, tout ») :
   - **`CLAUDE.md` réécrit** pour dire la vérité opérationnelle : skill
@@ -721,7 +731,9 @@ FE2-0..7 ; les lots FE2-6/7 sont natifs (la PWA publiée est celle de
 `0091d449`, inchangée depuis).
 
 **FE2-8 — Fixture de parité n° 7 : l'union de la fortune liquide** ·
-en PR. Le scénario `fortune-liquide-union` grave la règle FE2-5 dans
+`MERGED` + `PUBLISHED` — PR #82 fusionnée en squash (`main` =
+`b1e1dc3`), série FE2 close (marqueur « en PR » périmé, réconcilié le
+21.08.2026). Le scénario `fortune-liquide-union` grave la règle FE2-5 dans
 le contrat de parité web↔natif : quatre comptes (courant hors
 quotidien 1'000, quotidien 200, épargne 500, épargne marquée cash
 300) → `liquid` 500, `savingsAccessible` 800, `liquidWealth` 1'000 —
