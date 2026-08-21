@@ -9168,6 +9168,68 @@ check(casKO.length === 0,
 check(id1.repliOK === true && id1.images === 0,
   "une clé inconnue retombe sur le monogramme du nom — aucun crash, aucune image");
 
+// ---------- 164. P05-C : choisir sa banque remplit l'établissement, rien d'autre (ADR-043) ----------
+// Programme Identités locales : sur la feuille Compte, un mode
+// « institutions » du même sélecteur propose banques, courtiers et
+// prévoyance du pays — jamais les services (Netflix). Choisir remplit
+// SEULEMENT le champ établissement : nom, solde, monnaie et nombre de
+// comptes restent intacts, et l'app ne promet jamais une connexion.
+currentTest = "P05-C établissements";
+await goHome();
+const p05 = await page.evaluate(() => {
+  const resultat = { accAvant: ACCOUNTS.length };
+  openAccSheet(null);
+  resultat.bouton = !!document.getElementById("aPickInst");
+  if (resultat.bouton) {
+    document.getElementById("aName").value = "Mon compte perso";
+    document.getElementById("aOpening").value = "1234.50";
+    document.getElementById("aPickInst").click();
+    const search = document.getElementById("svcSearch");
+    resultat.feuille = document.getElementById("svcForm").style.display !== "none";
+    resultat.placeholder = search.placeholder;
+    resultat.legende = document.getElementById("svcSheetCaption").textContent;
+    search.value = "ubs";
+    search.dispatchEvent(new Event("input"));
+    resultat.trouve = !!document.querySelector('#svcResults [data-svckey="ubs"]');
+    search.value = "netflix";
+    search.dispatchEvent(new Event("input"));
+    resultat.netflixAbsent = !document.querySelector('#svcResults [data-svckey="netflix"]');
+    search.value = "ubs";
+    search.dispatchEvent(new Event("input"));
+    document.querySelector('#svcResults [data-svckey="ubs"]').click();
+    resultat.inst = document.getElementById("aInst").value;
+    resultat.nom = document.getElementById("aName").value;
+    resultat.solde = document.getElementById("aOpening").value;
+    resultat.accApres = ACCOUNTS.length;
+  }
+  closeSheet();
+  ACCOUNTS.push({ id: "acc-p05", name: "Courant UBS", inst: "UBS", kind: "current",
+    opening: 0, cash: true, currency: "CHF" });
+  activeTab = "accounts"; moreView = null; render();
+  const rowAcc = document.querySelector('[data-accid="acc-p05"]');
+  resultat.tuile = rowAcc && rowAcc.querySelector(".identity-tile")
+    ? rowAcc.querySelector(".identity-tile").textContent.trim() : null;
+  resultat.promesses = /connecté|synchronis|en direct/i.test(document.getElementById("screen").textContent);
+  const i = ACCOUNTS.findIndex(a => a.id === "acc-p05");
+  if (i >= 0) ACCOUNTS.splice(i, 1);
+  activeTab = "home"; render();
+  return resultat;
+});
+check(p05.bouton && p05.feuille,
+  "la feuille Compte offre le choix d'une banque, d'un courtier ou d'une prévoyance du catalogue");
+check(p05.trouve && p05.netflixAbsent,
+  `le mode institutions montre UBS et jamais Netflix (UBS ${p05.trouve} / Netflix absent ${p05.netflixAbsent})`);
+check(p05.placeholder === "UBS, Swissquote, VIAC…"
+    && /établissement/.test(p05.legende) && !/rythme/.test(p05.legende),
+  `la feuille parle d'établissements, pas de services (obtenu « ${p05.placeholder} » / « ${p05.legende} »)`);
+check(p05.inst === "UBS" && p05.nom === "Mon compte perso" && p05.solde === "1234.50"
+    && p05.accApres === p05.accAvant,
+  `choisir remplit SEULEMENT l'établissement — nom, solde et comptes intacts (obtenu « ${p05.inst} » / « ${p05.nom} » / ${p05.solde} / ${p05.accAvant}→${p05.accApres})`);
+check(p05.tuile === "U",
+  `une institution connue porte sa tuile sur Comptes (obtenu ${p05.tuile})`);
+check(p05.promesses === false,
+  "aucune promesse de connexion, de synchronisation ni de direct");
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9177,4 +9239,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 163 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 164 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

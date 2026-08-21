@@ -43,9 +43,13 @@ Six lots livrés, fusionnés dans l'ordre (#92 → #97) sur ordre du
 propriétaire (« Publié et continue », 20.08.2026) et publiés ensemble par dispatch au SHA exact `58d5af29` (run `32413719185`, succès) le 20.08.2026 :
 gouvernance, P0 AVS (ADR-036), IC0 (ADR-037), IC1 (ADR-038), REC1
 (ADR-039), REC2 (ADR-040). CI verte sur chaque HEAD exact rebasé puis
-sur `main`. Prochain lot : **P08-C — catalogue des services et saisie
-libre sur « Ce qui revient »** ; ensuite ID1, P05-C, P06/P16, P13-C,
-P10/P12-C, INV1, BR1 — une PR par lot.
+sur `main`. Depuis : P08-C (#99, `main` = `6cef3ac`) et ID1 (#100,
+`main` = `4a0646f`) fusionnés sur ordre du propriétaire (« Fusionne et
+continue », 21.08.2026) — **non publiés** : le site sert toujours le run
+`32413719185` (`58d5af29`), la publication attend un ordre explicite.
+Lot actif : **P05-C — établissements sur « Comptes »** (en PR
+brouillon) ; ensuite P06/P16, P13-C, P10/P12-C, INV1, BR1 — une PR par
+lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -838,8 +842,10 @@ parité 9 « quatre-semaines-exactes » née rouge (juillet 2026 : échéances
 des 2 et 30, 90 = 2 × 45) ; test natif miroir aux mêmes dates ; 160 e2e
 + 9 parités + design + catalogue verts.
 
-**P08-C — Catalogue des services et saisie libre (ADR-041)** · en PR
-(brouillon, fusion sur ordre du propriétaire). « Ce qui revient » gagne
+**P08-C — Catalogue des services et saisie libre (ADR-041)** ·
+`MERGED` — PR #99 (`main` = `6cef3ac`), fusionnée le 21.08.2026 sur
+ordre du propriétaire (« Fusionne et continue ») — **non publié** (la
+publication Pages attend un ordre explicite). « Ce qui revient » gagne
 « Choisir un service du catalogue » : 105 services/besoins (abonnements,
 factures, mises de côté) filtrés par pays, recherche pliée avec alias,
 sections par catégorie, « Je ne trouve pas mon service » qui restaure la
@@ -852,8 +858,10 @@ CI) ; iOS limité CH+GLOBAL (base CHF). Parcours 162 né rouge ;
 (`IdentityServicePickerView`) branché dans le formulaire récurrent.
 
 **ID1 — Clé d'identité optionnelle, validation, schéma et sauvegardes
-(ADR-042)** · en PR (brouillon, empilée sur P08-C/#99 — la fusionner
-d'abord). Choisir Netflix persiste `identityKey: "netflix"` à
+(ADR-042)** · `MERGED` — PR #100 (`main` = `4a0646f`), rebasée sur
+#99 fusionné (arbre byte-identique vérifié), CI verte sur le HEAD
+exact, fusionnée le 21.08.2026 sur ordre du propriétaire (« Fusionne et
+continue ») — **non publié**. Choisir Netflix persiste `identityKey: "netflix"` à
 l'enregistrement — renommer « Mes films » garde l'identité (tuile
 « N »). Règle de clé UNE et partagée (kebab 1-40, fixture 12 cas +
 garde littérale PWA/natif) ; clé hostile retirée sans perdre la ligne
@@ -861,6 +869,26 @@ garde littérale PWA/natif) ; clé hostile retirée sans perdre la ligne
 trafiqué) ; clé inconnue conservée et repli monogramme (catalogue
 extensible) ; `BudgetSchemaV9` additif, DTO optionnel, fichier ancien
 restauré à l'identique. Parcours 163 né rouge ; 3 tests natifs ajoutés.
+
+**P05-C — Établissements sur « Comptes » (ADR-043)** · en PR
+(brouillon, fusion sur ordre du propriétaire). Le MÊME sélecteur sert
+deux portes jamais mélangées : services (« Ce qui revient ») et
+institutions (« Comptes » — 44 banques, courtiers et caisses de
+prévoyance filtrés par pays, dont 19 pour la Suisse ; les assureurs
+attendent P13-C). « Choisir ma banque ou mon courtier »
+remplit UNIQUEMENT le champ « Établissement » — jamais un solde, un
+accès, une connexion ni un nom de compte (légende honnête dans le
+formulaire ; l'écran ne dit jamais « connecté », « synchronisé » ni
+« en direct », assertion du parcours 164). La liste des comptes décore
+par correspondance EXACTE nom/alias pliée (jamais un « contient » —
+« CA »/« BP » ne devinent rien) via `institutionEntryFor` (PWA) et
+`BudgetIdentityCatalog.institutionEntry(matching:)` (généré) ; sinon le
+glyphe du type reste ; aucun agrégat ne change. Libellés français des
+catégories d'institutions des deux côtés (Banques, Courtiers, Banques
+en ligne). Parcours 164 né rouge ; 2 tests natifs ajoutés
+(`testInstitutionEntriesStayOnTheirDoor`,
+`testInstitutionMatchingIsExactNeverContains`) ; 164 e2e + 9 parités +
+design + catalogue + audit verts ; captures 320/390 inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

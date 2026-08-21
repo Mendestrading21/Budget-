@@ -6,6 +6,15 @@ import SwiftUI
 /// crée RIEN : le parent reçoit une suggestion et la personne confirme
 /// le reste (montant, compte, date) elle-même.
 struct IdentityServicePickerView: View {
+    /// P05-C (ADR-043) : le même sélecteur sert deux portes, jamais
+    /// mélangées — les services de « Ce qui revient » et les
+    /// institutions (banques, courtiers, prévoyance) de « Comptes ».
+    enum Mode {
+        case services
+        case institutions
+    }
+
+    var mode: Mode = .services
     let onSelect: (BudgetIdentityEntry) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -45,10 +54,12 @@ struct IdentityServicePickerView: View {
         "transport": "Transports", "health": "Santé", "childcare": "Famille",
         "credit": "Crédits", "tax": "Impôts", "saving": "Épargne",
         "investment": "Placements", "pension": "Prévoyance", "other": "Autres",
+        "bank": "Banques", "broker": "Courtiers", "fintech": "Banques en ligne",
     ]
 
     private static let senseLabels: [String: String] = [
         "subscription": "Abonnement", "bill": "Facture", "set_aside": "Mise de côté",
+        "account": "Banque", "broker": "Courtier", "pension": "Prévoyance",
     ]
 
     private static func folded(_ value: String) -> String {
@@ -57,7 +68,9 @@ struct IdentityServicePickerView: View {
 
     private var matches: [BudgetIdentityEntry] {
         let needle = Self.folded(searchText.trimmingCharacters(in: .whitespaces))
-        let entries = BudgetIdentityCatalog.serviceEntries
+        let entries = mode == .institutions
+            ? BudgetIdentityCatalog.institutionEntries
+            : BudgetIdentityCatalog.serviceEntries
         guard !needle.isEmpty else { return entries }
         return entries.filter { entry in
             ([entry.displayName] + entry.aliases)
@@ -95,12 +108,15 @@ struct IdentityServicePickerView: View {
                 }
 
                 Section {
-                    Button("Je ne trouve pas mon service") { dismiss() }
+                    Button(mode == .institutions
+                        ? "Je ne trouve pas mon établissement"
+                        : "Je ne trouve pas mon service") { dismiss() }
                         .accessibilityIdentifier("identity.picker.free")
                 }
             }
-            .searchable(text: $searchText, prompt: "Netflix, Swisscom, CFF…")
-            .navigationTitle("Quel service ?")
+            .searchable(text: $searchText, prompt: mode == .institutions
+                ? "UBS, Swissquote, VIAC…" : "Netflix, Swisscom, CFF…")
+            .navigationTitle(mode == .institutions ? "Quelle banque ?" : "Quel service ?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
