@@ -6,12 +6,14 @@ import SwiftUI
 /// crée RIEN : le parent reçoit une suggestion et la personne confirme
 /// le reste (montant, compte, date) elle-même.
 struct IdentityServicePickerView: View {
-    /// P05-C (ADR-043) : le même sélecteur sert deux portes, jamais
-    /// mélangées — les services de « Ce qui revient » et les
-    /// institutions (banques, courtiers, prévoyance) de « Comptes ».
+    /// P05-C/P13-C (ADR-043, ADR-045) : le même sélecteur sert trois
+    /// portes, jamais mélangées — les services de « Ce qui revient »,
+    /// les institutions (banques, courtiers, prévoyance) de « Comptes »
+    /// et les assureurs de « Assurances ».
     enum Mode {
         case services
         case institutions
+        case insurers
     }
 
     var mode: Mode = .services
@@ -55,6 +57,7 @@ struct IdentityServicePickerView: View {
         "credit": "Crédits", "tax": "Impôts", "saving": "Épargne",
         "investment": "Placements", "pension": "Prévoyance", "other": "Autres",
         "bank": "Banques", "broker": "Courtiers", "fintech": "Banques en ligne",
+        "insurance": "Assureurs",
     ]
 
     private static let senseLabels: [String: String] = [
@@ -66,11 +69,37 @@ struct IdentityServicePickerView: View {
         value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_CH"))
     }
 
+    private var freeEntryLabel: String {
+        switch mode {
+        case .institutions: "Je ne trouve pas mon établissement"
+        case .insurers: "Je ne trouve pas mon assureur"
+        case .services: "Je ne trouve pas mon service"
+        }
+    }
+
+    private var searchPrompt: String {
+        switch mode {
+        case .institutions: "UBS, Swissquote, VIAC…"
+        case .insurers: "CSS, AXA, Generali…"
+        case .services: "Netflix, Swisscom, CFF…"
+        }
+    }
+
+    private var sheetTitle: String {
+        switch mode {
+        case .institutions: "Quelle banque ?"
+        case .insurers: "Quel assureur ?"
+        case .services: "Quel service ?"
+        }
+    }
+
     private var matches: [BudgetIdentityEntry] {
         let needle = Self.folded(searchText.trimmingCharacters(in: .whitespaces))
-        let entries = mode == .institutions
-            ? BudgetIdentityCatalog.institutionEntries
-            : BudgetIdentityCatalog.serviceEntries
+        let entries = switch mode {
+        case .institutions: BudgetIdentityCatalog.institutionEntries
+        case .insurers: BudgetIdentityCatalog.insurerEntries
+        case .services: BudgetIdentityCatalog.serviceEntries
+        }
         guard !needle.isEmpty else { return entries }
         return entries.filter { entry in
             ([entry.displayName] + entry.aliases)
@@ -108,15 +137,12 @@ struct IdentityServicePickerView: View {
                 }
 
                 Section {
-                    Button(mode == .institutions
-                        ? "Je ne trouve pas mon établissement"
-                        : "Je ne trouve pas mon service") { dismiss() }
+                    Button(freeEntryLabel) { dismiss() }
                         .accessibilityIdentifier("identity.picker.free")
                 }
             }
-            .searchable(text: $searchText, prompt: mode == .institutions
-                ? "UBS, Swissquote, VIAC…" : "Netflix, Swisscom, CFF…")
-            .navigationTitle(mode == .institutions ? "Quelle banque ?" : "Quel service ?")
+            .searchable(text: $searchText, prompt: Text(searchPrompt))
+            .navigationTitle(sheetTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

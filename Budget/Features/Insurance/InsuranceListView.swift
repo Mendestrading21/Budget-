@@ -125,9 +125,17 @@ struct InsuranceRow: View {
     var body: some View {
         GlassCard(style: .row) {
             HStack(spacing: BudgetSpacing.medium) {
-                Image(systemName: contract.kind.systemImage)
-                    .foregroundStyle(BudgetColor.indigo)
-                    .frame(width: 28)
+                // P13-C (ADR-045) : un assureur du catalogue est reconnu par
+                // son nom EXACT — l'identité décore, la prime et les totaux
+                // ne changent jamais ; l'inconnu garde le glyphe du type.
+                if let entry = BudgetIdentityCatalog.institutionEntry(matching: contract.insurerName) {
+                    BudgetIdentityIcon(name: entry.displayName)
+                        .frame(width: 28)
+                } else {
+                    Image(systemName: contract.kind.systemImage)
+                        .foregroundStyle(BudgetColor.indigo)
+                        .frame(width: 28)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(contract.policyName)
                         .font(BudgetFont.body.weight(.medium))

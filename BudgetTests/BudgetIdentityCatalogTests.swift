@@ -62,6 +62,23 @@ final class BudgetIdentityCatalogTests: XCTestCase {
                      "vide : jamais de correspondance")
     }
 
+    // P13-C (ADR-045) : les assureurs proposés sur « Assurances » — les
+    // institutions au sens insurance seulement, jamais une banque ni un
+    // besoin générique. L'assureur reste distinct du type de contrat.
+    func testInsurerEntriesStayOnTheirDoor() {
+        let entries = BudgetIdentityCatalog.insurerEntries
+        XCTAssertTrue(entries.allSatisfy { $0.entityKind == "institution" && $0.financialSense == "insurance" })
+        let keys = Set(entries.map(\.key))
+        XCTAssertTrue(keys.contains("css"), "les caisses maladie suisses sont proposées")
+        XCTAssertFalse(keys.contains("ubs"), "une banque n'est jamais un assureur")
+        XCTAssertFalse(keys.contains("household-insurance"),
+                       "un besoin générique (« Assurance ménage ») n'est pas un assureur")
+        XCTAssertEqual(
+            BudgetIdentityCatalog.institutionEntry(matching: "CSS")?.key, "css",
+            "la liste P13 retrouve l'assureur par correspondance exacte, comme les banques"
+        )
+    }
+
     func testSuggestionMappingNeverInventsACategory() {
         XCTAssertEqual(IdentityServicePickerView.appCategoryName(for: "video"), "Restaurants et sorties")
         XCTAssertEqual(IdentityServicePickerView.appCategoryName(for: "telecom"), "Logement")

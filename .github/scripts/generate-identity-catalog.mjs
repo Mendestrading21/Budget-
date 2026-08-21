@@ -81,6 +81,13 @@ ${entries},
         iosMarketEntries.filter { $0.entityKind == "institution" && institutionSenses.contains($0.financialSense) }
     }
 
+    /// P13-C (ADR-045) : assureurs proposés sur « Assurances » — les
+    /// institutions au sens insurance seulement, jamais une banque ni un
+    /// besoin générique (« Assurance ménage » n'est pas un assureur).
+    static var insurerEntries: [BudgetIdentityEntry] {
+        iosMarketEntries.filter { $0.entityKind == "institution" && $0.financialSense == "insurance" }
+    }
+
     /// L'entrée d'institution qui correspond EXACTEMENT à un nom saisi
     /// (nom ou alias, plié accents/casse) — jamais un « contient » :
     /// « CA » ou « BP » ne devinent rien (règle du skill).

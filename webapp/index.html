@@ -1478,6 +1478,8 @@
       <input id="insName" placeholder="Caisse maladie (LAMal)" autocomplete="off" />
       <label for="insInsurer">Assureur (facultatif)</label>
       <input id="insInsurer" placeholder="Assureur Exemple" autocomplete="off" />
+      <button type="button" class="btn secondary" id="insPickInsurer" style="margin:2px 0 6px">Choisir mon assureur</button>
+      <p class="caption" style="margin:0 0 6px">Choisir remplit seulement le nom de l'assureur — jamais une prime ni un contrat.</p>
       <label for="insPremium">Prime (<span class="curlabel">CHF</span>)</label>
       <input id="insPremium" data-primary-amount inputmode="decimal" placeholder="745.60" autocomplete="off" />
       <label for="insUnit">Vous payez</label>
@@ -2085,9 +2087,10 @@ const SVC_CATEGORY_LABEL = {
   childcare: "Famille", credit: "Crédits", tax: "Impôts", saving: "Épargne",
   investment: "Placements", pension: "Prévoyance", other: "Autres",
   bank: "Banques", broker: "Courtiers", fintech: "Banques en ligne",
+  insurance: "Assureurs",
 };
 const SVC_SENSE_LABEL = { subscription: "Abonnement", bill: "Facture", set_aside: "Mise de côté",
-  account: "Banque", broker: "Courtier", pension: "Prévoyance" };
+  account: "Banque", broker: "Courtier", pension: "Prévoyance", insurance: "Assureur" };
 /* P05-C (ADR-043) : le MÊME sélecteur sert deux portes — les services
    de « Ce qui revient » et les institutions de « Comptes ». Jamais
    mélangés : Netflix n'apparaît pas parmi les banques, UBS n'apparaît
@@ -2140,7 +2143,11 @@ function svcEntries() {
   return IDENTITY_CATALOG.identities.filter(e =>
     (institutions
       ? e.entityKind === "institution" && INST_SENSES.has(e.financialSense)
-      : SVC_SENSES.has(e.financialSense))
+      : svcPickerMode === "insurers"
+        // P13-C : les assureurs seulement — jamais une banque, jamais les
+        // besoins génériques (« Assurance ménage » n'est pas un assureur).
+        ? e.entityKind === "institution" && e.financialSense === "insurance"
+        : SVC_SENSES.has(e.financialSense))
     && (e.markets.includes("GLOBAL") || e.markets.includes(country)));
 }
 function svcMatches(entry, needle) {
@@ -4693,7 +4700,12 @@ function renderInsurance() {
         const days = Math.round((due - today) / 86400000);
         if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
       }
-      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>
+      // P13-C (ADR-045) : un assureur du catalogue est reconnu par son nom
+      // EXACT — l'identité décore, la prime et les totaux ne changent jamais.
+      const insurerEntry = institutionEntryFor(i.insurer);
+      return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer">${insurerEntry
+        ? identityTile(insurerEntry.displayName)
+        : `<div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>`}
       <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span>
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span></div>`;
@@ -8155,7 +8167,8 @@ function renderSvcResults() {
   }
   const countryName = COUNTRIES[svcCountry()].name;
   list.innerHTML = `<p class="svc-section">${svcPickerMode === "institutions"
-    ? "Établissements pour votre pays" : "Services pour votre pays"} — ${esc(countryName)}</p>`
+    ? "Établissements pour votre pays" : svcPickerMode === "insurers"
+    ? "Assureurs pour votre pays" : "Services pour votre pays"} — ${esc(countryName)}</p>`
     + [...groups.entries()]
       .sort((a, b) => (SVC_CATEGORY_LABEL[a[0]] || a[0]).localeCompare(SVC_CATEGORY_LABEL[b[0]] || b[0], "fr"))
       .map(([cat, items]) => `<p class="svc-section">${esc(SVC_CATEGORY_LABEL[cat] || cat)}</p>`
@@ -8184,12 +8197,16 @@ function applySvcSelection(entry) {
 function openSvcPicker(mode) {
   svcPickerMode = mode;
   document.getElementById("svcSheetTitle").textContent =
-    mode === "institutions" ? "Quelle banque, quel courtier ?" : "Quel service ?";
+    mode === "institutions" ? "Quelle banque, quel courtier ?"
+      : mode === "insurers" ? "Quel assureur ?" : "Quel service ?";
   document.getElementById("svcSearch").placeholder =
-    mode === "institutions" ? "UBS, Swissquote, VIAC…" : "Netflix, Swisscom, CFF…";
+    mode === "institutions" ? "UBS, Swissquote, VIAC…"
+      : mode === "insurers" ? "CSS, AXA, Generali…" : "Netflix, Swisscom, CFF…";
   document.getElementById("svcSheetCaption").textContent =
     mode === "institutions"
       ? "Choisir un établissement propose seulement un nom. Le solde, les comptes et l'argent restent à vous — rien ne se connecte."
+      : mode === "insurers"
+      ? "Choisir un assureur propose seulement un nom. La prime, le contrat et les dates restent à vous."
       : "Choisir un service propose seulement un nom et un rythme. Le montant, le compte et la date restent à vous.";
   openSheet("svcForm");
   document.getElementById("svcSearch").value = "";
@@ -8227,6 +8244,32 @@ document.getElementById("aPickInst").addEventListener("click", () => {
   svcAccSnapshot = snapshotAccFields();
   openSvcPicker("institutions");
 });
+/* P13-C : la feuille Assurance garde sa saisie pendant le choix. */
+let svcInsSnapshot = null;
+function snapshotInsFields() {
+  return {
+    name: document.getElementById("insName").value,
+    insurer: document.getElementById("insInsurer").value,
+    premium: document.getElementById("insPremium").value,
+    unit: document.getElementById("insUnit").value,
+    due: document.getElementById("insDue").value,
+  };
+}
+function reopenInsWith(snap) {
+  const editing = editingInsId ? INSURANCES.find(i => i.id === editingInsId) : null;
+  openInsSheet(editing);
+  if (!snap) return;
+  document.getElementById("insName").value = snap.name;
+  document.getElementById("insInsurer").value = snap.insurer;
+  document.getElementById("insPremium").value = snap.premium;
+  document.getElementById("insUnit").value = snap.unit;
+  document.getElementById("insDue").value = snap.due;
+}
+document.getElementById("insPickInsurer").addEventListener("click", () => {
+  svcPickerCaller = "ins";
+  svcInsSnapshot = snapshotInsFields();
+  openSvcPicker("insurers");
+});
 document.getElementById("svcSearch").addEventListener("input", renderSvcResults);
 document.getElementById("svcResults").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-svckey]");
@@ -8240,6 +8283,12 @@ document.getElementById("svcResults").addEventListener("click", (e) => {
     closeSheet();
     const champ = document.getElementById("obInst");
     if (champ) champ.value = entry.displayName;
+  } else if (svcPickerCaller === "ins") {
+    // P13-C : choisir remplit SEULEMENT l'assureur — la prime, le nom du
+    // contrat et les dates reviennent tels quels, et rien n'est créé.
+    reopenInsWith(svcInsSnapshot);
+    document.getElementById("insInsurer").value = entry.displayName;
+    document.getElementById("insName").focus();
   } else if (svcPickerMode === "institutions") {
     // Choisir remplit SEULEMENT l'établissement — le reste de la saisie
     // revient tel quel, et rien n'est créé.
@@ -8254,6 +8303,7 @@ function svcReturnToCaller() {
   // P16 : l'étape d'onboarding est restée derrière la feuille — fermer
   // suffit, la saisie n'a pas bougé.
   if (svcPickerCaller === "ob") { closeSheet(); return; }
+  if (svcPickerCaller === "ins") { reopenInsWith(svcInsSnapshot); return; }
   if (svcPickerMode === "institutions") reopenAccWith(svcAccSnapshot);
   else reopenRecWith(svcRecSnapshot);
 }

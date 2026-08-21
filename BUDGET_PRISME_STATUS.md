@@ -47,9 +47,10 @@ sur `main`. Depuis : P08-C (#99, `main` = `6cef3ac`) et ID1 (#100,
 `main` = `4a0646f`) fusionnés sur ordre du propriétaire (« Fusionne et
 continue », 21.08.2026) — **non publiés** : le site sert toujours le run
 `32413719185` (`58d5af29`), la publication attend un ordre explicite.
-Lots en PR brouillon (fusion sur ordre explicite) : **P05-C** (#101, CI
-verte sur `9145896`) puis **P06/P16** (empilée sur P05-C). Ensuite
-P13-C, P10/P12-C, INV1, BR1 — une PR par lot.
+Lots en PR brouillon (fusion sur ordre explicite), empilés dans
+l'ordre : **P05-C** (#101, CI verte sur `9145896`) → **P06/P16** (#102,
+CI verte sur `f1c1903`) → **P13-C** (empilée sur P06/P16). Ensuite
+P10/P12-C, INV1, BR1 — une PR par lot.
 
 Fixture du catalogue validée le 20.08.2026 (commande du skill, sortie
 observée) : **164 identités — CH 107 · FR 96 · BE 94** ; 28 banques,
@@ -903,6 +904,22 @@ explicite du sélecteur (`svcPickerCaller` rec/acc/ob). Parcours 165 né
 rouge (7 échecs nommés) ; `testFinishCarriesOptionalInstitutionName`
 natif ; 165 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 inspectées.
+
+**P13-C — Assureurs (ADR-045)** · en PR (brouillon, empilée sur
+P06/P16/#102 — la fusionner d'abord). Le sélecteur gagne une troisième
+porte strictement séparée : mode assureurs — institutions au sens
+`insurance` seulement (13 assureurs, CSS→Generali), jamais une banque,
+jamais un besoin générique (« Assurance ménage » reste `generic`).
+« Choisir mon assureur » sur la feuille Assurance remplit UNIQUEMENT le
+champ assureur (instantané `svcInsSnapshot`) ; l'assureur reste
+distinct du type de contrat ; la liste décore par la même
+correspondance exacte que les banques (helper réutilisé, aucune
+nouvelle architecture), l'inconnu garde son bouclier. Natif :
+`insurerEntries` (générateur), `Mode.insurers`, bouton + feuille dans
+`InsuranceFormView`, tuile dans `InsuranceRow`. Parcours 166 né rouge
+(4 échecs nommés) ; `testInsurerEntriesStayOnTheirDoor` natif ; 166 e2e
++ 9 parités + design + catalogue + audit verts ; captures 320/390
+inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

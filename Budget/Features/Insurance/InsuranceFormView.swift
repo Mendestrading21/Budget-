@@ -51,6 +51,7 @@ struct InsuranceFormView: View {
     @State private var cancellationDeadline = Date()
     @State private var coverageSummary = ""
     @State private var isActive = true
+    @State private var isPickingInsurer = false
     @State private var errorMessage: String?
 
     private var editedContract: InsuranceContract? {
@@ -68,6 +69,14 @@ struct InsuranceFormView: View {
                 Section("Contrat") {
                     TextField("Nom de la police (ex. LAMal 2026)", text: $policyName)
                     TextField("Assureur", text: $insurerName)
+                    // P13-C (ADR-045) : choisir remplit SEULEMENT le nom de
+                    // l'assureur — jamais une prime, un contrat ni une date.
+                    Button {
+                        isPickingInsurer = true
+                    } label: {
+                        Label("Choisir mon assureur", systemImage: "magnifyingglass")
+                    }
+                    .accessibilityIdentifier("insurance.pickInsurer")
                     TextField("N° de police (facultatif)", text: $policyNumber)
                     Picker("Type", selection: $kind) {
                         ForEach(InsuranceKind.allCases) { kind in
@@ -133,6 +142,11 @@ struct InsuranceFormView: View {
                 }
             }
             .onAppear(perform: populate)
+            .sheet(isPresented: $isPickingInsurer) {
+                IdentityServicePickerView(mode: .insurers) { entry in
+                    insurerName = entry.displayName
+                }
+            }
         }
     }
 
