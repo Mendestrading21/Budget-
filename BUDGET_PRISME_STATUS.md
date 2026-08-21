@@ -1008,6 +1008,17 @@ aussi les positions (confirmation + confidentialité). Parcours 170 né
 rouge (2 échecs nommés) ; 170 e2e + 9 parités + design + catalogue +
 audit verts ; captures 320/390 inspectées.
 
+**INV1-C — Le type d'un compte à positions ne change pas en silence
+(ADR-050)** · en PR (brouillon, empilée sur INV1-B/#108). Changer le
+type d'un compte titres rendait ses positions invisibles alors que la
+suppression restait bloquée (ADR-049) en pointant une fiche qui ne les
+montrait plus — impasse des deux côtés. Corrigé : quitter « Bourse /
+titres » avec des positions est bloqué en le disant, même règle PWA
+(`accForm`) et natif (`AccountFormView.save`) ; sans position, le
+changement reste libre. Parcours 171 né rouge (« type savings » obtenu
+en silence) ; 171 e2e + 9 parités + design + catalogue + audit verts ;
+captures 320/390 inspectées.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

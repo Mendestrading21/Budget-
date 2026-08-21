@@ -24,6 +24,9 @@ struct AccountFormView: View {
     @State private var includeInNetWorth = true
     @State private var isPickingInstitution = false
     @State private var errorMessage: String?
+    // INV1-C (ADR-050) : quitter « Courtier » rendrait les positions
+    // invisibles alors que la suppression resterait bloquée — impasse.
+    @Query private var allPositions: [BrokeragePosition]
 
     private var editedAccount: Account? {
         if case .edit(let account) = mode { return account }
@@ -132,6 +135,12 @@ struct AccountFormView: View {
             openingBalance = FinanceMath.roundedToCents(parsed)
         } else {
             errorMessage = "Le solde initial n'est pas un montant valide. Exemple : 2'500.00"
+            return
+        }
+
+        if let account = editedAccount, account.type == .broker, type != .broker,
+           allPositions.contains(where: { $0.account?.id == account.id }) {
+            errorMessage = "Des positions expliquent ce compte — supprimez-les avant de changer son type."
             return
         }
 
