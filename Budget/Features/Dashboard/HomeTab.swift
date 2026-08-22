@@ -255,6 +255,12 @@ struct HomeTab: View {
     /// Pour l'annonce de progrès quand « Marquer payée » alimente un
     /// compte relié à un objectif (mise de côté mensuelle).
     @Query private var goals: [FinancialGoal]
+    // VUE1 natif (ADR-054) : la vue « Tout » lit les MÊMES sources que
+    // Patrimoine — aucune nouvelle formule.
+    @Query private var manualAssets: [Asset]
+    @Query private var manualLiabilities: [Liability]
+    @Query private var pensionAssets: [PensionAsset]
+    @Query private var taxProvisions: [TaxProvision]
 
     @State private var monthAnchor: Date?
     @State private var saveErrorMessage: String?
@@ -263,12 +269,13 @@ struct HomeTab: View {
     @State private var heroPosition: HeroPosition = .now
 
     enum HeroPosition: String, CaseIterable, Identifiable {
-        case now, endOfMonth
+        case now, endOfMonth, everything
         var id: String { rawValue }
         var title: String {
             switch self {
             case .now: "Maintenant"
             case .endOfMonth: "Fin du mois"
+            case .everything: "Tout"
             }
         }
     }
@@ -433,11 +440,20 @@ struct HomeTab: View {
         // positions — le RÉEL du moment et la PROJECTION de fin de mois.
         // Une projection n'est jamais présentée comme de l'argent possédé.
         let showNow = isCurrentMonth && heroPosition == .now
+        // VUE1 natif (ADR-054, parité de la demande du 22.08) : « Tout »
+        // — la fortune totale (LE chiffre de Patrimoine) et les lignes
+        // écrites. Aucun nouveau calcul : NetWorthService fait foi.
+        let showEverything = isCurrentMonth && heroPosition == .everything
+        let netWorthService = NetWorthService(calendar: appContainer.calendar, balanceService: appContainer.balanceService)
+        let fortune = netWorthService.breakdown(
+            accounts: accounts, assets: manualAssets,
+            pensions: pensionAssets, liabilities: manualLiabilities
+        ).netWorth
         let amount = isCurrentMonth
-            ? (showNow ? snapshot.available.liquidBalance : snapshot.available.total)
+            ? (showEverything ? fortune : showNow ? snapshot.available.liquidBalance : snapshot.available.total)
             : (isFutureMonth ? snapshot.available.total : snapshot.cashFlow)
         let title = isCurrentMonth
-            ? (showNow ? "Disponible maintenant" : "Prévu fin du mois")
+            ? (showEverything ? "Tout votre argent" : showNow ? "Disponible maintenant" : "Prévu fin du mois")
             : (isFutureMonth ? "Estimation du mois" : "Résultat du mois")
 
         return NeonUltraElevatedCard {
@@ -462,7 +478,13 @@ struct HomeTab: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("\(title) : \(FinanceFormatting.chf(amount))")
 
-                if isCurrentMonth, showNow {
+                if isCurrentMonth, showEverything {
+                    Text("Comptes, biens et prévoyance, moins vos dettes. Le détail vit dans Comptes et Patrimoine.")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    everythingRows(snapshot, accessibleSavings: netWorthService.accessibleSavings(accounts: accounts))
+                } else if isCurrentMonth, showNow {
                     Text("Sur vos comptes utilisables au quotidien.")
                         .font(NeonUltraTypography.meta)
                         .foregroundStyle(NeonUltraColor.textSecondary)
@@ -481,7 +503,7 @@ struct HomeTab: View {
                     .foregroundStyle(amount < 0 ? NeonUltraColor.warning : NeonUltraColor.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 }
-                if isCurrentMonth {
+                if isCurrentMonth, !showEverything {
 
                     // A13 (parité PWA, lot A3) : où en est le mois — jour
                     // calendaire réel sur le nombre de jours du mois.
@@ -516,6 +538,53 @@ struct HomeTab: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// VUE1 natif (ADR-054) : les lignes du résumé « Tout » — écrites,
+    /// compactes, chaque franc une fois, uniquement des agrégats existants.
+    private func everythingRows(_ snapshot: MonthSnapshot, accessibleSavings: Decimal) -> some View {
+        let year = appContainer.calendar.component(.year, from: appContainer.dateProvider.now)
+        let taxReserve = taxProvisions.first { $0.year == year }?.reservedAmount ?? .zero
+        let goal = goals.first { $0.status == .active && $0.priority == .high }
+            ?? goals.first { $0.status == .active }
+        let progress = GoalProgressService(balanceService: appContainer.balanceService)
+        return VStack(alignment: .leading, spacing: BudgetSpacing.small) {
+            everythingRow("Disponible maintenant", snapshot.available.liquidBalance)
+            everythingRow("Épargne accessible", accessibleSavings)
+            everythingRow("Mis de côté ce mois", snapshot.totalSavings + snapshot.totalInvestments)
+            everythingRow("Réserve d'impôts", taxReserve)
+            if let goal {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Objectif · \(goal.name)")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textSecondary)
+                        .lineLimit(1)
+                    Spacer(minLength: BudgetSpacing.small)
+                    Text("\(FinanceFormatting.chf(progress.currentAmount(of: goal))) sur \(FinanceFormatting.chf(goal.targetAmount))")
+                        .font(NeonUltraTypography.meta)
+                        .foregroundStyle(NeonUltraColor.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private func everythingRow(_ label: String, _ value: Decimal) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textSecondary)
+            Spacer(minLength: BudgetSpacing.small)
+            Text(FinanceFormatting.chf(value))
+                .font(NeonUltraTypography.meta)
+                .foregroundStyle(NeonUltraColor.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) : \(FinanceFormatting.chf(value))")
     }
 
     /// Trois chiffres, une seule surface. `ViewThatFits` garde la lecture
