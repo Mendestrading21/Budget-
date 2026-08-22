@@ -1039,9 +1039,10 @@ une autre condition ; le test durci fait mordre chaque condition
 seule (prouvé par deux sabotages distincts, chacun nommant l'entrée
 ressuscitée). 172 e2e verts ; aucun code applicatif touché.
 
-**CAT1 — Catégories libres (ADR-051)** · en PR (brouillon, fusion sur
-ordre du propriétaire — demande du 21.08 : « laisser la personne mettre
-ce qu'elle veut, par exemple Poulet ou IKEA »). La feuille de saisie
+**CAT1 — Catégories libres (ADR-051)** · `MERGED` + `PUBLISHED` — PR
+#112 (`main` = `3095f47`), fusionnée puis publiée par dispatch au SHA exact `3449569` (run `32561198273`, succès) le 22.08.2026.
+Demande du 21.08 : « laisser la personne mettre ce qu'elle veut, par
+exemple Poulet ou IKEA ». La feuille de saisie
 gagne « Écrire ma catégorie… » : la catégorie écrite garde le sens du
 type (dépense/revenu), est dédupliquée pliée, retenue
 (`customCategories` additive, restauration tolérante) et reproposée
@@ -1052,9 +1053,10 @@ Picker (`TransactionFormView`), `BudgetCategory` existant réutilisé.
 Parcours 173 né rouge (5 échecs nommés) ; 173 e2e + 9 parités + design
 + catalogue + audit verts ; captures 320/390 inspectées.
 
-**SUB1 — « Mes abonnements » a sa porte (ADR-052)** · en PR
-(brouillon, empilée sur CAT1/#112 — demande du 21.08 : « il manque une
-page mes abonnements »). La vue existait (« Ce qui revient » filtré)
+**SUB1 — « Mes abonnements » a sa porte (ADR-052)** · `MERGED` +
+`PUBLISHED` — PR #113 (`main` = `3449569`), rebasée à arbre
+byte-identique, fusionnée puis publiée par dispatch au SHA exact `3449569` (run `32561198273`, succès) le 22.08.2026. Demande du
+21.08 : « il manque une page mes abonnements ». La vue existait (« Ce qui revient » filtré)
 mais aucune entrée du hub n'y menait. Le groupe « Les quatre
 familles » gagne la porte « Mes abonnements » avec `N abonnements ·
 CHF X / mois` (revenus exclus) ; elle ouvre la vue existante déjà
