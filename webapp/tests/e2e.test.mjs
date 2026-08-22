@@ -7500,8 +7500,9 @@ const p07 = await page.evaluate(() => {
 });
 check(p07.emojis.length === 0,
   `zéro emoji fonctionnel sur le hub Gérer (restants : ${p07.emojis.join(" ") || "aucun"})`);
-check(p07.lignes === 10 && p07.glyphes === 10,
-  `les dix lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+// SUB1 (ADR-052) : le hub gagne « Mes abonnements » — onze lignes.
+check(p07.lignes === 11 && p07.glyphes === 11,
+  `les onze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
 check(p07.chevronsPeints === p07.lignes,
   `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
 check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
@@ -9743,6 +9744,39 @@ check(cat1.reproposee === true && cat1.pasEnRevenu === true,
 check(cat1.budgetJuste === 50,
   `un budget sur « IKEA » compte la dépense — 50, pas 0 (obtenu ${cat1.budgetJuste})`);
 
+// ---------- 174. SUB1 : « Mes abonnements » a sa porte dans Gérer (ADR-052) ----------
+// Demande propriétaire du 21.08.2026 : « il manque une page mes
+// abonnements ». La vue existait (Ce qui revient filtré) mais AUCUNE
+// entrée du hub n'y menait. Le hub Gérer gagne « Mes abonnements » avec
+// son coût par mois ; la porte ouvre la vue déjà filtrée.
+currentTest = "SUB1 mes abonnements";
+await goHome();
+const sub1 = await page.evaluate(() => {
+  const resultat = {};
+  RECURRINGS.push({ id: "r-sub1", title: "Mes films", amount: 17.9, type: "expense",
+    cat: "Restaurants et sorties", day: 1, accountId: defaultCashAccount(),
+    icon: "🎬", nature: "abonnement" });
+  activeTab = "more"; moreView = null; render();
+  const entree = document.querySelector('[data-more="subs"]');
+  resultat.porte = !!entree;
+  resultat.texte = entree ? entree.textContent : "";
+  if (entree) {
+    entree.click();
+    resultat.vue = moreView;
+    resultat.filtre = recFilter;
+    resultat.affiche = /Mes films/.test(document.getElementById("screen").textContent);
+  }
+  RECURRINGS.splice(RECURRINGS.findIndex(r => r.id === "r-sub1"), 1);
+  recFilter = "tout"; activeTab = "home"; moreView = null; render();
+  return resultat;
+});
+check(sub1.porte === true && /Mes abonnements/.test(sub1.texte),
+  "le hub Gérer porte une entrée « Mes abonnements »");
+check(/\/ mois|par mois/.test(sub1.texte),
+  `l'entrée dit le coût par mois (obtenu « ${(sub1.texte || "").trim().slice(0, 80)} »)`);
+check(sub1.vue === "subs" && sub1.filtre === "abonnement" && sub1.affiche === true,
+  `la porte ouvre la vue des abonnements, déjà filtrée (vue ${sub1.vue} / filtre ${sub1.filtre} / affiché ${sub1.affiche})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9752,4 +9786,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 173 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 174 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

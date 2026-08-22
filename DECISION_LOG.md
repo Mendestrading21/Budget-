@@ -1,5 +1,34 @@
 # Budget decision log
 
+## ADR-052 — SUB1 : « Mes abonnements » a sa porte dans Gérer
+
+Date: 2026-08-21
+Status: accepted
+
+### Contexte
+
+Demande propriétaire du 21.08.2026 : « il manque une page mes
+abonnements ». La page existait — « Ce qui revient » filtré sur les
+abonnements (coût par an, moyenne par mois, liste triée) — mais AUCUNE
+entrée du hub Gérer n'y menait : introuvable sans connaître le filtre.
+
+### Décision
+
+Le groupe « Les quatre familles » du hub Gérer gagne la porte
+« Mes abonnements » (famille n° 3, à sa place dans l'ordre des
+familles), avec un sous-titre honnête : `N abonnements · CHF X / mois`
+(revenus exclus, nature « abonnement » seulement), ou l'invitation
+quand il n'y en a pas. La porte ouvre la vue existante déjà filtrée —
+aucun nouveau calcul, aucun nouvel écran.
+
+### Vérification
+
+Parcours 174 né rouge (3 échecs nommés : porte absente, coût absent,
+vue non filtrée) ; le compte de lignes du hub (parcours P07) passe de
+dix à onze et le dit ; contrôle négatif par sabotage ; captures 320/390
+inspectées.
+
+
 ## ADR-051 — CAT1 : la personne écrit sa catégorie — « IKEA », « Poulet »
 
 Date: 2026-08-21

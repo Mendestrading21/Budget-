@@ -1052,6 +1052,17 @@ Picker (`TransactionFormView`), `BudgetCategory` existant réutilisé.
 Parcours 173 né rouge (5 échecs nommés) ; 173 e2e + 9 parités + design
 + catalogue + audit verts ; captures 320/390 inspectées.
 
+**SUB1 — « Mes abonnements » a sa porte (ADR-052)** · en PR
+(brouillon, empilée sur CAT1/#112 — demande du 21.08 : « il manque une
+page mes abonnements »). La vue existait (« Ce qui revient » filtré)
+mais aucune entrée du hub n'y menait. Le groupe « Les quatre
+familles » gagne la porte « Mes abonnements » avec `N abonnements ·
+CHF X / mois` (revenus exclus) ; elle ouvre la vue existante déjà
+filtrée — aucun nouveau calcul. Parcours 174 né rouge (3 échecs
+nommés) ; hub à onze lignes assumé (parcours P07) ; 174 e2e + 9
+parités + design + catalogue + audit verts ; captures 320/390
+inspectées.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées
