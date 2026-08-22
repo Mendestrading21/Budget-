@@ -1080,7 +1080,13 @@ l'objectif prioritaire. Aucun nouveau calcul. Parcours 175 né rouge
 verts ; captures 320/390 inspectées.
 
 **PAR1 — Parité native de « Tout » et « Mes abonnements » (ADR-054)** ·
-en PR (brouillon, empilée sur GOV-6/#116, ordre de fusion #116 → #117).
+`MERGED` + `PUBLISHED` — sur « Fusionne et publie » du 22.08.2026 :
+GOV-6 (#116) fusionnée (`ab03379`), puis #117 rebasée à arbre
+byte-identique (`69333a3`), CI verte sur le HEAD exact, fusionnée
+(`main` = `51f40a9`), CI verte sur `main`, et publication par dispatch
+au SHA exact `51f40a9` (run `32577254449`, succès — logs : `TARGET_SHA`
+résolu, « CI verte confirmée », déploiement en succès ; lot natif, le
+site ne change pas).
 VUE1 et SUB1 n'existaient que sur la PWA. Natif : `HomeTab` gagne la
 position « Tout » (fortune totale via `NetWorthService.breakdown` — le
 même service que Comptes et Patrimoine, aucune nouvelle formule — puis
