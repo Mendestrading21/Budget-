@@ -9777,6 +9777,72 @@ check(/\/ mois|par mois/.test(sub1.texte),
 check(sub1.vue === "subs" && sub1.filtre === "abonnement" && sub1.affiche === true,
   `la porte ouvre la vue des abonnements, déjà filtrée (vue ${sub1.vue} / filtre ${sub1.filtre} / affiché ${sub1.affiche})`);
 
+// ---------- 175. VUE1 : « Tout » — la vue d'ensemble sur la carte du mois (ADR-053) ----------
+// Demande propriétaire du 22.08.2026 (capture à l'appui) : la carte ne
+// montre que le quotidien — « il manque épargne, investissements, mis de
+// côté, impôts… un résumé, tout sur une seule vue, avec plusieurs
+// choix, et l'objectif ». Troisième position « Tout » : fortune totale
+// (le MÊME chiffre que Comptes) + lignes écrites — aucune nouvelle
+// formule, uniquement les agrégats existants.
+currentTest = "VUE1 vue d'ensemble";
+{
+  const ctx175 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p175 = await ctx175.newPage();
+  p175.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[VUE1] ${msg.text()}`); });
+  await p175.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Vue" },
+      baseCurrency: "CHF", taxReserve: 250,
+      transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 500, cash: false, currency: "CHF" },
+        { id: "brk", name: "Bourse", kind: "brokerage", opening: 2000, cash: false, currency: "CHF" },
+      ],
+      recurrings: [], goals: [
+        { id: "g1", name: "Permis", emoji: "🚗", target: 1000, manualCurrent: 400,
+          monthly: 50, linked: null, dueY: 2027, dueM: 6, priority: true, achieved: false },
+      ],
+      assets: [{ id: "as1", name: "Vélo", value: 300, include: true }],
+      liabilities: [{ id: "li1", name: "Prêt", value: 100, include: true }],
+      pensions: [], insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p175.goto(APP_URL);
+  await p175.waitForSelector("#tabbar button");
+  const vue = await p175.evaluate(() => {
+    const resultat = {};
+    activeTab = "home"; render();
+    resultat.chip = !!document.querySelector('[data-herovue="tout"]');
+    if (!resultat.chip) return resultat;
+    document.querySelector('[data-herovue="tout"]').click();
+    const carte = document.querySelector(".home-hero");
+    const texte = carte ? carte.textContent : "";
+    resultat.fortune = /3[ ']700\.00/.test(texte);
+    resultat.epargne = /Épargne[\s\S]{0,60}?500\.00/.test(texte);
+    resultat.misCote = /Mis de côté ce mois/.test(texte);
+    resultat.impots = /Réserve d'impôts[\s\S]{0,60}?250\.00/.test(texte);
+    resultat.objectif = /Permis[\s\S]{0,80}?400\.00[\s\S]{0,40}?1[ ']000\.00/.test(texte);
+    resultat.promesses = /connecté|synchronis|en direct/i.test(texte);
+    // Le MÊME chiffre que Comptes — jamais deux vérités.
+    activeTab = "accounts"; accountView = null; render();
+    const ligne = [...document.querySelectorAll(".breakdown div")]
+      .find(d => /Fortune totale/.test(d.textContent));
+    resultat.memeChiffre = ligne ? /3[ ']700\.00/.test(ligne.textContent) : null;
+    return resultat;
+  });
+  check(vue.chip === true, "la carte du mois offre une troisième position « Tout »");
+  check(vue.fortune === true && vue.memeChiffre === true,
+    `« Tout » montre la fortune totale — le MÊME chiffre que Comptes (hero ${vue.fortune} / comptes ${vue.memeChiffre})`);
+  check(vue.epargne === true && vue.misCote === true && vue.impots === true,
+    `épargne, mis de côté ce mois et réserve d'impôts sont écrits (épargne ${vue.epargne} / mis de côté ${vue.misCote} / impôts ${vue.impots})`);
+  check(vue.objectif === true,
+    "l'objectif prioritaire est là — Permis : 400.00 sur 1'000.00");
+  check(vue.promesses === false,
+    "aucune promesse de connexion, de synchronisation ni de direct");
+  await ctx175.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9786,4 +9852,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 174 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 175 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
