@@ -1039,6 +1039,19 @@ une autre condition ; le test durci fait mordre chaque condition
 seule (prouvé par deux sabotages distincts, chacun nommant l'entrée
 ressuscitée). 172 e2e verts ; aucun code applicatif touché.
 
+**CAT1 — Catégories libres (ADR-051)** · en PR (brouillon, fusion sur
+ordre du propriétaire — demande du 21.08 : « laisser la personne mettre
+ce qu'elle veut, par exemple Poulet ou IKEA »). La feuille de saisie
+gagne « Écrire ma catégorie… » : la catégorie écrite garde le sens du
+type (dépense/revenu), est dédupliquée pliée, retenue
+(`customCategories` additive, restauration tolérante) et reproposée
+partout du même sens (saisie, récurrents, factures, budget) ;
+`categoryKind` remplace les lectures directes (le repli « income »
+silencieux du rapport de budget est mort). Natif : même porte sous le
+Picker (`TransactionFormView`), `BudgetCategory` existant réutilisé.
+Parcours 173 né rouge (5 échecs nommés) ; 173 e2e + 9 parités + design
++ catalogue + audit verts ; captures 320/390 inspectées.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

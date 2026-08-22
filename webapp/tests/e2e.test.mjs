@@ -9678,6 +9678,71 @@ check(invd.ok === true,
 check(Array.isArray(invd.gardees) && invd.gardees.length === 1 && invd.gardees[0] === "ok",
   `seule la position valide survit — quantité illisible, date impossible, prix illisible et orpheline retirées, chacune pour SA raison (obtenu ${JSON.stringify(invd.gardees)})`);
 
+// ---------- 173. CAT1 : la personne écrit SA catégorie — « IKEA », « Poulet » (ADR-051) ----------
+// Demande propriétaire du 21.08.2026 (capture à l'appui) : la liste fixe
+// ne suffit pas — « il faut aussi laisser la personne mettre ce qu'elle
+// veut ». La catégorie libre naît sur la feuille de saisie, garde le SENS
+// du type (dépense/revenu), réapparaît partout (saisie, budget) et
+// compte JUSTE dans le rapport de budget.
+currentTest = "CAT1 catégories libres";
+await goHome();
+const cat1 = await page.evaluate(() => {
+  const resultat = {};
+  openTxSheet(null, "expense");
+  const sel = document.getElementById("fCat");
+  resultat.optionLibre = [...sel.options].some(o => o.value === "__libre__");
+  if (!resultat.optionLibre) { closeSheet(); return resultat; }
+  sel.value = "__libre__";
+  sel.dispatchEvent(new Event("change"));
+  const champ = document.getElementById("fCatLibre");
+  resultat.champVisible = champ && champ.offsetParent !== null;
+  // Vide refusé en le disant, saisie conservée.
+  document.getElementById("fAmount").value = "50";
+  champ.value = "   ";
+  document.getElementById("txForm").dispatchEvent(new Event("submit"));
+  resultat.videRefuse = /catégorie/i.test(document.getElementById("screen").textContent
+    + document.getElementById("txForm").textContent);
+  resultat.montantConserve = document.getElementById("fAmount").value === "50";
+  // Puis « IKEA » : le mouvement porte la catégorie écrite.
+  champ.value = "IKEA";
+  const avant = transactions.length;
+  document.getElementById("txForm").dispatchEvent(new Event("submit"));
+  const cree = transactions.length === avant + 1 ? transactions[transactions.length - 1] : null;
+  resultat.catCree = cree ? cree.cat : null;
+  resultat.enregistree = (S.customCategories || []).some(c => c.name === "IKEA" && c.kind === "expense");
+  // Elle réapparaît dans le select des dépenses…
+  openTxSheet(null, "expense");
+  resultat.reproposee = [...document.getElementById("fCat").options].some(o => o.value === "IKEA");
+  closeSheet();
+  // …mais jamais dans les revenus (le sens est gardé).
+  openTxSheet(null, "income");
+  resultat.pasEnRevenu = ![...document.getElementById("fCat").options].some(o => o.value === "IKEA");
+  closeSheet();
+  // Le rapport de budget la compte comme une DÉPENSE (le repli « income »
+  // silencieux d'avant aurait affiché 0).
+  const t = transactions[transactions.length - 1];
+  S.budgets[`${t.y}-${t.m}`] = (S.budgets[`${t.y}-${t.m}`] || []).concat([{ cat: "IKEA", amount: 200 }]);
+  const ligne = budgetReport(t.y, t.m).lines.find(l => l.cat === "IKEA");
+  resultat.budgetJuste = ligne ? ligne.actual : null;
+  // Nettoyage.
+  S.budgets[`${t.y}-${t.m}`] = S.budgets[`${t.y}-${t.m}`].filter(l => l.cat !== "IKEA");
+  transactions.splice(transactions.findIndex(x => x.id === t.id), 1);
+  S.customCategories = (S.customCategories || []).filter(c => c.name !== "IKEA");
+  saveState();
+  render();
+  return resultat;
+});
+check(cat1.optionLibre === true && cat1.champVisible === true,
+  "la feuille de saisie offre « Écrire ma catégorie… » avec un vrai champ");
+check(cat1.videRefuse === true && cat1.montantConserve === true,
+  "une catégorie vide est refusée en le disant, sans perdre la saisie");
+check(cat1.catCree === "IKEA" && cat1.enregistree === true,
+  `le mouvement porte la catégorie écrite et elle est retenue avec son sens (obtenu ${cat1.catCree} / retenue ${cat1.enregistree})`);
+check(cat1.reproposee === true && cat1.pasEnRevenu === true,
+  "« IKEA » est reproposée pour les dépenses, jamais pour les revenus");
+check(cat1.budgetJuste === 50,
+  `un budget sur « IKEA » compte la dépense — 50, pas 0 (obtenu ${cat1.budgetJuste})`);
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9687,4 +9752,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 172 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 173 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
