@@ -1,5 +1,39 @@
 # Budget decision log
 
+## ADR-053 — VUE1 : « Tout » — la vue d'ensemble sur la carte du mois
+
+Date: 2026-08-22
+Status: accepted
+
+### Contexte
+
+Demande propriétaire du 22.08.2026, capture à l'appui : la carte du
+mois (« Maintenant / Fin du mois ») ne montre que le quotidien — « il
+manque épargne, investissements, mis de côté, impôts… un résumé, tout
+sur une seule vue, avec plusieurs choix, et l'objectif ».
+
+### Décision
+
+1. La carte du mois gagne une TROISIÈME position « Tout » (mois courant
+   seulement, comme les deux autres) : titre « Tout votre argent »,
+   focal = FORTUNE TOTALE, puis les lignes écrites — Disponible
+   maintenant, Épargne accessible, Mis de côté ce mois, Réserve
+   d'impôts, Objectif prioritaire (nom · fait sur visé).
+2. AUCUN nouveau calcul : uniquement les agrégats existants. La
+   formule de fortune totale est EXTRAITE en une fonction unique
+   `fortuneTotale()` servie à Comptes ET à la carte — jamais deux
+   vérités (le test compare les deux affichages au franc près).
+3. L'objectif montré : le prioritaire actif, sinon le premier actif,
+   sinon rien. La jauge d'avancement du mois se tait sur « Tout »
+   (un seul point focal lumineux) ; « Ajouter » reste la seule action.
+
+### Vérification
+
+Parcours 175 né rouge (5 échecs nommés) ; même chiffre carte↔Comptes ;
+aucune promesse de connexion ; contrôle négatif par sabotage ; captures
+320/390 inspectées.
+
+
 ## ADR-052 — SUB1 : « Mes abonnements » a sa porte dans Gérer
 
 Date: 2026-08-21
