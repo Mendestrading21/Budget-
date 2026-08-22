@@ -1065,9 +1065,12 @@ nommés) ; hub à onze lignes assumé (parcours P07) ; 174 e2e + 9
 parités + design + catalogue + audit verts ; captures 320/390
 inspectées.
 
-**VUE1 — « Tout », la vue d'ensemble du mois (ADR-053)** · en PR
-(brouillon, empilée sur GOV-5/#114 — demande du 22.08, capture à
-l'appui : « un résumé, tout sur une seule vue, avec l'objectif »). La
+**VUE1 — « Tout », la vue d'ensemble du mois (ADR-053)** · `MERGED` +
+`PUBLISHED` — PR #115 (`main` = `fea700c`), rebasée à arbre
+byte-identique, fusionnée puis publiée par dispatch au SHA exact
+`fea700c` (run `32568062329`, succès) le 22.08.2026. Demande du 22.08,
+capture à l'appui : « un résumé, tout sur une seule vue, avec
+l'objectif ». La
 carte du mois gagne la troisième position « Tout » : fortune totale en
 focal (formule UNIQUE `fortuneTotale()` partagée avec Comptes — jamais
 deux vérités, comparaison testée au franc près), puis Disponible,
