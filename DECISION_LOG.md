@@ -1,5 +1,47 @@
 # Budget decision log
 
+## ADR-054 — PAR1 : parité native de « Tout » et « Mes abonnements »
+
+Date: 2026-08-22
+Status: accepted
+
+### Contexte
+
+VUE1 (ADR-053) et SUB1 (ADR-052) n'existaient que sur la PWA. L'app
+native affichait la carte du mois avec deux positions seulement
+(« Maintenant / Fin du mois ») et le hub Gérer n'avait aucune porte
+« Mes abonnements ». Les deux plateformes doivent raconter la même
+histoire (parité, même famille n° 3, même vue d'ensemble).
+
+### Décision
+
+1. `HomeTab` gagne la position `HeroPosition.everything` (« Tout »,
+   mois courant seulement) : titre « Tout votre argent », focal =
+   fortune totale lue par `NetWorthService.breakdown(...).netWorth` —
+   le MÊME service que Comptes et Patrimoine, aucune nouvelle formule —
+   puis les lignes écrites : Disponible maintenant, Épargne accessible
+   (`accessibleSavings`), Mis de côté ce mois (épargne + investi du
+   snapshot), Réserve d'impôts (`TaxProvision` de l'année courante),
+   Objectif (prioritaire actif, sinon premier actif, sinon rien ; avancement
+   via `GoalProgressService`). La jauge d'avancement du mois se tait sur
+   « Tout » (un seul point focal lumineux).
+2. `RecurringListView` gagne `onlySubscriptions` : même liste resserrée
+   sur la section abonnements, titre « Mes abonnements », état vide
+   honnête. `MoreTab` gagne la porte correspondante à sa place dans
+   l'ordre des familles — aucun nouvel écran, aucun nouveau calcul.
+
+### Vérification
+
+Lot natif sans nouveau calcul (précédent A12) : la preuve est le job
+simulateur de la CI (build + tests iOS) sur le HEAD exact ; les suites
+web restent inchangées et vertes (175 parcours). Le test natif
+`testHeroCardOffersExactlyTwoHonestPositions` a mordu tout seul sur la
+troisième position (échec CI nommé) — il devient
+`testHeroCardOffersExactlyThreeHonestPositions` et verrouille l'ordre
+« Maintenant · Fin du mois · Tout » : c'est le contrôle négatif naturel
+du lot.
+
+
 ## ADR-053 — VUE1 : « Tout » — la vue d'ensemble sur la carte du mois
 
 Date: 2026-08-22

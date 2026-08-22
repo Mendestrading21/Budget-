@@ -132,12 +132,14 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
-    /// FE2 : la grande carte du Mois a deux positions — le réel et la
-    /// projection — avec les mots du cahier propriétaire.
-    func testHeroCardOffersExactlyTwoHonestPositions() {
+    /// FE2 puis PAR1 (ADR-054) : la grande carte du Mois a trois
+    /// positions — le réel, la projection et la vue d'ensemble — avec
+    /// les mots du cahier propriétaire. Une projection n'est jamais
+    /// présentée comme de l'argent possédé.
+    func testHeroCardOffersExactlyThreeHonestPositions() {
         XCTAssertEqual(
             HomeTab.HeroPosition.allCases.map(\.title),
-            ["Maintenant", "Fin du mois"]
+            ["Maintenant", "Fin du mois", "Tout"]
         )
     }
 

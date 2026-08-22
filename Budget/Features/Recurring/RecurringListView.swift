@@ -4,6 +4,10 @@ import SwiftData
 /// One clear place for everything that comes back automatically:
 /// rent, insurance, subscriptions, salaries and regular savings.
 struct RecurringListView: View {
+    /// SUB1 natif (ADR-054) : la porte « Mes abonnements » du hub montre
+    /// la MÊME liste, resserrée sur la famille n° 3 — aucun nouveau calcul.
+    var onlySubscriptions = false
+
     @Environment(AppContainer.self) private var appContainer
 
     @Query(sort: \RecurringTransaction.title)
@@ -62,6 +66,14 @@ struct RecurringListView: View {
 
                     if recurrings.isEmpty {
                         emptyState
+                    } else if onlySubscriptions {
+                        subscriptionSection
+                        if activeSubscriptions.isEmpty {
+                            Text("Aucun abonnement pour l'instant. Netflix, Spotify, téléphone… ajoutez ce qui revient tout seul depuis « Ce qui revient ».")
+                                .font(NeonUltraTypography.meta)
+                                .foregroundStyle(NeonUltraColor.textSecondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     } else {
                         // A14 : l'ordre canonique des familles — Rentrées,
                         // Factures, Abonnements, Mis de côté.
@@ -75,7 +87,7 @@ struct RecurringListView: View {
                 .padding(BudgetSpacing.screenMargin)
             }
         }
-        .navigationTitle("Ce qui revient")
+        .navigationTitle(onlySubscriptions ? "Mes abonnements" : "Ce qui revient")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

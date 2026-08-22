@@ -1079,6 +1079,19 @@ l'objectif prioritaire. Aucun nouveau calcul. Parcours 175 né rouge
 (5 échecs nommés) ; 175 e2e + 9 parités + design + catalogue + audit
 verts ; captures 320/390 inspectées.
 
+**PAR1 — Parité native de « Tout » et « Mes abonnements » (ADR-054)** ·
+en PR (brouillon, empilée sur GOV-6/#116, ordre de fusion #116 → #117).
+VUE1 et SUB1 n'existaient que sur la PWA. Natif : `HomeTab` gagne la
+position « Tout » (fortune totale via `NetWorthService.breakdown` — le
+même service que Comptes et Patrimoine, aucune nouvelle formule — puis
+Disponible, Épargne accessible, Mis de côté ce mois, Réserve d'impôts
+de l'année, objectif prioritaire via `GoalProgressService` ; jauge du
+mois tue sur « Tout ») ; `RecurringListView` gagne `onlySubscriptions`
+et `MoreTab` la porte « Mes abonnements » à sa place dans l'ordre des
+familles. Lot natif sans nouveau calcul (précédent A12) : preuve = job
+simulateur de la CI sur le HEAD exact ; suites web inchangées (175
+parcours verts revérifiés en local).
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

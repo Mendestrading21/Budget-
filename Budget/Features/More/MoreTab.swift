@@ -13,6 +13,13 @@ struct MoreTab: View {
                         subtitle: "Salaire, factures, abonnements et épargne",
                         systemImage: "calendar.badge.clock"
                     ) { RecurringListView() }
+                    // SUB1 natif (ADR-054, demande du 21.08) : la famille
+                    // n° 3 a sa porte visible — même liste, resserrée.
+                    row(
+                        "Mes abonnements",
+                        subtitle: "Ce qui revient tout seul, et son coût",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    ) { RecurringListView(onlySubscriptions: true) }
                     row(
                         "Impôts",
                         subtitle: "Ce qui est payé et ce qu'il reste à prévoir",
