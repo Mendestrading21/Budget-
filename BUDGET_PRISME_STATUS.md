@@ -1098,6 +1098,20 @@ familles. Lot natif sans nouveau calcul (précédent A12) : preuve = job
 simulateur de la CI sur le HEAD exact ; suites web inchangées (175
 parcours verts revérifiés en local).
 
+**MF1 — Le mois futur montre le vrai argent d'abord (ADR-055)** · en PR
+(brouillon). Demande du 24.08 (captures) : le mois futur affichait
+« Estimation du mois : CHF 14'057.40 » en focal alors que rien n'était
+reçu. Choix propriétaire : « le vrai argent d'abord ». Sur un mois
+futur, PWA + iOS : grand chiffre = l'argent réellement sur les comptes
+(« Sur vos comptes maintenant »), note « L'argent prévu n'est pas
+compté ici tant qu'il n'est pas reçu ou payé », estimation reléguée en
+petit au conditionnel (« Si tout se passe comme prévu : … »), muette
+quand rien n'est prévu. Aucun calcul changé. Parcours 176 né rouge
+(4 échecs nommés) ; sabotage mordant seul ; 176 e2e + 9 parités +
+design + catalogue + audit verts ; captures 320/390 avant/après
+inspectées. NB : la publication du run `32579800874` (SHA `68ca09e`,
+GOV-7) est consignée ici.
+
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
 Toutes les pages du registre P00–P18 sont traitées : auditées, corrigées

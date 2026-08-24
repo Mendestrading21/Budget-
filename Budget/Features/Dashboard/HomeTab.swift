@@ -451,10 +451,12 @@ struct HomeTab: View {
         ).netWorth
         let amount = isCurrentMonth
             ? (showEverything ? fortune : showNow ? snapshot.available.liquidBalance : snapshot.available.total)
-            : (isFutureMonth ? snapshot.available.total : snapshot.cashFlow)
+            // MF1 (ADR-055, demande du 24.08) : sur un mois futur, le
+            // grand chiffre est l'argent RÉEL — jamais l'estimation.
+            : (isFutureMonth ? snapshot.available.liquidBalance : snapshot.cashFlow)
         let title = isCurrentMonth
             ? (showEverything ? "Tout votre argent" : showNow ? "Disponible maintenant" : "Prévu fin du mois")
-            : (isFutureMonth ? "Estimation du mois" : "Résultat du mois")
+            : (isFutureMonth ? "Sur vos comptes maintenant" : "Résultat du mois")
 
         return NeonUltraElevatedCard {
             VStack(alignment: .leading, spacing: BudgetSpacing.medium) {
@@ -521,10 +523,16 @@ struct HomeTab: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Jour \(dayOfMonth) sur \(daysInMonth)")
                 } else if isFutureMonth {
-                    Text("Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois.")
+                    Text("L'argent prévu n'est pas compté ici tant qu'il n'est pas reçu ou payé.")
                         .font(NeonUltraTypography.meta)
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if snapshot.available.total != snapshot.available.liquidBalance {
+                        Text("Si tout se passe comme prévu : \(FinanceFormatting.chf(snapshot.available.total)) à la fin de ce mois.")
+                            .font(NeonUltraTypography.meta)
+                            .foregroundStyle(NeonUltraColor.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Button {

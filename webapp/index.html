@@ -3393,12 +3393,17 @@ function renderSimpleHome() {
     ...(enAttente > 0 ? [`+ ${chf(enAttente)} à recevoir`] : []),
     ...(sortiesReelles > 0 ? [`− ${chf(sortiesReelles)} à sortir`] : []),
   ].join(" ") + ".";
+  // MF1 (ADR-055, demande propriétaire du 24.08.2026) : sur un mois
+  // FUTUR, le grand chiffre est l'argent RÉEL — jamais l'estimation.
+  // Rien de prévu n'est mis en avant tant que « Reçu » ou « Payé » n'a
+  // pas été pressé ; l'estimation reste écrite en dessous, en petit,
+  // au conditionnel.
   const heroValue = s.isCurrent
     ? (heroTout ? fortuneTotale() : heroMaintenant ? s.liquid : s.endOfMonthForecast)
-    : (futureMonth ? s.available : s.cashFlow);
+    : (futureMonth ? s.liquid : s.cashFlow);
   const heroTitle = s.isCurrent
     ? (heroTout ? "Tout votre argent" : heroMaintenant ? "Disponible maintenant" : "Prévu fin du mois")
-    : (futureMonth ? "Estimation du mois" : "Résultat du mois");
+    : (futureMonth ? "Sur vos comptes maintenant" : "Résultat du mois");
   const heroNote = s.isCurrent
     ? (heroTout
       ? "Comptes, biens et prévoyance, moins vos dettes. Le détail vit dans Comptes et Patrimoine."
@@ -3406,7 +3411,7 @@ function renderSimpleHome() {
       ? "Sur vos comptes utilisables au quotidien."
       : noteFinMois)
     : (futureMonth
-      ? "Depuis le solde actuel, avec les revenus, paiements et mises de côté prévus pour ce mois."
+      ? "L'argent prévu n'est pas compté ici tant qu'il n'est pas reçu ou payé."
       : "Revenus moins sorties sur ce mois.");
   const heroSousNote = s.isCurrent && !heroMaintenant && !heroTout
     ? (s.endOfMonthForecast < 0
@@ -3445,7 +3450,7 @@ function renderSimpleHome() {
     <p class="caption hero-note">${esc(heroNote)}</p>
     ${heroSousNote ? `<p class="caption hero-note">${esc(heroSousNote)}</p>` : ""}
     ${heroToutLignes}
-    ${futureMonth ? `<p class="caption hero-reel">Sur vos comptes maintenant : ${chf(s.liquid)}</p>` : ""}
+    ${futureMonth && s.available !== s.liquid ? `<p class="caption hero-reel">Si tout se passe comme prévu : ${chf(s.available)} à la fin de ce mois.</p>` : ""}
     ${heroTout ? "" : avanceMois}
     <button class="btn nu-cta home-add" data-addtx>${budgetGlyph("add")}<span>Ajouter</span></button>
   </section>`;
