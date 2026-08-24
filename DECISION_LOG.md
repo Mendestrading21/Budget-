@@ -1,5 +1,45 @@
 # Budget decision log
 
+## ADR-055 — MF1 : le mois futur montre le vrai argent d'abord
+
+Date: 2026-08-24
+Status: accepted
+
+### Contexte
+
+Demande propriétaire du 24.08.2026, captures à l'appui : app fraîche,
+salaire saisi mais PAS encore reçu (bouton « Reçu » jamais pressé) —
+le mois suivant affichait « Estimation du mois : CHF 14'057.40 » en
+focal. « Tant que je n'ai pas appuyé sur le bouton, il ne faut rien me
+mettre. » Le mois futur repartait du solde actuel et mettait la somme
+des flux prévus en grand : le principe « l'argent prévu et l'argent
+réel ne se mélangent jamais » était trahi visuellement. Trois options
+proposées ; le propriétaire a choisi « le vrai argent d'abord ».
+
+### Décision
+
+Sur un mois FUTUR, des deux plateformes :
+
+1. Le grand chiffre = l'argent RÉELLEMENT sur les comptes (`liquid` /
+   `liquidBalance`), titre « Sur vos comptes maintenant ».
+2. La note dit la règle : « L'argent prévu n'est pas compté ici tant
+   qu'il n'est pas reçu ou payé. »
+3. L'estimation reste écrite en dessous, en petit, au conditionnel —
+   « Si tout se passe comme prévu : CHF X à la fin de ce mois. » — et
+   se tait quand rien n'est prévu (estimation = réel).
+4. Aucun calcul ne change : `endOfMonthForecast` et les blocs
+   « prévu » du mois futur restent tels quels ; seule la hiérarchie
+   visuelle change.
+
+### Vérification
+
+Parcours 176 né rouge (4 échecs nommés, chiffres exacts des captures
+propriétaire) ; contrôle négatif par sabotage (estimation remise en
+focal → le test mord seul) ; parcours 5487/5489/6433 alignés sur les
+nouveaux mots ; natif prouvé par le job simulateur CI ; captures
+320/390 avant/après inspectées (`docs/neon-ultra/budget-prisme/mf1/`).
+
+
 ## ADR-054 — PAR1 : parité native de « Tout » et « Mes abonnements »
 
 Date: 2026-08-22

@@ -5484,9 +5484,9 @@ await goHome();
   });
   check(heros.count === 1 && heros.carousel === 0,
     `un seul héros, aucun carrousel (${JSON.stringify(heros)})`);
-  check(/Disponible maintenant|Prévu fin du mois|Résultat du mois|Estimation du mois/.test(heros.title) && /\d/.test(heros.amount),
+  check(/Disponible maintenant|Prévu fin du mois|Résultat du mois|Sur vos comptes maintenant/.test(heros.title) && /\d/.test(heros.amount),
     `le héros répond avec un montant (${heros.title} · ${heros.amount})`);
-  check(/par jour|Il manque|Sur vos comptes utilisables|Revenus moins sorties|Depuis le solde actuel/.test(heros.note),
+  check(/par jour|Il manque|Sur vos comptes utilisables|Revenus moins sorties|L'argent prévu n'est pas compté/.test(heros.note),
     `une seule phrase explique le montant (« ${heros.note} »)`);
   check(heros.cta.includes("Ajouter") && heros.debordePage <= 1,
     `le CTA reste visible sans débordement (${JSON.stringify(heros)})`);
@@ -6430,7 +6430,8 @@ currentTest = "ce qui revient, partout le même mot";
     render();
     return result;
   });
-  check(futur.hero === "Estimation du mois"
+  // MF1 (ADR-055) : le mois futur met le VRAI argent en focal.
+  check(futur.hero === "Sur vos comptes maintenant"
       && /prévu/i.test(futur.progress)
       && futur.blocs === 4
       && futur.section
@@ -9843,6 +9844,66 @@ currentTest = "VUE1 vue d'ensemble";
   await ctx175.close();
 }
 
+// ---------- 176. MF1 : le mois futur montre le VRAI argent d'abord (ADR-055) ----------
+// Demande propriétaire du 24.08.2026 (captures à l'appui) : « j'ai mis mon
+// salaire mais je ne l'ai pas encore reçu — quand je change de mois, ça
+// m'affiche 14'000. Tant que je n'ai pas appuyé sur le bouton, il ne faut
+// rien me mettre. » Décision : sur un mois futur, le grand chiffre = l'argent
+// réellement sur les comptes ; l'estimation reste écrite en dessous, en
+// petit, au conditionnel — jamais en focal.
+currentTest = "MF1 mois futur";
+{
+  const ctx176 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p176 = await ctx176.newPage();
+  p176.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[MF1] ${msg.text()}`); });
+  await p176.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Futur" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "sal", title: "Salaire", amount: 18190, type: "income", nature: "revenu",
+          cat: "Salaire", day: 25, every: "month", accountId: "cur", icon: "💼" },
+        { id: "loyer", title: "Loyer", amount: 4132.60, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p176.goto(APP_URL);
+  await p176.waitForSelector("#tabbar button");
+  const futur = await p176.evaluate(() => {
+    const resultat = {};
+    cursor = shiftMonth(NOW, 1);
+    activeTab = "home"; render();
+    const carte = document.querySelector(".home-hero");
+    const focal = carte?.querySelector(".hero-amount")?.textContent || "";
+    const titre = carte?.querySelector(".card-label")?.textContent || "";
+    const texte = (carte?.textContent || "").replace(/[  ]/g, " ");
+    // Le grand chiffre = l'argent RÉEL (0.00), jamais l'estimation.
+    resultat.focalReel = /CHF\s*0\.00/.test(focal.replace(/[  ]/g, " "));
+    resultat.focalSansEstimation = !/14'057\.40/.test(focal.replace(/[  ]/g, " "));
+    resultat.titre = titre;
+    resultat.titreReel = titre === "Sur vos comptes maintenant";
+    // L'estimation reste écrite, en petit, au conditionnel.
+    resultat.estimationEcrite = /Si tout se passe comme prévu[\s\S]{0,60}?14'057\.40/.test(texte);
+    // Plus aucun « Estimation du mois » en focal.
+    resultat.ancienTitre = /Estimation du mois/.test(texte);
+    cursor = { y: NOW.y, m: NOW.m }; render();
+    return resultat;
+  });
+  check(futur.focalReel === true && futur.focalSansEstimation === true,
+    `le grand chiffre du mois futur est l'argent RÉEL — CHF 0.00, jamais l'estimation (focal réel ${futur.focalReel} / sans estimation ${futur.focalSansEstimation})`);
+  check(futur.titreReel === true,
+    `le titre du mois futur dit « Sur vos comptes maintenant » (lu : « ${futur.titre} »)`);
+  check(futur.estimationEcrite === true,
+    "l'estimation reste écrite en petit, au conditionnel : « Si tout se passe comme prévu : CHF 14'057.40 »");
+  check(futur.ancienTitre === false,
+    "« Estimation du mois » ne domine plus la carte d'un mois futur");
+  await ctx176.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9852,4 +9913,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 175 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 176 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
