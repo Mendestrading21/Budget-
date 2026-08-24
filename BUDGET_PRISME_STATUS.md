@@ -1117,7 +1117,11 @@ inspectées. NB : la publication du run `32579800874` (SHA `68ca09e`,
 GOV-7) est consignée ici.
 
 **MF2 — « Si tout se passe comme prévu » enchaîne les mois (ADR-056)** ·
-en PR (brouillon). Défaut résiduel des captures du 24.08 : la ligne
+`MERGED` + `PUBLISHED` — PR #120 fusionnée (`main` = `6a946f0`) sur
+« fusionne et publie tout quand c'est vert » du 24.08.2026, CI verte
+sur le HEAD exact puis sur `main`, publiée par dispatch au SHA exact
+`6a946f0` (run `32717350024`, succès — `TARGET_SHA` résolu, « CI
+verte confirmée »). Défaut résiduel des captures du 24.08 : la ligne
 conditionnelle du mois futur répétait le même chiffre sur tous les mois
 (14'057.40 partout). Désormais elle enchaîne — fin prévue du mois
 courant + flux prévus de chaque mois intermédiaire (sept. 28'114.80,
@@ -1126,6 +1130,17 @@ l'argent réel (MF1) ; la ligne se tait quand rien n'est prévu. Aucun
 agrégat changé. Parcours 177 né rouge (2 échecs nommés) ; sabotage
 mordant seul ; 177 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 avant/après inspectées.
+
+**CPT1 — La fiche compte raconte le mois (ADR-057)** · en PR
+(brouillon). Demande du 24.08 : « les dépenses, les entrées, ce qu'il
+reste ». Le natif avait déjà `monthFlowCard` ; la fiche PWA n'avait
+aucun résumé du mois. Elle gagne « Ce mois-ci sur ce compte » —
+Entrées / Sorties du mois, règles de flux de `balance()`, posté
+seulement (« jamais le prévu », écrit), mots du natif ; muette quand
+rien n'a bougé. Parcours 178 (4 volets) ; sabotage mordant seul ;
+178 e2e + 9 parités + design + catalogue + audit verts ; captures
+320/390 avant/après inspectées (l'inspection a attrapé un « undefined »
+de fixture que les regex ne voyaient pas).
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 

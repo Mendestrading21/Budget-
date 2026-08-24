@@ -9960,6 +9960,70 @@ currentTest = "MF2 estimation enchaînée";
   await ctx177.close();
 }
 
+// ---------- 178. CPT1 : la fiche compte raconte le mois — entré, sorti, reste (ADR-057) ----------
+// Demande propriétaire du 24.08.2026 : « continue avec les ajustements des
+// comptes avec ce qu'il reste, les dépenses, les entrées ». La fiche montrait
+// le solde et l'historique mais AUCUN résumé du mois. Désormais : « Ce
+// mois-ci sur ce compte » — entré / sorti, avec les MÊMES règles de flux que
+// balance() ; le prévu ne compte JAMAIS (planifié ≠ réel).
+currentTest = "CPT1 mois du compte";
+{
+  const ctx178 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p178 = await ctx178.newPage();
+  p178.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[CPT1] ${msg.text()}`); });
+  await p178.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Compte" },
+      baseCurrency: "CHF",
+      transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: false, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p178.goto(APP_URL);
+  await p178.waitForSelector("#tabbar button");
+  const compte = await p178.evaluate(() => {
+    const resultat = {};
+    // Mouvements du mois courant : 2'000 reçus, 500 dépensés, 300 mis de
+    // côté vers Épargne, et 999 PRÉVUS (jamais comptés).
+    transactions.push(
+      { id: 9001, y: NOW.y, m: NOW.m, d: 2, type: "income", amount: 2000, cat: "Salaire", title: "Salaire", acc: "cur", status: "posted" },
+      { id: 9002, y: NOW.y, m: NOW.m, d: 3, type: "expense", amount: 500, cat: "Alimentation", title: "Courses", acc: "cur", status: "posted" },
+      { id: 9003, y: NOW.y, m: NOW.m, d: 4, type: "saving", amount: 300, cat: "Épargne", title: "Mis de côté", acc: "cur", dest: "sav", status: "posted" },
+      { id: 9004, y: NOW.y, m: NOW.m, d: 20, type: "expense", amount: 999, cat: "Autre", title: "Prévu", acc: "cur", status: "planned" },
+    );
+    saveState();
+    activeTab = "accounts"; accountView = "cur"; render();
+    const texte = (document.querySelector("#screen")?.textContent || "").replace(/[\u00A0\u202F]/g, " ");
+    resultat.titreCarte = /Ce mois-ci sur ce compte/.test(texte);
+    resultat.entre = /Entrées du mois[\s\S]{0,40}?2'000\.00/.test(texte);
+    resultat.sorti = /Sorties du mois[\s\S]{0,40}?800\.00/.test(texte);
+    // Le PRÉVU ne compte jamais : 800.00, pas 1'799.00.
+    resultat.prevuExclu = !/1'799\.00/.test(texte);
+    // La fiche du compte d'Épargne voit l'argent ARRIVER.
+    accountView = "sav"; render();
+    const texteSav = (document.querySelector("#screen")?.textContent || "").replace(/[\u00A0\u202F]/g, " ");
+    resultat.savEntre = /Entrées du mois[\s\S]{0,40}?300\.00/.test(texteSav);
+    // Nettoyage.
+    transactions.splice(transactions.findIndex(t => t.id === 9001), 4);
+    accountView = null; activeTab = "home"; saveState(); render();
+    return resultat;
+  });
+  check(compte.titreCarte === true,
+    "la fiche compte a la carte « Ce mois-ci sur ce compte »");
+  check(compte.entre === true,
+    "« Entrées du mois : CHF 2'000.00 » — le salaire reçu, rien d'autre (mots du natif)");
+  check(compte.sorti === true && compte.prevuExclu === true,
+    `« Sorties du mois : CHF 800.00 » — dépense + mis de côté, JAMAIS le prévu (sorti ${compte.sorti} / prévu exclu ${compte.prevuExclu})`);
+  check(compte.savEntre === true,
+    "la fiche Épargne voit l'argent arriver : « Entrées du mois : CHF 300.00 »");
+  await ctx178.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9969,4 +10033,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 177 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 178 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
