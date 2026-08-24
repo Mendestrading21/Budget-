@@ -2653,6 +2653,25 @@ function balance(accId) {
 }
 
 function inMonth(t, y, m) { return t.y === y && t.m === m; }
+
+/* CPT1 (ADR-057) : ce qui est ENTRÉ et SORTI d'un compte sur un mois —
+   exactement les mêmes règles de flux que balance(), comptabilisé en
+   centimes, dans la devise du compte. Le prévu ne compte JAMAIS. */
+function accountMonthFlows(accId, y, m) {
+  const account = ACCOUNTS.find(a => a.id === accId);
+  if (!account) return { entre: 0, sorti: 0 };
+  let entre = 0, sorti = 0;
+  for (const t of transactions) {
+    if (t.status !== "posted" || !inMonth(t, y, m)) continue;
+    if (t.acc === accId) {
+      if (t.type === "income" || t.type === "refund") entre += toCents(t.amount);
+      else if (t.type === "adjustment") { if (t.up) entre += toCents(t.amount); else sorti += toCents(t.amount); }
+      else if (OUTFLOWS.has(t.type)) sorti += toCents(t.amount);
+    }
+    if (t.dest === accId) entre += toCents(t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), account.currency));
+  }
+  return { entre: fromCents(entre), sorti: fromCents(sorti) };
+}
 function recurringAccountId(recurring) {
   return recurring && ACCOUNTS.some(a => a.id === recurring.accountId)
     ? recurring.accountId : defaultCashAccount();
@@ -4123,6 +4142,18 @@ function renderAccountDetail(a) {
         body: `<polyline points="${px}" fill="none" stroke="var(--electric)" stroke-width="2.5" stroke-linecap="round"/>`,
       })}
     </div>
+    ${(() => {
+      const flux = accountMonthFlows(a.id, NOW.y, NOW.m);
+      if (!flux.entre && !flux.sorti) return "";
+      return `<div class="card">
+        <p class="card-label">Ce mois-ci sur ce compte</p>
+        <div class="breakdown" style="text-align:left">
+          ${flux.entre ? `<div><span>Entrées du mois</span><span class="pos">+ ${money(flux.entre, a.currency || baseCurrency())}</span></div>` : ""}
+          ${flux.sorti ? `<div><span>Sorties du mois</span><span class="neg">− ${money(flux.sorti, a.currency || baseCurrency())}</span></div>` : ""}
+        </div>
+        <span class="caption">Seul l'argent reçu ou payé compte ici — jamais le prévu.</span>
+      </div>`;
+    })()}
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
     <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
     ${a.kind === "brokerage" ? renderPositionsSection(a, bal) : ""}

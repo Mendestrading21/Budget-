@@ -1,5 +1,41 @@
 # Budget decision log
 
+## ADR-057 — CPT1 : la fiche compte raconte le mois (parité PWA)
+
+Date: 2026-08-24
+Status: accepted
+
+### Contexte
+
+Demande propriétaire du 24.08.2026 : « continue avec les ajustements
+des comptes avec ce qu'il reste, les dépenses, les entrées ». Mesure :
+la fiche compte iOS a déjà `monthFlowCard` (« Entrées du mois /
+Sorties du mois », posté seulement, `signedEffect`) — la fiche PWA
+montrait le solde, la courbe et l'historique mais AUCUN résumé du
+mois. Défaut de parité, dans ce sens-là.
+
+### Décision
+
+La fiche compte PWA gagne la carte « Ce mois-ci sur ce compte » :
+« Entrées du mois » (+, vert) et « Sorties du mois » (−, corail),
+calculées par `accountMonthFlows` avec EXACTEMENT les règles de flux
+de `balance()` (centimes, devise du compte, arrivées via `dest`
+comprises), posté seulement — la légende l'écrit : « Seul l'argent
+reçu ou payé compte ici — jamais le prévu. » Les mots sont ceux du
+natif. Divergence assumée : la PWA tait la carte quand rien n'a bougé
+(le natif l'affiche avec des zéros).
+
+### Vérification
+
+Parcours 178 : carte présente, 2'000 entrés / 800 sortis (dépense +
+mis de côté), le prévu (999) ne compte JAMAIS, la fiche Épargne voit
+l'argent arriver (300). Contrôle négatif : sabotage (le prévu compte)
+→ le test mord seul (1'799 au lieu de 800). Captures 320/390
+avant/après inspectées (`docs/neon-ultra/budget-prisme/cpt1/`) — la
+mauvaise clé de libellé du fixture (« undefined » à l'écran) a été
+attrapée par l'inspection réelle des captures, pas par les regex.
+
+
 ## ADR-056 — MF2 : « si tout se passe comme prévu » enchaîne les mois
 
 Date: 2026-08-24
