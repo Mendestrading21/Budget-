@@ -1131,8 +1131,11 @@ agrégat changé. Parcours 177 né rouge (2 échecs nommés) ; sabotage
 mordant seul ; 177 e2e + 9 parités + design + catalogue + audit verts ;
 captures 320/390 avant/après inspectées.
 
-**CPT1 — La fiche compte raconte le mois (ADR-057)** · en PR
-(brouillon). Demande du 24.08 : « les dépenses, les entrées, ce qu'il
+**CPT1 — La fiche compte raconte le mois (ADR-057)** · `MERGED` +
+`PUBLISHED` — PR #121 fusionnée (`main` = `8963454`) sur « fusionne
+publie » du 24.08.2026, CI verte sur le HEAD exact puis sur `main`,
+publiée par dispatch au SHA exact `8963454` (run `32730121511`,
+succès — `TARGET_SHA` résolu, « CI verte confirmée »). Demande du 24.08 : « les dépenses, les entrées, ce qu'il
 reste ». Le natif avait déjà `monthFlowCard` ; la fiche PWA n'avait
 aucun résumé du mois. Elle gagne « Ce mois-ci sur ce compte » —
 Entrées / Sorties du mois, règles de flux de `balance()`, posté
