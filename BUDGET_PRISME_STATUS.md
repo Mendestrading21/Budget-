@@ -1098,8 +1098,12 @@ familles. Lot natif sans nouveau calcul (précédent A12) : preuve = job
 simulateur de la CI sur le HEAD exact ; suites web inchangées (175
 parcours verts revérifiés en local).
 
-**MF1 — Le mois futur montre le vrai argent d'abord (ADR-055)** · en PR
-(brouillon). Demande du 24.08 (captures) : le mois futur affichait
+**MF1 — Le mois futur montre le vrai argent d'abord (ADR-055)** ·
+`MERGED` + `PUBLISHED` — PR #119 fusionnée (`main` = `721e978`) sur
+« publie et fusionne et continue » du 24.08.2026, CI verte sur le HEAD
+exact puis sur `main`, publiée par dispatch au SHA exact `721e978`
+(run `32712315108`, succès — `TARGET_SHA` résolu, « CI verte
+confirmée »). Demande du 24.08 (captures) : le mois futur affichait
 « Estimation du mois : CHF 14'057.40 » en focal alors que rien n'était
 reçu. Choix propriétaire : « le vrai argent d'abord ». Sur un mois
 futur, PWA + iOS : grand chiffre = l'argent réellement sur les comptes
@@ -1111,6 +1115,17 @@ quand rien n'est prévu. Aucun calcul changé. Parcours 176 né rouge
 design + catalogue + audit verts ; captures 320/390 avant/après
 inspectées. NB : la publication du run `32579800874` (SHA `68ca09e`,
 GOV-7) est consignée ici.
+
+**MF2 — « Si tout se passe comme prévu » enchaîne les mois (ADR-056)** ·
+en PR (brouillon). Défaut résiduel des captures du 24.08 : la ligne
+conditionnelle du mois futur répétait le même chiffre sur tous les mois
+(14'057.40 partout). Désormais elle enchaîne — fin prévue du mois
+courant + flux prévus de chaque mois intermédiaire (sept. 28'114.80,
+oct. 42'172.20) — sur les DEUX plateformes ; le grand chiffre reste
+l'argent réel (MF1) ; la ligne se tait quand rien n'est prévu. Aucun
+agrégat changé. Parcours 177 né rouge (2 échecs nommés) ; sabotage
+mordant seul ; 177 e2e + 9 parités + design + catalogue + audit verts ;
+captures 320/390 avant/après inspectées.
 
 ## Bilan du programme Budget Prisme (16–17.08.2026)
 
