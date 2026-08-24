@@ -2926,6 +2926,23 @@ function snapshot(y, m) {
            savingsRate, cashFlow, isCurrent, upcomingRecurrings, recurringCharges, recurringIncome, irregularIncome };
 }
 
+/* MF2 (ADR-056) : « si tout se passe comme prévu » ENCHAÎNE les mois.
+   La fin prévue d'un mois futur part de la fin prévue du mois courant,
+   puis ajoute les flux prévus de CHAQUE mois intermédiaire — sinon le
+   même chiffre se répète sur tous les mois futurs, comme si les mois
+   d'avant n'existaient pas. Aucun agrégat existant ne change. */
+function estimationEnchainee(y, m) {
+  let total = snapshot(NOW.y, NOW.m).endOfMonthForecast;
+  let it = { y: NOW.y, m: NOW.m };
+  for (let garde = 0; garde < 120; garde += 1) {
+    it = shiftMonth(it, 1);
+    const s = snapshot(it.y, it.m);
+    total = round2(total + s.plannedIncome + s.recurringIncome - s.plannedOut - s.recurringCharges);
+    if (it.y === y && it.m === m) return total;
+  }
+  return total;
+}
+
 /* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
    mois affiché — salaire, récurrents, factures — avec l'action directe. */
 /* Dette vivante (ADR-016 côté web) : chaque mensualité comptabilisée
@@ -3442,6 +3459,7 @@ function renderSimpleHome() {
     <div class="track"><div class="fill" style="width:${(NOW.d / joursDuMois * 100).toFixed(0)}%"></div></div>
     <span class="caption">Jour ${NOW.d} sur ${joursDuMois}</span>
   </div>` : "";
+  const heroEstimation = futureMonth ? estimationEnchainee(y, m) : 0;
   const hero = `<section class="card hero home-hero"
       aria-label="${esc(heroTitle)} : ${chf(heroValue, pastMonth)}">
     ${heroVues}
@@ -3450,7 +3468,7 @@ function renderSimpleHome() {
     <p class="caption hero-note">${esc(heroNote)}</p>
     ${heroSousNote ? `<p class="caption hero-note">${esc(heroSousNote)}</p>` : ""}
     ${heroToutLignes}
-    ${futureMonth && s.available !== s.liquid ? `<p class="caption hero-reel">Si tout se passe comme prévu : ${chf(s.available)} à la fin de ce mois.</p>` : ""}
+    ${futureMonth && heroEstimation !== s.liquid ? `<p class="caption hero-reel">Si tout se passe comme prévu : ${chf(heroEstimation)} à la fin de ce mois.</p>` : ""}
     ${heroTout ? "" : avanceMois}
     <button class="btn nu-cta home-add" data-addtx>${budgetGlyph("add")}<span>Ajouter</span></button>
   </section>`;

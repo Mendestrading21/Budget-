@@ -1,5 +1,41 @@
 # Budget decision log
 
+## ADR-056 — MF2 : « si tout se passe comme prévu » enchaîne les mois
+
+Date: 2026-08-24
+Status: accepted
+
+### Contexte
+
+Défaut résiduel des captures du 24.08 (après MF1/ADR-055) : la petite
+ligne conditionnelle du mois futur repartait du solde actuel et
+n'ajoutait que les flux du mois consulté. Résultat : le MÊME chiffre
+répété sur tous les mois futurs (14'057.40 en septembre, en octobre,
+en novembre…), comme si les mois intermédiaires n'existaient pas — la
+phrase « si tout se passe comme prévu » était fausse sous ses propres
+mots.
+
+### Décision
+
+Sur les deux plateformes, l'estimation du mois futur ENCHAÎNE : fin
+prévue du mois courant (`endOfMonthForecast` / `available.total`),
+puis + flux prévus de chaque mois intermédiaire jusqu'au mois
+consulté (PWA : `estimationEnchainee(y, m)` ; natif : le flux d'un
+mois est `available.total − available.liquidBalance` de son
+instantané). Aucun agrégat existant ne change ; le grand chiffre du
+mois futur reste l'argent réel (MF1). La ligne se tait toujours quand
+rien n'est prévu.
+
+### Vérification
+
+Parcours 177 né rouge (2 échecs nommés : 28'114.80 attendu au mois
++1, 42'172.20 au mois +2, lu 14'057.40 répété) ; sabotage (les mois
+intermédiaires ne pèsent plus) → le test mord seul ; parcours 176
+aligné ; captures 320/390 avant/après inspectées
+(`docs/neon-ultra/budget-prisme/mf2/`) ; natif prouvé par le job
+simulateur CI.
+
+
 ## ADR-055 — MF1 : le mois futur montre le vrai argent d'abord
 
 Date: 2026-08-24

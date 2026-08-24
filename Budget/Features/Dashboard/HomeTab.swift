@@ -329,6 +329,32 @@ struct HomeTab: View {
         )
     }
 
+    /// MF2 (ADR-056) : « si tout se passe comme prévu » ENCHAÎNE les mois.
+    /// La fin prévue d'un mois futur part de la fin prévue du mois courant,
+    /// puis ajoute les flux prévus de CHAQUE mois intermédiaire — le flux
+    /// d'un mois est `available.total − available.liquidBalance` de son
+    /// instantané : aucun nouvel agrégat, uniquement l'existant.
+    private func chainedEstimate(to interval: MonthInterval) -> Decimal {
+        let now = appContainer.dateProvider.now
+        let snapshotAt: (Date) -> MonthSnapshot = { anchor in
+            self.snapshotService.snapshot(
+                monthOf: anchor, now: now, household: self.households.first,
+                accounts: self.accounts, transactions: self.transactions,
+                recurrings: self.recurrings
+            )
+        }
+        var total = snapshotAt(now).available.total
+        var anchor = now
+        for _ in 0..<120 {
+            guard let next = appContainer.calendar.date(byAdding: .month, value: 1, to: anchor) else { break }
+            anchor = next
+            let step = snapshotAt(anchor)
+            total += step.available.total - step.available.liquidBalance
+            if step.interval == interval { return total }
+        }
+        return total
+    }
+
     private func makeForecast(interval: MonthInterval) -> [ForecastOccurrence] {
         scheduleService.monthForecast(
             recurrings: recurrings,
@@ -527,8 +553,12 @@ struct HomeTab: View {
                         .font(NeonUltraTypography.meta)
                         .foregroundStyle(NeonUltraColor.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    if snapshot.available.total != snapshot.available.liquidBalance {
-                        Text("Si tout se passe comme prévu : \(FinanceFormatting.chf(snapshot.available.total)) à la fin de ce mois.")
+                    // MF2 (ADR-056) : l'estimation ENCHAÎNE les mois depuis
+                    // la fin prévue du mois courant — jamais le même chiffre
+                    // répété sur tous les mois futurs.
+                    let estimation = chainedEstimate(to: snapshot.interval)
+                    if estimation != snapshot.available.liquidBalance {
+                        Text("Si tout se passe comme prévu : \(FinanceFormatting.chf(estimation)) à la fin de ce mois.")
                             .font(NeonUltraTypography.meta)
                             .foregroundStyle(NeonUltraColor.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)

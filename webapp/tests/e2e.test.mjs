@@ -9886,8 +9886,10 @@ currentTest = "MF1 mois futur";
     resultat.focalSansEstimation = !/14'057\.40/.test(focal.replace(/[  ]/g, " "));
     resultat.titre = titre;
     resultat.titreReel = titre === "Sur vos comptes maintenant";
-    // L'estimation reste écrite, en petit, au conditionnel.
-    resultat.estimationEcrite = /Si tout se passe comme prévu[\s\S]{0,60}?14'057\.40/.test(texte);
+    // L'estimation reste écrite, en petit, au conditionnel — ENCHAÎNÉE
+    // depuis la fin prévue du mois courant (MF2, ADR-056) : 14'057.40
+    // (fin août prévue) + 14'057.40 (flux de septembre) = 28'114.80.
+    resultat.estimationEcrite = /Si tout se passe comme prévu[\s\S]{0,60}?28'114\.80/.test(texte);
     // Plus aucun « Estimation du mois » en focal.
     resultat.ancienTitre = /Estimation du mois/.test(texte);
     cursor = { y: NOW.y, m: NOW.m }; render();
@@ -9904,6 +9906,60 @@ currentTest = "MF1 mois futur";
   await ctx176.close();
 }
 
+// ---------- 177. MF2 : « si tout se passe comme prévu » ENCHAÎNE les mois (ADR-056) ----------
+// La fin prévue du mois consulté part de la fin prévue du mois courant,
+// puis ajoute les flux prévus de CHAQUE mois intermédiaire. Sinon le même
+// chiffre se répète sur tous les mois futurs, comme si les mois d'avant
+// n'existaient pas — c'est le défaut résiduel des captures du 24.08.
+currentTest = "MF2 estimation enchaînée";
+{
+  const ctx177 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p177 = await ctx177.newPage();
+  p177.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[MF2] ${msg.text()}`); });
+  await p177.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Chaîne" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "sal", title: "Salaire", amount: 18190, type: "income", nature: "revenu",
+          cat: "Salaire", day: 25, every: "month", accountId: "cur", icon: "💼" },
+        { id: "loyer", title: "Loyer", amount: 4132.60, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p177.goto(APP_URL);
+  await p177.waitForSelector("#tabbar button");
+  const chaine = await p177.evaluate(() => {
+    const resultat = {};
+    const ligne = () => (document.querySelector(".home-hero .hero-reel")?.textContent || "").replace(/[  ]/g, " ");
+    activeTab = "home";
+    // Mois + 1 : fin prévue d'août (14'057.40) + flux de septembre = 28'114.80.
+    cursor = shiftMonth(NOW, 1); render();
+    resultat.moisPlus1 = ligne();
+    resultat.plus1Exact = /28'114\.80/.test(resultat.moisPlus1);
+    // Mois + 2 : encore un mois de flux prévus = 42'172.20.
+    cursor = shiftMonth(NOW, 2); render();
+    resultat.moisPlus2 = ligne();
+    resultat.plus2Exact = /42'172\.20/.test(resultat.moisPlus2);
+    // Le focal reste le RÉEL (MF1) — l'enchaînement ne le touche pas.
+    resultat.focalReel = /CHF\s*0\.00/.test(
+      (document.querySelector(".home-hero .hero-amount")?.textContent || "").replace(/[  ]/g, " "));
+    cursor = { y: NOW.y, m: NOW.m }; render();
+    return resultat;
+  });
+  check(chaine.plus1Exact === true,
+    `au mois + 1, l'estimation enchaîne : fin prévue du mois courant + flux du mois — 28'114.80 (lu : « ${chaine.moisPlus1} »)`);
+  check(chaine.plus2Exact === true,
+    `au mois + 2, chaque mois intermédiaire pèse : 42'172.20 (lu : « ${chaine.moisPlus2} »)`);
+  check(chaine.focalReel === true,
+    "le grand chiffre reste l'argent réel (MF1) — l'enchaînement ne touche que la petite ligne");
+  await ctx177.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -9913,4 +9969,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 176 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 177 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
