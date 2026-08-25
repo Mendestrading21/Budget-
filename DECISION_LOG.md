@@ -1,5 +1,67 @@
 # Budget decision log
 
+## ADR-061 — Le résultat du mois exclut l'épargne et l'investissement
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+Le « Résultat du mois » mesuré (PWA `snapshot().cashFlow`, natif
+`snapshot.cashFlow`) soustrait l'épargne et l'investissement : mettre
+500 CHF de côté baissait le résultat comme une dépense, en
+contradiction avec le principe produit « mettre de côté n'est pas
+dépenser » (FI-10) et l'invariant FI-21. Question posée au
+propriétaire le 25.08.2026 ; réponse : « Exclure l'épargne ».
+
+### Décision
+
+1. Résultat du mois = reçus réels − vraiment dépensé (impôts et
+   intérêts compris) ; l'argent mis de côté (épargne, investissement)
+   n'y entre plus — il reste montré à part (« mis de côté »).
+2. La même convention vaut pour les agrégats annuels.
+3. Contrat d'abord : la fixture canonique porte le champ optionnel
+   `resultatMineures` ; l'implémentation (PWA + iOS, même PR, fixtures
+   de parité mises à jour) vit dans un lot séparé AUT-061, test rouge
+   d'abord, avant les runners W1.6.
+
+### Vérification
+
+Fixture canonique rouge par construction jusqu'à AUT-061 ; parité
+prouvée par les runners W1.6 ; contrôle négatif par sabotage d'un seul
+côté.
+
+
+## ADR-060 — Un compte peut être exclu du patrimoine, sur les deux plateformes
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+Écart mesuré pendant W1.2 : le natif filtre `includeInNetWorth` par
+compte dans `NetWorthService.breakdown`, la PWA additionne TOUS les
+comptes dans `fortuneTotale()` — deux fortunes possibles pour les
+mêmes données (contre FI-40). Question posée au propriétaire le
+25.08.2026 ; réponse : « Parité : ajouter le réglage au site ».
+
+### Décision
+
+1. La PWA gagne le réglage « compte dans le patrimoine » (clé additive
+   `netWorth`, défaut `true` — aucune donnée existante ne change de
+   sens), et `fortuneTotale()` filtre comme le natif.
+2. Le solde du compte exclu reste vrai et visible partout ; seul
+   l'agrégat de fortune l'ignore (FI-25).
+3. Contrat d'abord : fixture canonique `patrimoine-compte-exclu`
+   (W1.4) ; l'implémentation PWA (formulaire de compte + filtre +
+   test e2e rouge d'abord + captures) vit dans le lot séparé AUT-060.
+
+### Vérification
+
+Le natif passe la fixture sans changement ; la PWA la passera après
+AUT-060 ; sabotage d'un côté → la gate W1.6/W1.7 mord.
+
+
 ## ADR-059 — W1.1 : les fixtures canoniques comptent en unités mineures
 
 Date: 2026-08-25
