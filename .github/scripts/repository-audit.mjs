@@ -172,9 +172,9 @@ try {
   check("CLAUDE.md : /budget-prisme est l'autorité", claude.includes("/budget-prisme"));
   check("CLAUDE.md : les anciens skills sont déclarés légacy", /legacy/i.test(claude));
   const skills = readdirSync(join(root, ".claude/skills")).sort();
-  const expected = ["apple-design", "budget-identites-locales", "budget-neon-ultra", "budget-prisme"];
+  const expected = ["apple-design", "budget-autonomie-100", "budget-identites-locales", "budget-neon-ultra", "budget-prisme"];
   check(
-    "skills du dépôt : ensemble attendu (apple-design, budget-identites-locales [compagnon, PR #91], budget-neon-ultra [alias légacy], budget-prisme)",
+    "skills du dépôt : ensemble attendu (apple-design, budget-autonomie-100 [programme, PR #123], budget-identites-locales [compagnon, PR #91], budget-neon-ultra [alias légacy], budget-prisme)",
     JSON.stringify(skills) === JSON.stringify(expected),
     skills.join(", ")
   );

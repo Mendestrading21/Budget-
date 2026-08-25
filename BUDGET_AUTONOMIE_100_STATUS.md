@@ -14,7 +14,12 @@
 
 ### W0 — Gouvernance et contrat de vérité
 
-**État : EN PR (brouillon, empilée sur #123 — ordre de fusion #123 → W0)**
+**État : DONE** — PR #125 fusionnée (`main` = `4713a2b`) le 25.08.2026,
+sur ordre propriétaire, après #123 (audit, `fd5fbac`).
+
+### W1 — Fixtures canoniques (lot actif)
+
+**État : W1.1 EN PR (brouillon)** — W1.2–W1.7 BLOCKED jusqu'à sa fusion.
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -49,8 +54,8 @@ Livrables attendus :
 
 | Lot | Sujet | État | Dépend de |
 |---|---|---|---|
-| W0 | Gouvernance et vérité | EN PR | — |
-| W1 | Fixtures canoniques | BLOCKED | W0 |
+| W0 | Gouvernance et vérité | DONE | — |
+| W1 | Fixtures canoniques | W1.1 EN PR | W0 (fusionné) |
 | W2 | Occurrences persistées | BLOCKED | W1 |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
@@ -88,6 +93,17 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W0 fusionné, W1.1 exécuté
+
+Sur « fusionne publie et fait tout » : #123 (audit) fusionnée
+(`fd5fbac`), #125 (W0) rebasée à arbre byte-identique et fusionnée
+(`main` = `4713a2b`), CI verte à chaque étape. W1 débloqué ; W1.1
+livré : `fixtures/canon/SCHEMA.md` (schéma version 1), ADR-059 (unités
+mineures entières ; taux en chaînes datées et sourcées), validateur
+`canon-schema.test.mjs` né rouge puis vert, contrôle négatif mordant
+(montant à virgule refusé en nommant le champ), étape CI dédiée,
+fixture d'exemple. Aucun moteur touché.
 
 ### 25.08.2026 — W0 exécuté (docs seulement)
 
