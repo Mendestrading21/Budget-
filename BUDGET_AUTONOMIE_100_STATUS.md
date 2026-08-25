@@ -102,17 +102,18 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
-### 25.08.2026 — W1.5 : fixtures récurrences et corrections
+### 25.08.2026 — AUT-061 : le résultat du mois exclut l'épargne et le capital
 
-Deux fixtures : `recurrence-echeance-couverte` (l'échéance couverte
-par son mouvement lié ne pèse plus — 3250, jamais 1750 ; la non
-couverte pèse UNE fois) et `correction-ajustement-neutre` (l'ajustement
-bouge le solde, jamais le trio ni le résultat). Schéma : champ
-optionnel `recurrence` (lien mouvement→échéance, résolu ou échec).
-Sabotage mordant (lien cassé nommé). Doublons d'import différés à W7,
-consignés. NB : sur ordre propriétaire de cadence (« continue »), les
-sous-lots de fixtures W1.2–W1.5 voyagent dans UNE PR — quatre commits
-distincts, chacun son sabotage ; AUT-060/061 et W1.6/7 gardent leur PR.
+Implémentation de l'ADR-061 (amendée : le capital de dette est exclu
+comme l'épargne, FI-14/FI-21 — la mesure montrait d'ailleurs DEUX
+formules : le natif soustrayait la dette, la PWA non). Contrat commun :
+résultat = reçus − coût de vie − impôts, identique sur les deux
+plateformes ; note du mois passé honnête. Parcours 180 né rouge
+(3 échecs nommés, 1600 lu), sabotage mordant, 180 e2e verts ; test
+natif aligné (5000, commenté) — preuve native = job simulateur CI.
+Fixture canonique `resultat-du-mois` (210000) + champ optionnel
+`resultatMineures` au schéma.
+
 
 ### 25.08.2026 — W1.4 : fixtures patrimoine/dette/devise + ADR-060/061
 

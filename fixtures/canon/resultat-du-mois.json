@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "nom": "resultat-du-mois",
+  "description": "AUT-061 (ADR-061, décision propriétaire du 25.08.2026) — Le résultat du mois = reçus − vraiment dépensé (impôts et intérêts compris). Mettre de côté ou rembourser le capital d'une dette n'est pas perdre (FI-14, FI-21) : 3000 − 800 − 100 = 2100, jamais 1600 ni 1400 — même contrat sur les deux plateformes.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "sav",
+        "nom": "Compte épargne",
+        "genre": "savings",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-02",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 300000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Salaire"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-03",
+        "type": "expense",
+        "statut": "posted",
+        "montantMineures": 80000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Alimentation",
+        "titre": "Courses"
+      },
+      {
+        "id": "m3",
+        "date": "2026-05-04",
+        "type": "saving",
+        "statut": "posted",
+        "montantMineures": 50000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "sav",
+        "categorie": "Épargne",
+        "titre": "Mis de côté"
+      },
+      {
+        "id": "m4",
+        "date": "2026-05-05",
+        "type": "debtPayment",
+        "statut": "posted",
+        "montantMineures": 20000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Dette",
+        "titre": "Capital du prêt"
+      },
+      {
+        "id": "m5",
+        "date": "2026-05-06",
+        "type": "taxPayment",
+        "statut": "posted",
+        "montantMineures": 10000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Impôts",
+        "titre": "Acompte d'impôts"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 140000, "sav": 50000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 300000,
+      "depenseMineures": 80000,
+      "misDeCoteMineures": 50000,
+      "resultatMineures": 210000
+    }
+  }
+}

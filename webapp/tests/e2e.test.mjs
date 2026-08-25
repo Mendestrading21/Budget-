@@ -5486,7 +5486,7 @@ await goHome();
     `un seul héros, aucun carrousel (${JSON.stringify(heros)})`);
   check(/Disponible maintenant|Prévu fin du mois|Résultat du mois|Sur vos comptes maintenant/.test(heros.title) && /\d/.test(heros.amount),
     `le héros répond avec un montant (${heros.title} · ${heros.amount})`);
-  check(/par jour|Il manque|Sur vos comptes utilisables|Revenus moins sorties|L'argent prévu n'est pas compté/.test(heros.note),
+  check(/par jour|Il manque|Sur vos comptes utilisables|vraiment dépensé|L'argent prévu n'est pas compté/.test(heros.note),
     `une seule phrase explique le montant (« ${heros.note} »)`);
   check(heros.cta.includes("Ajouter") && heros.debordePage <= 1,
     `le CTA reste visible sans débordement (${JSON.stringify(heros)})`);
@@ -10085,6 +10085,61 @@ currentTest = "AUT-060 patrimoine par compte";
   await ctx179.close();
 }
 
+// ---------- 180. AUT-061 : le résultat du mois exclut l'épargne et la dette-capital (ADR-061) ----------
+// Décision propriétaire du 25.08.2026 : « mettre de côté n'est pas
+// dépenser ». Résultat du mois = reçus − vraiment dépensé (impôts et
+// intérêts compris) ; épargne, investissement et remboursement de
+// CAPITAL (FI-14) n'y entrent plus — même contrat sur les deux
+// plateformes.
+currentTest = "AUT-061 résultat du mois";
+{
+  const ctx180 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p180 = await ctx180.newPage();
+  p180.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[AUT-061] ${msg.text()}`); });
+  await p180.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rés" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: false, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p180.goto(APP_URL);
+  await p180.waitForSelector("#tabbar button");
+  const res = await p180.evaluate(() => {
+    const resultat = {};
+    const prev = shiftMonth(NOW, -1);
+    transactions.push(
+      { id: 9101, y: prev.y, m: prev.m, d: 2, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", status: "posted" },
+      { id: 9102, y: prev.y, m: prev.m, d: 3, type: "expense", amount: 800, cat: "Alimentation", title: "Courses", acc: "cur", status: "posted" },
+      { id: 9103, y: prev.y, m: prev.m, d: 4, type: "saving", amount: 500, cat: "Épargne", title: "Mis de côté", acc: "cur", dest: "sav", status: "posted" },
+      { id: 9104, y: prev.y, m: prev.m, d: 5, type: "debtPayment", amount: 200, cat: "Dette", title: "Capital du prêt", acc: "cur", status: "posted" },
+      { id: 9105, y: prev.y, m: prev.m, d: 6, type: "taxPayment", amount: 100, cat: "Impôts", title: "Acompte", acc: "cur", status: "posted" },
+    );
+    const s = snapshot(prev.y, prev.m);
+    resultat.cashFlow = s.cashFlow;
+    cursor = { y: prev.y, m: prev.m }; activeTab = "home"; render();
+    const carte = document.querySelector(".home-hero");
+    resultat.titre = carte?.querySelector(".card-label")?.textContent || "";
+    resultat.focal = (carte?.querySelector(".hero-amount")?.textContent || "").replace(/[  ]/g, " ");
+    resultat.note = (carte?.querySelector(".hero-note")?.textContent || "").replace(/[  ]/g, " ");
+    transactions.splice(transactions.findIndex(t => t.id === 9101), 5);
+    cursor = { y: NOW.y, m: NOW.m }; saveState(); render();
+    return resultat;
+  });
+  check(res.cashFlow === 2100,
+    `résultat du mois = 3000 reçus − 800 dépensés − 100 d'impôts = 2100 — l'épargne (500) et le capital (200) n'y entrent plus (lu ${res.cashFlow})`);
+  check(res.titre === "Résultat du mois" && /2'100\.00/.test(res.focal),
+    `la carte du mois passé montre CHF 2'100.00 (titre « ${res.titre} », focal « ${res.focal} »)`);
+  check(/pas perdre/.test(res.note),
+    `la note dit la règle : mettre de côté ou rembourser n'est pas perdre (lu : « ${res.note} »)`);
+  await ctx180.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10094,4 +10149,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 179 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 180 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
