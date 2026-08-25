@@ -42,7 +42,9 @@ publication run `32866561627`, succès) · W3.2 fusionné et publié
 (`main` = `2668c94`, PR #142, publication run `32869829266`, succès) ·
 W3.3 fusionné et publié (`main` = `b093eb8`, PR #143, publication run
 `32872986416`, succès) · W3.3b fusionné (`main` = `e8a0d47`, PR #144,
-publication run `32874460073`) · W3.4 EN PR** (Work Order :
+publication run `32874460073`, succès) · W3.4 fusionné (`main` =
+`0145e8a`, PR #145, publication run `32876072008`) · W3.5 EN PR
+(inversion PWA ; le miroir natif suit en W3.5b)** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -94,7 +96,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1–W3.3b fusionnés · W3.4 EN PR | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1–W3.4 fusionnés · W3.5 EN PR | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -130,6 +132,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.5 : inversion/remplacement — corriger n'est jamais réécrire
+
+FI-07 prend corps : le contrat d'ombre MÛRIT (évolution des parcours
+192/193 consignée ici même). `ecritureActiveDuMouvement` (la tête de
+chaîne : la seule écriture qu'aucune inversion ne vise) ;
+`ombreJournalDepot` — un POSTÉ corrigé garde son originale INTACTE,
+gagne une inversion liée (`reversesEntryId`, jambes inversées, datée du
+jour de la correction, clé idempotente `inversion:<id>`) puis une
+remplaçante liée (`replacesEntryId`, clé `mouvement:<id>:r<n>`) ; un
+PRÉVU corrigé se remplace en place (un plan n'est pas de l'histoire) ;
+redéposer la même photo est un no-op (`memePhotoJournal`).
+`ombreJournalRetrait` — supprimer un POSTÉ pousse l'inversion tracée
+(le journal raconte l'aller-retour net), supprimer un PRÉVU l'efface.
+Le comparateur W3.4 lit désormais la tête de chaîne (couvert = une
+écriture ACTIVE). Preuves : 11 échecs nommés à la naissance (3
+contrats mûris du 192 + 8 du parcours 194) → verts ; sabotage (« tout
+se réécrit ») → les 4 contrôles FI-07 mordent dans DEUX parcours
+indépendants ; restauré vert ; suites complètes vertes (194 e2e, 9
+parités, 13 canon + schéma, design, catalogue, audit). Consigné : le
+miroir natif (inversion dans `JournalShadowService`) = W3.5b ; une
+inversion refusée par la porte du journal serait consignée dans
+`JOURNAL_OMBRE_REFUS`, jamais perdue.
 
 ### 25.08.2026 — W3.4 : le comparateur — la gate de bascule des soldes
 

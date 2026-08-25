@@ -3318,10 +3318,7 @@ function completerOmbreJournal() {
   const journal = S.journal || (S.journal = []);
   const cles = new Set(journal.map(e => e.idempotencyKey));
   for (const t of transactions) {
-    if (!cles.has(`mouvement:${t.id}`)) {
-      const ecriture = ombreJournalDepot(t);
-      if (ecriture) cles.add(ecriture.idempotencyKey);
-    }
+    if (!ecritureActiveDuMouvement(t.id)) ombreJournalDepot(t); // W3.5 : la tête de chaîne décide
   }
   for (const account of ACCOUNTS) {
     const cle = `ouverture:${account.id}`;
@@ -3351,9 +3348,8 @@ function soldeDepuisJournal(accId) {
 function comparerJournalEtSoldes() {
   completerOmbreJournal();
   const ecarts = [];
-  const cles = new Set((S.journal || []).map(e => e.idempotencyKey));
   for (const t of transactions) {
-    if (cles.has(`mouvement:${t.id}`)) continue;
+    if (ecritureActiveDuMouvement(t.id)) continue; // W3.5 : couvert = une écriture ACTIVE
     const refus = JOURNAL_OMBRE_REFUS.find(r => r.mouvement === t.id);
     ecarts.push(`mouvement ${t.id} sans écriture${refus ? ` — ${refus.erreur}` : ""}`);
   }
@@ -3367,23 +3363,96 @@ function comparerJournalEtSoldes() {
   return ecarts;
 }
 
+/* W3.5 (FI-07) : corriger n'est JAMAIS réécrire. La tête de chaîne d'un
+   mouvement est son écriture ACTIVE : la seule qui n'est inversée par
+   personne (clé `mouvement:<id>` ou `mouvement:<id>:r<n>`). */
+function ecritureActiveDuMouvement(txId) {
+  const journal = S.journal || [];
+  const inversees = new Set(journal.filter(e => e.reversesEntryId).map(e => e.reversesEntryId));
+  const exacte = `mouvement:${txId}`;
+  const prefixe = exacte + ":r";
+  return journal.find(e => !inversees.has(e.id)
+    && (e.idempotencyKey === exacte || e.idempotencyKey.startsWith(prefixe))) || null;
+}
+
+/* Deux écritures racontent-elles la MÊME chose ? (idempotence du dépôt) */
+function memePhotoJournal(a, b) {
+  if (a.kind !== b.kind || a.lifecycle !== b.lifecycle
+      || a.effectiveDate !== b.effectiveDate || a.titre !== b.titre
+      || a.postings.length !== b.postings.length) return false;
+  return a.postings.every((p, i) => {
+    const q = b.postings[i];
+    return p.compte === q.compte && p.sens === q.sens
+      && p.montantMineur === q.montantMineur && p.devise === q.devise;
+  });
+}
+
+/* L'inversion LIÉE d'une écriture : mêmes jambes, sens inversés, datée
+   du JOUR de la correction — l'originale ne bouge jamais (FI-07).
+   Idempotente : une écriture n'a qu'une inversion (clé inversion:<id>). */
+function inversionEcriture(ecriture) {
+  return creerEcritureJournal({
+    kind: ecriture.kind, lifecycle: "posted",
+    effectiveDate: `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`,
+    titre: `Annulation ${ecriture.titre}`,
+    idempotencyKey: `inversion:${ecriture.id}`,
+    reversesEntryId: ecriture.id,
+    postings: ecriture.postings.map(p => ({ ...p, sens: p.sens === "debit" ? "credit" : "debit" })),
+  });
+}
+
 function ombreJournalRetrait(txId) {
   const journal = S.journal || (S.journal = []);
-  const cle = `mouvement:${txId}`;
-  for (let i = journal.length - 1; i >= 0; i -= 1) {
-    if (journal[i].idempotencyKey === cle) journal.splice(i, 1);
+  const active = ecritureActiveDuMouvement(txId);
+  if (!active) return;
+  if (active.lifecycle === "pending") {
+    // Un plan n'est pas de l'histoire : il s'efface simplement.
+    journal.splice(journal.indexOf(active), 1);
+    return;
   }
+  // FI-07 : supprimer un POSTÉ laisse la trace — l'inversion liée
+  // raconte l'aller-retour, le solde net redevient exact.
+  const inversion = inversionEcriture(active);
+  if (inversion.erreur) {
+    JOURNAL_OMBRE_REFUS.push({ mouvement: txId, erreur: inversion.erreur });
+    return;
+  }
+  journal.push(inversion.ecriture);
 }
 function ombreJournalDepot(t) {
   const journal = S.journal || (S.journal = []);
-  ombreJournalRetrait(t.id); // idempotent : redéposer REMPLACE, jamais deux fois
   const resultat = ecritureDepuisMouvement(t);
   if (resultat.erreur) {
     JOURNAL_OMBRE_REFUS.push({ mouvement: t.id, erreur: resultat.erreur });
     return null;
   }
-  journal.push(resultat.ecriture);
-  return resultat.ecriture;
+  const nouvelle = resultat.ecriture;
+  const active = ecritureActiveDuMouvement(t.id);
+  if (!active) {
+    journal.push(nouvelle);
+    return nouvelle;
+  }
+  if (memePhotoJournal(active, nouvelle)) return active; // rien n'a changé
+  if (active.lifecycle === "pending") {
+    // Un plan corrigé se remplace en place — même clé, pas d'inversion.
+    nouvelle.idempotencyKey = active.idempotencyKey;
+    journal[journal.indexOf(active)] = nouvelle;
+    return nouvelle;
+  }
+  // FI-07 : inversion liée PUIS remplaçante liée — chaîne lisible
+  // (reversesEntryId / replacesEntryId), l'originale intacte.
+  const inversion = inversionEcriture(active);
+  if (inversion.erreur) {
+    JOURNAL_OMBRE_REFUS.push({ mouvement: t.id, erreur: inversion.erreur });
+    return null;
+  }
+  journal.push(inversion.ecriture);
+  const marque = active.idempotencyKey.match(/:r(\d+)$/);
+  const revision = marque ? Number(marque[1]) + 1 : 2;
+  nouvelle.idempotencyKey = `mouvement:${t.id}:r${revision}`;
+  nouvelle.replacesEntryId = active.id;
+  journal.push(nouvelle);
+  return nouvelle;
 }
 
 /* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
