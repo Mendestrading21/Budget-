@@ -10395,6 +10395,72 @@ currentTest = "W2.4a date ≠ preuve";
   await ctx184.close();
 }
 
+// ---------- 185. W2.4b : la confirmation ATOMIQUE d'une échéance ----------
+// Budget Autonomie 100, W2.4b (shadow) : confirmer une échéance écrit LE
+// mouvement lié ET l'état en un seul geste ; double tap = UNE écriture
+// (FI-04) ; le montant attendu survit à un montant réel différent
+// (FI-05) ; une échéance ignorée refuse la confirmation directe et RIEN
+// n'est écrit (FI-31).
+currentTest = "W2.4b confirmation atomique";
+{
+  const ctx185 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p185 = await ctx185.newPage();
+  p185.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.4b] ${msg.text()}`); });
+  await p185.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Conf" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p185.goto(APP_URL);
+  await p185.waitForSelector("#tabbar button");
+  const conf = await p185.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof confirmerOccurrence === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const occ = { id: "o1", seriesId: "r-loyer", dueDate: `${NOW.y}-${String(NOW.m).padStart(2, "0")}-05`,
+      expectedAmount: 150, state: "due", idempotencyKey: "k1" };
+    S.occurrences = [occ];
+    // 1. Confirmer avec un montant RÉEL différent : 97.50 payé, 150 attendu.
+    const un = confirmerOccurrence(occ, { montant: 97.5, type: "expense", compte: "cur", categorie: "Logement", titre: "Loyer" });
+    resultat.premierOk = un && un.erreur == null;
+    const tx = transactions[transactions.length - 1];
+    resultat.txStatut = tx ? tx.status : null;
+    resultat.txMontant = tx ? tx.amount : null;
+    resultat.txLien = tx ? tx.recurringId : null;
+    resultat.occEtat = occ.state;
+    resultat.occLien = occ.transactionId === (tx ? tx.id : "absent");
+    resultat.attenduConserve = occ.expectedAmount === 150;
+    resultat.nbTx = transactions.length;
+    // 2. DOUBLE TAP : une seule écriture.
+    const deux = confirmerOccurrence(occ, { montant: 97.5, type: "expense", compte: "cur", categorie: "Logement", titre: "Loyer" });
+    resultat.doubleOk = deux && deux.erreur == null && transactions.length === resultat.nbTx;
+    // 3. Une échéance IGNORÉE refuse — rien n'est écrit.
+    const o2 = { id: "o2", seriesId: "r-loyer", dueDate: `${NOW.y}-${String(NOW.m).padStart(2, "0")}-06`,
+      expectedAmount: 50, state: "skipped", idempotencyKey: "k2" };
+    S.occurrences.push(o2);
+    const refus = confirmerOccurrence(o2, { type: "expense", compte: "cur", categorie: "Autre", titre: "Test" });
+    resultat.refusNomme = refus && typeof refus.erreur === "string" && /interdite/i.test(refus.erreur);
+    resultat.rienEcrit = transactions.length === resultat.nbTx && o2.state === "skipped";
+    // Nettoyage.
+    transactions.length = 0; S.occurrences = []; saveState(); render();
+    return resultat;
+  });
+  check(conf.fonctionExiste === true, "confirmerOccurrence existe (W2.4b)");
+  check(conf.premierOk === true && conf.txStatut === "posted" && conf.txMontant === 97.5 && conf.txLien === "r-loyer",
+    `confirmer écrit LE mouvement comptabilisé lié (statut ${conf.txStatut} / montant ${conf.txMontant} / lien ${conf.txLien})`);
+  check(conf.occEtat === "confirmed" && conf.occLien === true && conf.attenduConserve === true,
+    `l'échéance est confirmée, liée, et le montant ATTENDU survit au montant réel (état ${conf.occEtat} / lien ${conf.occLien} / attendu conservé ${conf.attenduConserve})`);
+  check(conf.doubleOk === true,
+    "double tap = UNE écriture — la seconde confirmation retrouve le mouvement sans en créer");
+  check(conf.refusNomme === true && conf.rienEcrit === true,
+    `une échéance ignorée refuse la confirmation directe et RIEN n'est écrit (refus ${conf.refusNomme} / intact ${conf.rienEcrit})`);
+  await ctx185.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10404,4 +10470,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 184 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 185 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
