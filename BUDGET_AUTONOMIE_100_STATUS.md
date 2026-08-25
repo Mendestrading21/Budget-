@@ -46,8 +46,10 @@ publication run `32874460073`, succès) · W3.4 fusionné (`main` =
 `0145e8a`, PR #145, publication run `32876072008`, succès) · W3.5
 fusionné et publié (`main` = `99f5fd0`, PR #146, publication run
 `32879835694`, succès) · W3.5b fusionné (`main` = `ad82f42`, PR #147)
-· W3.6 (bascule PWA) et W3.6b (comparateur natif + porte) EN PR**
-(Work Order :
+· W3.6 fusionné et publié (`main` = `1ba1d9c`, PR #148, publication
+run `32882847907`, succès) · W3.6b fusionné (`main` = `bf2767f`, PR
+#149, publication run `32885036200`) · W3.7 EN PR — DERNIER sous-lot
+de W3 (ADR-064 : préparer sans allumer)** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -99,7 +101,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1–W3.5b fusionnés · W3.6 EN PR | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1–W3.6b fusionnés · W3.7 EN PR (dernier) | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -135,6 +137,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.7 : la migration de l'historique — préparer sans allumer
+
+DERNIER sous-lot de W3 (ADR-064, décision propriétaire : « Préparer
+sans allumer »). PWA `migrerHistoriqueJournal({essai})` : l'essai à
+blanc raconte (créés, refus nommés, écarts) puis restaure TOUT (photo
+du journal, refus rendus au rapport) ; la migration réelle n'applique
+que si zéro refus ET zéro écart — sinon rien ne change (atomique) ;
+`S.journalActif` n'est JAMAIS touché. Natif
+`JournalHistoryMigrationService.migrer(essai:now:context:)` : les
+brouillons d'écritures ne touchent JAMAIS le contexte pendant l'essai
+(traduction pure + écarts PRÉVUS par addition des jambes), insertion +
+`save` seulement quand tout est propre, `rollback` si le save échoue.
+Preuves : parcours 196 né rouge (6 échecs nommés) → vert (essai
+inerte, réel prouvé zéro écart, idempotent, jamais d'allumage, refus
+atomique) ; sabotage (« le refus n'empêche plus rien ») → le contrôle
+d'atomicité mord seul ; restauré vert ; tests natifs (essai inerte,
+réel idempotent, refus atomique nommé, survie sur store DISQUE avec
+réouverture et zéro écart, FI-35) ; suites complètes vertes (196 e2e,
+9 parités, 13 canon + schéma, design, catalogue, audit). Consigné :
+l'ALLUMAGE (lecture des soldes depuis le journal par défaut) attend
+W4 et une décision propriétaire ; le déclenchement de la migration
+dans l'app (au boot ou depuis Gérer) arrive avec l'allumage — les
+portes existent et sont prouvées.
 
 ### 25.08.2026 — W3.6b : le comparateur natif et sa porte de bascule
 

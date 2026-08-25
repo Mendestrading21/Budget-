@@ -3410,6 +3410,37 @@ function ombreOuvertureDepot(compte) {
   return nouvelle;
 }
 
+/* W3.7 (ADR-064, décision propriétaire du 25.08.2026 : « préparer sans
+   allumer ») : la MIGRATION de l'historique. L'essai à blanc RACONTE —
+   créés, refus (chaque mouvement intraduisible, nommé), écarts — sans
+   rien écrire. La migration réelle n'applique que si TOUT est propre
+   (zéro refus, zéro écart) : sinon RIEN ne change (atomique, FI-31),
+   le rapport dit pourquoi. Elle n'allume JAMAIS la lecture des soldes
+   (S.journalActif) : l'allumage attend W4 et une décision
+   propriétaire distincte. Rollback : le journal est additif — la clé
+   `journal` se vide sans toucher un seul mouvement. */
+function migrerHistoriqueJournal(options) {
+  const essai = !!(options && options.essai);
+  const photo = JSON.stringify(S.journal || []);
+  const refusAvant = JOURNAL_OMBRE_REFUS.length;
+  const idsAvant = new Set((S.journal || []).map(e => e.id));
+  completerOmbreJournal();
+  const ecarts = comparerJournalEtSoldes();
+  const creees = (S.journal || []).filter(e => !idsAvant.has(e.id)).length;
+  const refus = JOURNAL_OMBRE_REFUS.slice(refusAvant)
+    .map(r => `mouvement ${r.mouvement} : ${r.erreur}`);
+  const rapport = { essai, creees, total: (S.journal || []).length, refus, ecarts, applique: false };
+  if (essai || refus.length || ecarts.length) {
+    // Essai à blanc OU migration refusée : RIEN ne change.
+    S.journal = JSON.parse(photo);
+    JOURNAL_OMBRE_REFUS.length = refusAvant; // les refus vivent dans le rapport
+    return rapport;
+  }
+  saveState();
+  rapport.applique = true;
+  return rapport;
+}
+
 /* W3.6 : LA porte de la bascule. Allumer EXIGE le comparateur à zéro
    écart — sinon refus nommé et le drapeau ne bouge pas. Éteindre est
    toujours permis (rollback documenté : l'ancien chemin est intact). */

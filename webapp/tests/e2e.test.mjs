@@ -11424,6 +11424,90 @@ currentTest = "W3.6 bascule des soldes";
   await ctx195.close();
 }
 
+// ---------- 196. W3.7 : la MIGRATION de l'historique — préparer sans allumer ----------
+// Budget Autonomie 100, W3.7 (ADR-064, décision propriétaire du
+// 25.08.2026 : « préparer sans allumer ») : l'essai à blanc RACONTE
+// (créés, refus, écarts) sans rien écrire ; la migration réelle
+// n'applique que si TOUT est propre (zéro refus, zéro écart), sinon
+// rien ne change — atomique ; elle n'allume JAMAIS la lecture
+// (S.journalActif reste éteint : l'allumage attend W4 et une décision
+// propriétaire).
+currentTest = "W3.7 migration historique";
+{
+  const ctx196 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p196 = await ctx196.newPage();
+  p196.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.7] ${msg.text()}`); });
+  await p196.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Mig" },
+      baseCurrency: "CHF",
+      // L'HISTORIQUE : des mouvements posés là bien avant le journal.
+      transactions: [
+        { id: 1, y: 2026, m: 6, d: 25, title: "Salaire ancien", amount: 6500,
+          type: "income", cat: null, acc: "cur", dest: null, status: "posted" },
+        { id: 2, y: 2026, m: 7, d: 3, title: "Loyer ancien", amount: 1500,
+          type: "expense", cat: "Logement", acc: "cur", dest: null, status: "posted" },
+      ],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p196.goto(APP_URL);
+  await p196.waitForSelector("#tabbar button");
+  const mig = await p196.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof migrerHistoriqueJournal === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    // 1. L'ESSAI À BLANC raconte sans rien écrire.
+    const tailleAvant = (S.journal || []).length;
+    const essai = migrerHistoriqueJournal({ essai: true });
+    resultat.essaiRaconte = essai && essai.essai === true && essai.applique === false
+      && essai.creees === 3 // 2 mouvements + 1 ouverture (sav à zéro n'écrit rien)
+      && essai.refus.length === 0 && essai.ecarts.length === 0;
+    resultat.essaiInerte = (S.journal || []).length === tailleAvant;
+    // 2. La migration RÉELLE applique, prouve zéro écart, et reste
+    //    idempotente (re-migrer ne crée rien).
+    const reel = migrerHistoriqueJournal({});
+    resultat.reelApplique = reel && reel.applique === true && reel.creees === 3
+      && comparerJournalEtSoldes().length === 0;
+    const encore = migrerHistoriqueJournal({});
+    resultat.idempotent = encore && encore.applique === true && encore.creees === 0;
+    // 3. JAMAIS d'allumage : la lecture reste sur le chemin vivant.
+    resultat.sansAllumage = S.journalActif !== true;
+    // 4. Un historique intraduisible REFUSE tout : rapport nommé,
+    //    RIEN ne change — atomique.
+    transactions.push({ id: 999, y: 2026, m: 7, d: 9, title: "Perdu ancien",
+      amount: 200, type: "saving", cat: null, acc: "cur", dest: null,
+      status: "posted", sourceCurrency: "CHF" });
+    const tailleApresReel = (S.journal || []).length;
+    const refuse = migrerHistoriqueJournal({});
+    resultat.refusAtomique = refuse && refuse.applique === false
+      && refuse.refus.some(r => r.includes("999"))
+      && (S.journal || []).length === tailleApresReel
+      && S.journalActif !== true;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(mig.fonctionExiste === true,
+    "migrerHistoriqueJournal existe — la migration a une porte et un rapport");
+  check(mig.essaiRaconte === true && mig.essaiInerte === true,
+    `l'essai à blanc raconte (créés, refus, écarts) sans RIEN écrire (rapport ${mig.essaiRaconte} / inerte ${mig.essaiInerte})`);
+  check(mig.reelApplique === true,
+    "la migration réelle écrit l'historique et prouve zéro écart");
+  check(mig.idempotent === true,
+    "re-migrer est idempotent — rien de nouveau n'est créé");
+  check(mig.sansAllumage === true,
+    "ADR-064 : la migration n'allume JAMAIS la lecture — préparer sans allumer");
+  check(mig.refusAtomique === true,
+    "un historique intraduisible refuse TOUT — rapport nommé, rien ne change (atomique)");
+  await ctx196.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11433,4 +11517,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 195 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 196 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
