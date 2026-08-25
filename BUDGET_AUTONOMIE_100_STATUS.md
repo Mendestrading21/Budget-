@@ -60,8 +60,8 @@ publication run `32891106635`, succès) · W4.2 fusionné et publié
 (`main` = `ee3c68b`, PR #152, publication run `32900122934`, succès) ·
 W4.2b fusionné et publié (`main` = `0522518`, PR #153, publication run
 `32901342511`, succès) · W4.3 fusionné (`main` = `422f875`, PR #154,
-publication run `32903417770`) · W4.4 EN PR (rapprochement PWA ; le
-miroir natif suit en W4.4b)** (Work Order :
+publication run `32903417770`) · W4.4 (rapprochement PWA) et W4.4b (porte native) EN PR** (Work
+Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -150,6 +150,25 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.4b : la porte de réconciliation native
+
+Miroir natif : `JournalEntry.avancerCycle(vers:)` (machine à sens
+unique, refus typé `JournalCycleError`, « reconciled » terminal) et
+`ReconciliationService.reconcilier(...)` — les TROIS gestes ensemble
+dans le même save : le point du compte (comportement historique que
+`balance()` continue de lire), le RELEVÉ daté (W4.3, source
+« réconciliation manuelle », append-only — chaque réconciliation
+laisse SA preuve) et le FIGEAGE du journal (les écritures postées du
+compte jusqu'à la date → « reconciled » ; prévu et autres comptes
+intacts). `ReconcileSheet` passe par la porte. `memePhoto` natif
+apprend (comme la PWA) que l'avancée du cycle n'est pas une différence
+de contenu. Tests : cycle à sens unique (refus typé, terminal), trois
+gestes ensemble, correction d'une écriture rapprochée TOUJOURS en
+chaîne (l'écriture figée ne bouge ni d'état ni d'un centime),
+double réconciliation = deux relevés. Consigné : la bascule de
+`balance()` du point nu vers le relevé attend le rapprochement par
+relevé complet (W4.5+ si utile) — dual-write d'ici là.
 
 ### 25.08.2026 — W4.4 : le rapprochement — réconcilier fige l'histoire
 

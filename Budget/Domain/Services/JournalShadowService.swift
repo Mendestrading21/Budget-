@@ -79,8 +79,15 @@ struct JournalShadowService {
         func cle(_ p: JournalPosting) -> String {
             "\(p.accountKey)|\(p.isDebit)|\(p.minorUnits)|\(p.currency)"
         }
+        // W4.4b : une écriture dont le CYCLE a avancé (cleared/
+        // reconciled) reste la même photo qu'une traduction fraîche
+        // « posted » — l'avancée du cycle n'est pas une différence de
+        // contenu.
+        let cycleCompatible = a.lifecycleRawValue == b.lifecycleRawValue
+            || ((a.lifecycle == .cleared || a.lifecycle == .reconciled)
+                && (b.lifecycle == .posted || b.lifecycle == .cleared))
         return a.kindRawValue == b.kindRawValue
-            && a.lifecycleRawValue == b.lifecycleRawValue
+            && cycleCompatible
             && a.effectiveDate == b.effectiveDate
             && a.title == b.title
             && a.postings.map(cle).sorted() == b.postings.map(cle).sorted()
