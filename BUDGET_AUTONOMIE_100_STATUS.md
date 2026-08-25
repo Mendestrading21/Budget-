@@ -19,8 +19,11 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
 ### W1 — Fixtures canoniques (lot actif)
 
-**État : W1.1 fusionné (ordre du 25.08) · W1.2 EN PR (brouillon, empilée
-sur W1.1/#126)** — W1.3–W1.7 BLOCKED jusqu'à sa fusion.
+**État : W1.1 fusionné (ordre du 25.08) · W1.2 puis W1.3 EN PR
+(brouillons empilés sur W1.1/#126, fusion dans l'ordre)** — W1.4–W1.7
+BLOCKED. W1.4 exigera une décision propriétaire (ADR) sur l'exclusion
+d'un compte du patrimoine : le natif filtre `includeInNetWorth`, la
+PWA additionne tous les comptes.
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -94,6 +97,20 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.3 : fixtures mois/transferts/épargne
+
+Trois fixtures : `mois-transfert-neutre` (FI-09 — virement neutre au
+centime), `mois-trio-reel-et-projection` (trio réel seul ; projection =
+disponible + prévu − échéances non couvertes), `epargne-interne-pas-un-
+cout` (FI-10 — mis de côté ≠ dépensé). Validateur durci avec les règles
+produit mesurées : un virement/mis de côté exige une destination, un
+virement vers soi-même est refusé. Sabotage mordant (virement sans
+destination nommé). Arithmétique des attendus contre-vérifiée à la
+main. Note : le « flux net » (FI-21) N'est PAS fixé ici — le
+`cashFlow` mesuré soustrait l'épargne, l'invariant l'exclut ; la
+définition contractuelle sera tranchée par ADR (W1 suite ou W6), pas
+en douce.
 
 ### 25.08.2026 — W1.2 : fixtures Money/comptes
 
