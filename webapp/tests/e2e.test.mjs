@@ -10024,6 +10024,67 @@ currentTest = "CPT1 mois du compte";
   await ctx178.close();
 }
 
+// ---------- 179. AUT-060 : un compte peut être exclu du patrimoine (ADR-060) ----------
+// Décision propriétaire du 25.08.2026 (parité) : le natif filtre déjà
+// includeInNetWorth ; la PWA gagne le MÊME réglage. Le solde du compte
+// exclu reste vrai et visible ; seule la fortune l'ignore (FI-25).
+currentTest = "AUT-060 patrimoine par compte";
+{
+  const ctx179 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p179 = await ctx179.newPage();
+  p179.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[AUT-060] ${msg.text()}`); });
+  await p179.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Pat" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" },
+        { id: "pro", name: "Compte pro", kind: "current", opening: 5000, cash: false, currency: "CHF", netWorth: false },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p179.goto(APP_URL);
+  await p179.waitForSelector("#tabbar button");
+  const pat = await p179.evaluate(() => {
+    const resultat = {};
+    // 1. La fortune ignore le compte exclu — le solde reste vrai.
+    resultat.fortune = fortuneTotale();
+    resultat.soldePro = balance("pro");
+    // 2. La ligne « Fortune totale » de Comptes montre le même chiffre.
+    activeTab = "accounts"; accountView = null; render();
+    const ligne = [...document.querySelectorAll(".breakdown div")]
+      .find(d => /Fortune totale/.test(d.textContent));
+    resultat.ligneFortune = ligne ? ligne.textContent.replace(/[  ]/g, " ") : "";
+    // 3. Le formulaire de compte offre le réglage, décoché pour « pro ».
+    openAccSheet(ACCOUNTS.find(a => a.id === "pro"));
+    const caseNW = document.getElementById("aNetWorth");
+    resultat.caseExiste = !!caseNW;
+    resultat.caseDecochee = caseNW ? caseNW.checked === false : null;
+    // 4. Recocher et enregistrer : la fortune retrouve le compte.
+    if (caseNW) {
+      caseNW.checked = true;
+      document.getElementById("accForm").requestSubmit();
+    }
+    resultat.fortuneApres = fortuneTotale();
+    // Nettoyage : ré-exclure pour laisser l'état initial.
+    const pro = ACCOUNTS.find(a => a.id === "pro");
+    if (pro) { pro.netWorth = false; saveState(); }
+    activeTab = "home"; render();
+    return resultat;
+  });
+  check(pat.fortune === 1000 && pat.soldePro === 5000,
+    `la fortune ignore le compte exclu (lu ${pat.fortune}) mais son solde reste vrai (lu ${pat.soldePro})`);
+  check(/1'000\.00/.test(pat.ligneFortune) && !/6'000\.00/.test(pat.ligneFortune),
+    `la ligne « Fortune totale » de Comptes dit CHF 1'000.00, jamais 6'000.00 (lu : « ${pat.ligneFortune} »)`);
+  check(pat.caseExiste === true && pat.caseDecochee === true,
+    `le formulaire de compte offre « Compter dans le patrimoine », décochée pour le compte exclu (existe ${pat.caseExiste} / décochée ${pat.caseDecochee})`);
+  check(pat.fortuneApres === 6000,
+    `recocher le réglage rend le compte à la fortune : CHF 6'000.00 (lu ${pat.fortuneApres})`);
+  await ctx179.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10033,4 +10094,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 178 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 179 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
