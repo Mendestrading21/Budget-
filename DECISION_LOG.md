@@ -1,5 +1,51 @@
 # Budget decision log
 
+## ADR-058 — Budget Autonomie 100 : migration progressive du moteur
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+L'audit total du 25.08.2026 (`docs/audit-total-2026-08-25/`, verdict
+NO-GO public au SHA `bcef018`) montre que la complexité du produit a
+progressé plus vite que son noyau : statut financier limité à
+`planned/posted`, date passée assimilée à une preuve, occurrences non
+persistées, corrections destructrices, deux moteurs indépendants,
+devises sans taux datés, schémas historiques non figés. Le programme
+**Budget Autonomie 100** (skill `budget-autonomie-100`, lots W0–W11)
+remet le noyau à niveau.
+
+### Décision
+
+1. La remise à niveau est PROGRESSIVE — jamais de réécriture massive :
+   figer fixtures et contrats (W1) → modèle nouveau EN PARALLÈLE →
+   shadow-write sans changer l'interface → comparateur ancien/nouveau →
+   migration avec dry-run et backup → bascule par vue derrière feature
+   flag → retrait de l'ancien chemin seulement après preuve et
+   rollback.
+2. Les deux apps restent utilisables pendant toute la migration ;
+   aucune donnée existante n'est perdue ; les invariants `TENUS` du
+   registre W0 gardent leurs tests verts à chaque étape.
+3. Une PR = un sous-lot du premier Wn READY. Modèle, formule et
+   refonte visuelle vivent dans des PR séparées.
+4. Le contrat de vérité W0 (glossaire des états, dictionnaire des
+   chiffres, registre des invariants, matrice de dépendances —
+   `docs/autonomie/w0/`) fait autorité : tout nouvel état, chiffre ou
+   invariant passe par ces documents et une fixture W1.
+5. Hiérarchie inchangée : `budget-autonomie-100` ordonne le système ;
+   `budget-prisme` régit chaque surface d'écran ; l'issue #70 reste
+   l'autorité release (W11 ne se ferme pas sans elle) ; fusion et
+   publication exigent toujours une autorisation explicite séparée.
+
+### Vérification
+
+W0 est documentaire (aucun calcul, modèle, écran ni workflow modifié —
+vérifiable au diff). La preuve du programme naît en W1 : runners
+canoniques Web/Swift, sorties structurées identiques, sabotage d'un
+côté qui mord, CI sur le HEAD exact.
+
+
 ## ADR-057 — CPT1 : la fiche compte raconte le mois (parité PWA)
 
 Date: 2026-08-24
