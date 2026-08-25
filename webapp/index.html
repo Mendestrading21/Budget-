@@ -3188,6 +3188,112 @@ function creerEcritureJournal(brouillon) {
   } };
 }
 
+/* W3.2 (Budget Autonomie 100) : les écritures TYPES — chaque mouvement
+   existant se TRADUIT en écriture équilibrée (FI-08), sans changer le
+   mouvement. Le virement interne est UNE écriture à deux jambes de
+   comptes réels (FI-09) ; la mensualité de dette garde sa jambe de
+   dette (FI-14) ; le solde d'ouverture devient une écriture (FI-12).
+   Les montants restent dans la devise SOURCE du mouvement — la
+   conversion vers la base reste l'affaire des taux estampillés (W4).
+   SHADOW : personne n'écrit encore dans S.journal (l'ombre = W3.3). */
+function centimesStricts(montant) {
+  const valeur = Number(montant);
+  if (!Number.isFinite(valeur)) return null;
+  const centimes = Math.round(valeur * 100);
+  // Plus de deux décimales = REFUS — jamais un arrondi silencieux (FI-34).
+  if (Math.abs(valeur * 100 - centimes) > 1e-6) return null;
+  return centimes;
+}
+
+function ecritureDepuisMouvement(t) {
+  if (!t || typeof t !== "object") return { erreur: "Mouvement illisible." };
+  const centimes = centimesStricts(t.amount);
+  if (centimes == null || centimes <= 0) {
+    return { erreur: "Montant illisible : des centimes entiers positifs — jamais arrondis en silence." };
+  }
+  const devise = t.sourceCurrency || accountCurrency(t.acc) || baseCurrency();
+  const compteSource = `compte:${t.acc}`;
+  const dateISO = `${t.y}-${String(t.m).padStart(2, "0")}-${String(t.d).padStart(2, "0")}`;
+  const commun = {
+    lifecycle: t.status === "posted" ? "posted" : "pending",
+    effectiveDate: dateISO,
+    titre: t.title || "",
+    idempotencyKey: `mouvement:${t.id}`,
+  };
+  const jambe = (compte, sens, montantMineur, dev) =>
+    ({ compte, sens, montantMineur, devise: dev || devise });
+  const interne = new Set(["saving", "investment", "transfer"]);
+  let kind = t.type;
+  let postings;
+  if (interne.has(t.type)) {
+    if (!t.dest) return { erreur: "Un mouvement interne nomme sa destination — l'argent n'arrive jamais nulle part." };
+    const deviseDest = accountCurrency(t.dest) || devise;
+    if (deviseDest === devise) {
+      postings = [jambe(compteSource, "credit", centimes), jambe(`compte:${t.dest}`, "debit", centimes)];
+    } else {
+      // Change : 4 jambes équilibrées PAR devise via attente:change —
+      // le montant crédité vient de l'ESTAMPILLE (destAmount), jamais
+      // d'un taux recalculé (FI-19).
+      const centimesDest = centimesStricts(t.destAmount);
+      if (centimesDest == null || centimesDest <= 0) {
+        return { erreur: "Virement de change sans montant estampillé : impossible d'écrire l'arrivée." };
+      }
+      postings = [
+        jambe(compteSource, "credit", centimes),
+        jambe("attente:change", "debit", centimes),
+        jambe("attente:change", "credit", centimesDest, deviseDest),
+        jambe(`compte:${t.dest}`, "debit", centimesDest, deviseDest),
+      ];
+    }
+  } else if (t.type === "income") {
+    postings = [jambe(compteSource, "debit", centimes), jambe(`rentree:${t.cat || "Revenu"}`, "credit", centimes)];
+  } else if (t.type === "refund") {
+    postings = [jambe(compteSource, "debit", centimes), jambe(`remboursement:${t.cat || "Autre"}`, "credit", centimes)];
+  } else if (t.type === "taxPayment") {
+    postings = [jambe(compteSource, "credit", centimes), jambe("impot:Impôts", "debit", centimes)];
+  } else if (t.type === "adjustment") {
+    postings = t.up
+      ? [jambe(compteSource, "debit", centimes), jambe("ajustement:correction", "credit", centimes)]
+      : [jambe(compteSource, "credit", centimes), jambe("ajustement:correction", "debit", centimes)];
+  } else if (t.type === "debtPayment" || (t.type === "expense" && isDebtPayment(t))) {
+    // FI-14 : le capital remboursé N'EST PAS un coût de la vie — sa
+    // jambe nomme la dette (r-debt-<id> → li-<id>).
+    kind = "debtPayment";
+    const dette = t.type === "expense"
+      ? String(t.recurringId).slice("r-debt-".length)
+      : (t.cat || t.title || "dette");
+    postings = [jambe(compteSource, "credit", centimes), jambe(`dette:${dette}`, "debit", centimes)];
+  } else if (t.type === "expense") {
+    postings = [jambe(compteSource, "credit", centimes), jambe(`depense:${t.cat || "Autre"}`, "debit", centimes)];
+  } else {
+    return { erreur: "Nature de mouvement inconnue — rien n'est traduit en silence." };
+  }
+  return creerEcritureJournal({ ...commun, kind, postings });
+}
+
+/* W3.2 (FI-12) : le solde d'ouverture d'un compte devient UNE écriture
+   datée d'avant toute histoire — zéro n'écrit rien (null explicite),
+   un solde négatif inverse les jambes. La migration W3.7 raffinera la
+   date ; l'ancrage « avant tout » est le contrat. */
+function ecritureOuverture(compte) {
+  if (!compte || typeof compte !== "object") return null;
+  const centimes = centimesStricts(compte.opening);
+  if (centimes == null || centimes === 0) return null;
+  const devise = compte.currency || baseCurrency();
+  const montant = Math.abs(centimes);
+  const jambes = centimes > 0
+    ? [{ compte: `compte:${compte.id}`, sens: "debit", montantMineur: montant, devise },
+       { compte: `ouverture:${compte.id}`, sens: "credit", montantMineur: montant, devise }]
+    : [{ compte: `compte:${compte.id}`, sens: "credit", montantMineur: montant, devise },
+       { compte: `ouverture:${compte.id}`, sens: "debit", montantMineur: montant, devise }];
+  return creerEcritureJournal({
+    kind: "opening", lifecycle: "posted", effectiveDate: "1970-01-01",
+    titre: `Ouverture ${compte.name || compte.id}`,
+    idempotencyKey: `ouverture:${compte.id}`,
+    postings: jambes,
+  });
+}
+
 /* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
    geste écrit LE mouvement lié ET l'état. Idempotent : une échéance
    déjà confirmée retrouve son mouvement, double tap = UNE écriture

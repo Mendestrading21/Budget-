@@ -10855,6 +10855,157 @@ currentTest = "W3.1 journal équilibré";
   await ctx190.close();
 }
 
+// ---------- 191. W3.2 : les écritures TYPES — chaque mouvement se traduit en écriture équilibrée ----------
+// Budget Autonomie 100, W3.2 : le traducteur `ecritureDepuisMouvement`
+// transforme CHAQUE type de mouvement existant en écriture équilibrée
+// (FI-08), le virement interne est UNE écriture à deux jambes de
+// comptes réels (FI-09), le solde d'ouverture devient une écriture
+// (FI-12), la mensualité de dette garde sa jambe de dette (FI-14).
+// SHADOW : rien n'écrit encore dans S.journal (l'ombre = W3.3).
+currentTest = "W3.2 écritures types";
+{
+  const ctx191 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p191 = await ctx191.newPage();
+  p191.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.2] ${msg.text()}`); });
+  await p191.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Typ" },
+      baseCurrency: "CHF", transactions: [],
+      fxRates: { EUR: 0.93, USD: 0.80 },
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: true, currency: "CHF" },
+        { id: "eur", name: "Euros", kind: "current", opening: 0, cash: true, currency: "EUR" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p191.goto(APP_URL);
+  await p191.waitForSelector("#tabbar button");
+  const typ = await p191.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof ecritureDepuisMouvement === "function"
+      && typeof ecritureOuverture === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const jambes = e => e.postings.map(p => `${p.sens}:${p.compte}:${p.montantMineur}:${p.devise}`).sort().join("|");
+    // 1. Dépense : le compte se vide, la catégorie reçoit — centimes exacts.
+    const depense = ecritureDepuisMouvement({
+      id: 1, type: "expense", amount: 84.30, acc: "cur", cat: "Logement",
+      title: "Électricité", y: 2026, m: 8, d: 12, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.depense = !!(depense.ecriture && !depense.erreur)
+      && depense.ecriture.kind === "expense"
+      && depense.ecriture.lifecycle === "posted"
+      && depense.ecriture.idempotencyKey === "mouvement:1"
+      && depense.ecriture.effectiveDate === "2026-08-12"
+      && jambes(depense.ecriture) === "credit:compte:cur:8430:CHF|debit:depense:Logement:8430:CHF";
+    // 2. Rentrée PRÉVUE : sens inverse, cycle de vie « pending » (FI-01).
+    const rentree = ecritureDepuisMouvement({
+      id: 2, type: "income", amount: 6500, acc: "cur", cat: null,
+      title: "Salaire", y: 2026, m: 9, d: 25, status: "planned", sourceCurrency: "CHF",
+    });
+    resultat.rentree = !!(rentree.ecriture)
+      && rentree.ecriture.lifecycle === "pending"
+      && jambes(rentree.ecriture) === "credit:rentree:Revenu:650000:CHF|debit:compte:cur:650000:CHF";
+    // 3. Virement interne : UNE écriture, DEUX jambes de comptes réels,
+    //    aucune jambe analytique (FI-09) ; sans destination = refus nommé.
+    const virement = ecritureDepuisMouvement({
+      id: 3, type: "transfer", amount: 500, acc: "cur", dest: "sav",
+      title: "Vers l'épargne", y: 2026, m: 8, d: 1, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.virement = !!(virement.ecriture)
+      && jambes(virement.ecriture) === "credit:compte:cur:50000:CHF|debit:compte:sav:50000:CHF";
+    const sansDest = ecritureDepuisMouvement({
+      id: 4, type: "saving", amount: 200, acc: "cur", dest: null,
+      title: "Perdu", y: 2026, m: 8, d: 1, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.sansDestRefuse = !!(sansDest.erreur && !sansDest.ecriture);
+    // 4. Virement de CHANGE : 4 jambes équilibrées PAR devise via
+    //    attente:change ; sans destAmount estampillé = refus (FI-16 en germe).
+    const change = ecritureDepuisMouvement({
+      id: 5, type: "transfer", amount: 100, acc: "cur", dest: "eur", destAmount: 93,
+      title: "Change", y: 2026, m: 8, d: 2, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.change = !!(change.ecriture)
+      && jambes(change.ecriture) === "credit:attente:change:9300:EUR|credit:compte:cur:10000:CHF|debit:attente:change:10000:CHF|debit:compte:eur:9300:EUR";
+    const changeSansMontant = ecritureDepuisMouvement({
+      id: 6, type: "transfer", amount: 100, acc: "cur", dest: "eur",
+      title: "Change sans taux", y: 2026, m: 8, d: 2, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.changeSansMontantRefuse = !!(changeSansMontant.erreur && !changeSansMontant.ecriture);
+    // 5. Ajustement : la direction `up` décide du sens — toujours neutre
+    //    et nommé « ajustement », jamais une dépense déguisée.
+    const ajustHaut = ecritureDepuisMouvement({
+      id: 7, type: "adjustment", amount: 12.35, up: true, acc: "cur",
+      title: "Correction", y: 2026, m: 8, d: 3, status: "posted", sourceCurrency: "CHF",
+    });
+    const ajustBas = ecritureDepuisMouvement({
+      id: 8, type: "adjustment", amount: 12.35, up: false, acc: "cur",
+      title: "Correction", y: 2026, m: 8, d: 3, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.ajustement = !!(ajustHaut.ecriture && ajustBas.ecriture)
+      && jambes(ajustHaut.ecriture) === "credit:ajustement:correction:1235:CHF|debit:compte:cur:1235:CHF"
+      && jambes(ajustBas.ecriture) === "credit:compte:cur:1235:CHF|debit:ajustement:correction:1235:CHF";
+    // 6. La mensualité de dette (expense liée r-debt-) garde sa jambe
+    //    DETTE (FI-14) ; remboursement reçu et impôts gardent la leur.
+    const mensualite = ecritureDepuisMouvement({
+      id: 9, type: "expense", amount: 350, acc: "cur", cat: null, recurringId: "r-debt-li1",
+      title: "Mensualité leasing", y: 2026, m: 8, d: 3, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.dette = !!(mensualite.ecriture)
+      && mensualite.ecriture.kind === "debtPayment"
+      && jambes(mensualite.ecriture) === "credit:compte:cur:35000:CHF|debit:dette:li1:35000:CHF";
+    const rembourse = ecritureDepuisMouvement({
+      id: 10, type: "refund", amount: 45, acc: "cur", cat: "Santé",
+      title: "Remboursement", y: 2026, m: 8, d: 4, status: "posted", sourceCurrency: "CHF",
+    });
+    const impots = ecritureDepuisMouvement({
+      id: 11, type: "taxPayment", amount: 300, acc: "cur",
+      title: "Acompte", y: 2026, m: 8, d: 5, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.remboursementEtImpots = !!(rembourse.ecriture && impots.ecriture)
+      && jambes(rembourse.ecriture) === "credit:remboursement:Santé:4500:CHF|debit:compte:cur:4500:CHF"
+      && jambes(impots.ecriture) === "credit:compte:cur:30000:CHF|debit:impot:Impôts:30000:CHF";
+    // 7. Un montant à plus de deux décimales est un REFUS nommé —
+    //    jamais un arrondi silencieux (FI-34).
+    const flou = ecritureDepuisMouvement({
+      id: 12, type: "expense", amount: 10.005, acc: "cur", cat: "Divers",
+      title: "Flou", y: 2026, m: 8, d: 6, status: "posted", sourceCurrency: "CHF",
+    });
+    resultat.flouRefuse = !!(flou.erreur && !flou.ecriture);
+    // 8. Le solde d'ouverture est UNE écriture (FI-12) ; zéro = rien.
+    const ouverture = ecritureOuverture(ACCOUNTS.find(a => a.id === "cur"));
+    resultat.ouverture = !!(ouverture && ouverture.ecriture)
+      && ouverture.ecriture.kind === "opening"
+      && ouverture.ecriture.idempotencyKey === "ouverture:cur"
+      && jambes(ouverture.ecriture) === "credit:ouverture:cur:500000:CHF|debit:compte:cur:500000:CHF";
+    resultat.ouvertureZero = ecritureOuverture(ACCOUNTS.find(a => a.id === "sav")) === null;
+    return resultat;
+  });
+  check(typ.fonctionExiste === true,
+    "ecritureDepuisMouvement et ecritureOuverture existent — le traducteur a une porte");
+  check(typ.depense === true,
+    "une dépense devient une écriture équilibrée exacte (compte → catégorie, centimes entiers)");
+  check(typ.rentree === true,
+    "une rentrée PRÉVUE naît « pending » — le prévu ne pèse sur aucun solde (FI-01)");
+  check(typ.virement === true && typ.sansDestRefuse === true,
+    `le virement interne est UNE écriture à deux comptes réels (FI-09) ; sans destination = refus (virement ${typ.virement} / refus ${typ.sansDestRefuse})`);
+  check(typ.change === true && typ.changeSansMontantRefuse === true,
+    `le change fait 4 jambes équilibrées PAR devise ; sans montant estampillé = refus (change ${typ.change} / refus ${typ.changeSansMontantRefuse})`);
+  check(typ.ajustement === true,
+    "l'ajustement suit sa direction et reste nommé « ajustement »");
+  check(typ.dette === true,
+    "la mensualité de dette garde sa jambe DETTE (FI-14) et sa nature debtPayment");
+  check(typ.remboursementEtImpots === true,
+    "remboursement reçu et impôts gardent leurs jambes distinctes (FI-24)");
+  check(typ.flouRefuse === true,
+    "un montant à plus de deux décimales est refusé — jamais arrondi en silence (FI-34)");
+  check(typ.ouverture === true && typ.ouvertureZero === true,
+    `le solde d'ouverture est UNE écriture (FI-12), zéro n'écrit rien (ouverture ${typ.ouverture} / zéro ${typ.ouvertureZero})`);
+  await ctx191.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10864,4 +11015,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 190 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 191 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
