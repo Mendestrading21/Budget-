@@ -40,7 +40,9 @@ W2.5, W2.6, W2.7a (`45890c7`, publication run `32857974554` — logs :
 **État : W3.1 fusionné et publié (`main` = `6a6cf02`, PR #141,
 publication run `32866561627`, succès) · W3.2 fusionné et publié
 (`main` = `2668c94`, PR #142, publication run `32869829266`, succès) ·
-W3.3 (ombre PWA) et W3.3b (ombre NATIVE) EN PR** (Work Order :
+W3.3 fusionné et publié (`main` = `b093eb8`, PR #143, publication run
+`32872986416`, succès) · W3.3b fusionné (`main` = `e8a0d47`, PR #144,
+publication run `32874460073`) · W3.4 EN PR** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -92,7 +94,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1–W3.2 fusionnés · W3.3 EN PR | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1–W3.3b fusionnés · W3.4 EN PR | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -128,6 +130,27 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.4 : le comparateur — la gate de bascule des soldes
+
+Le comparateur (ADR-058 étape 4) : `comparerJournalEtSoldes()` —
+complète d'abord l'historique non couvert via le traducteur
+(`completerOmbreJournal`, idempotent — même clé, jamais deux
+écritures ; l'ouverture de chaque compte devient une écriture, FI-12),
+puis exige que le solde de CHAQUE compte dérivé du journal
+(`soldeDepuisJournal` — lifecycle `pending` exclu, FI-01) égale
+EXACTEMENT `balance()` ; tout mouvement resté sans écriture est un
+écart NOMMÉ portant son refus consigné (FI-34 — l'argent qui a bougé
+sans que le journal sache le raconter reste VISIBLE). Preuves :
+parcours 193 né rouge (7 échecs nommés) → vert (héritage couvert,
+ouverture écrite, idempotence, falsification d'une écriture → écart
+nommant le compte, mouvement intraduisible → écart visible) ; sabotage
+(ouverture ignorée dans le complètement) → 3 contrôles mordent avec
+écarts chiffrés (« compte cur : solde vivant 10903.35, journal
+5903.35 ») ; restauré vert ; suites complètes vertes (193 e2e, 9
+parités, 13 canon + schéma, design, catalogue, audit). Consigné : le
+comparateur natif (soldes SwiftData ↔ journal V12) suivra la bascule
+W3.6 ; les agrégats du mois se comparent à la bascule, pas avant.
 
 ### 25.08.2026 — W3.3b : l'ombre native — les mêmes gestes, le même journal
 

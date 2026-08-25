@@ -3306,6 +3306,67 @@ function ecritureOuverture(compte) {
    jamais perdu en silence (FI-34). Le journal reste une ombre : aucune
    vue ne le lit avant la bascule prouvée (W3.6). */
 const JOURNAL_OMBRE_REFUS = [];
+
+/* W3.4 (Budget Autonomie 100, ADR-058 étape 4) : le COMPARATEUR — la
+   gate de bascule. Avant qu'aucune vue ne lise le journal (W3.6), le
+   solde de CHAQUE compte dérivé des écritures doit être EXACTEMENT le
+   solde vivant. L'historique non couvert est complété par le traducteur
+   (idempotent — même clé, jamais deux écritures) et l'ouverture devient
+   une écriture (FI-12). Tout mouvement resté sans écriture est un écart
+   NOMMÉ — jamais un trou silencieux (FI-34). SHADOW. */
+function completerOmbreJournal() {
+  const journal = S.journal || (S.journal = []);
+  const cles = new Set(journal.map(e => e.idempotencyKey));
+  for (const t of transactions) {
+    if (!cles.has(`mouvement:${t.id}`)) {
+      const ecriture = ombreJournalDepot(t);
+      if (ecriture) cles.add(ecriture.idempotencyKey);
+    }
+  }
+  for (const account of ACCOUNTS) {
+    const cle = `ouverture:${account.id}`;
+    if (cles.has(cle)) continue;
+    const resultat = ecritureOuverture(account);
+    if (resultat && resultat.ecriture) {
+      journal.push(resultat.ecriture);
+      cles.add(cle);
+    }
+  }
+}
+
+function soldeDepuisJournal(accId) {
+  const jambe = `compte:${accId}`;
+  let centimes = 0;
+  for (const ecriture of (S.journal || [])) {
+    if (ecriture.lifecycle === "pending") continue; // le prévu ne pèse sur rien (FI-01)
+    for (const posting of ecriture.postings) {
+      if (posting.compte === jambe) {
+        centimes += posting.sens === "debit" ? posting.montantMineur : -posting.montantMineur;
+      }
+    }
+  }
+  return fromCents(centimes);
+}
+
+function comparerJournalEtSoldes() {
+  completerOmbreJournal();
+  const ecarts = [];
+  const cles = new Set((S.journal || []).map(e => e.idempotencyKey));
+  for (const t of transactions) {
+    if (cles.has(`mouvement:${t.id}`)) continue;
+    const refus = JOURNAL_OMBRE_REFUS.find(r => r.mouvement === t.id);
+    ecarts.push(`mouvement ${t.id} sans écriture${refus ? ` — ${refus.erreur}` : ""}`);
+  }
+  for (const account of ACCOUNTS) {
+    const vivant = balance(account.id);
+    const derive = soldeDepuisJournal(account.id);
+    if (Math.abs(vivant - derive) > 0.005) {
+      ecarts.push(`compte ${account.id} : solde vivant ${vivant.toFixed(2)}, journal ${derive.toFixed(2)}`);
+    }
+  }
+  return ecarts;
+}
+
 function ombreJournalRetrait(txId) {
   const journal = S.journal || (S.journal = []);
   const cle = `mouvement:${txId}`;
