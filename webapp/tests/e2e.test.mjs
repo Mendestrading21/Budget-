@@ -12080,6 +12080,111 @@ currentTest = "W4.6 archivage des comptes";
   await ctx202.close();
 }
 
+// ---------- 203. W4.7 : le PATRIMOINE daté et sourcé — « valeur au… », jamais inventé ----------
+// Budget Autonomie 100, W4.7 (FI-27, FI-17) — DERNIER sous-lot de W4 :
+// chaque bien/dette porte la DATE de son estimation (« valeur au… »),
+// re-datée seulement quand la VALEUR change ; un héritage sans date
+// dit « valeur non datée » — jamais une date inventée ; le patrimoine
+// affiche l'état « incomplet » quand un taux manque ; le formulaire
+// dette met en garde contre le double compte avec un compte de dette.
+currentTest = "W4.7 patrimoine daté";
+{
+  const ctx203 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p203 = await ctx203.newPage();
+  p203.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.7] ${msg.text()}`); });
+  await p203.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Pat" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [],
+      assets: [{ id: "as-vieux", name: "Vélo hérité", value: 800, include: true, monthly: 0, icon: "🏷" }],
+      liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p203.goto(APP_URL);
+  await p203.waitForSelector("#tabbar button");
+  const pat = await p203.evaluate(() => {
+    const resultat = {};
+    const dateISO = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+    // 1. Créer un actif par le VRAI formulaire : la date d'estimation
+    //    s'estampille.
+    openItemSheet("asset", null);
+    document.getElementById("iName").value = "Voiture";
+    document.getElementById("iAmount").value = "12000.00";
+    document.getElementById("itemForm").requestSubmit();
+    const voiture = ASSETS.find(a => a.name === "Voiture");
+    resultat.estampille = !!voiture && voiture.valueDate === dateISO;
+    if (!resultat.estampille) return resultat;
+    // 2. Renommer SANS changer la valeur : la date NE bouge PAS ;
+    //    changer la valeur : re-datée (même jour ici — le contrat est
+    //    « la date suit la VALEUR », prouvé par le renommage inerte).
+    voiture.valueDate = "2026-01-15"; // simule une estimation ancienne
+    openItemSheet("asset", voiture.id);
+    document.getElementById("iName").value = "Voiture familiale";
+    document.getElementById("itemForm").requestSubmit();
+    resultat.renommageInerte = voiture.valueDate === "2026-01-15"
+      && voiture.name === "Voiture familiale";
+    openItemSheet("asset", voiture.id);
+    document.getElementById("iAmount").value = "11000.00";
+    document.getElementById("itemForm").requestSubmit();
+    resultat.valeurRedatee = voiture.value === 11000 && voiture.valueDate === dateISO;
+    // 3. L'affichage : « valeur au JJ.MM » pour le daté, « valeur non
+    //    datée » pour l'héritage — jamais une date inventée.
+    const htmlPatrimoine = renderNetWorth();
+    resultat.affichageDate = htmlPatrimoine.includes("valeur au")
+      && htmlPatrimoine.includes("valeur non datée");
+    // 4. FI-17 sur le patrimoine : une devise sans taux rend l'état
+    //    « incomplet » VISIBLE ici aussi.
+    ACCOUNTS.push({ id: "gbp", name: "Livres", kind: "current", opening: 100, cash: true, currency: "GBP" });
+    resultat.incompletVisible = renderNetWorth().includes("GBP");
+    ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "gbp"), 1);
+    // 5. Garde-fou : avec un compte de dette, le formulaire dette met
+    //    en garde contre le double compte ; sans, silence.
+    openItemSheet("liability", null);
+    const sansCompteDette = document.getElementById("iDebtAccountWarning");
+    const invisibleSans = !sansCompteDette || sansCompteDette.style.display === "none";
+    closeSheet();
+    ACCOUNTS.push({ id: "visa", name: "Carte Visa", kind: "creditCard", opening: -250, cash: false, currency: "CHF" });
+    openItemSheet("liability", null);
+    const avecCompteDette = document.getElementById("iDebtAccountWarning");
+    resultat.gardeFou = invisibleSans && !!avecCompteDette
+      && avecCompteDette.style.display !== "none"
+      && avecCompteDette.textContent.includes("déjà");
+    closeSheet();
+    ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "visa"), 1);
+    // 6. Restauration : une valueDate illisible est RETIRÉE, l'item
+    //    survit (« valeur non datée », jamais une date inventée).
+    const etat = JSON.parse(JSON.stringify(S));
+    etat.assets.find(a => a.id === voiture.id).valueDate = "pas-une-date";
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    const restauree = restaure && restaure.assets.find(a => a.id === voiture.id);
+    resultat.restaurationHonnete = !!restauree && restauree.valueDate == null
+      && restauree.value === 11000;
+    // Nettoyage.
+    ASSETS.splice(ASSETS.findIndex(a => a.id === voiture.id), 1);
+    saveState(); render();
+    return resultat;
+  });
+  check(pat.estampille === true,
+    "créer un bien estampille la date de l'estimation (FI-27)");
+  check(pat.renommageInerte === true,
+    "renommer ne re-date JAMAIS — la date suit la VALEUR, pas le nom");
+  check(pat.valeurRedatee === true,
+    "changer la valeur re-date l'estimation");
+  check(pat.affichageDate === true,
+    "l'écran dit « valeur au… » pour le daté et « valeur non datée » pour l'héritage — jamais une date inventée");
+  check(pat.incompletVisible === true,
+    "une devise sans taux rend le patrimoine « incomplet » VISIBLE ici aussi (FI-17)");
+  check(pat.gardeFou === true,
+    "le formulaire dette met en garde contre le double compte quand un compte de dette existe");
+  check(pat.restaurationHonnete === true,
+    "la restauration retire une date illisible et garde le bien — valeur non datée, jamais inventée");
+  await ctx203.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12089,4 +12194,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 202 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 203 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
