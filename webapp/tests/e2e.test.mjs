@@ -11006,6 +11006,114 @@ currentTest = "W3.2 écritures types";
   await ctx191.close();
 }
 
+// ---------- 192. W3.3 : l'OMBRE — chaque mutation écrit aussi son écriture ----------
+// Budget Autonomie 100, W3.3 (ADR-058 étape 3) : ajouter, modifier,
+// supprimer un mouvement entretient AUSSI le journal (S.journal), sans
+// changer le mouvement ni l'interface. Un mouvement intraduisible ne
+// casse JAMAIS le geste : son refus est CONSIGNÉ (jamais perdu en
+// silence, FI-34). Le journal reste une ombre : aucune vue ne le lit.
+currentTest = "W3.3 ombre du journal";
+{
+  const ctx192 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p192 = await ctx192.newPage();
+  p192.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.3] ${msg.text()}`); });
+  await p192.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Omb" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p192.goto(APP_URL);
+  await p192.waitForSelector("#tabbar button");
+  const omb = await p192.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionsExistent = typeof ombreJournalDepot === "function"
+      && typeof ombreJournalRetrait === "function";
+    if (!resultat.fonctionsExistent) return resultat;
+    const entrees = cle => (S.journal || []).filter(e => e.idempotencyKey === cle);
+    // 1. Créer par la porte réelle : addTx dépose l'écriture — le
+    //    mouvement, lui, ne change pas de forme.
+    const tx = addTx({
+      id: ++txSeq, y: NOW.y, m: NOW.m, d: 10, title: "Courses",
+      amount: 84.30, type: "expense", cat: "Alimentation", acc: "cur", dest: null,
+      status: "posted",
+    });
+    const depot = entrees(`mouvement:${tx.id}`);
+    resultat.creationDeposee = depot.length === 1
+      && depot[0].kind === "expense"
+      && depot[0].postings.some(p => p.compte === "compte:cur" && p.sens === "credit" && p.montantMineur === 8430);
+    resultat.mouvementIntact = tx.amount === 84.30 && tx.status === "posted" && !("journal" in tx);
+    // 2. Redéposer est IDEMPOTENT : jamais deux écritures pour un
+    //    mouvement.
+    ombreJournalDepot(tx);
+    resultat.idempotent = entrees(`mouvement:${tx.id}`).length === 1;
+    // 3. Modifier par le VRAI formulaire : l'écriture est REMPLACÉE
+    //    (même clé, nouveaux centimes) — toujours une seule.
+    openTxSheet(tx);
+    document.getElementById("fAmount").value = "99.90";
+    document.getElementById("txForm").requestSubmit();
+    const apresEdition = entrees(`mouvement:${tx.id}`);
+    resultat.editionRemplace = apresEdition.length === 1
+      && apresEdition[0].postings.every(p => p.montantMineur === 9990);
+    // 4. Supprimer par le VRAI geste : l'écriture disparaît avec le
+    //    mouvement.
+    const confirmOriginal = window.confirm; window.confirm = () => true;
+    openTxSheet(transactions.find(t => t.id === tx.id));
+    document.getElementById("fDelete").click();
+    window.confirm = confirmOriginal;
+    resultat.suppressionRetire = entrees(`mouvement:${tx.id}`).length === 0
+      && !transactions.some(t => t.id === tx.id);
+    // 5. Un lot d'import annulé retire aussi ses écritures.
+    const importe = addTx({
+      id: ++txSeq, y: NOW.y, m: NOW.m, d: 11, title: "Ligne importée",
+      amount: 25, type: "expense", cat: null, acc: "cur", dest: null,
+      status: "posted", importBatch: "batch-test",
+    });
+    const avaitEcriture = entrees(`mouvement:${importe.id}`).length === 1;
+    S.lastImport = { batchId: "batch-test", fileName: "test.csv", total: 1, imported: 1, duplicates: 0, invalids: [] };
+    rollbackLastImport();
+    resultat.importAnnuleRetire = avaitEcriture
+      && entrees(`mouvement:${importe.id}`).length === 0
+      && !transactions.some(t => t.id === importe.id);
+    // 6. Un mouvement intraduisible ne casse JAMAIS le geste : la
+    //    transaction naît quand même, le refus est CONSIGNÉ.
+    const refusAvant = JOURNAL_OMBRE_REFUS.length;
+    const perdu = addTx({
+      id: ++txSeq, y: NOW.y, m: NOW.m, d: 12, title: "Sans destination",
+      amount: 50, type: "saving", cat: null, acc: "cur", dest: null,
+      status: "posted",
+    });
+    resultat.refusConsigne = transactions.some(t => t.id === perdu.id)
+      && entrees(`mouvement:${perdu.id}`).length === 0
+      && JOURNAL_OMBRE_REFUS.length === refusAvant + 1
+      && JOURNAL_OMBRE_REFUS[JOURNAL_OMBRE_REFUS.length - 1].mouvement === perdu.id;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; S.lastImport = null; saveState(); render();
+    return resultat;
+  });
+  check(omb.fonctionsExistent === true,
+    "ombreJournalDepot et ombreJournalRetrait existent — l'ombre a ses deux gestes");
+  check(omb.creationDeposee === true && omb.mouvementIntact === true,
+    `addTx dépose l'écriture équilibrée SANS toucher au mouvement (dépôt ${omb.creationDeposee} / mouvement ${omb.mouvementIntact})`);
+  check(omb.idempotent === true,
+    "redéposer est idempotent — jamais deux écritures pour un mouvement");
+  check(omb.editionRemplace === true,
+    "modifier par le vrai formulaire remplace l'écriture (mêmes clés, nouveaux centimes)");
+  check(omb.suppressionRetire === true,
+    "supprimer par le vrai geste retire l'écriture avec le mouvement");
+  check(omb.importAnnuleRetire === true,
+    "annuler un lot d'import retire aussi ses écritures");
+  check(omb.refusConsigne === true,
+    "un mouvement intraduisible ne casse pas le geste — son refus est consigné, jamais perdu (FI-34)");
+  await ctx192.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11015,4 +11123,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 191 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 192 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

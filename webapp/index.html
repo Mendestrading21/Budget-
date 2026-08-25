@@ -1911,6 +1911,7 @@ function stampTx(t) {
 }
 function addTx(t) {
   transactions.push(stampTx(t));
+  ombreJournalDepot(t); // W3.3 : l'ombre du journal suit chaque création
   return t;
 }
 /* Migration additive au chargement : les mouvements historiques SANS
@@ -2425,6 +2426,11 @@ const RESTORE_TRANSACTION_TYPES = new Set([
   "taxPayment", "debtPayment", "adjustment",
 ]);
 const RESTORE_TRANSACTION_STATUSES = new Set(["posted", "planned"]);
+/* W3.1 — déclarées ICI (avant le premier chargement) : la validation de
+   restauration sert aussi à l'état déjà présent dans localStorage, qui
+   se lit AVANT le bloc journal (zone morte temporelle sinon). */
+const JOURNAL_LIFECYCLES = new Set(["pending", "posted", "cleared", "reconciled"]);
+const JOURNAL_KINDS = new Set([...RESTORE_TRANSACTION_TYPES, "opening"]);
 
 function loadState() {
   const raw = localStorage.getItem(APP_STATE_KEY);
@@ -3130,8 +3136,6 @@ function annulerOccurrence(occurrence) {
    creerEcritureJournal. Refus NOMMÉS en français — jamais un zéro ni
    un arrondi silencieux (FI-08, FI-34). SHADOW : aucune vue ne lit,
    aucune mutation n'écrit encore — l'ombre arrive en W3.3 (ADR-058). */
-const JOURNAL_LIFECYCLES = new Set(["pending", "posted", "cleared", "reconciled"]);
-const JOURNAL_KINDS = new Set([...RESTORE_TRANSACTION_TYPES, "opening"]);
 let journalSequence = 0;
 
 function validerPostingJournal(p) {
@@ -3292,6 +3296,33 @@ function ecritureOuverture(compte) {
     idempotencyKey: `ouverture:${compte.id}`,
     postings: jambes,
   });
+}
+
+/* W3.3 (Budget Autonomie 100, ADR-058 étape 3) : l'OMBRE — chaque
+   mutation réelle d'un mouvement entretient AUSSI le journal, sans
+   changer le mouvement ni l'interface. Un mouvement intraduisible ne
+   casse JAMAIS le geste de la personne : son refus est CONSIGNÉ dans
+   JOURNAL_OMBRE_REFUS (lisible par le comparateur W3.4 et les tests) —
+   jamais perdu en silence (FI-34). Le journal reste une ombre : aucune
+   vue ne le lit avant la bascule prouvée (W3.6). */
+const JOURNAL_OMBRE_REFUS = [];
+function ombreJournalRetrait(txId) {
+  const journal = S.journal || (S.journal = []);
+  const cle = `mouvement:${txId}`;
+  for (let i = journal.length - 1; i >= 0; i -= 1) {
+    if (journal[i].idempotencyKey === cle) journal.splice(i, 1);
+  }
+}
+function ombreJournalDepot(t) {
+  const journal = S.journal || (S.journal = []);
+  ombreJournalRetrait(t.id); // idempotent : redéposer REMPLACE, jamais deux fois
+  const resultat = ecritureDepuisMouvement(t);
+  if (resultat.erreur) {
+    JOURNAL_OMBRE_REFUS.push({ mouvement: t.id, erreur: resultat.erreur });
+    return null;
+  }
+  journal.push(resultat.ecriture);
+  return resultat.ecriture;
 }
 
 /* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
@@ -5764,6 +5795,7 @@ function rollbackLastImport() {
   for (let i = transactions.length - 1; i >= 0; i--) {
     if (transactions[i].importBatch === batchId) {
       libererOccurrencesDuMouvement(transactions[i].id);
+      ombreJournalRetrait(transactions[i].id); // W3.3
       transactions.splice(i, 1);
     }
   }
@@ -7762,6 +7794,7 @@ document.getElementById("fDelete").addEventListener("click", () => {
   const deleted = index >= 0 ? transactions[index] : null;
   if (index >= 0) transactions.splice(index, 1);
   libererOccurrencesDuMouvement(editingTxId);
+  ombreJournalRetrait(editingTxId); // W3.3 : l'écriture part avec le mouvement
   // Une facture réglée par ce mouvement redevient « à payer » : on ne
   // laisse jamais une facture pointer vers un mouvement disparu.
   for (const bill of (S.bills || [])) {
@@ -7835,6 +7868,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
       });
       const index = transactions.indexOf(existing);
       if (index >= 0) transactions[index] = candidate;
+      ombreJournalDepot(candidate); // W3.3 : l'écriture suit la modification
       toast("Opération modifiée");
     } else {
       addTx({
@@ -9690,7 +9724,7 @@ document.getElementById("bUnpay").addEventListener("click", () => {
   const linked = billLinkedTransaction(bill);
   const index = linked ? transactions.indexOf(linked) : -1;
   if (index >= 0) transactions.splice(index, 1);
-  if (linked) libererOccurrencesDuMouvement(linked.id);
+  if (linked) { libererOccurrencesDuMouvement(linked.id); ombreJournalRetrait(linked.id); } // W3.3
   bill.paidTxId = null;
   saveState();
   closeSheet();
