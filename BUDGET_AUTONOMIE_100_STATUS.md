@@ -43,8 +43,10 @@ publication run `32866561627`, succès) · W3.2 fusionné et publié
 W3.3 fusionné et publié (`main` = `b093eb8`, PR #143, publication run
 `32872986416`, succès) · W3.3b fusionné (`main` = `e8a0d47`, PR #144,
 publication run `32874460073`, succès) · W3.4 fusionné (`main` =
-`0145e8a`, PR #145, publication run `32876072008`) · W3.5 (inversion
-PWA) et W3.5b (miroir natif) EN PR** (Work Order :
+`0145e8a`, PR #145, publication run `32876072008`, succès) · W3.5
+fusionné et publié (`main` = `99f5fd0`, PR #146, publication run
+`32879835694`, succès) · W3.5b fusionné (`main` = `ad82f42`, PR #147)
+· W3.6 EN PR (bascule PWA)** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -96,7 +98,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1–W3.4 fusionnés · W3.5 EN PR | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1–W3.5b fusionnés · W3.6 EN PR | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -132,6 +134,32 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.6 : la bascule des soldes — le drapeau gardé
+
+`balance()` devient la PORTE (ADR-058 étape 6) : `S.journalActif`
+allumé → les soldes lisent le JOURNAL (`soldeDepuisJournal`) ; éteint
+(défaut) → le chemin vivant historique (`soldeVivant`), inchangé.
+Allumer passe par `basculerJournal(true)` qui EXIGE le comparateur
+W3.4 à zéro écart — refus nommé sinon, le drapeau ne bouge pas ;
+éteindre est TOUJOURS permis (rollback documenté — l'ancien chemin est
+intact, FI d'ADR-058). `ombreOuvertureDepot` : l'ouverture d'un compte
+vit dans le journal comme une chaîne corrigeable (éditer le solde
+d'ouverture inverse et remplace, FI-07 + FI-12 ; zéro laisse la trace)
+— branchée au formulaire de compte (sous journal), au complètement du
+comparateur et à « tout effacer » (les ouvertures renaissent). Drapeau
+persistant : clé additive `journalActif` (seeds, chargement,
+restauration booléen strict). Preuves : parcours 195 né rouge (8
+échecs nommés) → vert (éteint par défaut identique, refus nommé sur
+écart, bascule au centime près, gestes réels exacts sous journal,
+édition d'ouverture par le VRAI formulaire → chaîne + solde,
+tout-effacer aux ouvertures, rollback identique) ; sabotage (« la gate
+n'arrête plus rien ») → le contrôle de refus mord seul ; restauré
+vert ; suites complètes vertes (195 e2e, 9 parités, 13 canon + schéma,
+design, catalogue, audit). Consigné : AUCUNE vue n'allume le drapeau —
+la bascule par défaut attend la migration W3.7 et une décision
+propriétaire ; miroir natif de la bascule = W3.6b (avec le comparateur
+natif).
 
 ### 25.08.2026 — W3.5b : le miroir natif de l'inversion
 

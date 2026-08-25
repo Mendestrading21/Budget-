@@ -2369,6 +2369,7 @@ function seedState(country = "CH") {
     customCategories: [],
     occurrences: [],
     journal: [],
+    journalActif: false,
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2410,6 +2411,7 @@ function emptyState() {
     customCategories: [],
     occurrences: [],
     journal: [],
+    journalActif: false,
   };
 }
 
@@ -2475,6 +2477,7 @@ function loadState() {
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!Array.isArray(s.occurrences)) s.occurrences = []; // W2.1, clé additive
     if (!Array.isArray(s.journal)) s.journal = []; // W3.1, clé additive
+    if (typeof s.journalActif !== "boolean") s.journalActif = false; // W3.6, drapeau de bascule
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -2661,7 +2664,16 @@ function isDebtPayment(t) {
   return !!(t.recurringId && String(t.recurringId).startsWith("r-debt-"));
 }
 
+/* W3.6 (ADR-058 étape 6) : balance() est désormais la PORTE — le
+   drapeau `S.journalActif` (allumé seulement par basculerJournal, qui
+   exige le comparateur à zéro écart) fait lire les soldes au JOURNAL ;
+   éteint, le chemin vivant historique répond, inchangé. Rollback
+   documenté : éteindre est toujours permis. */
 function balance(accId) {
+  if (S.journalActif === true) return soldeDepuisJournal(accId);
+  return soldeVivant(accId);
+}
+function soldeVivant(accId) {
   const account = ACCOUNTS.find(a => a.id === accId);
   if (!account) return 0;
   let c = toCents(account.opening); // accumulation en centimes entiers (G01)
@@ -3315,19 +3327,11 @@ const JOURNAL_OMBRE_REFUS = [];
    une écriture (FI-12). Tout mouvement resté sans écriture est un écart
    NOMMÉ — jamais un trou silencieux (FI-34). SHADOW. */
 function completerOmbreJournal() {
-  const journal = S.journal || (S.journal = []);
-  const cles = new Set(journal.map(e => e.idempotencyKey));
   for (const t of transactions) {
     if (!ecritureActiveDuMouvement(t.id)) ombreJournalDepot(t); // W3.5 : la tête de chaîne décide
   }
   for (const account of ACCOUNTS) {
-    const cle = `ouverture:${account.id}`;
-    if (cles.has(cle)) continue;
-    const resultat = ecritureOuverture(account);
-    if (resultat && resultat.ecriture) {
-      journal.push(resultat.ecriture);
-      cles.add(cle);
-    }
+    ombreOuvertureDepot(account); // W3.6 : chaîne d'ouverture, idempotente et corrigeable
   }
 }
 
@@ -3354,7 +3358,7 @@ function comparerJournalEtSoldes() {
     ecarts.push(`mouvement ${t.id} sans écriture${refus ? ` — ${refus.erreur}` : ""}`);
   }
   for (const account of ACCOUNTS) {
-    const vivant = balance(account.id);
+    const vivant = soldeVivant(account.id); // jamais la porte : la gate compare les DEUX chemins
     const derive = soldeDepuisJournal(account.id);
     if (Math.abs(vivant - derive) > 0.005) {
       ecarts.push(`compte ${account.id} : solde vivant ${vivant.toFixed(2)}, journal ${derive.toFixed(2)}`);
@@ -3366,13 +3370,60 @@ function comparerJournalEtSoldes() {
 /* W3.5 (FI-07) : corriger n'est JAMAIS réécrire. La tête de chaîne d'un
    mouvement est son écriture ACTIVE : la seule qui n'est inversée par
    personne (clé `mouvement:<id>` ou `mouvement:<id>:r<n>`). */
-function ecritureActiveDuMouvement(txId) {
+function ecritureActiveParCle(exacte) {
   const journal = S.journal || [];
   const inversees = new Set(journal.filter(e => e.reversesEntryId).map(e => e.reversesEntryId));
-  const exacte = `mouvement:${txId}`;
   const prefixe = exacte + ":r";
   return journal.find(e => !inversees.has(e.id)
     && (e.idempotencyKey === exacte || e.idempotencyKey.startsWith(prefixe))) || null;
+}
+function ecritureActiveDuMouvement(txId) {
+  return ecritureActiveParCle(`mouvement:${txId}`);
+}
+
+/* W3.6 (FI-12 + FI-07) : l'ouverture d'un compte vit dans le journal
+   comme une chaîne corrigeable — éditer le solde d'ouverture inverse
+   l'ancienne écriture et en lie une nouvelle ; la remettre à zéro
+   laisse l'inversion tracée. Idempotent : la même photo est un no-op. */
+function ombreOuvertureDepot(compte) {
+  const journal = S.journal || (S.journal = []);
+  const active = ecritureActiveParCle(`ouverture:${compte.id}`);
+  const resultat = ecritureOuverture(compte);
+  const nouvelle = resultat && resultat.ecriture ? resultat.ecriture : null;
+  if (!active) {
+    if (nouvelle) journal.push(nouvelle);
+    return nouvelle;
+  }
+  if (nouvelle && memePhotoJournal(active, nouvelle)) return active;
+  const inversion = inversionEcriture(active);
+  if (inversion.erreur) {
+    JOURNAL_OMBRE_REFUS.push({ mouvement: `ouverture:${compte.id}`, erreur: inversion.erreur });
+    return null;
+  }
+  journal.push(inversion.ecriture);
+  if (!nouvelle) return null; // ouverture remise à zéro : la trace suffit
+  const marque = active.idempotencyKey.match(/:r(\d+)$/);
+  const revision = marque ? Number(marque[1]) + 1 : 2;
+  nouvelle.idempotencyKey = `ouverture:${compte.id}:r${revision}`;
+  nouvelle.replacesEntryId = active.id;
+  journal.push(nouvelle);
+  return nouvelle;
+}
+
+/* W3.6 : LA porte de la bascule. Allumer EXIGE le comparateur à zéro
+   écart — sinon refus nommé et le drapeau ne bouge pas. Éteindre est
+   toujours permis (rollback documenté : l'ancien chemin est intact). */
+function basculerJournal(actif) {
+  if (actif !== true) {
+    S.journalActif = false;
+    return null;
+  }
+  const ecarts = comparerJournalEtSoldes();
+  if (ecarts.length) {
+    return `Bascule refusée — le journal ne raconte pas encore la même histoire : ${ecarts.join(" ; ")}`;
+  }
+  S.journalActif = true;
+  return null;
 }
 
 /* Deux écritures racontent-elles la MÊME chose ? (idempotence du dépôt) */
@@ -8457,6 +8508,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && Array.isArray(e.postings) && e.postings.length >= 2
     && e.postings.every(p => isPlainRecord(p) && validerPostingJournal(p) === null)
     && equilibreParDevise(e.postings) === null);
+  state.journalActif = state.journalActif === true; // W3.6 : booléen strict
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -8537,6 +8589,7 @@ function deleteAllData() {
   POSITIONS.length = 0;
   (S.occurrences || (S.occurrences = [])).length = 0; // W2.1
   (S.journal || (S.journal = [])).length = 0; // W3.1
+  if (S.journalActif === true) { for (const account of ACCOUNTS) ombreOuvertureDepot(account); } // W3.6
   S.documents.length = 0;
   S.lastImport = null;
   S.bills.length = 0;
@@ -8618,14 +8671,18 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
     err.textContent = "Des positions expliquent ce compte — supprimez-les avant de changer son type.";
     return;
   }
+  let compteSauve;
   if (existing) {
     Object.assign(existing, { name, inst, kind, opening, cash, netWorth, currency });
+    compteSauve = existing;
     toast("Compte modifié");
   } else {
     const id = "acc-" + Date.now().toString(36);
-    ACCOUNTS.push({ id, name, inst, kind, opening, cash, netWorth, currency });
+    compteSauve = { id, name, inst, kind, opening, cash, netWorth, currency };
+    ACCOUNTS.push(compteSauve);
     toast("Compte ajouté");
   }
+  if (S.journalActif === true) ombreOuvertureDepot(compteSauve); // W3.6
   saveState();
   closeSheet();
   render();
