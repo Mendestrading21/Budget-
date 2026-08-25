@@ -1272,6 +1272,11 @@
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="aCash" style="width:auto" /> Compter dans l'argent disponible
       </label>
+      <!-- AUT-060 (ADR-060, parité natif includeInNetWorth) : un compte
+           peut être exclu de la fortune ; son solde reste vrai partout. -->
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:8px">
+        <input type="checkbox" id="aNetWorth" style="width:auto" /> Compter dans le patrimoine
+      </label>
       <div class="error" id="aError" role="alert"></div>
       <div class="actions sticky">
         <button type="button" class="btn secondary" id="aCancel">Annuler</button>
@@ -1824,7 +1829,7 @@ function projectWealth(years) {
   ];
   let projected = 0;
   for (const cls of classes) {
-    const balance0 = ACCOUNTS.filter(a => cls.kinds.includes(a.kind))
+    const balance0 = ACCOUNTS.filter(a => compteDansPatrimoine(a) && cls.kinds.includes(a.kind))
       .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
     const monthly = contributionsFor(cls.kinds).year / monthsElapsed;
     const i = cls.rate / 12;
@@ -1832,7 +1837,7 @@ function projectWealth(years) {
     projected += balance0 * growth + (i > 0 ? monthly * (growth - 1) / i : monthly * months);
   }
   // Liquidités, actifs, prévoyance manuelle et dettes : constants (honnête).
-  const liquid = ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))
+  const liquid = ACCOUNTS.filter(a => compteDansPatrimoine(a) && ["current", "cash"].includes(a.kind))
     .reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionManual = pensionPositionsTotal();
@@ -4437,8 +4442,13 @@ function backBar(title) {
 /* VUE1 (ADR-053) : LA fortune totale — une seule formule, servie à
    Comptes ET à la vue « Tout » du mois. Comptes, biens et prévoyance,
    moins les dettes ; chaque franc une fois. */
+/* AUT-060 (ADR-060) : un compte marqué netWorth=false sort de la
+   fortune — jamais des listes ni du disponible. Clé additive : absente
+   = compté (les données existantes gardent exactement le même sens). */
+function compteDansPatrimoine(account) { return account.netWorth !== false; }
+
 function fortuneTotale() {
-  return ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
+  return ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
     + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
     + pensionPositionsTotal() - liabilitiesTotal();
 }
@@ -4690,7 +4700,7 @@ function renderYearReview() {
 }
 
 function renderNetWorth() {
-  const accountsTotal = ACCOUNTS.reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
+  const accountsTotal = ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
   const pensionTotal = pensionPositionsTotal();
   const liabTotal = liabilitiesTotal();
@@ -4699,10 +4709,10 @@ function renderNetWorth() {
   // classe (actifs/prévoyance manuelle/dettes sans historique : constants).
   const MONTHS12 = Array.from({ length: 12 }, (_, i) => shiftMonth(NOW, i - 11));
   const classSeries = kinds => MONTHS12.map(mm =>
-    ACCOUNTS.filter(a => kinds.includes(a.kind))
+    ACCOUNTS.filter(a => compteDansPatrimoine(a) && kinds.includes(a.kind))
       .reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0));
   const points = MONTHS12.map(mm =>
-    ACCOUNTS.reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
+    ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
       + assetsTotal + pensionTotal - liabTotal);
   // Les quatre classes empruntaient le vert, le corail et l'ambre : une
   // courbe « Prévoyance » tracée en corail se lisait comme une perte. Elles
@@ -7941,12 +7951,14 @@ function openAccSheet(account) {
     document.getElementById("aCurrency").disabled = hasHistory;
     document.getElementById("aReconcile").style.display = hasHistory ? "block" : "none";
     document.getElementById("aCash").checked = !!account.cash;
+    document.getElementById("aNetWorth").checked = account.netWorth !== false;
   } else {
     document.getElementById("aCurrency").value = baseCurrency();
     document.getElementById("aCurrency").disabled = false;
     document.getElementById("aOpening").disabled = false;
     document.getElementById("aReconcile").style.display = "none";
     document.getElementById("aCash").checked = true;
+    document.getElementById("aNetWorth").checked = true;
   }
   document.getElementById("aError").textContent = "";
   openSheet("accForm");
@@ -7967,6 +7979,7 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   if (Number.isNaN(opening)) { err.textContent = "Ce solde n'est pas un montant valable. Exemple : 1200.00"; return; }
   const kind = document.getElementById("aKind").value;
   const cash = document.getElementById("aCash").checked;
+  const netWorth = document.getElementById("aNetWorth").checked;
   const inst = document.getElementById("aInst").value.trim();
   const existing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
   const currencyLocked = !!(existing
@@ -7980,11 +7993,11 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
     return;
   }
   if (existing) {
-    Object.assign(existing, { name, inst, kind, opening, cash, currency });
+    Object.assign(existing, { name, inst, kind, opening, cash, netWorth, currency });
     toast("Compte modifié");
   } else {
     const id = "acc-" + Date.now().toString(36);
-    ACCOUNTS.push({ id, name, inst, kind, opening, cash, currency });
+    ACCOUNTS.push({ id, name, inst, kind, opening, cash, netWorth, currency });
     toast("Compte ajouté");
   }
   saveState();
