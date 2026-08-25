@@ -2360,6 +2360,7 @@ function seedState(country = "CH") {
     insurances: INSURANCES_SEED.map(i => ({ ...i })),
     positions: [],
     customCategories: [],
+    occurrences: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2399,6 +2400,7 @@ function emptyState() {
     transactions: [], accounts: [], recurrings: [], goals: [],
     assets: [], liabilities: [], pensions: [], insurances: [], positions: [],
     customCategories: [],
+    occurrences: [],
   };
 }
 
@@ -2408,7 +2410,7 @@ function emptyState() {
 const RESTORE_ARRAY_KEYS = [
   "transactions", "accounts", "recurrings", "goals", "assets",
   "liabilities", "pensions", "insurances", "bills", "documents",
-  "positions",
+  "positions", "occurrences",
 ];
 const RESTORE_TRANSACTION_TYPES = new Set([
   "income", "expense", "refund", "saving", "investment", "transfer",
@@ -2457,6 +2459,7 @@ function loadState() {
     if (!COUNTRIES[s.country]) s.country = "CH";
     if (!PROJECTION_PROFILES[s.projectionProfile]) s.projectionProfile = "balanced";
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
+    if (!Array.isArray(s.occurrences)) s.occurrences = []; // W2.1, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -7837,6 +7840,20 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && Number.isFinite(p.manualPrice) && p.manualPrice >= 0
     && typeof p.valuationDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.valuationDate)
     && (p.costBasis == null || (Number.isFinite(p.costBasis) && p.costBasis >= 0)));
+  // W2.1 (Budget Autonomie 100) : les occurrences persistées — clé
+  // ADDITIVE encore inerte (shadow-write, ADR-058). Une entrée hostile
+  // (état inconnu, date impossible, clé d'idempotence absente) est
+  // ABANDONNÉE — jamais adoptée, jamais réparée en silence (FI-34).
+  const OCCURRENCE_STATES = new Set(["scheduled", "due", "matchProposed",
+    "confirmed", "skipped", "snoozed", "cancelled", "failed"]);
+  state.occurrences = (state.occurrences || []).filter(o => isPlainRecord(o)
+    && typeof o.id === "string" && o.id
+    && (o.seriesId == null || typeof o.seriesId === "string")
+    && typeof o.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.dueDate)
+    && (o.originalDueDate == null || (typeof o.originalDueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.originalDueDate)))
+    && (o.expectedAmount == null || (Number.isFinite(o.expectedAmount) && o.expectedAmount >= 0))
+    && OCCURRENCE_STATES.has(o.state)
+    && typeof o.idempotencyKey === "string" && o.idempotencyKey);
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -7915,6 +7932,7 @@ function deleteAllData() {
   PENSIONS.length = 0;
   INSURANCES.length = 0;
   POSITIONS.length = 0;
+  (S.occurrences || (S.occurrences = [])).length = 0; // W2.1
   S.documents.length = 0;
   S.lastImport = null;
   S.bills.length = 0;

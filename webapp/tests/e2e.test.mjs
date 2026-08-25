@@ -10140,6 +10140,68 @@ currentTest = "AUT-061 résultat du mois";
   await ctx180.close();
 }
 
+// ---------- 181. W2.1 : la clé additive « occurrences » — inerte, validée, effaçable ----------
+// Budget Autonomie 100, W2.1 (miroir PWA du modèle natif V11) : la clé
+// existe, la restauration la VALIDE entrée par entrée (états du
+// glossaire W0, dates ISO, clé d'idempotence obligatoire — l'entrée
+// hostile est abandonnée en silence contrôlé, jamais adoptée), AUCUN
+// moteur ne la lit encore (shadow-write, ADR-058), et « Tout effacer »
+// la vide.
+currentTest = "W2.1 occurrences";
+{
+  const ctx181 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p181 = await ctx181.newPage();
+  p181.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.1] ${msg.text()}`); });
+  await p181.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Occ" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p181.goto(APP_URL);
+  await p181.waitForSelector("#tabbar button");
+  const occ = await p181.evaluate(() => {
+    const resultat = {};
+    const valide = { id: "occ-1", seriesId: "r-loyer", dueDate: "2026-09-01",
+      originalDueDate: "2026-09-01", expectedAmount: 1500, state: "scheduled",
+      idempotencyKey: "serie:r-loyer:2026-9-1" };
+    const restauration = validatedRestoreState({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Occ" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+      occurrences: [
+        valide,
+        { id: "occ-2", dueDate: "2026-09-01", state: "etat-inconnu", idempotencyKey: "k2" },
+        { id: "occ-3", dueDate: "pas-une-date", state: "due", idempotencyKey: "k3" },
+        { id: "occ-4", dueDate: "2026-09-02", state: "due" },
+      ],
+    });
+    resultat.gardees = (restauration.occurrences || []).map(o => o.id);
+    // Le snapshot n'a AUCUN terme d'occurrence : la clé est inerte.
+    const s = snapshot(NOW.y, NOW.m);
+    resultat.inerte = !("occurrences" in s);
+    // « Tout effacer » vide la clé.
+    S.occurrences = [valide];
+    const confirmOriginal = window.confirm; window.confirm = () => true;
+    deleteAllData();
+    window.confirm = confirmOriginal;
+    resultat.effacees = (S.occurrences || []).length;
+    return resultat;
+  });
+  check(Array.isArray(occ.gardees) && occ.gardees.length === 1 && occ.gardees[0] === "occ-1",
+    `la restauration garde l'occurrence valide et abandonne les hostiles — état inconnu, date impossible, clé absente (gardées : ${JSON.stringify(occ.gardees)})`);
+  check(occ.inerte === true,
+    "aucun agrégat ne lit les occurrences — la clé est inerte (shadow-write, ADR-058)");
+  check(occ.effacees === 0,
+    `« Tout effacer » vide aussi les occurrences (reste ${occ.effacees})`);
+  await ctx181.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10149,4 +10211,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 180 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 181 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
