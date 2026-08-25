@@ -37,14 +37,15 @@ W2.5, W2.6, W2.7a (`45890c7`, publication run `32857974554` — logs :
 
 ### W3 — Journal financier (lot actif)
 
-**État : W3.1 EN COURS** (Work Order :
+**État : W3.1 fusionné et publié (`main` = `6a6cf02`, PR #141,
+publication run `32866561627`, succès) · W3.2 EN PR** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
-les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 livre
-la porte d'entrée du journal des deux côtés (PWA
-`creerEcritureJournal` + clé additive `journal` ; natif `Money`,
-`JournalEntry`/`JournalPosting`, schéma V12) — SHADOW : aucune vue ne
-lit, aucune mutation n'écrit (ADR-058, l'ombre arrive en W3.3).
+les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
+livré la porte d'entrée du journal des deux côtés ; W3.2 livre les
+écritures TYPES (traducteur mouvement → écriture, ouverture FI-12) —
+SHADOW : aucune vue ne lit, aucune mutation n'écrit (ADR-058, l'ombre
+arrive en W3.3).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -89,7 +90,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1 EN COURS | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1 fusionné · W3.2 EN PR | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -125,6 +126,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.2 : les écritures types — chaque mouvement se traduit
+
+Le traducteur transforme CHAQUE type de mouvement existant en écriture
+équilibrée SANS modifier le mouvement (SHADOW — l'ombre = W3.3). PWA :
+`ecritureDepuisMouvement` (dépense, rentrée, remboursement FI-24,
+impôts, ajustement directionnel, mensualité de dette `r-debt-` → jambe
+`dette:` FI-14, virement/mise de côté/investissement = UNE écriture à
+deux comptes réels FI-09, change = 4 jambes par devise depuis
+l'ESTAMPILLE `destAmount` — jamais un taux recalculé FI-19) et
+`ecritureOuverture` (FI-12 — zéro n'écrit rien, négatif inverse les
+jambes) ; refus nommés : mouvement interne sans destination, change
+sans estampille, montant à plus de deux décimales (`centimesStricts`,
+jamais l'ancien `toCents` qui coerce en zéro). Natif :
+`JournalTranslationService` (même contrat ; un change sans montant
+estampillé est REFUSÉ — le natif n'estampille pas encore, consigné
+pour W4 ; ouverture datée de `createdAt` — la PWA n'a pas de date de
+création de compte et ancre à `1970-01-01`, divergence consignée à
+raffiner en W3.7). Preuves : parcours 191 né rouge (10 échecs nommés)
+→ vert ; sabotage (virement traduit en jambe `depense:Virement`) → le
+SEUL contrôle FI-09 mord ; restauré vert ;
+`JournalTranslationServiceTests` (8 tests) ; suites complètes vertes
+(191 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
 
 ### 25.08.2026 — W3.1 : le journal naît — centimes entiers, équilibre par devise
 
