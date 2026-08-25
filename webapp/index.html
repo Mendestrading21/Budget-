@@ -3017,6 +3017,38 @@ function transitionOccurrence(occurrence, nouvelEtat) {
   return null;
 }
 
+/* W2.7a (Budget Autonomie 100, ADR-058 étape 4) : le COMPARATEUR —
+   avant toute bascule de lecture, le nouveau chemin (occurrences
+   matérialisées) doit raconter EXACTEMENT la même histoire que
+   l'ancien (compteurs recalculés). Les occurrences n'étant pas encore
+   liées aux mouvements (W2.7b), le comparateur simule la couverture :
+   il retranche les mouvements liés du mois, comme les compteurs.
+   Retourne la liste des écarts — vide = parité. SHADOW. */
+function comparerOccurrencesEtCompteurs(fenetreMois) {
+  const ETATS_OUVERTS = new Set(["scheduled", "due", "matchProposed", "snoozed"]);
+  const ecarts = [];
+  for (let k = 0; k < (fenetreMois || 1); k += 1) {
+    const mm = shiftMonth(NOW, k);
+    for (const r of RECURRINGS) {
+      if (recurringEnded(r, mm.y, mm.m)) continue;
+      const attendu = recurringRemainingCount(r, mm.y, mm.m);
+      const prefixe = `serie:${r.id}:${mm.y}-${mm.m}:`;
+      const ouvertes = (S.occurrences || []).filter(o =>
+        o.seriesId === r.id
+        && typeof o.idempotencyKey === "string"
+        && o.idempotencyKey.startsWith(prefixe)
+        && ETATS_OUVERTS.has(o.state)).length;
+      const liees = transactions.filter(t =>
+        inMonth(t, mm.y, mm.m) && t.recurringId === r.id).length;
+      const effectives = Math.max(0, ouvertes - liees);
+      if (effectives !== attendu) {
+        ecarts.push(`${r.id} ${mm.y}-${mm.m} : compteur ${attendu}, occurrences ouvertes ${effectives}`);
+      }
+    }
+  }
+  return ecarts;
+}
+
 /* W2.6 (Budget Autonomie 100) : une facture ponctuelle est une
    occurrence SANS série (clé facture:<id>, idempotente). Une facture
    déjà couverte ne matérialise rien — son histoire est déjà écrite ;

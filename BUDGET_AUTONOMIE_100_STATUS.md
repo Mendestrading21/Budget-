@@ -29,8 +29,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 ### W2 — Occurrences persistées (lot actif)
 
 **État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.4a/b et W2.5 fusionnés
-(`main` = `5647062`) · W2.6 EN PR** (Work Order :
+`32847580712`) · W2.4a/b, W2.5 et W2.6 fusionnés
+(`main` = `3e768d6`) · W2.7a EN PR** (Work Order :
 `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
@@ -75,7 +75,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.6 EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.7a EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -112,6 +112,17 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.7a : le comparateur ancien/nouveau (ADR-058 étape 4)
+
+Avant toute bascule de lecture : `comparerOccurrencesEtCompteurs`
+prouve que les occurrences matérialisées racontent EXACTEMENT la même
+histoire que les compteurs vivants (`recurringRemainingCount`), mois
+par mois, couverture des mouvements liés simulée (la vraie liaison vit
+en W2.7b). Parcours 188 : ZÉRO écart sur trois mois avec récurrences
+mixtes et mouvement lié ; né rouge (comparateur absent) ; sabotage
+mordant (couverture oubliée → écart nommé `r-loyer … compteur 0,
+occurrences ouvertes 1`).
 
 ### 25.08.2026 — W2.6 : une facture est une occurrence sans série
 
