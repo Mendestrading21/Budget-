@@ -60,8 +60,9 @@ publication run `32891106635`, succès) · W4.2 fusionné et publié
 (`main` = `ee3c68b`, PR #152, publication run `32900122934`, succès) ·
 W4.2b fusionné et publié (`main` = `0522518`, PR #153, publication run
 `32901342511`, succès) · W4.3 fusionné (`main` = `422f875`, PR #154,
-publication run `32903417770`) · W4.4 (rapprochement PWA) et W4.4b (porte native) EN PR** (Work
-Order :
+publication run `32903417770`) · W4.4 fusionné et publié (`main` = `3407feb`, PR #155, publication
+run `32905617064`) · W4.4b fusionné (`main` = `7a333a1`, PR #156) ·
+W4.5 EN PR** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -115,7 +116,7 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1–W4.3 fusionnés · W4.4 EN PR | W3 (fusionné) |
+| W4 | Comptes, devises, rapprochement | W4.1–W4.4b fusionnés · W4.5 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -150,6 +151,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.5 : dettes et cartes — le dû existe, payer est neutre
+
+Le trou consigné en W4.1 se ferme : un compte de dette peut enfin
+NAÎTRE avec son dû. La case « C'est un solde dû (la dette part en
+négatif) » n'apparaît QUE pour un type de dette (le pavé décimal iOS
+n'a pas de touche moins — même motif que la réconciliation), cochée
+d'elle-même, toujours décochable ; l'édition affiche la valeur absolue
+et le signe vit dans la case. Sémantique verrouillée par test (FI-14) :
+payer sa carte est un VIREMENT neutre (le mois ne bouge pas, deux
+jambes de comptes réels au journal), les intérêts sont une DÉPENSE
+depuis la carte (ils coûtent, eux), le patrimoine soustrait le dû
+naturellement, la restauration préserve le négatif, comparateur à zéro
+sur toute l'histoire de la carte. Preuves : parcours 201 né rouge (7
+échecs nommés) → vert ; sabotage (la case ne fait rien) → 4 contrôles
+mordent ; restauré vert ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w4-5/`) ; suites complètes vertes (201
+e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le natif accepte déjà une ouverture négative (Decimal
+signé) — son formulaire de compte gagnera la même case quand W5
+touchera ces écrans ; une dette suivie comme COMPTE ne doit pas être
+doublée en Dette manuelle (garde-fou à l'écran → W4.7).
 
 ### 25.08.2026 — W4.4b : la porte de réconciliation native
 

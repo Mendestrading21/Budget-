@@ -11886,6 +11886,103 @@ currentTest = "W4.4 rapprochement du journal";
   await ctx200.close();
 }
 
+// ---------- 201. W4.5 : DETTES ET CARTES — le dû existe, payer est neutre, les intérêts coûtent ----------
+// Budget Autonomie 100, W4.5 (FI-14) : un compte de dette peut enfin
+// NAÎTRE avec un solde dû (case « solde dû » visible pour les types de
+// dette seulement — le pavé iOS n'a pas de touche moins). Payer sa
+// carte est un VIREMENT neutre (jamais un coût de vie) ; les intérêts
+// sont une DÉPENSE depuis la carte. La restauration préserve le dû.
+currentTest = "W4.5 dettes et cartes";
+{
+  const ctx201 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p201 = await ctx201.newPage();
+  p201.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.5] ${msg.text()}`); });
+  await p201.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Det" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p201.goto(APP_URL);
+  await p201.waitForSelector("#tabbar button");
+  const det = await p201.evaluate(() => {
+    const resultat = {};
+    const rangeeDu = document.getElementById("aOpeningNegativeRow");
+    resultat.caseExiste = !!rangeeDu && !!document.getElementById("aOpeningNegative");
+    if (!resultat.caseExiste) return resultat;
+    // 1. La case « solde dû » n'apparaît QUE pour un type de dette, et
+    //    s'y coche d'elle-même.
+    openAccSheet(null);
+    document.getElementById("aKind").value = "current";
+    document.getElementById("aKind").dispatchEvent(new Event("change"));
+    const cacheePourCourant = rangeeDu.style.display === "none";
+    document.getElementById("aKind").value = "creditCard";
+    document.getElementById("aKind").dispatchEvent(new Event("change"));
+    resultat.caseContextuelle = cacheePourCourant
+      && rangeeDu.style.display !== "none"
+      && document.getElementById("aOpeningNegative").checked === true;
+    // 2. Créer la carte avec 250 dû par le VRAI formulaire : ouverture
+    //    négative, solde -250, patrimoine réduit d'exactement 250.
+    const fortuneAvant = fortuneTotale();
+    document.getElementById("aName").value = "Carte Visa";
+    document.getElementById("aOpening").value = "250.00";
+    document.getElementById("accForm").requestSubmit();
+    const carte = ACCOUNTS.find(a => a.name === "Carte Visa");
+    resultat.duNegatif = !!carte && carte.opening === -250
+      && Math.abs(balance(carte.id) - (-250)) < 0.005
+      && Math.abs((fortuneTotale() - fortuneAvant) - (-250)) < 0.005;
+    // 3. Payer la carte = VIREMENT neutre : le résultat du mois ne
+    //    bouge pas, la carte remonte vers zéro, le journal fait deux
+    //    jambes de comptes réels.
+    const moisAvant = yearMonthRow(NOW.y, NOW.m);
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d, title: "Paiement carte",
+      amount: 200, type: "transfer", cat: null, acc: "cur", dest: carte.id, status: "posted" });
+    const moisApres = yearMonthRow(NOW.y, NOW.m);
+    const ecriturePaiement = ecritureActiveDuMouvement(transactions.at(-1).id);
+    resultat.paiementNeutre = Math.abs(balance(carte.id) - (-50)) < 0.005
+      && moisApres.entered === moisAvant.entered
+      && moisApres.spent === moisAvant.spent
+      && ecriturePaiement.postings.every(p => p.compte.startsWith("compte:"));
+    // 4. Les intérêts sont une DÉPENSE depuis la carte : la carte
+    //    descend, le dépensé du mois monte.
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d, title: "Intérêts carte",
+      amount: 12.50, type: "expense", cat: "Frais", acc: carte.id, dest: null, status: "posted" });
+    resultat.interetsCoutent = Math.abs(balance(carte.id) - (-62.50)) < 0.005
+      && Math.abs((yearMonthRow(NOW.y, NOW.m).spent - moisApres.spent) - 12.50) < 0.005;
+    // 5. La restauration préserve le dû négatif.
+    const etat = JSON.parse(JSON.stringify(S));
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    resultat.restaurationPreserve = !!restaure
+      && restaure.accounts.some(a => a.name === "Carte Visa" && a.opening === -250);
+    // 6. Comparateur : tout ce petit monde raconte la même histoire.
+    resultat.comparateurZero = comparerJournalEtSoldes().length === 0;
+    // Nettoyage.
+    transactions.length = 0; S.journal = [];
+    ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === carte.id), 1);
+    saveState(); render();
+    return resultat;
+  });
+  check(det.caseExiste === true,
+    "la case « solde dû » existe dans le vrai formulaire de compte");
+  check(det.caseContextuelle === true,
+    "elle n'apparaît QUE pour un type de dette et s'y coche d'elle-même");
+  check(det.duNegatif === true,
+    "une carte naît avec son dû : ouverture négative, solde -250, patrimoine réduit d'exactement 250");
+  check(det.paiementNeutre === true,
+    "payer sa carte est un VIREMENT neutre — jamais un coût de vie, deux jambes réelles (FI-14/FI-09)");
+  check(det.interetsCoutent === true,
+    "les intérêts sont une dépense depuis la carte — ils coûtent, eux (FI-14)");
+  check(det.restaurationPreserve === true,
+    "la restauration préserve le dû négatif — jamais coercé");
+  check(det.comparateurZero === true,
+    "le comparateur reste à zéro écart sur toute l'histoire de la carte");
+  await ctx201.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11895,4 +11992,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 200 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 201 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
