@@ -210,6 +210,18 @@ enum BudgetSchemaV11: VersionedSchema {
     }
 }
 
+/// Schema v12.0.0 — adds the financial journal (JournalEntry,
+/// JournalPosting — W3.1 Budget Autonomie 100, ADR-063). Purely
+/// additive: no view or service reads the new models yet (shadow-write
+/// strategy, ADR-058) — existing data keeps exactly the same meaning.
+enum BudgetSchemaV12: VersionedSchema {
+    static let versionIdentifier = Schema.Version(12, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        BudgetSchemaV11.models + [JournalEntry.self, JournalPosting.self]
+    }
+}
+
 // V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
 // change from V1 to V10 was strictly additive (ADR-015). A staged
 // SchemaMigrationPlan is deliberately absent — because the versioned
@@ -238,7 +250,7 @@ enum PersistenceFactory {
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV11.self),
+            for: Schema(versionedSchema: BudgetSchemaV12.self),
             configurations: [configuration]
         )
     }
