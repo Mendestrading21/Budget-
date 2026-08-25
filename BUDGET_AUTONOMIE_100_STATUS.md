@@ -46,7 +46,8 @@ publication run `32874460073`, succès) · W3.4 fusionné (`main` =
 `0145e8a`, PR #145, publication run `32876072008`, succès) · W3.5
 fusionné et publié (`main` = `99f5fd0`, PR #146, publication run
 `32879835694`, succès) · W3.5b fusionné (`main` = `ad82f42`, PR #147)
-· W3.6 EN PR (bascule PWA)** (Work Order :
+· W3.6 (bascule PWA) et W3.6b (comparateur natif + porte) EN PR**
+(Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -134,6 +135,25 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.6b : le comparateur natif et sa porte de bascule
+
+Miroir natif de la gate : `JournalComparatorService` — complète
+l'ombre (mouvements hérités via `deposer`, ouvertures via la nouvelle
+`deposerOuverture` en CHAÎNE corrigeable FI-12/FI-07), dérive le solde
+de chaque compte du journal (`soldeDerive`, pending exclu, centimes
+entiers) et exige l'égalité EXACTE avec `AccountBalanceService` ; tout
+mouvement sans écriture est un écart nommé portant son refus (FI-34) ;
+un compte assis sur un `reconciledBalance` est un écart CONSIGNÉ — le
+journal ne modélise pas encore les relevés (W4), jamais deviné.
+`JournalReadSwitch` : activer EXIGE zéro écart (refus nommé sinon, le
+drapeau `UserDefaults` ne bouge pas), éteindre toujours permis —
+AUCUNE lecture native ne passe encore par le journal (consigné, comme
+la PWA : bascule par défaut = décision propriétaire après W3.7).
+Tests : store couvert à zéro écart idempotent, écriture falsifiée →
+écart nommant le compte, base rapprochée → écart consigné W4, porte
+gardée + rollback, chaîne d'ouverture (originale intacte, inversion,
+`:r2`, solde dérivé suit).
 
 ### 25.08.2026 — W3.6 : la bascule des soldes — le drapeau gardé
 
