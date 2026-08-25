@@ -91,3 +91,38 @@ final class OccurrenceStateMachineTests: XCTestCase {
         }
     }
 }
+
+// W2.5 — reporter/ignorer/annuler : de l'agenda, jamais de l'argent.
+extension OccurrenceStateMachineTests {
+    private var ref: Date { Date(timeIntervalSince1970: 1_781_524_800) }
+
+    func testSnoozeMovesDueDateNeverTheOrigin() throws {
+        let o = ScheduledOccurrence(
+            seriesID: UUID(), dueDate: ref,
+            expectedAmount: Decimal("25.00"), state: .due,
+            idempotencyKey: "w25:1")
+        let plusTard = ref.addingTimeInterval(7 * 86_400)
+        try o.snooze(to: plusTard, at: ref)
+        XCTAssertEqual(o.state, .snoozed)
+        XCTAssertEqual(o.dueDate, plusTard)
+        XCTAssertEqual(o.originalDueDate, ref, "l'origine ne bouge JAMAIS")
+    }
+
+    func testSnoozeOfConfirmedRefusesAndMovesNothing() {
+        let o = ScheduledOccurrence(
+            seriesID: UUID(), dueDate: ref, state: .confirmed,
+            idempotencyKey: "w25:2")
+        XCTAssertThrowsError(try o.snooze(to: ref.addingTimeInterval(86_400), at: ref))
+        XCTAssertEqual(o.dueDate, ref, "un refus ne déplace RIEN")
+    }
+
+    func testSkipAndCancelGoThroughTheMachine() throws {
+        let a = ScheduledOccurrence(seriesID: UUID(), dueDate: ref, state: .due, idempotencyKey: "w25:3")
+        try a.skip(at: ref)
+        XCTAssertEqual(a.state, .skipped)
+        let b = ScheduledOccurrence(seriesID: UUID(), dueDate: ref, state: .scheduled, idempotencyKey: "w25:4")
+        try b.cancel(at: ref)
+        XCTAssertEqual(b.state, .cancelled)
+        XCTAssertThrowsError(try b.skip(at: ref), "annulé est terminal")
+    }
+}

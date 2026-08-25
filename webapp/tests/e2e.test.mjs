@@ -10461,6 +10461,72 @@ currentTest = "W2.4b confirmation atomique";
   await ctx185.close();
 }
 
+// ---------- 186. W2.5 : reporter, ignorer, annuler — de l'agenda, jamais de l'argent ----------
+// Budget Autonomie 100, W2.5 (shadow) : ces gestes ne créent NI ne
+// touchent JAMAIS un mouvement. Reporter déplace l'échéance en gardant
+// la date d'ORIGINE ; la machine à états refuse les gestes interdits.
+currentTest = "W2.5 gestes d'agenda";
+{
+  const ctx186 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p186 = await ctx186.newPage();
+  p186.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.5] ${msg.text()}`); });
+  await p186.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Ges" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p186.goto(APP_URL);
+  await p186.waitForSelector("#tabbar button");
+  const ges = await p186.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionsExistent = typeof reporterOccurrence === "function"
+      && typeof ignorerOccurrence === "function" && typeof annulerOccurrence === "function";
+    if (!resultat.fonctionsExistent) return resultat;
+    const occ = { id: "o1", seriesId: "r1", dueDate: "2026-09-01",
+      originalDueDate: "2026-09-01", expectedAmount: 100, state: "due", idempotencyKey: "k1" };
+    // 1. Reporter : la date bouge, l'ORIGINE jamais, aucun mouvement.
+    resultat.report = reporterOccurrence(occ, "2026-09-08");
+    resultat.dueApres = occ.dueDate;
+    resultat.origineIntacte = occ.originalDueDate === "2026-09-01";
+    resultat.etatReporte = occ.state;
+    resultat.aucunMouvement = transactions.length === 0;
+    // 2. Date illisible : refus nommé, rien ne bouge.
+    const o2 = { id: "o2", seriesId: "r1", dueDate: "2026-09-02", originalDueDate: "2026-09-02",
+      state: "due", idempotencyKey: "k2" };
+    resultat.dateInvalide = reporterOccurrence(o2, "pas-une-date");
+    resultat.o2Intacte = o2.dueDate === "2026-09-02" && o2.state === "due";
+    // 3. Une échéance CONFIRMÉE ne se reporte pas — refus nommé.
+    const o3 = { id: "o3", seriesId: "r1", dueDate: "2026-09-03", originalDueDate: "2026-09-03",
+      state: "confirmed", idempotencyKey: "k3" };
+    resultat.refusConfirme = reporterOccurrence(o3, "2026-09-10");
+    resultat.o3Intacte = o3.state === "confirmed" && o3.dueDate === "2026-09-03";
+    // 4. Ignorer et annuler passent par la machine.
+    resultat.ignore = ignorerOccurrence(o2);
+    resultat.o2Ignoree = o2.state === "skipped";
+    const o4 = { id: "o4", seriesId: "r1", dueDate: "2026-09-04", state: "scheduled", idempotencyKey: "k4" };
+    resultat.annule = annulerOccurrence(o4);
+    resultat.o4Annulee = o4.state === "cancelled";
+    resultat.toujoursAucunMouvement = transactions.length === 0;
+    return resultat;
+  });
+  check(ges.fonctionsExistent === true, "reporter/ignorer/annuler existent (W2.5)");
+  check(ges.report === null && ges.dueApres === "2026-09-08" && ges.origineIntacte === true && ges.etatReporte === "snoozed",
+    `reporter déplace l'échéance et garde l'ORIGINE (due ${ges.dueApres} / origine intacte ${ges.origineIntacte} / état ${ges.etatReporte})`);
+  check(typeof ges.dateInvalide === "string" && ges.o2Intacte === true,
+    `une date illisible est refusée et rien ne bouge (« ${ges.dateInvalide} »)`);
+  check(typeof ges.refusConfirme === "string" && /interdite/i.test(ges.refusConfirme) && ges.o3Intacte === true,
+    `une échéance confirmée ne se reporte pas — refus nommé (« ${ges.refusConfirme} »)`);
+  check(ges.ignore === null && ges.o2Ignoree === true && ges.annule === null && ges.o4Annulee === true,
+    "ignorer et annuler passent par la machine à états");
+  check(ges.aucunMouvement === true && ges.toujoursAucunMouvement === true,
+    "AUCUN mouvement créé par ces gestes — de l'agenda, jamais de l'argent");
+  await ctx186.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10470,4 +10536,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 185 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 186 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

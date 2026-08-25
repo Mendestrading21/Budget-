@@ -142,6 +142,23 @@ final class ScheduledOccurrence {
         updatedAt = date
     }
 
+    /// W2.5 — des gestes d'AGENDA, jamais d'argent : aucun mouvement
+    /// n'est créé ni touché. Reporter déplace l'échéance, l'ORIGINE ne
+    /// bouge jamais ; la machine à états (W2.3) refuse les gestes
+    /// interdits.
+    func snooze(to nouvelleDate: Date, at date: Date) throws {
+        try transition(to: .snoozed, at: date)
+        dueDate = nouvelleDate
+    }
+
+    func skip(at date: Date) throws {
+        try transition(to: .skipped, at: date)
+    }
+
+    func cancel(at date: Date) throws {
+        try transition(to: .cancelled, at: date)
+    }
+
     /// La clé canonique d'une échéance de série : stable pour un couple
     /// (série, date d'origine) — deux matérialisations du même mois
     /// produisent la MÊME clé, donc jamais deux objets.
