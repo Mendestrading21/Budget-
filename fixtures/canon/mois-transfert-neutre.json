@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "nom": "mois-transfert-neutre",
+  "description": "W1.3 — Un virement interne est NEUTRE (FI-09) : il déplace l'argent entre deux comptes sans être un revenu, une dépense ni une mise de côté. Le disponible total, le trio du mois et la fortune ne bougent pas d'un centime.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "cur2",
+        "nom": "Deuxième compte",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 50000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "t1",
+        "date": "2026-05-10",
+        "type": "transfer",
+        "statut": "posted",
+        "montantMineures": 30000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "cur2",
+        "titre": "Virement interne"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": {
+      "cur": 70000,
+      "cur2": 80000
+    },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 150000,
+      "finDeMoisMineures": 150000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 150000,
+      "epargneAccessibleMineures": 0
+    }
+  }
+}

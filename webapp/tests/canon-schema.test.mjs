@@ -62,6 +62,9 @@ function valideFixture(nomFichier, f) {
     check(estEntierSur(m.montantMineures) && m.montantMineures > 0, où(`mouvement « ${m.id} » : montantMineures doit être un entier positif (ADR-059)`));
     check(idsComptes.has(m.compte), où(`mouvement « ${m.id} » : compte « ${m.compte} » introuvable`));
     if (m.destination != null) check(idsComptes.has(m.destination), où(`mouvement « ${m.id} » : destination « ${m.destination} » introuvable`));
+    // Règles produit mesurées (tests natifs) : l'argent ne disparaît jamais.
+    if (m.type === "transfer" || m.type === "saving") check(typeof m.destination === "string", où(`mouvement « ${m.id} » : un ${m.type === "transfer" ? "virement" : "« mis de côté »"} exige une destination — l'argent ne disparaît pas`));
+    if (m.type === "transfer") check(m.destination !== m.compte, où(`mouvement « ${m.id} » : un virement exige une destination DISTINCTE`));
     if (m.type === "adjustment") check(typeof m.hausse === "boolean", où(`mouvement « ${m.id} » : un ajustement porte hausse (booléen)`));
     check(typeof m.titre === "string" && m.titre.length > 0, où(`mouvement « ${m.id} » : titre obligatoire`));
   }

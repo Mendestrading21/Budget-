@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "nom": "mois-trio-reel-et-projection",
+  "description": "W1.3 — Le trio du mois (reçu / dépensé / mis de côté) ne compte que le RÉEL ; la projection de fin de mois ajoute au disponible le prévu du mois : revenus attendus moins sorties prévues moins échéances récurrentes non couvertes. Mis de côté = épargne + investi (FI-10).",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "sav",
+        "nom": "Compte épargne",
+        "genre": "savings",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "brk",
+        "nom": "Compte titres",
+        "genre": "brokerage",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-02",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 300000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Salaire"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-05",
+        "type": "expense",
+        "statut": "posted",
+        "montantMineures": 80000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Alimentation",
+        "titre": "Courses du mois"
+      },
+      {
+        "id": "m3",
+        "date": "2026-05-06",
+        "type": "saving",
+        "statut": "posted",
+        "montantMineures": 50000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "sav",
+        "categorie": "Épargne",
+        "titre": "Mis de côté"
+      },
+      {
+        "id": "m4",
+        "date": "2026-05-07",
+        "type": "investment",
+        "statut": "posted",
+        "montantMineures": 20000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "brk",
+        "categorie": "Investissement",
+        "titre": "Versement titres"
+      },
+      {
+        "id": "m5",
+        "date": "2026-05-25",
+        "type": "income",
+        "statut": "planned",
+        "montantMineures": 40000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Prime attendue"
+      },
+      {
+        "id": "m6",
+        "date": "2026-05-27",
+        "type": "expense",
+        "statut": "planned",
+        "montantMineures": 60000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Logement",
+        "titre": "Facture prévue"
+      }
+    ],
+    "recurrences": [
+      {
+        "id": "r1",
+        "titre": "Assurance",
+        "type": "expense",
+        "nature": "facture",
+        "montantMineures": 25000,
+        "devise": "CHF",
+        "jour": 28,
+        "rythme": "month",
+        "compte": "cur"
+      }
+    ],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 250000, "sav": 50000, "brk": 20000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 300000,
+      "depenseMineures": 80000,
+      "misDeCoteMineures": 70000,
+      "liquideMineures": 250000,
+      "finDeMoisMineures": 205000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 320000,
+      "epargneAccessibleMineures": 50000
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "nom": "epargne-interne-pas-un-cout",
+  "description": "W1.3 — Mettre de côté n'est PAS dépenser (FI-10) : la mise de côté quitte le courant, arrive sur l'épargne, gonfle « mis de côté » et laisse « dépensé » intact. La fortune ne baisse que de la vraie dépense.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "sav",
+        "nom": "Compte épargne",
+        "genre": "savings",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-03",
+        "type": "saving",
+        "statut": "posted",
+        "montantMineures": 40000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "sav",
+        "categorie": "Épargne",
+        "titre": "Mis de côté"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-04",
+        "type": "expense",
+        "statut": "posted",
+        "montantMineures": 10000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Loisirs",
+        "titre": "Sortie"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 50000, "sav": 40000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 10000,
+      "misDeCoteMineures": 40000,
+      "liquideMineures": 50000,
+      "finDeMoisMineures": 50000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 90000,
+      "epargneAccessibleMineures": 40000
+    }
+  }
+}
