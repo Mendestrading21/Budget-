@@ -19,7 +19,8 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
 ### W1 — Fixtures canoniques (lot actif)
 
-**État : W1.1 EN PR (brouillon)** — W1.2–W1.7 BLOCKED jusqu'à sa fusion.
+**État : W1.1 fusionné (ordre du 25.08) · W1.2 EN PR (brouillon, empilée
+sur W1.1/#126)** — W1.3–W1.7 BLOCKED jusqu'à sa fusion.
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -93,6 +94,20 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.2 : fixtures Money/comptes
+
+Trois fixtures canoniques : `comptes-solde-ouverture` (ouverture +
+comptabilisé, prévu hors solde mais dans la projection, mise de côté
+comptée une fois), `comptes-exclusions-liquide` (cash seul dans le
+disponible, épargne accessible = stock), `comptes-par-devise` (soldes
+dans la devise du compte ; agrégats convertis volontairement différés à
+W1.4). Attendus contre-vérifiés à la main ; sabotage mordant
+(référence de compte cassée nommée). **Écart consigné (mesuré)** : le
+natif filtre `includeInNetWorth` par compte, la PWA additionne TOUS
+les comptes dans `fortuneTotale()` — la fixture d'exclusion patrimoine
+attendra l'ADR de W1.4 ; aucun côté n'est « aligné » sans décision
+(règle du skill).
 
 ### 25.08.2026 — W0 fusionné, W1.1 exécuté
 
