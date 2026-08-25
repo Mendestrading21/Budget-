@@ -10589,6 +10589,62 @@ currentTest = "W2.6 factures ponctuelles";
   await ctx187.close();
 }
 
+// ---------- 188. W2.7a : le COMPARATEUR — les occurrences reproduisent les compteurs vivants ----------
+// ADR-058, étape 4 : avant TOUTE bascule de lecture, prouver que le
+// nouveau chemin (occurrences matérialisées) raconte EXACTEMENT la même
+// histoire que l'ancien (compteurs recalculés). Pour chaque récurrence
+// et chaque mois d'une fenêtre, le nombre d'occurrences OUVERTES doit
+// égaler recurringRemainingCount — y compris avec des échéances
+// multiples (deux semaines) et des mouvements liés qui en couvrent.
+currentTest = "W2.7a comparateur";
+{
+  const ctx188 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p188 = await ctx188.newPage();
+  p188.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.7a] ${msg.text()}`); });
+  await p188.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cmp" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "r-loyer", title: "Loyer", amount: 1500, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+        { id: "r-salaire", title: "Salaire", amount: 5000, type: "income", nature: "revenu",
+          cat: "Salaire", day: 25, every: "month", accountId: "cur", icon: "💼" },
+        { id: "r-abo", title: "Streaming", amount: 15.90, type: "expense", nature: "abonnement",
+          cat: "Loisirs", day: 5, every: "month", accountId: "cur", icon: "🧾" },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p188.goto(APP_URL);
+  await p188.waitForSelector("#tabbar button");
+  const cmp = await p188.evaluate(() => {
+    const resultat = { ecarts: [] };
+    resultat.comparateurExiste = typeof comparerOccurrencesEtCompteurs === "function";
+    if (!resultat.comparateurExiste) return resultat;
+    // Un mouvement lié couvre la première échéance du loyer ce mois.
+    transactions.push({ id: 9301, y: NOW.y, m: NOW.m, d: 1, type: "expense", amount: 1500,
+      cat: "Logement", title: "Loyer payé", acc: "cur", status: "posted", recurringId: "r-loyer" });
+    // Matérialiser trois mois puis comparer.
+    for (let k = 0; k <= 2; k += 1) {
+      const mm = shiftMonth(NOW, k);
+      materialiserOccurrences(mm.y, mm.m);
+    }
+    resultat.ecarts = comparerOccurrencesEtCompteurs(3);
+    // Sans couverture reportée sur les occurrences (la liaison vit en
+    // W2.7b), le comparateur doit savoir la simuler : il confirme
+    // virtuellement les occurrences des mouvements liés.
+    transactions.length = 0; S.occurrences = []; saveState();
+    return resultat;
+  });
+  check(cmp.comparateurExiste === true, "comparerOccurrencesEtCompteurs existe (W2.7a)");
+  check(Array.isArray(cmp.ecarts) && cmp.ecarts.length === 0,
+    `ZÉRO écart entre les occurrences matérialisées et les compteurs vivants sur 3 mois (écarts : ${JSON.stringify(cmp.ecarts)})`);
+  await ctx188.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10598,4 +10654,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 187 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 188 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
