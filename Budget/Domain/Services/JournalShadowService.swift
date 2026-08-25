@@ -21,18 +21,55 @@ import SwiftData
 struct JournalShadowService {
     private let translator = JournalTranslationService()
 
-    /// La tête de chaîne d'un mouvement : la seule écriture de sa
-    /// lignée (`mouvement:<id>` ou `mouvement:<id>:r<n>`) qu'aucune
-    /// inversion ne vise.
-    func ecritureActive(transactionID: UUID, context: ModelContext) -> JournalEntry? {
+    /// La tête de chaîne d'une lignée (`<exacte>` ou `<exacte>:r<n>`) :
+    /// la seule écriture qu'aucune inversion ne vise.
+    func ecritureActive(cle exacte: String, context: ModelContext) -> JournalEntry? {
         guard let toutes = try? context.fetch(FetchDescriptor<JournalEntry>()) else { return nil }
         let inversees = Set(toutes.compactMap(\.reversesEntryID))
-        let exacte = "mouvement:\(transactionID.uuidString)"
         let prefixe = exacte + ":r"
         return toutes.first { entry in
             !inversees.contains(entry.id)
                 && (entry.idempotencyKey == exacte || entry.idempotencyKey.hasPrefix(prefixe))
         }
+    }
+
+    func ecritureActive(transactionID: UUID, context: ModelContext) -> JournalEntry? {
+        ecritureActive(cle: "mouvement:\(transactionID.uuidString)", context: context)
+    }
+
+    /// W3.6b (FI-12 + FI-07) : l'ouverture d'un compte vit dans le
+    /// journal comme une CHAÎNE corrigeable — éditer le solde
+    /// d'ouverture inverse l'ancienne écriture et en lie une nouvelle ;
+    /// le remettre à zéro laisse l'inversion tracée. Idempotent : la
+    /// même photo est un no-op. Retourne nil quand l'ombre est à jour,
+    /// sinon le refus nommé.
+    @discardableResult
+    func deposerOuverture(_ compte: Account, now: Date, context: ModelContext) -> String? {
+        let nouvelle: JournalEntry?
+        do {
+            nouvelle = try translator.openingEntry(for: compte, now: now)
+        } catch {
+            return error.localizedDescription
+        }
+        let active = ecritureActive(cle: "ouverture:\(compte.id.uuidString)", context: context)
+        guard let active else {
+            if let nouvelle { context.insert(nouvelle) }
+            return nil
+        }
+        if let nouvelle, memePhoto(active, nouvelle) { return nil }
+        context.insert(inversion(de: active, now: now))
+        guard let nouvelle else { return nil } // remise à zéro : la trace suffit
+        let revision: Int
+        if let marque = active.idempotencyKey.range(of: ":r", options: .backwards),
+           let numero = Int(active.idempotencyKey[marque.upperBound...]) {
+            revision = numero + 1
+        } else {
+            revision = 2
+        }
+        nouvelle.idempotencyKey = "ouverture:\(compte.id.uuidString):r\(revision)"
+        nouvelle.replacesEntryID = active.id
+        context.insert(nouvelle)
+        return nil
     }
 
     /// Deux écritures racontent-elles la MÊME chose ? (idempotence du
