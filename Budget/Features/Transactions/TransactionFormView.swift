@@ -414,6 +414,7 @@ struct TransactionFormView: View {
     private func duplicate(_ transaction: BudgetTransaction) {
         let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
         modelContext.insert(copy)
+        JournalShadowService().deposer(copy, now: appContainer.dateProvider.now, context: modelContext) // W3.3b
         if modelContext.saveOrRollback(onError: { _ in
             saveErrorMessage = "La duplication a échoué. Réessayez ; aucune donnée n'a été perdue."
         }) {
@@ -448,6 +449,7 @@ struct TransactionFormView: View {
     }
 
     private func delete(_ transaction: BudgetTransaction) {
+        JournalShadowService().retirer(transactionID: transaction.id, context: modelContext) // W3.3b
         modelContext.delete(transaction)
         if modelContext.saveOrRollback(onError: { _ in
             saveErrorMessage = "La suppression a échoué. Réessayez ; aucune donnée n'a été perdue."
@@ -574,6 +576,9 @@ struct TransactionFormView: View {
             transaction.destinationAccount = draft.destinationAccount
             transaction.category = draft.category
             transaction.updatedAt = now
+            // W3.3b : l'écriture d'ombre suit la modification — même clé,
+            // nouveaux centimes, dans le MÊME save (FI-31).
+            JournalShadowService().deposer(transaction, now: now, context: modelContext)
         } else {
             let transaction = BudgetTransaction(
                 date: date,
@@ -591,6 +596,7 @@ struct TransactionFormView: View {
                 category: draft.category
             )
             modelContext.insert(transaction)
+            JournalShadowService().deposer(transaction, now: now, context: modelContext) // W3.3b
         }
         if modelContext.saveOrRollback(onError: { _ in
             saveErrorMessage = "L'enregistrement a échoué. Réessayez ; aucune donnée n'a été perdue."

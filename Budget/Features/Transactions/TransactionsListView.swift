@@ -418,11 +418,13 @@ struct TransactionsListView: View {
     private func duplicate(_ transaction: BudgetTransaction) {
         let copy = TransactionDuplication.copy(of: transaction, now: appContainer.dateProvider.now)
         modelContext.insert(copy)
+        JournalShadowService().deposer(copy, now: appContainer.dateProvider.now, context: modelContext) // W3.3b
         modelContext.saveOrRollback { saveErrorMessage = $0 }
         editedTransaction = copy
     }
 
     private func delete(_ transaction: BudgetTransaction) {
+        JournalShadowService().retirer(transactionID: transaction.id, context: modelContext) // W3.3b
         modelContext.delete(transaction)
         modelContext.saveOrRollback { saveErrorMessage = $0 }
     }

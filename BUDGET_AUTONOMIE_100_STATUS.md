@@ -40,7 +40,7 @@ W2.5, W2.6, W2.7a (`45890c7`, publication run `32857974554` — logs :
 **État : W3.1 fusionné et publié (`main` = `6a6cf02`, PR #141,
 publication run `32866561627`, succès) · W3.2 fusionné et publié
 (`main` = `2668c94`, PR #142, publication run `32869829266`, succès) ·
-W3.3 EN PR (ombre PWA ; l'ombre NATIVE suit en W3.3b)** (Work Order :
+W3.3 (ombre PWA) et W3.3b (ombre NATIVE) EN PR** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -128,6 +128,26 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.3b : l'ombre native — les mêmes gestes, le même journal
+
+`JournalShadowService` (natif) : `deposer` (idempotent — la
+modification REMPLACE, jamais deux écritures pour un mouvement) et
+`retirer`, appelés AVANT le `save` de l'appelant pour que l'atomicité
+du geste emporte l'ombre (FI-31 — `saveOrRollback`/`rollback`
+existants). Branchés sur TOUS les sites de mutation mesurés :
+`TransactionFormView` (création, édition, duplication, suppression),
+`TransactionsListView` (duplication, suppression),
+`HomeTab` (confirmation d'échéance du mois),
+`CSVImportService` (chaque ligne importée + rollback du lot),
+`OccurrenceConfirmationService` (le mouvement confirmé naît avec son
+écriture dans la MÊME transaction). Un mouvement intraduisible ne
+casse JAMAIS le geste : refus retourné et consigné (FI-34).
+`JournalShadowServiceTests` (5 tests : dépôt persisté, remplacement
+idempotent, retrait sans posting orphelin, geste survivant au refus,
+confirmation atomique). Consigné : la restauration de sauvegarde
+(`BackupService`) ne reconstruit pas d'écritures — historique = W3.7 ;
+le lien `occurrenceID` du journal arrive avec la bascule W3.6.
 
 ### 25.08.2026 — W3.3 : l'ombre — chaque mutation écrit aussi son écriture
 

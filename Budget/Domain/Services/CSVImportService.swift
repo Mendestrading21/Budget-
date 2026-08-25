@@ -361,6 +361,9 @@ struct CSVImportService {
                     category: category
                 )
                 context.insert(transaction)
+                // W3.3b : l'ombre du journal suit chaque ligne importée,
+                // dans le MÊME save que le lot (FI-31).
+                JournalShadowService().deposer(transaction, now: now, context: context)
                 imported += 1
             case .duplicate:
                 duplicates += 1
@@ -397,6 +400,7 @@ struct CSVImportService {
             predicate: #Predicate { $0.importBatchID == batchID }
         ))
         for transaction in transactions {
+            JournalShadowService().retirer(transactionID: transaction.id, context: context) // W3.3b
             context.delete(transaction)
         }
         if let batch = try context.fetch(FetchDescriptor<ImportBatch>(
