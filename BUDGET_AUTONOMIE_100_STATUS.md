@@ -43,8 +43,8 @@ publication run `32866561627`, succès) · W3.2 fusionné et publié
 W3.3 fusionné et publié (`main` = `b093eb8`, PR #143, publication run
 `32872986416`, succès) · W3.3b fusionné (`main` = `e8a0d47`, PR #144,
 publication run `32874460073`, succès) · W3.4 fusionné (`main` =
-`0145e8a`, PR #145, publication run `32876072008`) · W3.5 EN PR
-(inversion PWA ; le miroir natif suit en W3.5b)** (Work Order :
+`0145e8a`, PR #145, publication run `32876072008`) · W3.5 (inversion
+PWA) et W3.5b (miroir natif) EN PR** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -132,6 +132,22 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.5b : le miroir natif de l'inversion
+
+`JournalShadowService` mûrit comme la PWA (les deux tests d'ombre
+existants ÉVOLUENT, consigné) : `ecritureActive(transactionID:)` (la
+tête de chaîne — jamais visée par une inversion), `deposer` — un POSTÉ
+corrigé garde son originale INTACTE, gagne l'inversion liée
+(`reversesEntryID`, jambes inversées, clé `inversion:<id>`) puis la
+remplaçante liée (`replacesEntryID`, clé `:r<n>`) ; un PRÉVU se
+remplace en place ; la même photo est un no-op (comparaison des jambes
+en multiensemble — l'ordre d'une relation SwiftData n'est pas un
+contrat) ; `retirer` — un POSTÉ supprimé laisse l'aller-retour net
+zéro lisible, un PRÉVU s'efface (zéro posting orphelin). Tests :
+chaîne tracée (originale intacte, r2, no-op), prévu
+remplacé/effacé, posté supprimé → trace nette zéro. Même contrat des
+deux côtés du miroir.
 
 ### 25.08.2026 — W3.5 : inversion/remplacement — corriger n'est jamais réécrire
 
