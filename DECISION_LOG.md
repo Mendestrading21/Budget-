@@ -1,5 +1,42 @@
 # Budget decision log
 
+## ADR-059 — W1.1 : les fixtures canoniques comptent en unités mineures
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+Le Work Order W1 (`docs/autonomie/w0/WORK_ORDER_W1.md`) exige de
+trancher la représentation des montants DANS les fixtures canoniques :
+unités mineures entières ou décimales en chaîne. L'audit recommande
+les unités mineures ; la PWA compte déjà en centimes entiers (G01) et
+l'iOS en `Decimal`.
+
+### Décision
+
+1. Dans les fixtures canoniques (`fixtures/canon/`), tout montant est
+   un ENTIER d'unités mineures de sa devise (exposant ISO 4217) —
+   champ suffixé `Mineures`. Un montant à virgule est un échec de
+   validation, jamais un arrondi silencieux (FI-18, FI-34).
+2. Les taux de change restent des CHAÎNES décimales, datées et
+   sourcées (FI-16) — jamais un flottant binaire.
+3. Cette décision porte sur le FORMAT D'ÉCHANGE des fixtures. Elle ne
+   préjuge pas du stockage interne des moteurs (décision W3,
+   propriétaire).
+4. Le schéma version 1 est décrit dans `fixtures/canon/SCHEMA.md` et
+   imposé par le validateur `webapp/tests/canon-schema.test.mjs`,
+   branché en CI. Les états restent `planned/posted` (glossaire W0) ;
+   les états du journal cible entreront au schéma version 2 avec W3.
+
+### Vérification
+
+Validateur né rouge (2 échecs nommés : contrat absent, fixture
+absente) ; fixture d'exemple conforme → vert ; contrôle négatif :
+montant `2000.5` injecté → échec nommant le mouvement, le champ et
+l'ADR ; restauration → vert ; étape CI dédiée ajoutée.
+
+
 ## ADR-058 — Budget Autonomie 100 : migration progressive du moteur
 
 Date: 2026-08-25

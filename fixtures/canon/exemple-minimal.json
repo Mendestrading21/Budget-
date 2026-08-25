@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "nom": "exemple-minimal",
+  "description": "Fixture d'exemple du schéma version 1 : un compte courant, un salaire reçu, un loyer prévu — le prévu ne pèse sur aucun solde (FI-01). Données fictives déterministes.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-02",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 200000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Salaire"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-28",
+        "type": "expense",
+        "statut": "planned",
+        "montantMineures": 150000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Logement",
+        "titre": "Loyer"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": {
+      "cur": 300000
+    },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 200000,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 300000,
+      "finDeMoisMineures": 150000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 300000,
+      "epargneAccessibleMineures": 0
+    }
+  }
+}
