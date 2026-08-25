@@ -17,10 +17,18 @@
 **État : DONE** — PR #125 fusionnée (`main` = `4713a2b`) le 25.08.2026,
 sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
-### W1 — Fixtures canoniques (lot actif)
+### W1 — Fixtures canoniques
 
-**État : W1.1 fusionné (ordre du 25.08) · pile W1.2 → W1.3 → W1.4 →
-AUT-060 → AUT-061 → W1.5 → W1.6/W1.7, fusion dans l'ordre.**
+**État : DONE** — W1 entièrement fusionné et publié le 25.08.2026 sur
+ordre permanent : #128 (fixtures W1.2–W1.5, `84c331c`) → #129 (AUT-060,
+`c76b222`) → #130 (AUT-061, `c931565`) → #131 (runners W1.6/7, `main`
+= `7814cb8`), chaque HEAD à CI verte et arbre byte-identique après
+squash ; publication par dispatch au SHA exact `7814cb8`
+(run `32840603822`, succès).
+
+### W2 — Occurrences persistées (lot actif)
+
+**État : W2.1 EN PR** (Work Order : `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -63,8 +71,8 @@ Livrables attendus :
 | Lot | Sujet | État | Dépend de |
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
-| W1 | Fixtures canoniques | W1.1 EN PR | W0 (fusionné) |
-| W2 | Occurrences persistées | BLOCKED | W1 |
+| W1 | Fixtures canoniques | DONE | W0 |
+| W2 | Occurrences persistées | W2.1 EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -101,6 +109,19 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1 fusionné et publié · W2.1 livré
+
+Train de fusion exécuté (#128 → #131), publication au SHA exact
+`7814cb8` (run `32840603822`, succès). W2.1 : `ScheduledOccurrence`
+natif (identité, états du glossaire W0, montant attendu conservé,
+clé d'idempotence UNIQUE, date d'origine immuable) + `BudgetSchemaV11`
+additif + tests (unicité par upsert, report, état inconnu → « Prévu »
+jamais « Confirmé », migration disque V10→V11 données intactes) ;
+PWA : clé additive `occurrences` inerte (shadow-write ADR-058),
+restauration entrée par entrée (l'hostile est abandonné — parcours 181
+né rouge, sabotage mordant), « Tout effacer » la vide. AUCUNE vue ni
+aucun agrégat ne lit encore les occurrences.
 
 ### 25.08.2026 — W1.6/W1.7 : les deux runners canoniques + gate CI
 

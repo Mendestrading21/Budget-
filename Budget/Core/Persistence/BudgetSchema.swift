@@ -198,6 +198,18 @@ enum BudgetSchemaV10: VersionedSchema {
     }
 }
 
+/// Schema v11.0.0 — adds persisted scheduled occurrences
+/// (ScheduledOccurrence, W2.1 Budget Autonomie 100). Purely additive:
+/// no view or service reads the new model yet (shadow-write strategy,
+/// ADR-058) — existing data keeps exactly the same meaning.
+enum BudgetSchemaV11: VersionedSchema {
+    static let versionIdentifier = Schema.Version(11, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        BudgetSchemaV10.models + [ScheduledOccurrence.self]
+    }
+}
+
 // V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
 // change from V1 to V10 was strictly additive (ADR-015). A staged
 // SchemaMigrationPlan is deliberately absent — because the versioned
@@ -226,7 +238,7 @@ enum PersistenceFactory {
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV10.self),
+            for: Schema(versionedSchema: BudgetSchemaV11.self),
             configurations: [configuration]
         )
     }
