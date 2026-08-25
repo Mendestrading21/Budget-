@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "nom": "comptes-solde-ouverture",
+  "description": "W1.2 — Le solde d'un compte = ouverture + mouvements comptabilisés, dans la devise du compte. Le prévu ne pèse sur AUCUN solde (FI-01) mais pèse sur la projection du mois. La mise de côté sort du courant ET arrive sur l'épargne, chaque franc compté une fois (FI-09/10). Données fictives déterministes, mois de référence mai 2026.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 150000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "sav",
+        "nom": "Compte épargne",
+        "genre": "savings",
+        "devise": "CHF",
+        "ouvertureMineures": 0,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-02",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 200000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Salaire"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-03",
+        "type": "expense",
+        "statut": "posted",
+        "montantMineures": 45050,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Alimentation",
+        "titre": "Courses"
+      },
+      {
+        "id": "m3",
+        "date": "2026-05-28",
+        "type": "expense",
+        "statut": "planned",
+        "montantMineures": 99900,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Logement",
+        "titre": "Loyer prévu"
+      },
+      {
+        "id": "m4",
+        "date": "2026-05-04",
+        "type": "saving",
+        "statut": "posted",
+        "montantMineures": 30000,
+        "devise": "CHF",
+        "compte": "cur",
+        "destination": "sav",
+        "categorie": "Épargne",
+        "titre": "Mis de côté"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": {
+      "cur": 274950,
+      "sav": 30000
+    },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 200000,
+      "depenseMineures": 45050,
+      "misDeCoteMineures": 30000,
+      "liquideMineures": 274950,
+      "finDeMoisMineures": 175050
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 304950,
+      "epargneAccessibleMineures": 30000
+    }
+  }
+}

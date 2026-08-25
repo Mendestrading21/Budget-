@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "nom": "recurrence-echeance-couverte",
+  "description": "W1.5 — Une échéance récurrente COUVERTE par son mouvement lié ne pèse plus sur la projection (jamais de double compte) ; une échéance NON couverte pèse une fois. Loyer 1500 payé (couvert) + assurance 250 encore due : fin de mois = 3500 − 250 = 3250, jamais 1750.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 200000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "m1",
+        "date": "2026-05-02",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 300000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Salaire",
+        "titre": "Salaire"
+      },
+      {
+        "id": "m2",
+        "date": "2026-05-03",
+        "type": "expense",
+        "statut": "posted",
+        "montantMineures": 150000,
+        "devise": "CHF",
+        "compte": "cur",
+        "categorie": "Logement",
+        "titre": "Loyer payé",
+        "recurrence": "r-loyer"
+      }
+    ],
+    "recurrences": [
+      {
+        "id": "r-loyer",
+        "titre": "Loyer",
+        "type": "expense",
+        "nature": "facture",
+        "montantMineures": 150000,
+        "devise": "CHF",
+        "jour": 1,
+        "rythme": "month",
+        "compte": "cur"
+      },
+      {
+        "id": "r-assurance",
+        "titre": "Assurance",
+        "type": "expense",
+        "nature": "facture",
+        "montantMineures": 25000,
+        "devise": "CHF",
+        "jour": 28,
+        "rythme": "month",
+        "compte": "cur"
+      }
+    ],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": {
+      "cur": 350000
+    },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 300000,
+      "depenseMineures": 150000,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 350000,
+      "finDeMoisMineures": 325000,
+      "resultatMineures": 150000
+    }
+  }
+}

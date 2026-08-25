@@ -19,7 +19,15 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
 ### W1 — Fixtures canoniques (lot actif)
 
-**État : W1.1 EN PR (brouillon)** — W1.2–W1.7 BLOCKED jusqu'à sa fusion.
+**État : W1.1 fusionné (ordre du 25.08) · pile W1.2 → W1.3 → W1.4 →
+AUT-060 → AUT-061 → W1.5, fusion dans l'ordre** — W1.6–W1.7 BLOCKED.
+Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
+modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
+pas attester un contrat sans forme (consigné, pas oublié).
+Décisions propriétaire du 25.08.2026 : ADR-060 (parité patrimoine —
+la PWA gagne le réglage, lot AUT-060) et ADR-061 (le résultat du mois
+exclut l'épargne — lot AUT-061). Les deux implémentations passent
+AVANT les runners W1.6.
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -93,6 +101,56 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.5 : fixtures récurrences et corrections
+
+Deux fixtures : `recurrence-echeance-couverte` (l'échéance couverte
+par son mouvement lié ne pèse plus — 3250, jamais 1750 ; la non
+couverte pèse UNE fois) et `correction-ajustement-neutre` (l'ajustement
+bouge le solde, jamais le trio ni le résultat). Schéma : champ
+optionnel `recurrence` (lien mouvement→échéance, résolu ou échec).
+Sabotage mordant (lien cassé nommé). Doublons d'import différés à W7,
+consignés. NB : sur ordre propriétaire de cadence (« continue »), les
+sous-lots de fixtures W1.2–W1.5 voyagent dans UNE PR — quatre commits
+distincts, chacun son sabotage ; AUT-060/061 et W1.6/7 gardent leur PR.
+
+### 25.08.2026 — W1.4 : fixtures patrimoine/dette/devise + ADR-060/061
+
+Décisions propriétaire obtenues (questions posées, réponses
+consignées) : exclusion d'un compte du patrimoine = PARITÉ (ADR-060) ;
+résultat du mois SANS l'épargne (ADR-061). Trois fixtures :
+`patrimoine-compte-exclu` (contrat cible — natif conforme, PWA après
+AUT-060), `dette-capital-pas-un-cout` (FI-14), `devise-conversion-
+datee` (FI-16 : 90000 × 0.95 = 85500 exactement). Implémentations
+AUT-060/061 en lots séparés, test rouge d'abord, avant W1.6.
+
+### 25.08.2026 — W1.3 : fixtures mois/transferts/épargne
+
+Trois fixtures : `mois-transfert-neutre` (FI-09 — virement neutre au
+centime), `mois-trio-reel-et-projection` (trio réel seul ; projection =
+disponible + prévu − échéances non couvertes), `epargne-interne-pas-un-
+cout` (FI-10 — mis de côté ≠ dépensé). Validateur durci avec les règles
+produit mesurées : un virement/mis de côté exige une destination, un
+virement vers soi-même est refusé. Sabotage mordant (virement sans
+destination nommé). Arithmétique des attendus contre-vérifiée à la
+main. Note : le « flux net » (FI-21) N'est PAS fixé ici — le
+`cashFlow` mesuré soustrait l'épargne, l'invariant l'exclut ; la
+définition contractuelle sera tranchée par ADR (W1 suite ou W6), pas
+en douce.
+
+### 25.08.2026 — W1.2 : fixtures Money/comptes
+
+Trois fixtures canoniques : `comptes-solde-ouverture` (ouverture +
+comptabilisé, prévu hors solde mais dans la projection, mise de côté
+comptée une fois), `comptes-exclusions-liquide` (cash seul dans le
+disponible, épargne accessible = stock), `comptes-par-devise` (soldes
+dans la devise du compte ; agrégats convertis volontairement différés à
+W1.4). Attendus contre-vérifiés à la main ; sabotage mordant
+(référence de compte cassée nommée). **Écart consigné (mesuré)** : le
+natif filtre `includeInNetWorth` par compte, la PWA additionne TOUS
+les comptes dans `fortuneTotale()` — la fixture d'exclusion patrimoine
+attendra l'ADR de W1.4 ; aucun côté n'est « aligné » sans décision
+(règle du skill).
 
 ### 25.08.2026 — W0 fusionné, W1.1 exécuté
 

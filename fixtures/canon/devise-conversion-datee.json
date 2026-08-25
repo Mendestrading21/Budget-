@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "nom": "devise-conversion-datee",
+  "description": "W1.4 — Les agrégats en devise de base convertissent avec le taux FOURNI, daté et sourcé (FI-16) : 90000 centimes d'euro × 0.95 = 85500 centimes de franc, exactement. Un taux absent ne devient jamais 1 ni 0 (FI-17) — ce cas-là aura sa propre fixture quand le contrat « patrimoine incomplet » sera implémentable (W4).",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 120000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "eur",
+        "nom": "Compte euro",
+        "genre": "current",
+        "devise": "EUR",
+        "ouvertureMineures": 90000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [],
+    "recurrences": [],
+    "taux": [
+      {
+        "base": "EUR",
+        "cote": "CHF",
+        "taux": "0.95",
+        "date": "2026-05-15",
+        "source": "fixture-fictive"
+      }
+    ]
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 120000, "eur": 90000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 205500,
+      "finDeMoisMineures": 205500
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 205500,
+      "epargneAccessibleMineures": 0
+    }
+  }
+}
