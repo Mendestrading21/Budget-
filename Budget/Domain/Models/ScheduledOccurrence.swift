@@ -27,6 +27,36 @@ enum ScheduledOccurrenceState: String, CaseIterable, Codable {
         case .failed: "Échec"
         }
     }
+
+    /// W2.3 — la machine à états : les SEULES transitions permises.
+    /// « Confirmé » et « Annulé » sont terminaux (une correction passe
+    /// par le journal, jamais par un retour d'état — FI-07 en germe) ;
+    /// « Ignoré » se rouvre (action annulable) ; « Échec » se retente.
+    var allowedTransitions: Set<ScheduledOccurrenceState> {
+        switch self {
+        case .scheduled: [.due, .matchProposed, .confirmed, .skipped, .snoozed, .cancelled]
+        case .due: [.matchProposed, .confirmed, .skipped, .snoozed, .cancelled, .failed]
+        case .matchProposed: [.confirmed, .due, .skipped]
+        case .snoozed: [.due, .confirmed, .skipped, .cancelled]
+        case .confirmed: []
+        case .skipped: [.due]
+        case .cancelled: []
+        case .failed: [.due, .cancelled]
+        }
+    }
+}
+
+/// W2.3 — une transition interdite est une ERREUR TYPÉE et nommée,
+/// jamais un repli silencieux (FI-34).
+enum OccurrenceTransitionError: Error, Equatable, LocalizedError {
+    case forbidden(from: ScheduledOccurrenceState, to: ScheduledOccurrenceState)
+
+    var errorDescription: String? {
+        switch self {
+        case let .forbidden(from, to):
+            "Transition interdite : « \(from.displayName) » ne peut pas devenir « \(to.displayName) »."
+        }
+    }
 }
 
 /// W2.1 — une échéance récurrente PERSISTÉE : identité stable, état,
@@ -96,6 +126,20 @@ final class ScheduledOccurrence {
         self.idempotencyKey = idempotencyKey
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    /// W2.3 — LA porte de changement d'état : applique la machine à
+    /// états, horodate, et refuse toute transition interdite avec une
+    /// erreur nommée. Personne ne doit écrire `state` directement pour
+    /// changer le cycle de vie (les tests le font pour ARRANGER un
+    /// état de départ, jamais pour le vivre).
+    func transition(to nouvelEtat: ScheduledOccurrenceState, at date: Date) throws {
+        guard state.allowedTransitions.contains(nouvelEtat) else {
+            throw OccurrenceTransitionError.forbidden(from: state, to: nouvelEtat)
+        }
+        state = nouvelEtat
+        if nouvelEtat == .confirmed { confirmedAt = date }
+        updatedAt = date
     }
 
     /// La clé canonique d'une échéance de série : stable pour un couple

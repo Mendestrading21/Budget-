@@ -2974,6 +2974,43 @@ function estimationEnchainee(y, m) {
   return total;
 }
 
+/* W2.3 (Budget Autonomie 100) : la machine à états des échéances —
+   MÊMES transitions que le natif (ScheduledOccurrenceState). « Confirmé »
+   et « Annulé » sont terminaux (une correction passe par le journal,
+   jamais par un retour d'état) ; « Ignoré » se rouvre vers « À
+   confirmer » seulement ; une transition interdite est REFUSÉE avec une
+   erreur nommée en français — jamais un repli silencieux (FI-34).
+   SHADOW : rien ne l'appelle encore (ADR-058). */
+const OCCURRENCE_TRANSITIONS = {
+  scheduled: ["due", "matchProposed", "confirmed", "skipped", "snoozed", "cancelled"],
+  due: ["matchProposed", "confirmed", "skipped", "snoozed", "cancelled", "failed"],
+  matchProposed: ["confirmed", "due", "skipped"],
+  snoozed: ["due", "confirmed", "skipped", "cancelled"],
+  confirmed: [],
+  skipped: ["due"],
+  cancelled: [],
+  failed: ["due", "cancelled"],
+};
+const OCCURRENCE_STATE_NAMES = {
+  scheduled: "Prévu", due: "À confirmer", matchProposed: "Proposé",
+  confirmed: "Confirmé", skipped: "Ignoré", snoozed: "Reporté",
+  cancelled: "Annulé", failed: "Échec",
+};
+function transitionOccurrence(occurrence, nouvelEtat) {
+  const depuis = occurrence.state;
+  const permises = OCCURRENCE_TRANSITIONS[depuis];
+  if (!permises) return `État de départ inconnu : « ${depuis} ».`;
+  if (!(nouvelEtat in OCCURRENCE_TRANSITIONS)) return `État cible inconnu : « ${nouvelEtat} ».`;
+  if (!permises.includes(nouvelEtat)) {
+    return `Transition interdite : « ${OCCURRENCE_STATE_NAMES[depuis]} » ne peut pas devenir « ${OCCURRENCE_STATE_NAMES[nouvelEtat]} ».`;
+  }
+  occurrence.state = nouvelEtat;
+  if (nouvelEtat === "confirmed") {
+    occurrence.confirmedAt = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  }
+  return null;
+}
+
 /* W2.2 (Budget Autonomie 100) : MATÉRIALISER les échéances d'un mois —
    idempotent (FI-03) : la clé canonique retombe sur l'occurrence
    existante, re-matérialiser ne duplique jamais et ne réécrit jamais un
