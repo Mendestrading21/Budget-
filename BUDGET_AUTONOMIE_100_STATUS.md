@@ -14,7 +14,7 @@
 
 ### W0 — Gouvernance et contrat de vérité
 
-**État : READY**
+**État : EN PR (brouillon, empilée sur #123 — ordre de fusion #123 → W0)**
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -49,7 +49,7 @@ Livrables attendus :
 
 | Lot | Sujet | État | Dépend de |
 |---|---|---|---|
-| W0 | Gouvernance et vérité | READY | — |
+| W0 | Gouvernance et vérité | EN PR | — |
 | W1 | Fixtures canoniques | BLOCKED | W0 |
 | W2 | Occurrences persistées | BLOCKED | W1 |
 | W3 | Journal financier | BLOCKED | W1, W2 |
@@ -88,6 +88,19 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W0 exécuté (docs seulement)
+
+Sur ordre propriétaire (« Exécute uniquement W0 »), branche
+`agent/autonomie-w0-gouvernance` créée depuis la branche d'audit
+(`4775372`, empilée sur #123). Livrables : ADR-058 (migration
+progressive), `docs/autonomie/w0/` — glossaire des états, dictionnaire
+des chiffres, inventaire mesuré des calculs/mutations Web+iOS, registre
+des invariants FI-01…FI-40 (15 tenus · 12 partiels · 13 ouverts),
+matrice de dépendances W0–W11, Page Work Order W1. Vérité courante
+établie (`main` = `bcef018`, issue #70 lue, PR #123 identifiée). Aucun
+calcul, modèle, écran, test produit ni workflow modifié. W1 reste
+BLOCKED jusqu'à la fusion de W0.
 
 ### 25.08.2026 — Programme créé
 
