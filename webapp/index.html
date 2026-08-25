@@ -3017,6 +3017,37 @@ function transitionOccurrence(occurrence, nouvelEtat) {
   return null;
 }
 
+/* W2.6 (Budget Autonomie 100) : une facture ponctuelle est une
+   occurrence SANS série (clé facture:<id>, idempotente). Une facture
+   déjà couverte ne matérialise rien — son histoire est déjà écrite ;
+   la liaison des factures couvertes aux occurrences confirmées arrive
+   avec la bascule W2.7 (consigné). SHADOW. */
+function materialiserFactures(y, m) {
+  const occ = S.occurrences || (S.occurrences = []);
+  const cles = new Set(occ.map(o => o.idempotencyKey));
+  const couru = y < NOW.y || (y === NOW.y && m <= NOW.m);
+  const creees = [];
+  for (const b of (S.bills || [])) {
+    if (b.dueY !== y || b.dueM !== m) continue;
+    if (billIsCovered(b)) continue;
+    const cle = `facture:${b.id}`;
+    if (cles.has(cle)) continue;
+    const jour = Number.isInteger(b.dueD) ? b.dueD : new Date(y, m, 0).getDate();
+    const dueISO = `${y}-${String(m).padStart(2, "0")}-${String(jour).padStart(2, "0")}`;
+    const nouvelle = {
+      id: `occ-${cle}`, seriesId: null, billId: b.id,
+      dueDate: dueISO, originalDueDate: dueISO,
+      expectedAmount: billAmountInBase(b),
+      state: couru ? "due" : "scheduled",
+      idempotencyKey: cle,
+    };
+    occ.push(nouvelle);
+    cles.add(cle);
+    creees.push(nouvelle);
+  }
+  return creees;
+}
+
 /* W2.5 (Budget Autonomie 100) : reporter, ignorer, annuler — des
    gestes d'AGENDA, jamais d'argent : aucun mouvement n'est créé ni
    touché. Reporter déplace l'échéance en gardant la date d'ORIGINE ;
@@ -8001,6 +8032,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   state.occurrences = (state.occurrences || []).filter(o => isPlainRecord(o)
     && typeof o.id === "string" && o.id
     && (o.seriesId == null || typeof o.seriesId === "string")
+    && (o.billId == null || typeof o.billId === "string")
     && typeof o.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.dueDate)
     && (o.originalDueDate == null || (typeof o.originalDueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.originalDueDate)))
     && (o.expectedAmount == null || (Number.isFinite(o.expectedAmount) && o.expectedAmount >= 0))

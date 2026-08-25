@@ -10527,6 +10527,68 @@ currentTest = "W2.5 gestes d'agenda";
   await ctx186.close();
 }
 
+// ---------- 187. W2.6 : une facture ponctuelle est une occurrence SANS série ----------
+// Budget Autonomie 100, W2.6 (shadow) : les factures ouvertes se
+// matérialisent en occurrences sans série (clé facture:<id>,
+// idempotente) ; une facture déjà couverte ne matérialise rien ; le
+// montant attendu est celui de la facture ; échéance passée → « À
+// confirmer », future → « Prévu ».
+currentTest = "W2.6 factures ponctuelles";
+{
+  const ctx187 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p187 = await ctx187.newPage();
+  p187.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.6] ${msg.text()}`); });
+  await p187.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fac" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {},
+      bills: [],
+    }));
+  });
+  await p187.goto(APP_URL);
+  await p187.waitForSelector("#tabbar button");
+  const fac = await p187.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof materialiserFactures === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const suivant = shiftMonth(NOW, 1);
+    S.bills = [
+      { id: "b1", name: "Électricité", amount: 184.30, dueY: NOW.y, dueM: NOW.m, dueD: 2, cat: "Logement", accountId: "cur" },
+      { id: "b2", name: "Déjà payée", amount: 99, dueY: NOW.y, dueM: NOW.m, dueD: 3, cat: "Autre", accountId: "cur", paidTxId: -1 },
+      { id: "b3", name: "Assurance", amount: 250, dueY: suivant.y, dueM: suivant.m, dueD: 10, cat: "Assurances", accountId: "cur" },
+    ];
+    materialiserFactures(NOW.y, NOW.m);
+    materialiserFactures(suivant.y, suivant.m);
+    const rejouees = materialiserFactures(NOW.y, NOW.m).length
+      + materialiserFactures(suivant.y, suivant.m).length;
+    const occ = S.occurrences || [];
+    resultat.total = occ.length;
+    resultat.rejouees = rejouees;
+    resultat.couverteAbsente = !occ.some(o => o.idempotencyKey === "facture:b2");
+    const o1 = occ.find(o => o.idempotencyKey === "facture:b1");
+    resultat.sansSerie = o1 ? o1.seriesId === null : null;
+    resultat.montant = o1 ? o1.expectedAmount : null;
+    resultat.etatPasse = o1 ? o1.state : null;
+    const o3 = occ.find(o => o.idempotencyKey === "facture:b3");
+    resultat.etatFutur = o3 ? o3.state : null;
+    // Nettoyage.
+    S.occurrences = []; S.bills = []; saveState();
+    return resultat;
+  });
+  check(fac.fonctionExiste === true, "materialiserFactures existe (W2.6)");
+  check(fac.total === 2 && fac.rejouees === 0,
+    `2 factures ouvertes matérialisées, re-matérialisation muette (total ${fac.total} / rejouées ${fac.rejouees})`);
+  check(fac.couverteAbsente === true, "une facture déjà couverte ne matérialise rien");
+  check(fac.sansSerie === true && fac.montant === 184.3,
+    `l'occurrence est SANS série et porte le montant de la facture (sans série ${fac.sansSerie} / montant ${fac.montant})`);
+  check(fac.etatPasse === "due" && fac.etatFutur === "scheduled",
+    `échéance courue = « À confirmer », future = « Prévu » (passé ${fac.etatPasse} / futur ${fac.etatFutur})`);
+  await ctx187.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10536,4 +10598,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 186 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 187 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
