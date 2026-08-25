@@ -38,7 +38,9 @@ W2.5, W2.6, W2.7a (`45890c7`, publication run `32857974554` — logs :
 ### W3 — Journal financier (lot actif)
 
 **État : W3.1 fusionné et publié (`main` = `6a6cf02`, PR #141,
-publication run `32866561627`, succès) · W3.2 EN PR** (Work Order :
+publication run `32866561627`, succès) · W3.2 fusionné et publié
+(`main` = `2668c94`, PR #142, publication run `32869829266`, succès) ·
+W3.3 EN PR (ombre PWA ; l'ombre NATIVE suit en W3.3b)** (Work Order :
 `docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
@@ -90,7 +92,7 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1 fusionné · W3.2 EN PR | W1, W2 (fusionnés) |
+| W3 | Journal financier | W3.1–W3.2 fusionnés · W3.3 EN PR | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -126,6 +128,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.3 : l'ombre — chaque mutation écrit aussi son écriture
+
+L'ombre PWA (ADR-058 étape 3) : `ombreJournalDepot` (idempotent —
+redéposer REMPLACE, jamais deux écritures pour un mouvement) et
+`ombreJournalRetrait`, branchés sur TOUS les sites de mutation mesurés :
+`addTx` (création — formulaire, récurrences, factures, import),
+l'édition du formulaire (remplacement de l'écriture, mêmes clés),
+`fDelete`, `bUnpay`, `rollbackLastImport` (retraits) ; `deleteAllData`
+et `undoLast` couvraient déjà le journal (W3.1). Un mouvement
+intraduisible ne casse JAMAIS le geste : son refus est consigné dans
+`JOURNAL_OMBRE_REFUS` (lisible par le comparateur W3.4), jamais perdu
+en silence (FI-34). Incident réel attrapé par la suite : les `const`
+du journal déclarées APRÈS le premier chargement cassaient le reload
+(zone morte temporelle dans `validatedRestoreState`) — constantes
+remontées avant `loadState`, reload verrouillé par le parcours 2
+existant. Preuves : parcours 192 né rouge (7 échecs nommés) → vert ;
+sabotage (retrait d'ombre supprimé dans `fDelete`) → le SEUL contrôle
+de suppression mord ; restauré vert ; suites complètes vertes (192
+e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : l'ombre NATIVE (services + saisie SwiftUI) = W3.3b ; les
+mouvements HISTORIQUES (démo, legacy, états existants) n'ont pas
+d'écriture avant la migration W3.7 — le comparateur W3.4 en tiendra
+compte.
 
 ### 25.08.2026 — W3.2 : les écritures types — chaque mouvement se traduit
 
