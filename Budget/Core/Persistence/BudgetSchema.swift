@@ -233,6 +233,17 @@ enum BudgetSchemaV13: VersionedSchema {
     }
 }
 
+/// Schema v14.0.0 — adds reconciliation statements (Statement — W4.3
+/// Budget Autonomie 100). Purely additive: the account's legacy
+/// `reconciledBalance` point stays untouched until W4.4.
+enum BudgetSchemaV14: VersionedSchema {
+    static let versionIdentifier = Schema.Version(14, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        BudgetSchemaV13.models + [Statement.self]
+    }
+}
+
 // V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
 // change from V1 to V10 was strictly additive (ADR-015). A staged
 // SchemaMigrationPlan is deliberately absent — because the versioned
@@ -261,7 +272,7 @@ enum PersistenceFactory {
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV13.self),
+            for: Schema(versionedSchema: BudgetSchemaV14.self),
             configurations: [configuration]
         )
     }

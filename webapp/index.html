@@ -2410,6 +2410,7 @@ function seedState(country = "CH") {
     journal: [],
     journalActif: false,
     fxQuotes: [],
+    releves: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2453,6 +2454,7 @@ function emptyState() {
     journal: [],
     journalActif: false,
     fxQuotes: [],
+    releves: [],
   };
 }
 
@@ -2462,7 +2464,7 @@ function emptyState() {
 const RESTORE_ARRAY_KEYS = [
   "transactions", "accounts", "recurrings", "goals", "assets",
   "liabilities", "pensions", "insurances", "bills", "documents",
-  "positions", "occurrences", "journal", "fxQuotes",
+  "positions", "occurrences", "journal", "fxQuotes", "releves",
 ];
 const RESTORE_TRANSACTION_TYPES = new Set([
   "income", "expense", "refund", "saving", "investment", "transfer",
@@ -2520,6 +2522,7 @@ function loadState() {
     if (!Array.isArray(s.journal)) s.journal = []; // W3.1, clé additive
     if (typeof s.journalActif !== "boolean") s.journalActif = false; // W3.6, drapeau de bascule
     if (!Array.isArray(s.fxQuotes)) s.fxQuotes = []; // W4.2, clé additive
+    if (!Array.isArray(s.releves)) s.releves = []; // W4.3, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -7526,6 +7529,7 @@ function undoLast() {
   S.occurrences = restored.occurrences || []; // W2.7b
   S.journal = restored.journal || []; // W3.1
   S.fxQuotes = restored.fxQuotes || []; // W4.2
+  S.releves = restored.releves || []; // W4.3
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
@@ -8591,6 +8595,16 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && Number.isFinite(q.taux) && q.taux > 0
     && typeof q.observedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.observedAt)
     && typeof q.source === "string" && q.source);
+  // W4.3 : les relevés de réconciliation — clé ADDITIVE. Un relevé
+  // hostile (solde non entier, état inconnu) est ABANDONNÉ (FI-34).
+  const RELEVE_ETATS = new Set(["draft", "reconciled", "reopened"]);
+  state.releves = (state.releves || []).filter(r => isPlainRecord(r)
+    && typeof r.compte === "string" && r.compte
+    && Number.isInteger(r.soldeMineur)
+    && typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date)
+    && RELEVE_ETATS.has(r.etat)
+    && typeof r.source === "string" && r.source
+    && (r.ajustementTxId == null || Number.isFinite(r.ajustementTxId)));
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -10163,11 +10177,21 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
   const difference = Math.round((wanted - current) * 100) / 100;
   if (difference === 0) { err.textContent = "Le solde est déjà exact — rien à ajuster."; return; }
   pushUndo();
-  addTx({
+  const ajustement = addTx({
     id: ++txSeq, y: NOW.y, m: NOW.m, d: NOW.d,
     title: "Solde mis à jour", amount: Math.abs(difference),
     type: "adjustment", up: difference > 0,
     cat: null, acc: account.id, dest: null, status: "posted",
+  });
+  // W4.3 : réconcilier laisse un RELEVÉ daté — la preuve du solde visé
+  // (append-only), liée à son ajustement. L'undo emporte les deux.
+  (S.releves || (S.releves = [])).push({
+    compte: account.id,
+    soldeMineur: centimesStricts(wanted),
+    date: `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`,
+    etat: "reconciled",
+    source: "réconciliation manuelle",
+    ajustementTxId: ajustement.id,
   });
   saveState();
   closeSheet();
