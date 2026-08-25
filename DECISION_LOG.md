@@ -19,7 +19,13 @@ propriétaire le 25.08.2026 ; réponse : « Exclure l'épargne ».
 1. Résultat du mois = reçus réels − vraiment dépensé (impôts et
    intérêts compris) ; l'argent mis de côté (épargne, investissement)
    n'y entre plus — il reste montré à part (« mis de côté »).
-2. La même convention vaut pour les agrégats annuels.
+2. Le remboursement de CAPITAL d'une dette n'y entre pas non plus :
+   comme l'épargne, il ne quitte pas votre patrimoine (FI-14, FI-21).
+   La mesure a d'ailleurs montré que le natif le soustrayait et pas la
+   PWA — deux formules pour le même mot ; le contrat commun est
+   désormais : résultat = reçus − coût de vie − impôts, identique sur
+   les deux plateformes.
+3. La même convention vaut pour les agrégats annuels.
 3. Contrat d'abord : la fixture canonique porte le champ optionnel
    `resultatMineures` ; l'implémentation (PWA + iOS, même PR, fixtures
    de parité mises à jour) vit dans un lot séparé AUT-061, test rouge

@@ -96,7 +96,7 @@ function valideFixture(nomFichier, f) {
     check(estEntierSur(v), où(`attendus : solde « ${cid} » doit être un entier (ADR-059)`));
   }
   if (a.mois) {
-    for (const champ of ["recuMineures", "depenseMineures", "misDeCoteMineures", "liquideMineures", "finDeMoisMineures"]) {
+    for (const champ of ["recuMineures", "depenseMineures", "misDeCoteMineures", "liquideMineures", "finDeMoisMineures", "resultatMineures"]) {
       if (a.mois[champ] !== undefined) check(estEntierSur(a.mois[champ]), où(`attendus.mois.${champ} doit être un entier`));
     }
     check(Number.isInteger(a.mois.annee) && Number.isInteger(a.mois.mois), où("attendus.mois : annee et mois entiers obligatoires"));
