@@ -1277,6 +1277,11 @@
       </select>
       <label for="aOpening">Solde de départ (dans la monnaie du compte)</label>
       <input id="aOpening" data-primary-amount inputmode="decimal" placeholder="0.00" autocomplete="off" />
+      <!-- W4.5 (FI-14) : le pavé décimal iOS n'a pas de touche moins — une
+           dette naît par cette case, visible pour les types de dette seulement. -->
+      <label id="aOpeningNegativeRow" style="display:none;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:8px">
+        <input type="checkbox" id="aOpeningNegative" style="width:auto" /> C'est un solde dû (la dette part en négatif)
+      </label>
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="aCash" style="width:auto" /> Compter dans l'argent disponible
       </label>
@@ -8769,6 +8774,12 @@ function openAccSheet(account) {
     document.getElementById("aReconcile").style.display = hasHistory ? "block" : "none";
     document.getElementById("aCash").checked = !!account.cash;
     document.getElementById("aNetWorth").checked = account.netWorth !== false;
+    // W4.5 : l'ouverture s'affiche en valeur absolue, le signe vit dans
+    // la case « solde dû » (visible pour les types de dette).
+    document.getElementById("aOpening").value = Math.abs(account.opening).toFixed(2);
+    const kindDette = !!(ACCOUNT_KINDS[account.kind] && ACCOUNT_KINDS[account.kind].dette);
+    document.getElementById("aOpeningNegativeRow").style.display = kindDette ? "flex" : "none";
+    document.getElementById("aOpeningNegative").checked = account.opening < 0;
   } else {
     document.getElementById("aCurrency").value = baseCurrency();
     document.getElementById("aCurrency").disabled = false;
@@ -8776,6 +8787,8 @@ function openAccSheet(account) {
     document.getElementById("aReconcile").style.display = "none";
     document.getElementById("aCash").checked = true;
     document.getElementById("aNetWorth").checked = true;
+    document.getElementById("aOpeningNegativeRow").style.display = "none";
+    document.getElementById("aOpeningNegative").checked = false;
   }
   document.getElementById("aError").textContent = "";
   openSheet("accForm");
@@ -8788,6 +8801,11 @@ document.getElementById("aKind").addEventListener("change", () => {
   const kind = ACCOUNT_KINDS[document.getElementById("aKind").value];
   if (kind && kind.dette) document.getElementById("aCash").checked = false;
   else if (!editingAccId) document.getElementById("aCash").checked = true;
+  // W4.5 : la case « solde dû » n'existe QUE pour une dette — cochée
+  // d'elle-même (le cas normal d'une carte), toujours décochable.
+  const rangeeDu = document.getElementById("aOpeningNegativeRow");
+  rangeeDu.style.display = kind && kind.dette ? "flex" : "none";
+  document.getElementById("aOpeningNegative").checked = !!(kind && kind.dette);
 });
 document.getElementById("aCancel").addEventListener("click", () => closeSheet());
 document.getElementById("accForm").addEventListener("submit", (e) => {
@@ -8803,6 +8821,11 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
     : (openingRaw === "" ? 0 : parseAmountField(openingRaw));
   if (Number.isNaN(opening)) { err.textContent = "Ce solde n'est pas un montant valable. Exemple : 1200.00"; return; }
   const kind = document.getElementById("aKind").value;
+  // W4.5 (FI-14) : une dette naît en NÉGATIF par la case « solde dû » —
+  // le signe est un choix visible, jamais une déduction.
+  const openingSigne = (ACCOUNT_KINDS[kind] && ACCOUNT_KINDS[kind].dette
+    && document.getElementById("aOpeningNegative").checked)
+    ? -Math.abs(opening) : opening;
   const cash = document.getElementById("aCash").checked;
   const netWorth = document.getElementById("aNetWorth").checked;
   const inst = document.getElementById("aInst").value.trim();
@@ -8819,12 +8842,12 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   }
   let compteSauve;
   if (existing) {
-    Object.assign(existing, { name, inst, kind, opening, cash, netWorth, currency });
+    Object.assign(existing, { name, inst, kind, opening: openingSigne, cash, netWorth, currency });
     compteSauve = existing;
     toast("Compte modifié");
   } else {
     const id = "acc-" + Date.now().toString(36);
-    compteSauve = { id, name, inst, kind, opening, cash, netWorth, currency };
+    compteSauve = { id, name, inst, kind, opening: openingSigne, cash, netWorth, currency };
     ACCOUNTS.push(compteSauve);
     toast("Compte ajouté");
   }
