@@ -37,6 +37,19 @@ enum JournalLifecycle: String, CaseIterable, Codable {
     }
 }
 
+/// W4.4b (FI-06) — une transition de cycle interdite est une erreur
+/// TYPÉE et nommée, jamais un repli silencieux.
+enum JournalCycleError: Error, Equatable, LocalizedError {
+    case retourInterdit(de: JournalLifecycle, vers: JournalLifecycle)
+
+    var errorDescription: String? {
+        switch self {
+        case let .retourInterdit(de, vers):
+            "Cycle interdit : « \(de.displayName) » ne peut pas devenir « \(vers.displayName) »."
+        }
+    }
+}
+
 /// W3.1 — un refus du journal est une erreur TYPÉE et nommée en
 /// français — jamais un zéro, jamais un arrondi silencieux (FI-34).
 enum JournalEntryError: Error, Equatable, LocalizedError {
@@ -146,6 +159,25 @@ final class JournalEntry {
     var lifecycle: JournalLifecycle {
         get { JournalLifecycle(rawValue: lifecycleRawValue) ?? .pending }
         set { lifecycleRawValue = newValue.rawValue }
+    }
+
+    /// W4.4b (FI-06) : le cycle de vie avance dans UN seul sens —
+    /// pending → posted → cleared → reconciled. Un retour est un refus
+    /// typé, l'état ne bouge pas. Une écriture rapprochée est
+    /// TERMINALE : sa correction vit en chaîne (W3.5), jamais en
+    /// mutation.
+    func avancerCycle(vers nouvelEtat: JournalLifecycle) throws {
+        let permises: Set<JournalLifecycle> = switch lifecycle {
+        case .pending: [.posted]
+        case .posted: [.cleared, .reconciled]
+        case .cleared: [.reconciled]
+        case .reconciled: []
+        }
+        guard permises.contains(nouvelEtat) else {
+            throw JournalCycleError.retourInterdit(de: lifecycle, vers: nouvelEtat)
+        }
+        lifecycle = nouvelEtat
+        updatedAt = Date()
     }
 
     init(

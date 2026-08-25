@@ -56,9 +56,14 @@ struct ReconcileSheet: View {
             errorMessage = "Le solde saisi n'est pas un montant valide. Exemple : 2'500.00"
             return
         }
-        account.reconciledBalance = FinanceMath.roundedToCents(parsed)
-        account.reconciledAt = appContainer.dateProvider.now
-        account.updatedAt = account.reconciledAt ?? Date()
+        // W4.4b : UNE porte — le point du compte, le relevé daté (W4.3)
+        // et le figeage du journal (W4.4) vivent dans le MÊME save.
+        ReconciliationService().reconcilier(
+            compte: account,
+            soldeConstate: FinanceMath.roundedToCents(parsed),
+            now: appContainer.dateProvider.now,
+            context: modelContext
+        )
         if modelContext.saveOrRollback(onError: { _ in
             errorMessage = "L'enregistrement a échoué. Réessayez."
         }) {
