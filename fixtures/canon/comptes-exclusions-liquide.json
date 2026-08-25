@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "nom": "comptes-exclusions-liquide",
+  "description": "W1.2 — Seuls les comptes marqués cash entrent dans l'argent disponible ; l'épargne et les titres n'y entrent jamais, mais comptent dans la fortune. L'épargne accessible = le STOCK des comptes d'épargne. NOTE MESURÉE (25.08.2026) : l'exclusion d'un compte du PATRIMOINE existe côté natif (includeInNetWorth) mais pas côté PWA (fortuneTotale additionne tous les comptes) — cet écart est consigné, la fixture d'exclusion patrimoine attendra l'ADR de W1.4 ; ici tous les comptes sont patrimoine=true.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "sav",
+        "nom": "Compte épargne",
+        "genre": "savings",
+        "devise": "CHF",
+        "ouvertureMineures": 50000,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "brk",
+        "nom": "Compte titres",
+        "genre": "brokerage",
+        "devise": "CHF",
+        "ouvertureMineures": 80000,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 100000, "sav": 50000, "brk": 80000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 100000,
+      "finDeMoisMineures": 100000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 230000,
+      "epargneAccessibleMineures": 50000
+    }
+  }
+}
