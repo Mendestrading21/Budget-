@@ -56,8 +56,10 @@ fusionné (`main` = `75c704b`, PR #150, publication run `32887978661`)
 ### W4 — Comptes, devises, rapprochement (lot actif)
 
 **État : W4.1 fusionné et publié (`main` = `5d6455f`, PR #151,
-publication run `32891106635`, succès) · W4.2 (taux datés PWA) et
-W4.2b (moteur FX natif) EN PR** (Work Order :
+publication run `32891106635`, succès) · W4.2 fusionné et publié
+(`main` = `ee3c68b`, PR #152, publication run `32900122934`, succès) ·
+W4.2b fusionné (`main` = `0522518`, PR #153, publication run
+`32901342511`) · W4.3 EN PR** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -111,7 +113,7 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1 fusionné · W4.2 EN PR | W3 (fusionné) |
+| W4 | Comptes, devises, rapprochement | W4.1–W4.2b fusionnés · W4.3 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -146,6 +148,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.3 : le relevé — réconcilier laisse une preuve datée
+
+PWA : réconcilier garde son ajustement tracé (comportement historique
+intact) ET consigne désormais un RELEVÉ daté — compte, solde visé en
+CENTIMES, source « réconciliation manuelle », état `reconciled`, lien
+vers l'ajustement — clé additive `releves`, append-only ; un solde
+déjà exact ne consigne rien ; la restauration abandonne le relevé
+hostile (FI-34) ; l'undo emporte l'ajustement ET sa preuve ensemble.
+Natif : `Statement` (@Model, schéma V14 additif — période, soldes,
+état brouillon/rapproché/rouvert, provenance) et
+`StatementMigrationService` — chaque point nu
+`reconciledBalance`/`reconciledAt` devient un relevé synthétique
+MARQUÉ (« point de rapprochement migré (avant W4.3) »), idempotent, le
+point du compte restant INTACT (`balance()` le lit jusqu'au
+rapprochement complet W4.4, consigné). Preuves : parcours 199 né rouge
+(6 échecs nommés) → vert ; sabotage (le relevé consigné AVANT
+`pushUndo` — l'undo rendrait un état à moitié) → le contrôle
+d'atomicité de l'undo mord seul ; restauré vert ; `StatementTests`
+(migration marquée idempotente, état inconnu → brouillon, survie
+disque V13 → V14 FI-35) ; suites complètes vertes (199 e2e, 9 parités,
+13 canon + schéma, design, catalogue, audit).
 
 ### 25.08.2026 — W4.2b : le moteur FX natif — le constat n° 6 se ferme
 

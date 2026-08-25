@@ -11698,6 +11698,99 @@ currentTest = "W4.2 taux datés";
   await ctx198.close();
 }
 
+// ---------- 199. W4.3 : le RELEVÉ — réconcilier laisse une preuve datée ----------
+// Budget Autonomie 100, W4.3 : réconcilier un solde ne crée plus
+// seulement l'ajustement tracé (comportement conservé) — un RELEVÉ
+// daté est consigné (compte, solde visé en centimes, source, état
+// « reconciled »), clé additive `releves`, append-only. La
+// restauration abandonne un relevé hostile (FI-34).
+currentTest = "W4.3 relevés de réconciliation";
+{
+  const ctx199 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p199 = await ctx199.newPage();
+  p199.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.3] ${msg.text()}`); });
+  await p199.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rlv" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p199.goto(APP_URL);
+  await p199.waitForSelector("#tabbar button");
+  const rlv = await p199.evaluate(() => {
+    const resultat = {};
+    resultat.cleExiste = Array.isArray(S.releves);
+    // 1. Réconcilier par le VRAI formulaire : l'ajustement tracé reste
+    //    (comportement historique), ET un relevé daté est consigné.
+    editingAccId = "cur";
+    document.getElementById("reconAmount").value = "4850.00";
+    document.getElementById("reconNegative").checked = false;
+    document.getElementById("reconForm").requestSubmit();
+    const ajustement = transactions.find(t => t.type === "adjustment");
+    const releve = (S.releves || []).at(-1);
+    const dateISO = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+    resultat.ajustementConserve = !!ajustement && ajustement.up === false
+      && Math.abs(ajustement.amount - 150) < 0.005
+      && Math.abs(balance("cur") - 4850) < 0.005;
+    resultat.releveConsigne = !!releve
+      && releve.compte === "cur"
+      && releve.soldeMineur === 485000
+      && releve.date === dateISO
+      && releve.etat === "reconciled"
+      && releve.source === "réconciliation manuelle"
+      && typeof releve.ajustementTxId === "number";
+    // 2. Append-only : une seconde réconciliation S'AJOUTE.
+    editingAccId = "cur";
+    document.getElementById("reconAmount").value = "4900.00";
+    document.getElementById("reconNegative").checked = false;
+    document.getElementById("reconForm").requestSubmit();
+    resultat.appendOnly = (S.releves || []).length === 2
+      && (S.releves || [])[0].soldeMineur === 485000
+      && (S.releves || [])[1].soldeMineur === 490000;
+    // 3. Un solde déjà exact ne consigne RIEN (le refus existant reste).
+    editingAccId = "cur";
+    document.getElementById("reconAmount").value = "4900.00";
+    document.getElementById("reconNegative").checked = false;
+    document.getElementById("reconForm").requestSubmit();
+    resultat.exactInerte = (S.releves || []).length === 2;
+    // 4. Restauration : un relevé hostile (solde non entier, état
+    //    inconnu) est ABANDONNÉ, les sains survivent.
+    const etat = JSON.parse(JSON.stringify(S));
+    (etat.releves || (etat.releves = [])).push({ compte: "cur", soldeMineur: 12.5, date: dateISO, etat: "magique", source: "hostile" });
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    resultat.restaurationFiltre = !!restaure
+      && restaure.releves.length === 2
+      && !restaure.releves.some(r => r.etat === "magique");
+    // 5. L'undo emporte aussi les relevés (l'ajustement et sa preuve
+    //    partent ensemble).
+    undoLast();
+    resultat.undoCoherent = (S.releves || []).length === 1
+      && !transactions.some(t => t.id === (S.releves[1] || {}).ajustementTxId);
+    // Nettoyage.
+    transactions.length = 0; S.releves = []; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(rlv.cleExiste === true,
+    "la clé additive « releves » existe dès le chargement");
+  check(rlv.ajustementConserve === true,
+    "réconcilier garde son ajustement tracé — le comportement historique ne bouge pas");
+  check(rlv.releveConsigne === true,
+    "…ET consigne un RELEVÉ daté : compte, solde visé en centimes, source, état, lien vers l'ajustement");
+  check(rlv.appendOnly === true,
+    "une seconde réconciliation S'AJOUTE — jamais d'écrasement");
+  check(rlv.exactInerte === true,
+    "un solde déjà exact ne consigne rien — le refus existant reste");
+  check(rlv.restaurationFiltre === true,
+    "la restauration abandonne le relevé hostile et garde les sains (FI-34)");
+  check(rlv.undoCoherent === true,
+    "l'undo emporte l'ajustement ET sa preuve ensemble — jamais un état à moitié rendu");
+  await ctx199.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11707,4 +11800,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 198 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 199 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
