@@ -26,12 +26,25 @@ ordre permanent : #128 (fixtures W1.2–W1.5, `84c331c`) → #129 (AUT-060,
 squash ; publication par dispatch au SHA exact `7814cb8`
 (run `32840603822`, succès).
 
-### W2 — Occurrences persistées (lot actif)
+### W2 — Occurrences persistées
 
-**État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.7a fusionné (`main` =
-`45890c7`) · W2.7b EN PR — DERNIER sous-lot de W2** (Work Order :
-`docs/autonomie/w2/WORK_ORDER_W2.md`).
+**État : DONE** — W2 entièrement fusionné et publié le 25.08.2026 sur
+ordre permanent : W2.1–W2.3 (`8d0b570`, run `32847580712`), W2.4a/b,
+W2.5, W2.6, W2.7a (`45890c7`, publication run `32857974554` — logs :
+`TARGET_SHA` exact, « CI verte confirmée », déploiement réussi), W2.7b
+(#140, `main` = `01158b0`, publication run `32862223119`, succès).
+(Work Order : `docs/autonomie/w2/WORK_ORDER_W2.md`.)
+
+### W3 — Journal financier (lot actif)
+
+**État : W3.1 EN COURS** (Work Order :
+`docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
+question posée au propriétaire le 25.08.2026, écartée « continue » ;
+les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 livre
+la porte d'entrée du journal des deux côtés (PWA
+`creerEcritureJournal` + clé additive `journal` ; natif `Money`,
+`JournalEntry`/`JournalPosting`, schéma V12) — SHADOW : aucune vue ne
+lit, aucune mutation n'écrit (ADR-058, l'ombre arrive en W3.3).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -75,8 +88,8 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.7b EN PR (dernier) | W1 (fusionné) |
-| W3 | Journal financier | BLOCKED | W1, W2 |
+| W2 | Occurrences persistées | DONE | W1 (fusionné) |
+| W3 | Journal financier | W3.1 EN COURS | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
@@ -112,6 +125,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W3.1 : le journal naît — centimes entiers, équilibre par devise
+
+W3 s'ouvre (Work Order : `docs/autonomie/w3/WORK_ORDER_W3.md`) sur la
+porte d'entrée du journal, des deux côtés, en OMBRE totale (ADR-058 :
+aucune vue ne lit, aucune mutation n'écrit — l'ombre arrive en W3.3).
+ADR-063 : le journal stocke des CENTIMES ENTIERS + devise (la question
+a été posée au propriétaire, écartée « continue » ; les autorités
+`DATA_MODEL_TARGET.md` + ADR-059 tranchent). PWA :
+`creerEcritureJournal` (porte unique), `equilibreParDevise`,
+`validerPostingJournal`, clé additive `journal` (seeds, restauration
+filtrante FI-34, `deleteAllData`, undo). Natif : `Money` (frontière
+`Decimal` ↔ centimes EXACTE, arrondi déterministe `.plain`, refus du
+NaN), `JournalEntry`/`JournalPosting` (fabrique `equilibree(...)`,
+refus typés français, clé d'idempotence unique), schéma V12 additif.
+Preuves : parcours 190 né rouge (8 échecs nommés) → vert ; sabotage
+(équilibre ignoré) → SEULS les 2 contrôles d'équilibre mordent, la
+garde de restauration reste indépendante ; restauré vert ; `MoneyTests`
++ `JournalEntryTests` (équilibre par devise, triche multi-devise
+refusée, unicité de clé, migration disque V11 → V12, FI-35) ; suites
+complètes vertes (190 e2e, 9 parités, 13 canon + schéma, design,
+catalogue, audit dépôt). Consigné : l'écriture d'ouverture (FI-12) et
+les écritures types arrivent en W3.2 ; la décision de migration de
+l'historique reste ouverte pour W3.7.
 
 ### 25.08.2026 — W2.7b : le geste confirme l'échéance — W2 se ferme
 

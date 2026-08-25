@@ -2367,6 +2367,7 @@ function seedState(country = "CH") {
     positions: [],
     customCategories: [],
     occurrences: [],
+    journal: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2407,6 +2408,7 @@ function emptyState() {
     assets: [], liabilities: [], pensions: [], insurances: [], positions: [],
     customCategories: [],
     occurrences: [],
+    journal: [],
   };
 }
 
@@ -2416,7 +2418,7 @@ function emptyState() {
 const RESTORE_ARRAY_KEYS = [
   "transactions", "accounts", "recurrings", "goals", "assets",
   "liabilities", "pensions", "insurances", "bills", "documents",
-  "positions", "occurrences",
+  "positions", "occurrences", "journal",
 ];
 const RESTORE_TRANSACTION_TYPES = new Set([
   "income", "expense", "refund", "saving", "investment", "transfer",
@@ -2466,6 +2468,7 @@ function loadState() {
     if (!PROJECTION_PROFILES[s.projectionProfile]) s.projectionProfile = "balanced";
     if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
     if (!Array.isArray(s.occurrences)) s.occurrences = []; // W2.1, clé additive
+    if (!Array.isArray(s.journal)) s.journal = []; // W3.1, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -3118,6 +3121,71 @@ function ignorerOccurrence(occurrence) {
 }
 function annulerOccurrence(occurrence) {
   return transitionOccurrence(occurrence, "cancelled");
+}
+
+/* ===== W3.1 (Budget Autonomie 100, ADR-063) : le JOURNAL financier =====
+   Une écriture = un fait d'argent, composée de POSTINGS équilibrés PAR
+   DEVISE, en CENTIMES ENTIERS (unités mineures — même représentation
+   que les fixtures canoniques, ADR-059). Porte d'entrée UNIQUE :
+   creerEcritureJournal. Refus NOMMÉS en français — jamais un zéro ni
+   un arrondi silencieux (FI-08, FI-34). SHADOW : aucune vue ne lit,
+   aucune mutation n'écrit encore — l'ombre arrive en W3.3 (ADR-058). */
+const JOURNAL_LIFECYCLES = new Set(["pending", "posted", "cleared", "reconciled"]);
+const JOURNAL_KINDS = new Set([...RESTORE_TRANSACTION_TYPES, "opening"]);
+let journalSequence = 0;
+
+function validerPostingJournal(p) {
+  if (!p || typeof p !== "object") return "Posting illisible.";
+  if (typeof p.compte !== "string" || !p.compte) return "Chaque posting nomme son compte.";
+  if (p.sens !== "debit" && p.sens !== "credit") return "Chaque posting est un débit ou un crédit.";
+  if (!Number.isInteger(p.montantMineur) || p.montantMineur <= 0) {
+    return "Montant invalide : des centimes ENTIERS positifs — jamais arrondis en silence.";
+  }
+  if (typeof p.devise !== "string" || !/^[A-Z]{3}$/.test(p.devise)) return "Chaque posting porte sa devise.";
+  return null;
+}
+
+function equilibreParDevise(postings) {
+  const soldes = {};
+  for (const p of postings) {
+    soldes[p.devise] = (soldes[p.devise] || 0) + (p.sens === "debit" ? p.montantMineur : -p.montantMineur);
+  }
+  const ecarts = Object.entries(soldes).filter(([, delta]) => delta !== 0);
+  if (!ecarts.length) return null;
+  return "Écriture déséquilibrée : " + ecarts.map(([devise, delta]) =>
+    `${delta > 0 ? "+" : ""}${delta} centime(s) ${devise}`).join(", ") + ".";
+}
+
+function creerEcritureJournal(brouillon) {
+  if (!brouillon || typeof brouillon !== "object") return { erreur: "Écriture illisible." };
+  if (!JOURNAL_KINDS.has(brouillon.kind)) return { erreur: "Nature d'écriture inconnue." };
+  if (!JOURNAL_LIFECYCLES.has(brouillon.lifecycle)) return { erreur: "État de vie inconnu." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(brouillon.effectiveDate || "")) return { erreur: "Chaque écriture porte sa date." };
+  const postings = Array.isArray(brouillon.postings) ? brouillon.postings : [];
+  if (postings.length < 2) return { erreur: "Une écriture a toujours deux jambes (deux postings au moins)." };
+  for (const p of postings) {
+    const refus = validerPostingJournal(p);
+    if (refus) return { erreur: refus };
+  }
+  const desequilibre = equilibreParDevise(postings);
+  if (desequilibre) return { erreur: desequilibre };
+  journalSequence += 1;
+  const id = `jrn-${Date.now()}-${journalSequence}`;
+  return { ecriture: {
+    id,
+    idempotencyKey: (typeof brouillon.idempotencyKey === "string" && brouillon.idempotencyKey) ? brouillon.idempotencyKey : id,
+    kind: brouillon.kind,
+    lifecycle: brouillon.lifecycle,
+    effectiveDate: brouillon.effectiveDate,
+    titre: typeof brouillon.titre === "string" ? brouillon.titre : "",
+    occurrenceId: typeof brouillon.occurrenceId === "string" ? brouillon.occurrenceId : null,
+    reversesEntryId: typeof brouillon.reversesEntryId === "string" ? brouillon.reversesEntryId : null,
+    replacesEntryId: typeof brouillon.replacesEntryId === "string" ? brouillon.replacesEntryId : null,
+    postings: postings.map(p => ({
+      compte: p.compte, sens: p.sens, montantMineur: p.montantMineur,
+      devise: p.devise, categorie: typeof p.categorie === "string" ? p.categorie : null,
+    })),
+  } };
 }
 
 /* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
@@ -7064,6 +7132,7 @@ function undoLast() {
   S.documents = restored.documents || [];
   S.bills = restored.bills || [];
   S.occurrences = restored.occurrences || []; // W2.7b
+  S.journal = restored.journal || []; // W3.1
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
@@ -8105,6 +8174,19 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && OCCURRENCE_STATES.has(o.state)
     && (o.transactionId == null || Number.isFinite(o.transactionId))
     && typeof o.idempotencyKey === "string" && o.idempotencyKey);
+  // W3.1 (Budget Autonomie 100) : le journal — clé ADDITIVE encore
+  // inerte (shadow, ADR-058). Une écriture hostile (déséquilibrée,
+  // centimes non entiers, nature ou état de vie inconnus) est
+  // ABANDONNÉE — jamais adoptée, jamais réparée en silence (FI-34).
+  state.journal = (state.journal || []).filter(e => isPlainRecord(e)
+    && typeof e.id === "string" && e.id
+    && typeof e.idempotencyKey === "string" && e.idempotencyKey
+    && JOURNAL_KINDS.has(e.kind)
+    && JOURNAL_LIFECYCLES.has(e.lifecycle)
+    && typeof e.effectiveDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.effectiveDate)
+    && Array.isArray(e.postings) && e.postings.length >= 2
+    && e.postings.every(p => isPlainRecord(p) && validerPostingJournal(p) === null)
+    && equilibreParDevise(e.postings) === null);
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -8184,6 +8266,7 @@ function deleteAllData() {
   INSURANCES.length = 0;
   POSITIONS.length = 0;
   (S.occurrences || (S.occurrences = [])).length = 0; // W2.1
+  (S.journal || (S.journal = [])).length = 0; // W3.1
   S.documents.length = 0;
   S.lastImport = null;
   S.bills.length = 0;

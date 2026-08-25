@@ -1,5 +1,45 @@
 # Budget decision log
 
+## ADR-063 — Le journal stocke des centimes entiers (unités mineures)
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+W3.1 doit fixer la représentation de STOCKAGE des montants du journal,
+identique sur les deux plateformes (matrice W0.5 : « unités mineures vs
+`Decimal` canonique », décision attendue au Work Order W3). La question
+a été posée au propriétaire le 25.08.2026, qui l'a écartée en ordonnant
+de continuer ; les autorités déjà approuvées tranchent :
+`DATA_MODEL_TARGET.md` définit `Money { minorUnits: Int64, currency }`
+et l'ADR-059 a fixé les fixtures canoniques en unités mineures
+entières.
+
+### Décision
+
+1. Le journal (PWA `S.journal`, natif `JournalEntry`/`JournalPosting`,
+   schéma V12) stocke chaque montant en CENTIMES ENTIERS + devise —
+   la même représentation que les fixtures canoniques.
+2. Le natif continue de CALCULER en `Decimal` (invariant produit) ; la
+   frontière `Decimal` ↔ centimes est EXACTE, avec arrondi déterministe
+   `.plain` à 2 décimales (FI-18) ; une valeur illisible est refusée,
+   jamais convertie en zéro (FI-34).
+3. Chaque écriture est équilibrée PAR DEVISE en centimes entiers
+   (FI-08) ; le déséquilibre est un refus nommé (devise + écart).
+4. Porte d'entrée unique : `creerEcritureJournal` (PWA) et
+   `JournalEntry.equilibree(...)` (natif) — personne ne compose une
+   écriture à la main.
+
+### Vérification
+
+Parcours 190 né rouge (8 échecs nommés) ; sabotage (équilibre ignoré)
+→ seuls les 2 contrôles d'équilibre échouent, la garde de restauration
+reste indépendante ; tests natifs `MoneyTests` (frontière exacte,
+arrondi déterministe, refus du NaN) et `JournalEntryTests` (équilibre
+par devise, clé unique, migration disque V11 → V12, FI-35).
+
+
 ## ADR-062 — Une date n'est pas une preuve : la case « C'est déjà fait »
 
 Date: 2026-08-25

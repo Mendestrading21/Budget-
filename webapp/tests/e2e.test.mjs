@@ -10727,6 +10727,134 @@ currentTest = "W2.7b bascule du geste";
   await ctx189.close();
 }
 
+// ---------- 190. W3.1 : le JOURNAL — écritures équilibrées en centimes entiers ----------
+// Budget Autonomie 100, W3.1 (ADR-063) : une écriture de journal est
+// composée de postings équilibrés PAR DEVISE, en CENTIMES ENTIERS.
+// Un déséquilibre, un montant non entier, un posting isolé : refus
+// NOMMÉ en français — jamais un zéro silencieux (FI-08, FI-34).
+// SHADOW : aucune vue ne lit, aucune mutation n'écrit (ADR-058).
+currentTest = "W3.1 journal équilibré";
+{
+  const ctx190 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p190 = await ctx190.newPage();
+  p190.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.1] ${msg.text()}`); });
+  await p190.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Jrn" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p190.goto(APP_URL);
+  await p190.waitForSelector("#tabbar button");
+  const jrn = await p190.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof creerEcritureJournal === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    // 1. Une écriture équilibrée est acceptée telle quelle.
+    const ok = creerEcritureJournal({
+      kind: "expense", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Loyer", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 150000, devise: "CHF" },
+        { compte: "depense:Logement", sens: "debit", montantMineur: 150000, devise: "CHF" },
+      ],
+    });
+    resultat.equilibreeAcceptee = !!(ok && ok.ecriture && !ok.erreur
+      && typeof ok.ecriture.id === "string" && ok.ecriture.id
+      && typeof ok.ecriture.idempotencyKey === "string" && ok.ecriture.idempotencyKey
+      && ok.ecriture.postings.length === 2);
+    // 2. Un déséquilibre est refusé en NOMMANT la devise et l'écart.
+    const desequilibre = creerEcritureJournal({
+      kind: "expense", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Faux", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 150000, devise: "CHF" },
+        { compte: "depense:Logement", sens: "debit", montantMineur: 149900, devise: "CHF" },
+      ],
+    });
+    resultat.desequilibreRefuse = !!(desequilibre && desequilibre.erreur
+      && !desequilibre.ecriture && desequilibre.erreur.includes("CHF"));
+    // 3. Des centimes NON entiers sont refusés — jamais arrondis en silence.
+    const nonEntier = creerEcritureJournal({
+      kind: "expense", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Flou", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 1505.5, devise: "CHF" },
+        { compte: "depense:Divers", sens: "debit", montantMineur: 1505.5, devise: "CHF" },
+      ],
+    });
+    resultat.nonEntierRefuse = !!(nonEntier && nonEntier.erreur && !nonEntier.ecriture);
+    // 4. Moins de deux postings : refus (une écriture a toujours deux jambes).
+    const isole = creerEcritureJournal({
+      kind: "expense", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Seul", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 1000, devise: "CHF" },
+      ],
+    });
+    resultat.isoleRefuse = !!(isole && isole.erreur && !isole.ecriture);
+    // 5. Multi-devise : équilibrée PAR devise = acceptée ; déséquilibre
+    //    caché dans UNE devise = refusé même si le total « semble » bon.
+    const parDevise = creerEcritureJournal({
+      kind: "transfer", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Change", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 10000, devise: "CHF" },
+        { compte: "attente:change", sens: "debit", montantMineur: 10000, devise: "CHF" },
+        { compte: "attente:change", sens: "credit", montantMineur: 9300, devise: "EUR" },
+        { compte: "eur", sens: "debit", montantMineur: 9300, devise: "EUR" },
+      ],
+    });
+    const deviseCachee = creerEcritureJournal({
+      kind: "transfer", lifecycle: "posted", effectiveDate: "2026-08-25",
+      titre: "Triche", postings: [
+        { compte: "cur", sens: "credit", montantMineur: 10000, devise: "CHF" },
+        { compte: "eur", sens: "debit", montantMineur: 10000, devise: "EUR" },
+      ],
+    });
+    resultat.parDeviseTenu = !!(parDevise && parDevise.ecriture && !parDevise.erreur
+      && deviseCachee && deviseCachee.erreur && !deviseCachee.ecriture);
+    // 6. La clé additive : une restauration garde les écritures saines et
+    //    ABANDONNE une écriture hostile (déséquilibrée) — jamais adoptée.
+    const etatTest = JSON.parse(JSON.stringify(S));
+    etatTest.journal = [
+      ok.ecriture,
+      { id: "hostile", kind: "expense", lifecycle: "posted", effectiveDate: "2026-08-25",
+        idempotencyKey: "hostile:1", postings: [
+          { compte: "cur", sens: "credit", montantMineur: 5000, devise: "CHF" },
+          { compte: "depense:Divers", sens: "debit", montantMineur: 4000, devise: "CHF" },
+        ] },
+    ];
+    let restaure = null;
+    try { restaure = validatedRestoreState(etatTest); } catch (e) { restaure = { journal: ["exception:" + e.message] }; }
+    resultat.restaurationFiltre = !!(restaure && Array.isArray(restaure.journal)
+      && restaure.journal.length === 1 && restaure.journal[0].id === ok.ecriture.id);
+    // 7. Tout effacer vide aussi le journal ; l'undo le restaure.
+    S.journal = [ok.ecriture];
+    pushUndo();
+    S.journal = [];
+    undoLast();
+    resultat.undoRestaure = Array.isArray(S.journal) && S.journal.length === 1;
+    S.journal = []; saveState();
+    return resultat;
+  });
+  check(jrn.fonctionExiste === true,
+    "creerEcritureJournal existe — le journal a une porte d'entrée unique");
+  check(jrn.equilibreeAcceptee === true,
+    "une écriture équilibrée (2 postings, centimes entiers) est acceptée avec identité et clé d'idempotence");
+  check(jrn.desequilibreRefuse === true,
+    "un déséquilibre est refusé en NOMMANT la devise — rien n'est écrit (FI-08)");
+  check(jrn.nonEntierRefuse === true,
+    "des centimes non entiers sont refusés — jamais arrondis en silence (FI-34)");
+  check(jrn.isoleRefuse === true,
+    "un posting isolé est refusé — une écriture a toujours deux jambes");
+  check(jrn.parDeviseTenu === true,
+    "l'équilibre se juge PAR devise — le multi-devise honnête passe, le déséquilibre caché est refusé");
+  check(jrn.restaurationFiltre === true,
+    "une restauration garde les écritures saines et abandonne l'écriture déséquilibrée (FI-34)");
+  check(jrn.undoRestaure === true,
+    "l'undo restaure aussi le journal — jamais un état à moitié rendu");
+  await ctx190.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10736,4 +10864,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 189 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 190 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
