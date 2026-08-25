@@ -222,6 +222,17 @@ enum BudgetSchemaV12: VersionedSchema {
     }
 }
 
+/// Schema v13.0.0 — adds dated, sourced exchange-rate quotes (FxQuote —
+/// W4.2b Budget Autonomie 100, ADR-065). Purely additive: existing data
+/// keeps exactly the same meaning.
+enum BudgetSchemaV13: VersionedSchema {
+    static let versionIdentifier = Schema.Version(13, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        BudgetSchemaV12.models + [FxQuote.self]
+    }
+}
+
 // V1 relies on SwiftData's AUTOMATIC lightweight migration: every schema
 // change from V1 to V10 was strictly additive (ADR-015). A staged
 // SchemaMigrationPlan is deliberately absent — because the versioned
@@ -250,7 +261,7 @@ enum PersistenceFactory {
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
         try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV12.self),
+            for: Schema(versionedSchema: BudgetSchemaV13.self),
             configurations: [configuration]
         )
     }
