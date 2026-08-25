@@ -47,12 +47,13 @@ struct MonthlySnapshotService {
 
         let savingsRate = FinanceMath.safeRatio(totalSavings + totalInvestments, totalIncome)
 
+        // AUT-061 (ADR-061) : le résultat du mois = reçus − vraiment
+        // dépensé (impôts et intérêts compris). Épargne, investissement
+        // et capital de dette (FI-14) restent à vous — même contrat que
+        // la PWA, plus jamais deux formules.
         let cashFlow = totalIncome
             - totalLivingExpenses
-            - totalSavings
-            - totalInvestments
             - totalTaxPayments
-            - totalDebtPayments
 
         let liquidBalance = accounts
             .filter { $0.isActive && $0.includeInAvailableCash }

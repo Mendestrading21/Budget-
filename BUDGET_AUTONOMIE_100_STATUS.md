@@ -99,6 +99,19 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 25.08.2026 — AUT-061 : le résultat du mois exclut l'épargne et le capital
+
+Implémentation de l'ADR-061 (amendée : le capital de dette est exclu
+comme l'épargne, FI-14/FI-21 — la mesure montrait d'ailleurs DEUX
+formules : le natif soustrayait la dette, la PWA non). Contrat commun :
+résultat = reçus − coût de vie − impôts, identique sur les deux
+plateformes ; note du mois passé honnête (« mettre de côté ou
+rembourser une dette n'est pas perdre »). Parcours 180 né rouge
+(3 échecs nommés, 1600 lu), sabotage mordant, 180 e2e verts ; test
+natif MonthlySnapshotServiceTests aligné (5000, commenté) — preuve
+native = job simulateur CI. Fixture canonique `resultat-du-mois`
+(210000) + champ optionnel `resultatMineures` au schéma.
+
 ### 25.08.2026 — W1.4 : fixtures patrimoine/dette/devise + ADR-060/061
 
 Décisions propriétaire obtenues (questions posées, réponses

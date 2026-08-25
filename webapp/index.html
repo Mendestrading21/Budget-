@@ -2942,7 +2942,11 @@ function snapshot(y, m) {
   const daily = (isCurrent && available > 0 && daysRemaining > 0) ? available / daysRemaining : 0;
 
   const savingsRate = income > 0 ? (savings + invest) / income : 0;
-  const cashFlow = round2(income - living - savings - invest - taxes);
+  // AUT-061 (ADR-061, décision propriétaire du 25.08.2026) : le résultat
+  // du mois = reçus − vraiment dépensé (impôts et intérêts compris).
+  // Épargne, investissement et capital de dette (FI-14) restent à vous :
+  // ils n'entrent plus dans le résultat — même contrat que le natif.
+  const cashFlow = round2(income - living - taxes);
 
   return { income, living, savings, invest, taxes, debtPaid, plannedIncome, plannedOut,
            savingsAccessible, liquidWealth, endOfMonthForecast,
@@ -3453,7 +3457,7 @@ function renderSimpleHome() {
       : noteFinMois)
     : (futureMonth
       ? "L'argent prévu n'est pas compté ici tant qu'il n'est pas reçu ou payé."
-      : "Revenus moins sorties sur ce mois.");
+      : "Reçus moins vraiment dépensé, impôts compris — mettre de côté ou rembourser une dette n'est pas perdre.");
   const heroSousNote = s.isCurrent && !heroMaintenant && !heroTout
     ? (s.endOfMonthForecast < 0
       ? `Il manque ${chf(Math.abs(s.endOfMonthForecast))} pour finir le mois.`

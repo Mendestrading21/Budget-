@@ -81,7 +81,9 @@ final class MonthlySnapshotServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.totalTaxPayments, Decimal("1000.00"))
         // Savings, investments and taxes are NOT living expenses.
         XCTAssertEqual(snapshot.savingsRate, Decimal("0.10"))
-        XCTAssertEqual(snapshot.cashFlow, Decimal("4200.00"))
+        // AUT-061 (ADR-061) : mettre de côté n'est pas perdre — le
+        // résultat = 8000 − 2000 − 1000, l'épargne et l'investi exclus.
+        XCTAssertEqual(snapshot.cashFlow, Decimal("5000.00"))
     }
 
     func testRefundsReduceLivingExpenses() {

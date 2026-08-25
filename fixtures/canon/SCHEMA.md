@@ -98,7 +98,9 @@ compte ; `hausse` (booléen) obligatoire pour `adjustment` ; `titre` obligatoire
 
 Uniquement des ENTIERS d'unités mineures. `soldesMineures` par compte (devise
 du compte) ; `mois` dans la devise de base ; `patrimoine` dans la devise de
-base. Un champ absent = non testé par cette fixture. Les agrégats correspondent
+base. `mois.resultatMineures` (optionnel, ajout rétrocompatible du
+25.08.2026) = le résultat du mois selon l'ADR-061 : reçus − coût de vie −
+impôts, épargne/investissement/capital de dette exclus. Un champ absent = non testé par cette fixture. Les agrégats correspondent
 au dictionnaire des chiffres W0 (`docs/autonomie/w0/DICTIONNAIRE_CHIFFRES.md`).
 
 ## Versionnement
