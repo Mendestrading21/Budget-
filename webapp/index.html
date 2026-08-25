@@ -1285,6 +1285,11 @@
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:12px">
         <input type="checkbox" id="aCash" style="width:auto" /> Compter dans l'argent disponible
       </label>
+      <!-- W4.6 (FI-13) : archiver range le compte SANS toucher l'histoire —
+           visible en édition seulement. -->
+      <label id="aArchivedRow" style="display:none;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:8px">
+        <input type="checkbox" id="aArchived" style="width:auto" /> Archiver ce compte (l'histoire reste)
+      </label>
       <!-- AUT-060 (ADR-060, parité natif includeInNetWorth) : un compte
            peut être exclu de la fortune ; son solde reste vrai partout. -->
       <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:8px">
@@ -2993,7 +2998,7 @@ function snapshot(y, m) {
   const plannedOut = round2(["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
     + openBillsDue);
 
-  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
+  const liquid = fromCents(ACCOUNTS.filter(a => a.cash && compteActif(a)).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const isCurrent = (y === NOW.y && m === NOW.m);
   // Toutes les occurrences mensuelles non couvertes restent engagées,
   // même après leur échéance. Elles sont dédupliquées uniquement par leur
@@ -3025,13 +3030,13 @@ function snapshot(y, m) {
   // hérité encore stocké (S.taxRate) est lettre morte : plus aucune
   // formule ne le lit.
   // FE2 : les agrégats explicites — chacun dit UNE chose.
-  const savingsAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings")
+  const savingsAccessible = fromCents(ACCOUNTS.filter(a => a.kind === "savings" && compteActif(a))
     .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   // FE2-5 : fortune liquide = UNION des comptes « cash disponible » et
   // des comptes d'épargne, chaque franc compté UNE fois — un compte
   // d'épargne aussi marqué cash n'est plus doublé (même règle que le
   // natif, NetWorthService.liquidWealth).
-  const liquidWealth = fromCents(ACCOUNTS.filter(a => a.cash || a.kind === "savings")
+  const liquidWealth = fromCents(ACCOUNTS.filter(a => (a.cash || a.kind === "savings") && compteActif(a))
     .reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const endOfMonthForecast = round2(liquid + plannedIncome + recurringIncome + irregularIncome - plannedOut - recurringCharges);
   const available = endOfMonthForecast;
@@ -4910,7 +4915,7 @@ function renderAccounts() {
     if (account) return renderAccountDetail(account);
     accountView = null;
   }
-  const liquid = fromCents(ACCOUNTS.filter(a => a.cash).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
+  const liquid = fromCents(ACCOUNTS.filter(a => a.cash && compteActif(a)).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
   const groups = [
     ["Argent disponible", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
@@ -5183,7 +5188,10 @@ function backBar(title) {
 /* AUT-060 (ADR-060) : un compte marqué netWorth=false sort de la
    fortune — jamais des listes ni du disponible. Clé additive : absente
    = compté (les données existantes gardent exactement le même sens). */
-function compteDansPatrimoine(account) { return account.netWorth !== false; }
+/* W4.6 (FI-13) : un compte archivé sort des agrégats du PRÉSENT — son
+   histoire (solde, mouvements, rapports passés) ne bouge jamais. */
+function compteActif(account) { return account.archived !== true; }
+function compteDansPatrimoine(account) { return account.netWorth !== false && compteActif(account); }
 
 function fortuneTotale() {
   return ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
@@ -7855,7 +7863,7 @@ function refreshDestOptions(preselect) {
   const preferred = document.getElementById("fCat").value === "Pilier 3a"
     ? ["pension", "lifeinsurance"]
     : [PREFERRED_DEST_KIND[type]];
-  const candidates = ACCOUNTS
+  const candidates = ACCOUNTS.filter(a => compteActif(a) || a.id === preselect)
     .filter(a => a.id !== sourceId && accountCurrency(a.id) === sourceCurrency)
     .sort((a, b) => (preferred.includes(b.kind) ? 1 : 0) - (preferred.includes(a.kind) ? 1 : 0));
   const select = document.getElementById("fDest");
@@ -8010,7 +8018,9 @@ document.getElementById("fAmount").addEventListener("input", () => {
 
 function refreshAccountOptions(selectedId) {
   const select = document.getElementById("fAccount");
-  select.innerHTML = ACCOUNTS.map(a =>
+  // W4.6 : un compte archivé ne reçoit pas de NOUVEAU mouvement — mais
+  // l'édition d'un ancien mouvement garde son compte.
+  select.innerHTML = ACCOUNTS.filter(a => compteActif(a) || a.id === selectedId).map(a =>
     `<option value="${esc(a.id)}">${esc(a.name)}${a.currency && a.currency !== baseCurrency() ? " (" + a.currency + ")" : ""}</option>`).join("");
   if (selectedId && ACCOUNTS.some(a => a.id === selectedId)) select.value = selectedId;
 }
@@ -8780,6 +8790,9 @@ function openAccSheet(account) {
     const kindDette = !!(ACCOUNT_KINDS[account.kind] && ACCOUNT_KINDS[account.kind].dette);
     document.getElementById("aOpeningNegativeRow").style.display = kindDette ? "flex" : "none";
     document.getElementById("aOpeningNegative").checked = account.opening < 0;
+    // W4.6 : on n'archive qu'un compte qui EXISTE.
+    document.getElementById("aArchivedRow").style.display = "flex";
+    document.getElementById("aArchived").checked = account.archived === true;
   } else {
     document.getElementById("aCurrency").value = baseCurrency();
     document.getElementById("aCurrency").disabled = false;
@@ -8789,6 +8802,8 @@ function openAccSheet(account) {
     document.getElementById("aNetWorth").checked = true;
     document.getElementById("aOpeningNegativeRow").style.display = "none";
     document.getElementById("aOpeningNegative").checked = false;
+    document.getElementById("aArchivedRow").style.display = "none";
+    document.getElementById("aArchived").checked = false;
   }
   document.getElementById("aError").textContent = "";
   openSheet("accForm");
@@ -8826,6 +8841,8 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const openingSigne = (ACCOUNT_KINDS[kind] && ACCOUNT_KINDS[kind].dette
     && document.getElementById("aOpeningNegative").checked)
     ? -Math.abs(opening) : opening;
+  // W4.6 : archiver range le compte — l'histoire ne bouge jamais.
+  const archived = editingAccId ? document.getElementById("aArchived").checked : false;
   const cash = document.getElementById("aCash").checked;
   const netWorth = document.getElementById("aNetWorth").checked;
   const inst = document.getElementById("aInst").value.trim();
@@ -8842,12 +8859,12 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   }
   let compteSauve;
   if (existing) {
-    Object.assign(existing, { name, inst, kind, opening: openingSigne, cash, netWorth, currency });
+    Object.assign(existing, { name, inst, kind, opening: openingSigne, cash, netWorth, currency, archived });
     compteSauve = existing;
     toast("Compte modifié");
   } else {
     const id = "acc-" + Date.now().toString(36);
-    compteSauve = { id, name, inst, kind, opening: openingSigne, cash, netWorth, currency };
+    compteSauve = { id, name, inst, kind, opening: openingSigne, cash, netWorth, currency, archived };
     ACCOUNTS.push(compteSauve);
     toast("Compte ajouté");
   }
