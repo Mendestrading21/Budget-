@@ -19,11 +19,12 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
 ### W1 — Fixtures canoniques (lot actif)
 
-**État : W1.1 fusionné (ordre du 25.08) · W1.2 puis W1.3 EN PR
-(brouillons empilés sur W1.1/#126, fusion dans l'ordre)** — W1.4–W1.7
-BLOCKED. W1.4 exigera une décision propriétaire (ADR) sur l'exclusion
-d'un compte du patrimoine : le natif filtre `includeInNetWorth`, la
-PWA additionne tous les comptes.
+**État : W1.1 fusionné (ordre du 25.08) · W1.2 → W1.3 → W1.4 EN PR
+(brouillons empilés, fusion dans l'ordre)** — W1.5–W1.7 BLOCKED.
+Décisions propriétaire du 25.08.2026 : ADR-060 (parité patrimoine —
+la PWA gagne le réglage, lot AUT-060) et ADR-061 (le résultat du mois
+exclut l'épargne — lot AUT-061). Les deux implémentations passent
+AVANT les runners W1.6.
 
 Objectif : transformer l'audit en contrat exécutable sans modifier les
 formules ni les écrans.
@@ -97,6 +98,16 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.4 : fixtures patrimoine/dette/devise + ADR-060/061
+
+Décisions propriétaire obtenues (questions posées, réponses
+consignées) : exclusion d'un compte du patrimoine = PARITÉ (ADR-060) ;
+résultat du mois SANS l'épargne (ADR-061). Trois fixtures :
+`patrimoine-compte-exclu` (contrat cible — natif conforme, PWA après
+AUT-060), `dette-capital-pas-un-cout` (FI-14), `devise-conversion-
+datee` (FI-16 : 90000 × 0.95 = 85500 exactement). Implémentations
+AUT-060/061 en lots séparés, test rouge d'abord, avant W1.6.
 
 ### 25.08.2026 — W1.3 : fixtures mois/transferts/épargne
 

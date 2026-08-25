@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "nom": "patrimoine-compte-exclu",
+  "description": "W1.4 (ADR-060, décision propriétaire du 25.08.2026) — Un compte marqué patrimoine=false ne compte PAS dans la fortune totale, sur les DEUX plateformes. Le natif filtre déjà (includeInNetWorth) ; la PWA doit gagner le même réglage (lot d'implémentation AUT-060, séparé). Son solde reste vrai et visible ; seul l'agrégat de fortune l'ignore (FI-25 : chaque valeur comptée une fois, au bon endroit).",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "pro",
+        "nom": "Compte professionnel",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 500000,
+        "cash": false,
+        "patrimoine": false,
+        "actif": true
+      }
+    ],
+    "mouvements": [],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 100000, "pro": 500000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 100000,
+      "finDeMoisMineures": 100000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 100000,
+      "epargneAccessibleMineures": 0
+    }
+  }
+}
