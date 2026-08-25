@@ -62,7 +62,8 @@ W4.2b fusionné et publié (`main` = `0522518`, PR #153, publication run
 `32901342511`, succès) · W4.3 fusionné (`main` = `422f875`, PR #154,
 publication run `32903417770`) · W4.4 fusionné et publié (`main` = `3407feb`, PR #155, publication
 run `32905617064`) · W4.4b fusionné (`main` = `7a333a1`, PR #156) ·
-W4.5 EN PR** (Work Order :
+W4.5 fusionné (`main` = `162e1ff`, PR #157, publication run
+`32907853689`) · W4.6 EN PR** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -116,7 +117,7 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1–W4.4b fusionnés · W4.5 EN PR | W3 (fusionné) |
+| W4 | Comptes, devises, rapprochement | W4.1–W4.5 fusionnés · W4.6 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -151,6 +152,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.6 : l'archivage — un compte se range, l'histoire reste
+
+Divergence mesurée fermée : la PWA n'avait AUCUN archivage (le natif a
+`isActive` depuis toujours). `compteActif(a)` (le drapeau additif
+`archived`) + la case « Archiver ce compte (l'histoire reste) »,
+visible en ÉDITION seulement. Un compte archivé sort des agrégats du
+PRÉSENT — patrimoine (`compteDansPatrimoine` apprend l'archivage),
+liquide/disponible (les 4 sites `a.cash`), épargne accessible — et des
+choix de NOUVEAUX mouvements (les deux sélecteurs du formulaire ; 
+l'édition d'un ancien mouvement garde son compte). Son HISTOIRE ne
+bouge JAMAIS : solde intact, mouvements intacts, rapport d'un mois
+passé IDENTIQUE avant/après (FI-13 → TENU côté PWA, verrouillé par
+test). Désarchiver ramène tout ; la restauration préserve le drapeau.
+Preuves : parcours 202 né rouge (7 échecs nommés) → vert ; sabotage
+(le patrimoine ignore l'archivage) → le contrôle d'exclusion mord
+seul ; restauré vert ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w4-6/`) ; suites complètes vertes (202
+e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le test natif dédié « rapports passés identiques après
+`isActive = false` » viendra avec W4.7 (patrimoine) pour fermer FI-13
+des deux côtés ; la liste Comptes garde les archivés visibles (W5
+décidera leur présentation).
 
 ### 25.08.2026 — W4.5 : dettes et cartes — le dû existe, payer est neutre
 

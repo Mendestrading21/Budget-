@@ -11983,6 +11983,103 @@ currentTest = "W4.5 dettes et cartes";
   await ctx201.close();
 }
 
+// ---------- 202. W4.6 : l'ARCHIVAGE — un compte se range, l'histoire reste ----------
+// Budget Autonomie 100, W4.6 (FI-13 → TENU) : archiver un compte le
+// sort des agrégats du PRÉSENT (disponible, patrimoine) et des choix
+// de NOUVEAUX mouvements — mais son histoire ne bouge pas d'un
+// centime : solde intact, rapports passés identiques, mouvements
+// intacts. Désarchiver le ramène. La restauration préserve le drapeau.
+currentTest = "W4.6 archivage des comptes";
+{
+  const ctx202 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p202 = await ctx202.newPage();
+  p202.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.6] ${msg.text()}`); });
+  await p202.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Arc" },
+      baseCurrency: "CHF",
+      transactions: [
+        { id: 1, y: 2026, m: 6, d: 10, title: "Dépense ancienne", amount: 100,
+          type: "expense", cat: "Divers", acc: "old", dest: null, status: "posted" },
+      ],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "old", name: "Ancien compte", kind: "current", opening: 1000, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p202.goto(APP_URL);
+  await p202.waitForSelector("#tabbar button");
+  const arc = await p202.evaluate(() => {
+    const resultat = {};
+    const caseArchive = document.getElementById("aArchived");
+    resultat.caseExiste = !!caseArchive && !!document.getElementById("aArchivedRow");
+    if (!resultat.caseExiste) return resultat;
+    // 1. La case n'apparaît qu'en ÉDITION, jamais à la création.
+    openAccSheet(null);
+    const cacheeEnCreation = document.getElementById("aArchivedRow").style.display === "none";
+    closeSheet();
+    // 2. Archiver par le VRAI formulaire : le drapeau se pose.
+    const fortuneAvant = fortuneTotale();
+    const moisPasse = JSON.stringify(yearMonthRow(2026, 6));
+    openAccSheet(ACCOUNTS.find(a => a.id === "old"));
+    const visibleEnEdition = document.getElementById("aArchivedRow").style.display !== "none";
+    caseArchive.checked = true;
+    document.getElementById("accForm").requestSubmit();
+    const ancien = ACCOUNTS.find(a => a.id === "old");
+    resultat.caseContextuelle = cacheeEnCreation && visibleEnEdition;
+    resultat.archive = !!ancien && ancien.archived === true;
+    // 3. L'histoire ne bouge pas : solde intact, mouvement intact,
+    //    rapport du mois passé IDENTIQUE.
+    resultat.histoireIntacte = Math.abs(balance("old") - 900) < 0.005
+      && transactions.some(t => t.id === 1)
+      && JSON.stringify(yearMonthRow(2026, 6)) === moisPasse;
+    // 4. Les agrégats du présent l'excluent : la fortune baisse
+    //    d'exactement son solde (900).
+    resultat.presentExclu = Math.abs((fortuneAvant - fortuneTotale()) - 900) < 0.005;
+    // 5. Plus sélectionnable pour un NOUVEAU mouvement — mais l'édition
+    //    d'un ANCIEN mouvement du compte le garde.
+    openTxSheet(null);
+    const optionsNouveau = [...document.querySelectorAll("#fAccount option")].map(o => o.value);
+    closeSheet();
+    openTxSheet(transactions.find(t => t.id === 1));
+    const optionsEdition = [...document.querySelectorAll("#fAccount option")].map(o => o.value);
+    closeSheet();
+    resultat.pickersFiltres = !optionsNouveau.includes("old") && optionsEdition.includes("old");
+    // 6. Restauration : le drapeau survit ; désarchiver ramène tout.
+    const etat = JSON.parse(JSON.stringify(S));
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    resultat.restaurationPreserve = !!restaure
+      && restaure.accounts.some(a => a.id === "old" && a.archived === true);
+    openAccSheet(ACCOUNTS.find(a => a.id === "old"));
+    caseArchive.checked = false;
+    document.getElementById("accForm").requestSubmit();
+    resultat.desarchivage = ancien.archived !== true
+      && Math.abs(fortuneTotale() - fortuneAvant) < 0.005;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(arc.caseExiste === true,
+    "la case « Archiver ce compte » existe dans le vrai formulaire");
+  check(arc.caseContextuelle === true,
+    "elle n'apparaît qu'en édition — on n'archive pas un compte qui naît");
+  check(arc.archive === true,
+    "archiver par le vrai formulaire pose le drapeau");
+  check(arc.histoireIntacte === true,
+    "l'histoire ne bouge pas : solde intact, mouvements intacts, rapport du mois passé IDENTIQUE (FI-13)");
+  check(arc.presentExclu === true,
+    "les agrégats du présent l'excluent — la fortune baisse d'exactement son solde");
+  check(arc.pickersFiltres === true,
+    "plus sélectionnable pour un nouveau mouvement — l'édition d'un ancien le garde");
+  check(arc.restaurationPreserve === true && arc.desarchivage === true,
+    `la restauration préserve le drapeau, désarchiver ramène tout (restauration ${arc.restaurationPreserve} / retour ${arc.desarchivage})`);
+  await ctx202.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11992,4 +12089,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 201 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 202 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
