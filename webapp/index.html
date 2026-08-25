@@ -3486,6 +3486,42 @@ function migrerHistoriqueJournal(options) {
   return rapport;
 }
 
+/* W4.4 (FI-06/07) : le CYCLE DE VIE d'une écriture avance dans UN seul
+   sens — pending → posted → cleared → reconciled. Un retour est un
+   refus nommé, l'état ne bouge pas. Une écriture rapprochée ne MUTE
+   jamais : sa correction vit en chaîne (inversion + remplaçante, W3.5). */
+const JOURNAL_CYCLE_TRANSITIONS = {
+  pending: new Set(["posted"]),
+  posted: new Set(["cleared", "reconciled"]),
+  cleared: new Set(["reconciled"]),
+  reconciled: new Set(),
+};
+function avancerCycleEcriture(ecriture, nouvelEtat) {
+  const permises = JOURNAL_CYCLE_TRANSITIONS[ecriture.lifecycle];
+  if (!permises || !permises.has(nouvelEtat)) {
+    return `Cycle interdit : « ${ecriture.lifecycle} » ne peut pas devenir « ${nouvelEtat} ».`;
+  }
+  ecriture.lifecycle = nouvelEtat;
+  return null;
+}
+
+/* W4.4 : RAPPROCHER un compte — toutes ses écritures postées (ou
+   passées en banque) jusqu'à la date du relevé deviennent
+   « reconciled » : l'histoire confirmée par le solde constaté est
+   FIGÉE. Le prévu ne se rapproche jamais (FI-01). Retourne le nombre
+   d'écritures rapprochées. */
+function rapprocherJournal(compteId, dateISO) {
+  const jambe = `compte:${compteId}`;
+  let rapprochees = 0;
+  for (const ecriture of (S.journal || [])) {
+    if (ecriture.lifecycle !== "posted" && ecriture.lifecycle !== "cleared") continue;
+    if (ecriture.effectiveDate > dateISO) continue;
+    if (!ecriture.postings.some(p => p.compte === jambe)) continue;
+    if (avancerCycleEcriture(ecriture, "reconciled") === null) rapprochees += 1;
+  }
+  return rapprochees;
+}
+
 /* W3.6 : LA porte de la bascule. Allumer EXIGE le comparateur à zéro
    écart — sinon refus nommé et le drapeau ne bouge pas. Éteindre est
    toujours permis (rollback documenté : l'ancien chemin est intact). */
@@ -3502,9 +3538,15 @@ function basculerJournal(actif) {
   return null;
 }
 
-/* Deux écritures racontent-elles la MÊME chose ? (idempotence du dépôt) */
+/* Deux écritures racontent-elles la MÊME chose ? (idempotence du
+   dépôt). W4.4 : une écriture dont le CYCLE a avancé (cleared/
+   reconciled) reste la même photo qu'une traduction fraîche « posted »
+   — l'avancée du cycle n'est pas une différence de contenu. */
 function memePhotoJournal(a, b) {
-  if (a.kind !== b.kind || a.lifecycle !== b.lifecycle
+  const cycleCompatible = a.lifecycle === b.lifecycle
+    || ((a.lifecycle === "cleared" || a.lifecycle === "reconciled")
+        && (b.lifecycle === "posted" || b.lifecycle === "cleared"));
+  if (a.kind !== b.kind || !cycleCompatible
       || a.effectiveDate !== b.effectiveDate || a.titre !== b.titre
       || a.postings.length !== b.postings.length) return false;
   return a.postings.every((p, i) => {
@@ -10193,6 +10235,9 @@ document.getElementById("reconForm").addEventListener("submit", (e) => {
     source: "réconciliation manuelle",
     ajustementTxId: ajustement.id,
   });
+  // W4.4 : le solde constaté FIGE l'histoire du compte jusqu'à ce jour.
+  rapprocherJournal(account.id,
+    `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`);
   saveState();
   closeSheet();
   toast(`Solde mis à jour à ${money(wanted, account.currency || baseCurrency())}`, true);
