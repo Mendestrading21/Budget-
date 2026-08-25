@@ -69,6 +69,12 @@ jobs:
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
           node parity.test.mjs
 
+      - name: Runner canonique Web (fixtures canon, gate FI-40 — W1.6)
+        working-directory: webapp/tests
+        run: |
+          BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
+          node canon.test.mjs
+
       - name: Design system Obsidian (tokens, contrastes, galerie, a11y)
         working-directory: webapp/tests
         run: |
