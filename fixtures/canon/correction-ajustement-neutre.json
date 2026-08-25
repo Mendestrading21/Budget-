@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "nom": "correction-ajustement-neutre",
+  "description": "W1.5 — Une correction de solde (« Mettre le solde à jour ») est un ajustement TRAÇABLE et NEUTRE : le solde bouge, mais ni reçu, ni dépensé, ni mis de côté, ni résultat — ce n'est pas de l'argent gagné ou perdu, c'est l'histoire qui se corrige au grand jour (FI-07 en germe).",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 100000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "a1",
+        "date": "2026-05-10",
+        "type": "adjustment",
+        "statut": "posted",
+        "montantMineures": 5000,
+        "devise": "CHF",
+        "compte": "cur",
+        "hausse": true,
+        "titre": "Solde mis à jour"
+      },
+      {
+        "id": "a2",
+        "date": "2026-05-12",
+        "type": "adjustment",
+        "statut": "posted",
+        "montantMineures": 2000,
+        "devise": "CHF",
+        "compte": "cur",
+        "hausse": false,
+        "titre": "Solde corrigé à la baisse"
+      }
+    ],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": {
+      "cur": 103000
+    },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 103000,
+      "finDeMoisMineures": 103000,
+      "resultatMineures": 0
+    }
+  }
+}

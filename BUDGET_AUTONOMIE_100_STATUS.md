@@ -19,8 +19,11 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 
 ### W1 — Fixtures canoniques (lot actif)
 
-**État : W1.1 fusionné (ordre du 25.08) · W1.2 → W1.3 → W1.4 EN PR
-(brouillons empilés, fusion dans l'ordre)** — W1.5–W1.7 BLOCKED.
+**État : W1.1 fusionné (ordre du 25.08) · pile W1.2 → W1.3 → W1.4 →
+AUT-060 → AUT-061 → W1.5, fusion dans l'ordre** — W1.6–W1.7 BLOCKED.
+Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
+modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
+pas attester un contrat sans forme (consigné, pas oublié).
 Décisions propriétaire du 25.08.2026 : ADR-060 (parité patrimoine —
 la PWA gagne le réglage, lot AUT-060) et ADR-061 (le résultat du mois
 exclut l'épargne — lot AUT-061). Les deux implémentations passent
@@ -98,6 +101,18 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.5 : fixtures récurrences et corrections
+
+Deux fixtures : `recurrence-echeance-couverte` (l'échéance couverte
+par son mouvement lié ne pèse plus — 3250, jamais 1750 ; la non
+couverte pèse UNE fois) et `correction-ajustement-neutre` (l'ajustement
+bouge le solde, jamais le trio ni le résultat). Schéma : champ
+optionnel `recurrence` (lien mouvement→échéance, résolu ou échec).
+Sabotage mordant (lien cassé nommé). Doublons d'import différés à W7,
+consignés. NB : sur ordre propriétaire de cadence (« continue »), les
+sous-lots de fixtures W1.2–W1.5 voyagent dans UNE PR — quatre commits
+distincts, chacun son sabotage ; AUT-060/061 et W1.6/7 gardent leur PR.
 
 ### 25.08.2026 — W1.4 : fixtures patrimoine/dette/devise + ADR-060/061
 
