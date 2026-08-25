@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "nom": "comptes-par-devise",
+  "description": "W1.2 — Un solde vit dans la devise de SON compte : aucun mélange sans conversion (FI-15). Cette fixture n'atteste QUE les soldes par compte ; les agrégats convertis (liquide, fortune) exigent un taux daté et sourcé et appartiennent à W1.4 — ils sont volontairement absents des attendus. Le taux fourni ici prouve seulement la forme exigée par le schéma (FI-16).",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 120000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "eur",
+        "nom": "Compte euro",
+        "genre": "current",
+        "devise": "EUR",
+        "ouvertureMineures": 80000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [
+      {
+        "id": "e1",
+        "date": "2026-05-06",
+        "type": "income",
+        "statut": "posted",
+        "montantMineures": 10000,
+        "devise": "EUR",
+        "compte": "eur",
+        "categorie": "Salaire",
+        "titre": "Prime en euros"
+      }
+    ],
+    "recurrences": [],
+    "taux": [
+      {
+        "base": "EUR",
+        "cote": "CHF",
+        "taux": "0.95",
+        "date": "2026-05-15",
+        "source": "fixture-fictive"
+      }
+    ]
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 120000, "eur": 90000 }
+  }
+}
