@@ -11114,6 +11114,104 @@ currentTest = "W3.3 ombre du journal";
   await ctx192.close();
 }
 
+// ---------- 193. W3.4 : le COMPARATEUR — les soldes du journal racontent la même histoire ----------
+// Budget Autonomie 100, W3.4 (ADR-058 étape 4) : avant toute bascule,
+// le solde de CHAQUE compte dérivé du journal doit être EXACTEMENT le
+// solde actuel — l'historique non couvert est complété par le
+// traducteur (idempotent), l'ouverture devient une écriture, et tout
+// mouvement resté sans écriture est un écart NOMMÉ, jamais un trou
+// silencieux. SHADOW : aucune vue ne lit.
+currentTest = "W3.4 comparateur des soldes";
+{
+  const ctx193 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p193 = await ctx193.newPage();
+  p193.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.4] ${msg.text()}`); });
+  await p193.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cmp" },
+      baseCurrency: "CHF", fxRates: { EUR: 0.93, USD: 0.80 },
+      // Un mouvement HÉRITÉ (posé directement, sans passer par addTx) :
+      // le comparateur doit le couvrir lui-même via le traducteur.
+      transactions: [
+        { id: 1, y: 2026, m: 7, d: 5, title: "Salaire hérité", amount: 6500,
+          type: "income", cat: null, acc: "cur", dest: null, status: "posted" },
+      ],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 250.50, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p193.goto(APP_URL);
+  await p193.waitForSelector("#tabbar button");
+  const cmpJ = await p193.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionsExistent = typeof comparerJournalEtSoldes === "function"
+      && typeof soldeDepuisJournal === "function";
+    if (!resultat.fonctionsExistent) return resultat;
+    // Des mouvements VIVANTS par la vraie porte : dépense, virement,
+    // ajustement vers le bas, et un prévu (qui ne pèse sur rien).
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 3, title: "Courses", amount: 84.30,
+      type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted" });
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 4, title: "Vers l'épargne", amount: 500,
+      type: "transfer", cat: null, acc: "cur", dest: "sav", status: "posted" });
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 5, title: "Correction", amount: 12.35,
+      type: "adjustment", up: false, acc: "cur", dest: null, status: "posted" });
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 28, title: "Prévu", amount: 999,
+      type: "expense", cat: "Divers", acc: "cur", dest: null, status: "planned" });
+    // 1. ZÉRO écart : l'héritage est complété, l'ouverture écrite, et
+    //    chaque solde dérivé du journal égale le solde actuel.
+    const ecarts = comparerJournalEtSoldes();
+    resultat.zeroEcart = Array.isArray(ecarts) && ecarts.length === 0;
+    resultat.ecartsDetail = ecarts;
+    resultat.soldeCur = balance("cur") === soldeDepuisJournal("cur");
+    resultat.soldeSav = balance("sav") === soldeDepuisJournal("sav")
+      && soldeDepuisJournal("sav") === 750.50;
+    resultat.heritageConvert = (S.journal || []).some(e => e.idempotencyKey === "mouvement:1");
+    resultat.ouvertureEcrite = (S.journal || []).some(e => e.idempotencyKey === "ouverture:cur");
+    // 2. Idempotent : re-comparer ne duplique RIEN.
+    const taille = (S.journal || []).length;
+    comparerJournalEtSoldes();
+    resultat.idempotent = (S.journal || []).length === taille;
+    // 3. Falsifier UNE écriture → l'écart NOMME le compte.
+    const ecriture = (S.journal || []).find(e => e.idempotencyKey === "mouvement:1");
+    const originaux = ecriture.postings.map(p => p.montantMineur);
+    ecriture.postings.forEach(p => { p.montantMineur = 1; });
+    const ecartsFausses = comparerJournalEtSoldes();
+    resultat.faussetteNommee = ecartsFausses.some(e => e.includes("cur"));
+    ecriture.postings.forEach((p, i) => { p.montantMineur = originaux[i]; });
+    // 4. Un mouvement intraduisible (mise de côté SANS destination,
+    //    hérité) reste un écart VISIBLE — l'argent a bougé, le journal
+    //    ne sait pas le raconter, personne ne le cache.
+    transactions.push({ id: 777777, y: 2026, m: 7, d: 9, title: "Perdu hérité",
+      amount: 200, type: "saving", cat: null, acc: "cur", dest: null,
+      status: "posted", sourceCurrency: "CHF" });
+    const ecartsPerdu = comparerJournalEtSoldes();
+    resultat.perduVisible = ecartsPerdu.length > 0
+      && ecartsPerdu.some(e => e.includes("777777") || e.includes("cur"));
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(cmpJ.fonctionsExistent === true,
+    "comparerJournalEtSoldes et soldeDepuisJournal existent — la gate de bascule a une porte");
+  check(cmpJ.zeroEcart === true,
+    `ZÉRO écart entre le journal et les soldes vivants (${JSON.stringify(cmpJ.ecartsDetail)})`);
+  check(cmpJ.soldeCur === true && cmpJ.soldeSav === true,
+    `chaque solde dérivé du journal égale le solde actuel, ouverture comprise (cur ${cmpJ.soldeCur} / sav ${cmpJ.soldeSav})`);
+  check(cmpJ.heritageConvert === true && cmpJ.ouvertureEcrite === true,
+    "l'héritage est couvert par le traducteur et l'ouverture devient une écriture (FI-12)");
+  check(cmpJ.idempotent === true,
+    "re-comparer ne duplique jamais une écriture");
+  check(cmpJ.faussetteNommee === true,
+    "une écriture falsifiée fait un écart qui NOMME le compte");
+  check(cmpJ.perduVisible === true,
+    "un mouvement intraduisible reste un écart VISIBLE — jamais un trou silencieux (FI-34)");
+  await ctx193.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11123,4 +11221,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 192 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 193 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
