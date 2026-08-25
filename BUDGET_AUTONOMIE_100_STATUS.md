@@ -47,10 +47,20 @@ publication run `32874460073`, succès) · W3.4 fusionné (`main` =
 fusionné et publié (`main` = `99f5fd0`, PR #146, publication run
 `32879835694`, succès) · W3.5b fusionné (`main` = `ad82f42`, PR #147)
 · W3.6 fusionné et publié (`main` = `1ba1d9c`, PR #148, publication
-run `32882847907`, succès) · W3.6b fusionné (`main` = `bf2767f`, PR
-#149, publication run `32885036200`) · W3.7 EN PR — DERNIER sous-lot
-de W3 (ADR-064 : préparer sans allumer)** (Work Order :
-`docs/autonomie/w3/WORK_ORDER_W3.md`). ADR-063 (centimes entiers —
+run `32882847907`, succès) · W3.6b fusionné et publié (`main` =
+`bf2767f`, PR #149, publication run `32885036200`, succès) · W3.7
+fusionné (`main` = `75c704b`, PR #150, publication run `32887978661`)
+— **W3 est COMPLET** (ADR-064 : préparer sans allumer)** (Work Order :
+`docs/autonomie/w3/WORK_ORDER_W3.md`).
+
+### W4 — Comptes, devises, rapprochement (lot actif)
+
+**État : W4.1 EN PR** (Work Order :
+`docs/autonomie/w4/WORK_ORDER_W4.md`). W4.1 comble le trou de
+typologie mesuré : la PWA n'avait AUCUN type de compte de dette
+(le natif connaît `creditCard`/`loan` depuis toujours) — additif,
+aucune formule d'agrégat ne change. La décision propriétaire
+« multi-devise V1/V2 » sera posée à W4.2 (matrice W0.5). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
 livré la porte d'entrée du journal des deux côtés ; W3.2 livre les
@@ -101,8 +111,8 @@ Livrables attendus :
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
-| W3 | Journal financier | W3.1–W3.6b fusionnés · W3.7 EN PR (dernier) | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
+| W3 | Journal financier | DONE | W1, W2 (fusionnés) |
+| W4 | Comptes, devises, rapprochement | W4.1 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -137,6 +147,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.1 : la typologie — les comptes de dette existent enfin
+
+W4 s'ouvre (Work Order : `docs/autonomie/w4/WORK_ORDER_W4.md`) sur le
+trou mesuré : la PWA n'avait AUCUN type de compte de dette — le natif
+connaît `creditCard`/`loan`/`mortgage` depuis toujours. W4.1 (additif,
+AUCUNE formule d'agrégat ne change) : `ACCOUNT_KINDS` gagne
+`creditCard` (« Carte de crédit ») et `loan` (« Prêt / leasing »)
+marqués `dette: true` ; le vrai formulaire les propose ; choisir un
+type de dette DÉCOCHE « argent disponible » (une dette n'est pas du
+cash — proposition modifiable, un autre type recoche pour un nouveau
+compte seulement) ; la restauration préserve le type (le repli
+`kind manquant → current` reste intact) ; un mouvement de carte passe
+par le journal comme tout compte (solde négatif naturel, comparateur
+zéro). Sémantique complète capital/intérêts et solde d'ouverture
+négatif : consignés à W4.5. Preuves : parcours 197 né rouge (6 échecs
+nommés) → vert ; sabotage (le type de dette ne décoche plus) → les 2
+contrôles ciblés mordent ; restauré vert ; captures 320/390
+inspectées (`docs/neon-ultra/budget-prisme/w4-1/` — formulaire, carte
+sélectionnée, disponible décoché, patrimoine coché, zéro
+débordement) ; suites complètes vertes (197 e2e, 9 parités, 13 canon +
+schéma, design, catalogue, audit).
 
 ### 25.08.2026 — W3.7 : la migration de l'historique — préparer sans allumer
 

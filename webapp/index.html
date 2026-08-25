@@ -1266,6 +1266,8 @@
         <option value="cash">Espèces</option>
         <option value="pension">Prévoyance (3a, LPP)</option>
         <option value="lifeinsurance">Assurance vie (3b)</option>
+        <option value="creditCard">Carte de crédit</option>
+        <option value="loan">Prêt / leasing</option>
       </select>
       <label for="aCurrency">Monnaie</label>
       <select id="aCurrency">
@@ -2236,6 +2238,13 @@ const ACCOUNT_KINDS = {
   cash: { label: "Espèces" },
   pension: { label: "Prévoyance (3a, LPP)" },
   lifeinsurance: { label: "Assurance vie (3b)" },
+  // W4.1 (Budget Autonomie 100) : les comptes de DETTE — même
+  // typologie que le natif (creditCard/loan). Une dette n'est pas de
+  // l'argent disponible (cash décoché par défaut) ; son solde négatif
+  // se soustrait naturellement du patrimoine — aucune formule ne
+  // change. Sémantique complète (capital/intérêts) : W4.5.
+  creditCard: { label: "Carte de crédit", dette: true },
+  loan: { label: "Prêt / leasing", dette: true },
 };
 
 const BUDGET_TEMPLATE = [
@@ -8674,6 +8683,14 @@ function openAccSheet(account) {
   openSheet("accForm");
   document.getElementById("aName").focus();
 }
+// W4.1 : choisir un type de DETTE décoche « argent disponible » (une
+// dette n'est pas du cash) — proposition par défaut, toujours
+// modifiable ; un autre type recoche pour un NOUVEAU compte seulement.
+document.getElementById("aKind").addEventListener("change", () => {
+  const kind = ACCOUNT_KINDS[document.getElementById("aKind").value];
+  if (kind && kind.dette) document.getElementById("aCash").checked = false;
+  else if (!editingAccId) document.getElementById("aCash").checked = true;
+});
 document.getElementById("aCancel").addEventListener("click", () => closeSheet());
 document.getElementById("accForm").addEventListener("submit", (e) => {
   e.preventDefault();

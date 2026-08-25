@@ -11508,6 +11508,86 @@ currentTest = "W3.7 migration historique";
   await ctx196.close();
 }
 
+// ---------- 197. W4.1 : la TYPOLOGIE — les comptes de dette existent enfin ----------
+// Budget Autonomie 100, W4.1 : la PWA gagne les types de comptes de
+// DETTE (« Carte de crédit », « Prêt / leasing ») que le natif connaît
+// déjà — additif, AUCUNE formule d'agrégat ne change. Choisir un type
+// de dette décoche « argent disponible » (une dette n'est pas du
+// cash), la restauration préserve le type, et le journal traduit un
+// mouvement de carte comme tout compte.
+currentTest = "W4.1 typologie des comptes";
+{
+  const ctx197 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p197 = await ctx197.newPage();
+  p197.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.1] ${msg.text()}`); });
+  await p197.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Typ" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p197.goto(APP_URL);
+  await p197.waitForSelector("#tabbar button");
+  const typo = await p197.evaluate(() => {
+    const resultat = {};
+    const options = [...document.querySelectorAll('#aKind option')].map(o => o.value);
+    resultat.typesPresents = options.includes("creditCard") && options.includes("loan");
+    resultat.libellesFrancais = typeof ACCOUNT_KINDS === "object"
+      && ACCOUNT_KINDS.creditCard && ACCOUNT_KINDS.creditCard.label === "Carte de crédit"
+      && ACCOUNT_KINDS.loan && ACCOUNT_KINDS.loan.label === "Prêt / leasing";
+    if (!resultat.typesPresents) return resultat;
+    // 1. Créer une CARTE par le VRAI formulaire : choisir le type
+    //    décoche « argent disponible » (modifiable), et le compte naît
+    //    cash=false, netWorth=true.
+    openAccSheet(null);
+    document.getElementById("aName").value = "Carte Visa";
+    document.getElementById("aKind").value = "creditCard";
+    document.getElementById("aKind").dispatchEvent(new Event("change"));
+    resultat.caseDecochee = document.getElementById("aCash").checked === false;
+    document.getElementById("accForm").requestSubmit();
+    const carte = ACCOUNTS.find(a => a.name === "Carte Visa");
+    resultat.carteCreee = !!carte && carte.kind === "creditCard"
+      && carte.cash === false && carte.netWorth !== false;
+    // 2. AUCUNE formule ne change : un mouvement depuis la carte passe
+    //    par le journal comme tout compte, comparateur à zéro.
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 5, title: "Achat carte", amount: 120,
+      type: "expense", cat: "Divers", acc: carte.id, dest: null, status: "posted" });
+    resultat.journalNeutre = comparerJournalEtSoldes().length === 0
+      && Math.abs(balance(carte.id) - (-120)) < 0.005;
+    // 3. La restauration PRÉSERVE le type — jamais coercé vers
+    //    « current » ; l'ancien repli (kind manquant) reste intact.
+    const etat = JSON.parse(JSON.stringify(S));
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    resultat.restaurationPreserve = !!restaure
+      && restaure.accounts.some(a => a.name === "Carte Visa" && a.kind === "creditCard");
+    // 4. Le libellé s'affiche en français dans la liste des comptes.
+    resultat.libelleAffiche = kindLabel("creditCard") === "Carte de crédit"
+      && kindLabel("loan") === "Prêt / leasing";
+    // Nettoyage.
+    transactions.length = 0; S.journal = [];
+    ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === carte.id), 1);
+    saveState(); render();
+    return resultat;
+  });
+  check(typo.typesPresents === true && typo.libellesFrancais === true,
+    `« Carte de crédit » et « Prêt / leasing » existent dans le vrai formulaire (options ${typo.typesPresents} / libellés ${typo.libellesFrancais})`);
+  check(typo.caseDecochee === true,
+    "choisir un type de dette décoche « argent disponible » — une dette n'est pas du cash");
+  check(typo.carteCreee === true,
+    "la carte naît cash=false et compte dans le patrimoine");
+  check(typo.journalNeutre === true,
+    "un mouvement de carte passe par le journal comme tout compte — zéro écart, solde négatif naturel");
+  check(typo.restaurationPreserve === true,
+    "la restauration préserve le type de dette — jamais coercé");
+  check(typo.libelleAffiche === true,
+    "les libellés français s'affichent partout via kindLabel");
+  await ctx197.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11517,4 +11597,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 196 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 197 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
