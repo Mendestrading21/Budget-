@@ -1,5 +1,42 @@
 # Budget decision log
 
+## ADR-065 — Devises V1 : base unique, taux datés et sourcés
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+Les taux de change étaient des nombres nus (`fxRates`) sans date ni
+source (FI-16 OUVERT). La matrice W0.5 demandait de trancher la
+politique multi-devise à W4.2. Question posée au propriétaire le
+25.08.2026 ; réponse : « V1 : base unique ».
+
+### Décision
+
+1. Tout s'affiche dans la devise de BASE ; chaque compte étranger est
+   converti ; l'historique estampillé à la saisie ne bouge jamais
+   (FI-19, mécanique existante conservée).
+2. CHAQUE écriture de taux passe par UNE porte (`enregistrerTaux`,
+   PWA) qui consigne une quote datée et sourcée (FI-16) dans la clé
+   additive `fxQuotes`, APPEND-ONLY — l'ancienne quote survit, le
+   cache `fxRates` pointe la dernière.
+3. Un taux illisible est un refus nommé — rien n'est consigné
+   (FI-34) ; un taux absent reste un état « incomplet » visible,
+   jamais 1:1 (FI-17, verrouillé par test).
+4. Les défauts pays ne sont PAS des quotes (aucune observation
+   réelle) ; les quotes commencent à la première écriture réelle.
+5. Le multi-devise complet (V2 — totaux par devise, changement de
+   base sans réécriture) est explicitement hors périmètre.
+
+### Vérification
+
+Parcours 198 né rouge (8 échecs nommés) ; sabotage (la porte écrase au
+lieu d'ajouter) → le contrôle append-only mord seul ; FI-19 verrouillé
+(l'estampille d'un mouvement survit au changement de taux) ; le miroir
+natif (`FxQuote`, sortie d'`enAttenteNatif`) arrive en W4.2b.
+
+
 ## ADR-064 — La migration du journal prépare sans allumer
 
 Date: 2026-08-25

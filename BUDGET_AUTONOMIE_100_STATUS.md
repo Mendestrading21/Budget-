@@ -55,12 +55,11 @@ fusionné (`main` = `75c704b`, PR #150, publication run `32887978661`)
 
 ### W4 — Comptes, devises, rapprochement (lot actif)
 
-**État : W4.1 EN PR** (Work Order :
-`docs/autonomie/w4/WORK_ORDER_W4.md`). W4.1 comble le trou de
-typologie mesuré : la PWA n'avait AUCUN type de compte de dette
-(le natif connaît `creditCard`/`loan` depuis toujours) — additif,
-aucune formule d'agrégat ne change. La décision propriétaire
-« multi-devise V1/V2 » sera posée à W4.2 (matrice W0.5). ADR-063 (centimes entiers —
+**État : W4.1 fusionné et publié (`main` = `5d6455f`, PR #151,
+publication run `32891106635`, succès) · W4.2 EN PR (taux datés PWA ;
+le miroir natif suit en W4.2b)** (Work Order :
+`docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
+décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
 les autorités `DATA_MODEL_TARGET.md` + ADR-059 tranchent). W3.1 a
 livré la porte d'entrée du journal des deux côtés ; W3.2 livre les
@@ -112,7 +111,7 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1 EN PR | W3 (fusionné) |
+| W4 | Comptes, devises, rapprochement | W4.1 fusionné · W4.2 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -147,6 +146,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.2 : les taux datés — chaque taux porte sa date et sa source
+
+ADR-065 (« V1 base unique », décision propriétaire) : un taux de
+change n'est plus un nombre nu. PWA : `enregistrerTaux(devise, taux,
+source)` — LA porte d'écriture, qui consigne une quote datée et
+sourcée (FI-16) dans la clé additive `fxQuotes`, APPEND-ONLY
+(l'ancienne quote survit, idempotente le même jour) et met à jour le
+CACHE dérivé `fxRates` (la dernière quote) ; refus nommé pour un taux
+illisible (FI-34) ; le formulaire des réglages passe par la porte
+(source « saisie manuelle »). L'historique estampillé (`t.fx`) ne
+bouge jamais (FI-19, verrouillé). FI-17 verrouillé aussi : devise sans
+taux = avertissement nommé (`fxWarningHTML`), jamais un 1:1. Plomberie
+additive complète (seeds, chargement, restauration filtrante, undo) ;
+« tout effacer » GARDE les quotes (les taux sont des réglages). Les
+défauts pays ne sont PAS des quotes (aucune observation réelle,
+consigné dans l'ADR). Preuves : parcours 198 né rouge (8 échecs
+nommés) → vert ; sabotage (la porte écrase au lieu d'ajouter) → le
+contrôle append-only mord seul ; restauré vert ; suites complètes
+vertes (198 e2e, 9 parités, 13 canon + schéma, design, catalogue,
+audit). Consigné : le miroir natif (`FxQuote`, conversion datée,
+sortie des fixtures `devise-conversion-datee` et `comptes-par-devise`
+d'`enAttenteNatif`) = W4.2b.
 
 ### 25.08.2026 — W4.1 : la typologie — les comptes de dette existent enfin
 

@@ -1871,6 +1871,36 @@ function fxRateFor(currency, state = S) {
   const rate = Number((state.fxRates || {})[currency]);
   return Number.isFinite(rate) && rate > 0 ? rate : null;
 }
+
+/* W4.2 (Budget Autonomie 100, ADR-065 — « V1 base unique ») : un taux
+   de change n'est plus un nombre nu. CHAQUE écriture de taux passe par
+   CETTE porte, qui consigne une quote datée et sourcée (FI-16) dans la
+   clé additive `fxQuotes` (append-only — l'ancienne quote survit) et
+   met à jour le CACHE dérivé `S.fxRates` (la dernière quote). Un taux
+   illisible est un refus nommé — rien n'est consigné (FI-34).
+   L'historique estampillé (t.fx) ne bouge jamais (FI-19). */
+function enregistrerTaux(devise, taux, source) {
+  if (typeof devise !== "string" || !/^[A-Z]{3}$/.test(devise) || devise === baseCurrency()) {
+    return "Devise illisible — aucun taux consigné.";
+  }
+  const valeur = Number(taux);
+  if (!Number.isFinite(valeur) || valeur <= 0) {
+    return "Taux illisible : un nombre positif, jamais zéro — aucun taux consigné.";
+  }
+  const quotes = S.fxQuotes || (S.fxQuotes = []);
+  const observedAt = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  const provenance = (typeof source === "string" && source) ? source : "saisie manuelle";
+  const derniere = quotes.filter(q => q.quote === devise).at(-1);
+  // Append-only ET idempotent : la même photo le même jour ne
+  // duplique rien ; une valeur nouvelle S'AJOUTE, n'efface jamais.
+  if (!derniere || derniere.taux !== valeur || derniere.observedAt !== observedAt
+      || derniere.source !== provenance) {
+    quotes.push({ base: baseCurrency(), quote: devise, taux: valeur, observedAt, source: provenance });
+  }
+  if (!S.fxRates || typeof S.fxRates !== "object") S.fxRates = {};
+  S.fxRates[devise] = valeur;
+  return null;
+}
 /* Conversion vers la devise de référence via les taux MANUELS (aucun réseau). */
 function toCHF(amount, currency) {
   if (!currency || currency === baseCurrency()) return amount;
@@ -2379,6 +2409,7 @@ function seedState(country = "CH") {
     occurrences: [],
     journal: [],
     journalActif: false,
+    fxQuotes: [],
   };
   if (COUNTRIES[country] && country !== "CH") {
     // Même ménage, vocabulaire et devise du pays (montants plausibles tels quels).
@@ -2421,6 +2452,7 @@ function emptyState() {
     occurrences: [],
     journal: [],
     journalActif: false,
+    fxQuotes: [],
   };
 }
 
@@ -2430,7 +2462,7 @@ function emptyState() {
 const RESTORE_ARRAY_KEYS = [
   "transactions", "accounts", "recurrings", "goals", "assets",
   "liabilities", "pensions", "insurances", "bills", "documents",
-  "positions", "occurrences", "journal",
+  "positions", "occurrences", "journal", "fxQuotes",
 ];
 const RESTORE_TRANSACTION_TYPES = new Set([
   "income", "expense", "refund", "saving", "investment", "transfer",
@@ -2487,6 +2519,7 @@ function loadState() {
     if (!Array.isArray(s.occurrences)) s.occurrences = []; // W2.1, clé additive
     if (!Array.isArray(s.journal)) s.journal = []; // W3.1, clé additive
     if (typeof s.journalActif !== "boolean") s.journalActif = false; // W3.6, drapeau de bascule
+    if (!Array.isArray(s.fxQuotes)) s.fxQuotes = []; // W4.2, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -7492,6 +7525,7 @@ function undoLast() {
   S.bills = restored.bills || [];
   S.occurrences = restored.occurrences || []; // W2.7b
   S.journal = restored.journal || []; // W3.1
+  S.fxQuotes = restored.fxQuotes || []; // W4.2
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
@@ -8549,6 +8583,14 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && e.postings.every(p => isPlainRecord(p) && validerPostingJournal(p) === null)
     && equilibreParDevise(e.postings) === null);
   state.journalActif = state.journalActif === true; // W3.6 : booléen strict
+  // W4.2 : les quotes de taux — clé ADDITIVE. Une quote hostile (taux
+  // non positif, devise ou date illisibles) est ABANDONNÉE (FI-34).
+  state.fxQuotes = (state.fxQuotes || []).filter(q => isPlainRecord(q)
+    && typeof q.base === "string" && /^[A-Z]{3}$/.test(q.base)
+    && typeof q.quote === "string" && /^[A-Z]{3}$/.test(q.quote)
+    && Number.isFinite(q.taux) && q.taux > 0
+    && typeof q.observedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(q.observedAt)
+    && typeof q.source === "string" && q.source);
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);
@@ -10078,7 +10120,10 @@ document.getElementById("fxForm").addEventListener("submit", (e) => {
   if (!(eur > 0.05 && eur < 20) || !(usd > 0.05 && usd < 20)) {
     err.textContent = "Taux entre 0.05 et 20. Exemple : 0.93"; return;
   }
-  S.fxRates = { [fxEditKeys[0]]: eur, [fxEditKeys[1]]: usd };
+  // W4.2 (ADR-065) : la porte unique consigne chaque taux daté et sourcé.
+  const refus = enregistrerTaux(fxEditKeys[0], eur, "saisie manuelle")
+    || enregistrerTaux(fxEditKeys[1], usd, "saisie manuelle");
+  if (refus) { err.textContent = refus; return; }
   saveState();
   closeSheet();
   toast("Taux de change mis à jour");
