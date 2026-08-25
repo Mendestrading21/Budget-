@@ -87,7 +87,9 @@ taxPayment · debtPayment · adjustment` ; `statut` ∈ `planned · posted` ;
 `montantMineures` entier strictement positif (le sens vient du type) ;
 `destination` obligatoire pour les types qui déplacent l'argent vers un autre
 compte ; `hausse` (booléen) obligatoire pour `adjustment` ; `titre` obligatoire
-(jamais de libellé vide silencieux).
+(jamais de libellé vide silencieux) ; `recurrence` (optionnel, ajout
+rétrocompatible du 25.08.2026) = id d'une récurrence déclarée que ce mouvement
+COUVRE pour son mois — l'échéance couverte ne pèse plus sur la projection.
 
 ### `entrees.recurrences[]`
 

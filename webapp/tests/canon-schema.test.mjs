@@ -67,6 +67,8 @@ function valideFixture(nomFichier, f) {
     if (m.type === "transfer") check(m.destination !== m.compte, où(`mouvement « ${m.id} » : un virement exige une destination DISTINCTE`));
     if (m.type === "adjustment") check(typeof m.hausse === "boolean", où(`mouvement « ${m.id} » : un ajustement porte hausse (booléen)`));
     check(typeof m.titre === "string" && m.titre.length > 0, où(`mouvement « ${m.id} » : titre obligatoire`));
+    // W1.5 : un mouvement peut couvrir une échéance récurrente déclarée.
+    if (m.recurrence != null) check((e.recurrences || []).some(r => r.id === m.recurrence), où(`mouvement « ${m.id} » : récurrence « ${m.recurrence} » introuvable`));
   }
 
   for (const r of e.recurrences || []) {
