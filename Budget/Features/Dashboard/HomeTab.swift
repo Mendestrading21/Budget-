@@ -1254,6 +1254,7 @@ struct HomeTab: View {
         let goalService = GoalProgressService(balanceService: appContainer.balanceService)
         let goalsBefore = goalService.snapshotCurrents(goals: goals)
         modelContext.insert(transaction)
+        JournalShadowService().deposer(transaction, now: now, context: modelContext) // W3.3b
         if modelContext.saveOrRollback(onError: { saveErrorMessage = $0 }),
            transaction.status == .posted,
            let progress = goalService.progressMessage(

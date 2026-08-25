@@ -60,6 +60,9 @@ struct OccurrenceConfirmationService {
         )
         context.insert(mouvement)
         occurrence.matchedTransactionID = mouvement.id
+        // W3.3b : l'écriture d'ombre naît dans la MÊME transaction que le
+        // mouvement confirmé — le rollback l'emporte avec tout le reste.
+        JournalShadowService().deposer(mouvement, now: now, context: context)
         do {
             try context.save()
         } catch {
