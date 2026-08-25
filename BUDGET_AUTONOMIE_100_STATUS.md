@@ -28,8 +28,9 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 
 ### W2 — Occurrences persistées (lot actif)
 
-**État : W2.1 et W2.2 fusionnés (`main` = `ac8be98`) · W2.3 EN PR**
-(Work Order : `docs/autonomie/w2/WORK_ORDER_W2.md`).
+**État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
+`32847580712`) · W2.4a EN PR** (Work Order :
+`docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -73,7 +74,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.3 EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.4a EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -110,6 +111,19 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.4a : une date n'est pas une preuve (ADR-062)
+
+Décision propriétaire (question posée, réponse consignée) : case
+« C'est déjà fait (payé ou reçu) » cochée par défaut pour une date
+passée, décochable — la personne décide, jamais la seule date ; le
+futur n'a pas de case. PWA : case dans la feuille, statut suit la case,
+note honnête qui suit la case ; édition = statut réel. Natif :
+`initialStatus(for:now:alreadyDone:)` + Toggle dans les deux parcours ;
+`automaticStatus` reste pour les gestes explicites et l'import (W7).
+Parcours 184 né rouge (4 échecs nommés) ; sabotage mordant (case
+ignorée → solde faussé nommé) ; test natif ajouté ; captures 320/390
+inspectées.
 
 ### 25.08.2026 — W2.3 : la machine à états des échéances
 

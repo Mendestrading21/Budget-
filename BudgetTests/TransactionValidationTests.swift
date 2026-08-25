@@ -301,3 +301,29 @@ final class TransactionValidationTests: XCTestCase {
         }
     }
 }
+
+// W2.4a (ADR-062, décision propriétaire du 25.08.2026) : une date n'est
+// pas une preuve — le statut initial d'une saisie suit la CASE de la
+// personne ; le futur reste prévu quelle que soit la case.
+extension TransactionValidationTests {
+    func testInitialStatusFollowsTheCheckboxNeverTheDateAlone() {
+        let calendar: Calendar = {
+            var c = Calendar(identifier: .gregorian)
+            c.timeZone = TimeZone(identifier: "UTC")!
+            return c
+        }()
+        let policy = TransactionPostingPolicy(calendar: calendar)
+        let now = Date(timeIntervalSince1970: 1_781_524_800) // 15.06.2026
+        let hier = now.addingTimeInterval(-86_400)
+        let demain = now.addingTimeInterval(86_400)
+
+        XCTAssertEqual(policy.initialStatus(for: hier, now: now, alreadyDone: true), .posted,
+                       "case cochée + date passée : un seul tap, comptabilisé")
+        XCTAssertEqual(policy.initialStatus(for: hier, now: now, alreadyDone: false), .planned,
+                       "case DÉCOCHÉE : la date passée ne prouve rien (FI-02)")
+        XCTAssertEqual(policy.initialStatus(for: demain, now: now, alreadyDone: true), .planned,
+                       "le futur est toujours prévu, même case cochée (FI-01)")
+        XCTAssertEqual(policy.initialStatus(for: now, now: now, alreadyDone: true), .posted,
+                       "aujourd'hui coché : comptabilisé")
+    }
+}

@@ -68,6 +68,8 @@ struct TransactionFormView: View {
     // catégorie — « IKEA », « Poulet » — avec le sens du type courant.
     @State private var isWritingCategory = false
     @State private var newCategoryName = ""
+    // W2.4a (ADR-062) : cochée par défaut — un seul tap comme avant.
+    @State private var alreadyDone = true
 
     private var validationService: TransactionValidationService {
         TransactionValidationService(calendar: appContainer.calendar)
@@ -77,11 +79,18 @@ struct TransactionFormView: View {
         TransactionPostingPolicy(calendar: appContainer.calendar)
     }
 
+    // W2.4a (ADR-062) : le statut suit la case de la personne — le
+    // futur reste prévu quelle que soit la case.
     private var automaticStatus: TransactionStatus {
-        postingPolicy.automaticStatus(
+        postingPolicy.initialStatus(
             for: date,
-            now: appContainer.dateProvider.now
+            now: appContainer.dateProvider.now,
+            alreadyDone: alreadyDone
         )
+    }
+
+    private var dateIsFuture: Bool {
+        postingPolicy.isFuture(date, relativeTo: appContainer.dateProvider.now)
     }
 
     private var editedTransaction: BudgetTransaction? {
@@ -206,6 +215,9 @@ struct TransactionFormView: View {
                 if !isGuidedCreate {
                     Section("Date et statut") {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
+                    if !dateIsFuture {
+                        Toggle("C'est déjà fait (payé ou reçu)", isOn: $alreadyDone)
+                    }
                     LabeledContent("Statut") {
                         Text(automaticStatus.displayName)
                             .font(NeonUltraTypography.label)
@@ -217,7 +229,9 @@ struct TransactionFormView: View {
                     }
                     Text(
                         automaticStatus == .planned
-                            ? "Cette date est à venir : le mouvement restera neutre jusqu'au jour prévu."
+                            ? (dateIsFuture
+                                ? "Cette date est à venir : le mouvement restera neutre jusqu'au jour prévu."
+                                : "Prévu : ça ne comptera qu'après votre confirmation.")
                             : "Ce mouvement sera inclus dans vos soldes."
                     )
                     .font(NeonUltraTypography.meta)
@@ -289,6 +303,9 @@ struct TransactionFormView: View {
                     Section {
                         DisclosureGroup("Plus d'options", isExpanded: $showsGuidedOptions) {
                             DatePicker("Date", selection: $date, displayedComponents: .date)
+                            if !dateIsFuture {
+                                Toggle("C'est déjà fait (payé ou reçu)", isOn: $alreadyDone)
+                            }
                             LabeledContent("Statut") {
                                 Text(automaticStatus.displayName)
                                     .foregroundStyle(
@@ -496,6 +513,7 @@ struct TransactionFormView: View {
             note = transaction.note ?? ""
             merchant = transaction.merchant ?? ""
             adjustmentIncreasesBalance = transaction.adjustmentIncreasesBalance
+            alreadyDone = transaction.status == .posted
         }
     }
 
