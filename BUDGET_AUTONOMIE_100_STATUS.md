@@ -20,7 +20,7 @@ sur ordre propriétaire, après #123 (audit, `fd5fbac`).
 ### W1 — Fixtures canoniques (lot actif)
 
 **État : W1.1 fusionné (ordre du 25.08) · pile W1.2 → W1.3 → W1.4 →
-AUT-060 → AUT-061 → W1.5, fusion dans l'ordre** — W1.6–W1.7 BLOCKED.
+AUT-060 → AUT-061 → W1.5 → W1.6/W1.7, fusion dans l'ordre.**
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -101,6 +101,21 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W1.6/W1.7 : les deux runners canoniques + gate CI
+
+Runner Web (`webapp/tests/canon.test.mjs`) : chaque fixture est semée
+dans l'app réelle (Chromium), le moteur est appelé en page et comparé
+aux attendus en unités mineures entières — 13 fixtures vertes. Double
+contrôle négatif : attendu faussé → échec nommé ; moteur saboté
+(balance compte le prévu) → 12 échecs nommés (FI-01 mord). Runner
+Swift (`BudgetTests/CanonicalFixtureTests.swift`) : mêmes fichiers,
+services réels, comparaison champ par champ — preuve par le job
+simulateur CI. Écarts natifs CONSIGNÉS dans `enAttenteNatif` (jamais
+un skip silencieux) : conversion FX des agrégats et soldes
+multi-devises → W4 (constat n° 6). Gate CI : étape « Runner canonique
+Web » au job navigateur ; le runner Swift vit dans le job simulateur.
+FI-40 a désormais sa gate mécanique.
 
 ### 25.08.2026 — AUT-061 : le résultat du mois exclut l'épargne et le capital
 
