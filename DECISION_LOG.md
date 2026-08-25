@@ -1,5 +1,41 @@
 # Budget decision log
 
+## ADR-064 — La migration du journal prépare sans allumer
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+W3.7 migre l'historique des mouvements vers le journal (ADR-058
+étape 5). Restait à décider si la lecture des soldes bascule en même
+temps. Question posée au propriétaire le 25.08.2026 ; réponse :
+« Préparer sans allumer ».
+
+### Décision
+
+1. La migration (PWA `migrerHistoriqueJournal`, natif
+   `JournalHistoryMigrationService`) offre un ESSAI À BLANC qui
+   raconte tout — créés, refus nommés, écarts prévus — sans rien
+   écrire.
+2. La migration réelle n'applique que si TOUT est propre (zéro refus,
+   zéro écart) ; sinon RIEN ne change (atomique, FI-31) et le rapport
+   dit pourquoi.
+3. La migration n'allume JAMAIS la lecture des soldes
+   (`S.journalActif` / `JournalReadSwitch`) : l'allumage attend les
+   devises (W4) et une décision propriétaire distincte.
+4. Rollback : le journal est additif — il se vide sans toucher un
+   seul mouvement ; l'ancien chemin de lecture reste intact.
+
+### Vérification
+
+Parcours 196 né rouge (6 échecs nommés) ; sabotage (le refus
+n'empêche plus rien) → le contrôle d'atomicité mord seul ; tests
+natifs `JournalHistoryMigrationServiceTests` (essai inerte, réel
+prouvé et idempotent, refus atomique nommé, survie sur store disque
+FI-35, jamais d'allumage).
+
+
 ## ADR-063 — Le journal stocke des centimes entiers (unités mineures)
 
 Date: 2026-08-25
