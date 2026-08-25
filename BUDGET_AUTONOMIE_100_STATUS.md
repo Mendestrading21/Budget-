@@ -29,8 +29,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 ### W2 — Occurrences persistées (lot actif)
 
 **État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.4a puis W2.4b EN PR
-(empilées, fusion dans l'ordre)** (Work Order :
+`32847580712`) · W2.4a/b fusionnés
+(`main` = `6936a62`) · W2.5 EN PR** (Work Order :
 `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
@@ -75,7 +75,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.4a/b EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.5 EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -112,6 +112,16 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.5 : reporter, ignorer, annuler — jamais d'argent
+
+Des gestes d'AGENDA : aucun mouvement créé ni touché. Reporter déplace
+l'échéance en gardant la date d'ORIGINE ; une date illisible et un
+geste interdit (reporter une confirmée) sont refusés nommément, rien ne
+bouge. Natif : `snooze(to:at:)`/`skip(at:)`/`cancel(at:)` par la
+machine — 3 tests. PWA : `reporterOccurrence`/`ignorerOccurrence`/
+`annulerOccurrence`. Parcours 186 né rouge (6 échecs nommés,
+implémentation retirée puis restaurée). Toujours SHADOW (ADR-058).
 
 ### 25.08.2026 — W2.4b : la confirmation atomique
 

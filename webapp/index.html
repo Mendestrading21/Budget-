@@ -3017,6 +3017,28 @@ function transitionOccurrence(occurrence, nouvelEtat) {
   return null;
 }
 
+/* W2.5 (Budget Autonomie 100) : reporter, ignorer, annuler — des
+   gestes d'AGENDA, jamais d'argent : aucun mouvement n'est créé ni
+   touché. Reporter déplace l'échéance en gardant la date d'ORIGINE ;
+   la machine à états (W2.3) refuse les gestes interdits. SHADOW. */
+function reporterOccurrence(occurrence, nouvelleDateISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nouvelleDateISO || "")) {
+    return "Choisissez une date pour le report.";
+  }
+  const nbAvant = transactions.length;
+  const refus = transitionOccurrence(occurrence, "snoozed");
+  if (refus) return refus;
+  occurrence.dueDate = nouvelleDateISO; // originalDueDate ne bouge JAMAIS.
+  if (transactions.length !== nbAvant) throw new Error("reporter a touché l'argent"); // garde-fou
+  return null;
+}
+function ignorerOccurrence(occurrence) {
+  return transitionOccurrence(occurrence, "skipped");
+}
+function annulerOccurrence(occurrence) {
+  return transitionOccurrence(occurrence, "cancelled");
+}
+
 /* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
    geste écrit LE mouvement lié ET l'état. Idempotent : une échéance
    déjà confirmée retrouve son mouvement, double tap = UNE écriture
