@@ -10323,6 +10323,78 @@ currentTest = "W2.3 machine à états";
   await ctx183.close();
 }
 
+// ---------- 184. W2.4a : une date n'est pas une preuve — la case « C'est déjà fait » (ADR-062) ----------
+// Décision propriétaire du 25.08.2026 : la feuille de saisie montre une
+// case « C'est déjà fait », COCHÉE par défaut pour une date passée — le
+// geste habituel reste un tap, mais c'est la case de la personne,
+// décochable, plus une déduction invisible (FI-02). Une date future n'a
+// pas de case : le futur est toujours « prévu » (FI-01).
+currentTest = "W2.4a date ≠ preuve";
+{
+  const ctx184 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p184 = await ctx184.newPage();
+  p184.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.4a] ${msg.text()}`); });
+  await p184.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Dat" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p184.goto(APP_URL);
+  await p184.waitForSelector("#tabbar button");
+  const dat = await p184.evaluate(() => {
+    const resultat = {};
+    const iso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    const hier = new Date(NOW.y, NOW.m - 1, NOW.d - 1);
+    const demain = new Date(NOW.y, NOW.m - 1, NOW.d + 1);
+    const soldeAvant = balance("cur");
+    openTxSheet(null, "expense");
+    document.getElementById("fAmount").value = "50";
+    document.getElementById("fDate").value = iso(hier);
+    document.getElementById("fDate").dispatchEvent(new Event("change"));
+    const caseFait = document.getElementById("fFait");
+    resultat.caseExiste = !!caseFait;
+    resultat.cocheeParDefaut = caseFait ? caseFait.checked === true : null;
+    if (!caseFait) return resultat;
+    caseFait.checked = false;
+    document.getElementById("txForm").requestSubmit();
+    const decoche = transactions[transactions.length - 1];
+    resultat.statutDecoche = decoche ? decoche.status : null;
+    resultat.soldeApresDecoche = balance("cur");
+    openTxSheet(null, "expense");
+    document.getElementById("fAmount").value = "30";
+    document.getElementById("fDate").value = iso(hier);
+    document.getElementById("fDate").dispatchEvent(new Event("change"));
+    resultat.recochee = document.getElementById("fFait").checked === true;
+    document.getElementById("txForm").requestSubmit();
+    const coche = transactions[transactions.length - 1];
+    resultat.statutCoche = coche ? coche.status : null;
+    openTxSheet(null, "expense");
+    document.getElementById("fAmount").value = "20";
+    document.getElementById("fDate").value = iso(demain);
+    document.getElementById("fDate").dispatchEvent(new Event("change"));
+    resultat.futurCache = document.getElementById("fFaitRow").style.display === "none";
+    document.getElementById("txForm").requestSubmit();
+    const futur = transactions[transactions.length - 1];
+    resultat.statutFutur = futur ? futur.status : null;
+    resultat.soldeAvant = soldeAvant;
+    transactions.length = 0; saveState(); render();
+    return resultat;
+  });
+  check(dat.caseExiste === true && dat.cocheeParDefaut === true,
+    `date passée : la case « C'est déjà fait » existe et est cochée par défaut (existe ${dat.caseExiste} / cochée ${dat.cocheeParDefaut})`);
+  check(dat.statutDecoche === "planned" && dat.soldeApresDecoche === dat.soldeAvant,
+    `décochée → le mouvement naît PRÉVU et le solde ne bouge pas (statut ${dat.statutDecoche} / solde ${dat.soldeApresDecoche})`);
+  check(dat.recochee === true && dat.statutCoche === "posted",
+    `le geste habituel reste un tap : case recochée par défaut, mouvement comptabilisé (recochée ${dat.recochee} / statut ${dat.statutCoche})`);
+  check(dat.futurCache === true && dat.statutFutur === "planned",
+    `date future : pas de case, toujours prévu (cachée ${dat.futurCache} / statut ${dat.statutFutur})`);
+  await ctx184.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10332,4 +10404,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 183 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 184 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

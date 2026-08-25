@@ -1,5 +1,41 @@
 # Budget decision log
 
+## ADR-062 — Une date n'est pas une preuve : la case « C'est déjà fait »
+
+Date: 2026-08-25
+Status: accepted
+
+### Contexte
+
+La saisie classait automatiquement toute date du jour ou passée en
+« comptabilisé » (« dater, c'est le geste », FE2 du 18.08) — une
+déduction invisible, en tension avec FI-02 (constat n° 3 de l'audit).
+Question posée au propriétaire le 25.08.2026 ; réponse : « Case cochée
+par défaut ».
+
+### Décision
+
+1. La feuille de saisie (PWA et iOS) montre une case « C'est déjà
+   fait (payé ou reçu) », COCHÉE par défaut pour une date passée ou du
+   jour — le geste habituel reste un seul tap — et DÉCOCHABLE : la
+   personne décide, jamais la seule date.
+2. Décochée, le mouvement naît « Prévu » et ne pèse sur aucun solde
+   tant qu'il n'est pas confirmé (FI-01/02).
+3. Une date FUTURE n'a pas de case : le futur est toujours prévu.
+4. En édition, la case reflète le statut réel du mouvement.
+5. Natif : `TransactionPostingPolicy.initialStatus(for:now:alreadyDone:)`
+   devient la porte de la SAISIE ; `automaticStatus` reste pour les
+   gestes explicites (confirmation d'échéance) et l'import (revisité
+   en W7).
+
+### Vérification
+
+Parcours 184 né rouge (4 échecs nommés) ; sabotage (la case ignorée) →
+le test mord seul (solde faussé nommé) ; test natif
+`testInitialStatusFollowsTheCheckboxNeverTheDateAlone` ; captures
+320/390 inspectées (`docs/neon-ultra/budget-prisme/w24a/`).
+
+
 ## ADR-061 — Le résultat du mois exclut l'épargne et l'investissement
 
 Date: 2026-08-25

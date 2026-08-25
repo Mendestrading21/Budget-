@@ -1225,6 +1225,12 @@
         <label for="fDate">Date</label>
         <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
         <p class="caption" id="fStatusNote" style="margin:4px 0 0"></p>
+        <!-- W2.4a (ADR-062) : une date n'est pas une preuve. La case est
+             COCHÉE par défaut pour une date passée — un seul tap comme
+             avant — mais c'est la case de la personne, décochable. -->
+        <label id="fFaitRow" style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;margin-top:6px">
+          <input type="checkbox" id="fFait" style="width:auto" checked /> C'est déjà fait (payé ou reçu)
+        </label>
         <label for="fAccount">Compte utilisé</label>
         <select id="fAccount"></select>
         <label for="fTitle">Intitulé</label>
@@ -7270,12 +7276,18 @@ function updateSheetNotes() {
   } else { curNote.style.display = "none"; curNote.textContent = ""; }
   const dateMatchNote = /^(\d{4})-(\d{2})-(\d{2})$/.exec(document.getElementById("fDate").value || "");
   const statusNote = document.getElementById("fStatusNote");
+  const faitRow = document.getElementById("fFaitRow");
   if (dateMatchNote) {
     const isFuture = isFutureDate(+dateMatchNote[1], +dateMatchNote[2], +dateMatchNote[3]);
+    // W2.4a (ADR-062) : le futur n'a pas de case — toujours prévu ; le
+    // passé montre LA case, et la note dit ce que la case décide.
+    faitRow.style.display = isFuture ? "none" : "flex";
     statusNote.textContent = isFuture
       ? "C'est prévu : la date est à venir, ça ne compte pas encore dans vos soldes."
-      : "C'est déjà fait : ça compte dans vos soldes.";
-  } else statusNote.textContent = "";
+      : (document.getElementById("fFait").checked
+        ? "C'est déjà fait : ça compte dans vos soldes."
+        : "Prévu : ça ne comptera qu'après votre confirmation.");
+  } else { statusNote.textContent = ""; faitRow.style.display = "none"; }
   const transferNote = document.getElementById("fTransferNote");
   if (["saving", "investment", "transfer"].includes(type)) {
     const src = ACCOUNTS.find(a => a.id === accId);
@@ -7327,6 +7339,7 @@ document.getElementById("fCat").addEventListener("change", () => {
   updateSheetNotes();
 });
 document.getElementById("fDate").addEventListener("change", updateSheetNotes);
+document.getElementById("fFait").addEventListener("change", updateSheetNotes);
 document.getElementById("fDest").addEventListener("change", updateSheetNotes);
 document.getElementById("fAmount").addEventListener("input", () => {
   if (["saving", "investment", "transfer"].includes(document.getElementById("fType").value)) updateSheetNotes();
@@ -7365,6 +7378,7 @@ function openTxSheet(tx, presetType) {
     if (tx.cat) catSelect.value = tx.cat;
     document.getElementById("fDate").value =
       `${tx.y}-${String(tx.m).padStart(2, "0")}-${String(tx.d).padStart(2, "0")}`;
+    document.getElementById("fFait").checked = tx.status === "posted";
   } else {
     if (presetType) document.getElementById("fType").value = presetType;
     refreshCatOptions();
@@ -7467,7 +7481,10 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   // Intitulé facultatif (parcours fréquent en trois gestes) : défaut =
   // catégorie, sinon le libellé du type. Jamais de mouvement sans nom.
   const title = rawTitle || cat || TYPE_LABEL[type] || "Opération";
-  const status = statusForDate(y, m, d);
+  // W2.4a (ADR-062) : une date n'est pas une preuve — le futur est
+  // toujours prévu ; le passé suit LA CASE de la personne.
+  const status = isFutureDate(y, m, d) ? "planned"
+    : (document.getElementById("fFait").checked ? "posted" : "planned");
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
   try {
     const photoAvant = photoObjectifs();

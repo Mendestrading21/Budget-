@@ -21,6 +21,16 @@ struct TransactionPostingPolicy {
     // « à confirmer », elle ne prouve jamais que l'argent a bougé.
     // `automaticStatus` reste : c'est le statut INITIAL d'une saisie datée
     // (saisir une dépense d'hier crée bien un mouvement comptabilisé).
+
+    // W2.4a (ADR-062, décision propriétaire du 25.08.2026) : une date
+    // n'est pas une preuve. Le statut initial d'une SAISIE suit la case
+    // « C'est déjà fait » de la personne — cochée par défaut pour une
+    // date passée (un seul tap comme avant), décochable ; le futur est
+    // toujours prévu, quelle que soit la case (FI-01/02).
+    func initialStatus(for date: Date, now: Date, alreadyDone: Bool) -> TransactionStatus {
+        if isFuture(date, relativeTo: now) { return .planned }
+        return alreadyDone ? .posted : .planned
+    }
 }
 
 /// Editable transaction fields before persistence.
