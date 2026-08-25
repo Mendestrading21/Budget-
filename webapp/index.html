@@ -2974,6 +2974,39 @@ function estimationEnchainee(y, m) {
   return total;
 }
 
+/* W2.2 (Budget Autonomie 100) : MATÉRIALISER les échéances d'un mois —
+   idempotent (FI-03) : la clé canonique retombe sur l'occurrence
+   existante, re-matérialiser ne duplique jamais et ne réécrit jamais un
+   état vécu. Sémantique d'échéance de la PWA (décision du 06.08.2026) :
+   une charge est due DANS le mois, échéance = fin du mois. SHADOW :
+   aucune vue ni aucun agrégat ne lit encore ces objets (ADR-058). */
+function materialiserOccurrences(y, m) {
+  const occ = S.occurrences || (S.occurrences = []);
+  const cles = new Set(occ.map(o => o.idempotencyKey));
+  const due = recurringDueDate(y, m);
+  const dueISO = `${due.y}-${String(due.m).padStart(2, "0")}-${String(due.d).padStart(2, "0")}`;
+  const couru = y < NOW.y || (y === NOW.y && m <= NOW.m);
+  const creees = [];
+  for (const r of RECURRINGS) {
+    if (recurringEnded(r, y, m)) continue;
+    const n = recurringDueCount(r, y, m);
+    for (let k = 1; k <= n; k += 1) {
+      const cle = `serie:${r.id}:${y}-${m}:${k}`;
+      if (cles.has(cle)) continue;
+      const nouvelle = {
+        id: `occ-${cle}`, seriesId: r.id, dueDate: dueISO, originalDueDate: dueISO,
+        expectedAmount: recurringAmountInBase(r),
+        state: couru ? "due" : "scheduled",
+        idempotencyKey: cle,
+      };
+      occ.push(nouvelle);
+      cles.add(cle);
+      creees.push(nouvelle);
+    }
+  }
+  return creees;
+}
+
 /* Rituel « Boucler mon mois » : tout ce qui doit être validé dans le
    mois affiché — salaire, récurrents, factures — avec l'action directe. */
 /* Dette vivante (ADR-016 côté web) : chaque mensualité comptabilisée

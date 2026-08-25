@@ -10202,6 +10202,73 @@ currentTest = "W2.1 occurrences";
   await ctx181.close();
 }
 
+// ---------- 182. W2.2 : matérialisation IDEMPOTENTE des échéances ----------
+// Budget Autonomie 100, W2.2 (shadow — rien ne la lit encore) :
+// matérialiser les échéances d'un mois crée UNE occurrence par échéance
+// due, avec la clé canonique ; re-matérialiser ne duplique JAMAIS
+// (FI-03) ; une charge résiliée ne matérialise rien ; le montant
+// attendu est conservé (FI-05) ; un mois futur donne « Prévu », un mois
+// couru donne « À confirmer » — jamais un état qui prétend qu'un
+// mouvement a eu lieu.
+currentTest = "W2.2 matérialisation";
+{
+  const ctx182 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p182 = await ctx182.newPage();
+  p182.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.2] ${msg.text()}`); });
+  await p182.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Mat" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "r-loyer", title: "Loyer", amount: 1500, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+        { id: "r-morte", title: "Résiliée", amount: 99, type: "expense", nature: "abonnement",
+          cat: "Autre", day: 1, every: "month", accountId: "cur", icon: "🧾",
+          endedOn: { y: 2020, m: 1 } },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p182.goto(APP_URL);
+  await p182.waitForSelector("#tabbar button");
+  const mat = await p182.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof materialiserOccurrences === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const suivant = shiftMonth(NOW, 1);
+    materialiserOccurrences(NOW.y, NOW.m);
+    materialiserOccurrences(suivant.y, suivant.m);
+    const rejouees = materialiserOccurrences(NOW.y, NOW.m).length
+      + materialiserOccurrences(suivant.y, suivant.m).length;
+    const occ = S.occurrences || [];
+    resultat.total = occ.length;
+    resultat.rejouees = rejouees;
+    resultat.etats = occ.map(o => o.state).sort();
+    resultat.morte = occ.some(o => o.seriesId === "r-morte");
+    resultat.montant = occ[0] ? occ[0].expectedAmount : null;
+    resultat.cles = new Set(occ.map(o => o.idempotencyKey)).size;
+    const restau = validatedRestoreState(JSON.parse(JSON.stringify({
+      ...S, transactions, accounts: ACCOUNTS, recurrings: RECURRINGS,
+      goals: GOALS, assets: ASSETS, liabilities: LIABILITIES, pensions: PENSIONS,
+      insurances: INSURANCES,
+    })));
+    resultat.restaurees = (restau.occurrences || []).length;
+    S.occurrences = []; saveState();
+    return resultat;
+  });
+  check(mat.fonctionExiste === true, "materialiserOccurrences existe (W2.2)");
+  check(mat.total === 2 && mat.rejouees === 0 && mat.cles === 2,
+    `2 échéances (loyer × 2 mois), re-matérialisation muette, clés uniques (total ${mat.total} / rejouées ${mat.rejouees} / clés ${mat.cles})`);
+  check(Array.isArray(mat.etats) && mat.etats.join(",") === "due,scheduled",
+    `mois couru = « due », mois futur = « scheduled » — jamais confirmé (états : ${JSON.stringify(mat.etats)})`);
+  check(mat.morte === false, "une charge résiliée ne matérialise rien");
+  check(mat.montant === 1500, `le montant attendu est conservé (lu ${mat.montant})`);
+  check(mat.restaurees === 2, `la restauration accepte les occurrences matérialisées (${mat.restaurees})`);
+  await ctx182.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10211,4 +10278,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 181 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 182 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
