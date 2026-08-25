@@ -11037,6 +11037,9 @@ currentTest = "W3.3 ombre du journal";
       && typeof ombreJournalRetrait === "function";
     if (!resultat.fonctionsExistent) return resultat;
     const entrees = cle => (S.journal || []).filter(e => e.idempotencyKey === cle);
+    // W3.5 : la tête de chaîne — absente tant que le lot n'est pas livré.
+    const activeDe = id => typeof ecritureActiveDuMouvement === "function"
+      ? ecritureActiveDuMouvement(id) : undefined;
     // 1. Créer par la porte réelle : addTx dépose l'écriture — le
     //    mouvement, lui, ne change pas de forme.
     const tx = addTx({
@@ -11053,23 +11056,27 @@ currentTest = "W3.3 ombre du journal";
     //    mouvement.
     ombreJournalDepot(tx);
     resultat.idempotent = entrees(`mouvement:${tx.id}`).length === 1;
-    // 3. Modifier par le VRAI formulaire : l'écriture est REMPLACÉE
-    //    (même clé, nouveaux centimes) — toujours une seule.
+    // 3. Modifier par le VRAI formulaire : depuis W3.5 (FI-07), un
+    //    POSTÉ ne se réécrit pas — l'écriture ACTIVE porte les nouveaux
+    //    centimes, l'originale reste, tracée par son inversion.
     openTxSheet(tx);
     document.getElementById("fAmount").value = "99.90";
     document.getElementById("txForm").requestSubmit();
-    const apresEdition = entrees(`mouvement:${tx.id}`);
-    resultat.editionRemplace = apresEdition.length === 1
-      && apresEdition[0].postings.every(p => p.montantMineur === 9990);
-    // 4. Supprimer par le VRAI geste : l'écriture disparaît avec le
-    //    mouvement.
+    const active = activeDe(tx.id);
+    resultat.editionRemplace = !!active
+      && active.postings.every(p => p.montantMineur === 9990)
+      && entrees(`mouvement:${tx.id}`).length === 1
+      && entrees(`mouvement:${tx.id}`)[0].postings.every(p => p.montantMineur === 8430);
+    // 4. Supprimer par le VRAI geste : plus d'écriture ACTIVE, la trace
+    //    reste, et le solde dérivé du journal suit le solde vivant.
     const confirmOriginal = window.confirm; window.confirm = () => true;
     openTxSheet(transactions.find(t => t.id === tx.id));
     document.getElementById("fDelete").click();
     window.confirm = confirmOriginal;
-    resultat.suppressionRetire = entrees(`mouvement:${tx.id}`).length === 0
-      && !transactions.some(t => t.id === tx.id);
-    // 5. Un lot d'import annulé retire aussi ses écritures.
+    resultat.suppressionRetire = activeDe(tx.id) == null && typeof ecritureActiveDuMouvement === "function"
+      && !transactions.some(t => t.id === tx.id)
+      && comparerJournalEtSoldes().length === 0;
+    // 5. Un lot d'import annulé n'a plus d'écriture ACTIVE non plus.
     const importe = addTx({
       id: ++txSeq, y: NOW.y, m: NOW.m, d: 11, title: "Ligne importée",
       amount: 25, type: "expense", cat: null, acc: "cur", dest: null,
@@ -11079,8 +11086,9 @@ currentTest = "W3.3 ombre du journal";
     S.lastImport = { batchId: "batch-test", fileName: "test.csv", total: 1, imported: 1, duplicates: 0, invalids: [] };
     rollbackLastImport();
     resultat.importAnnuleRetire = avaitEcriture
-      && entrees(`mouvement:${importe.id}`).length === 0
-      && !transactions.some(t => t.id === importe.id);
+      && activeDe(importe.id) == null && typeof ecritureActiveDuMouvement === "function"
+      && !transactions.some(t => t.id === importe.id)
+      && comparerJournalEtSoldes().length === 0;
     // 6. Un mouvement intraduisible ne casse JAMAIS le geste : la
     //    transaction naît quand même, le refus est CONSIGNÉ.
     const refusAvant = JOURNAL_OMBRE_REFUS.length;
@@ -11104,11 +11112,11 @@ currentTest = "W3.3 ombre du journal";
   check(omb.idempotent === true,
     "redéposer est idempotent — jamais deux écritures pour un mouvement");
   check(omb.editionRemplace === true,
-    "modifier par le vrai formulaire remplace l'écriture (mêmes clés, nouveaux centimes)");
+    "modifier un POSTÉ ne réécrit pas l'histoire : écriture active aux nouveaux centimes, originale conservée (FI-07)");
   check(omb.suppressionRetire === true,
-    "supprimer par le vrai geste retire l'écriture avec le mouvement");
+    "supprimer un POSTÉ laisse la trace — plus d'écriture active, solde du journal aligné");
   check(omb.importAnnuleRetire === true,
-    "annuler un lot d'import retire aussi ses écritures");
+    "annuler un lot d'import désactive ses écritures en gardant la trace");
   check(omb.refusConsigne === true,
     "un mouvement intraduisible ne casse pas le geste — son refus est consigné, jamais perdu (FI-34)");
   await ctx192.close();
@@ -11212,6 +11220,110 @@ currentTest = "W3.4 comparateur des soldes";
   await ctx193.close();
 }
 
+// ---------- 194. W3.5 : INVERSION/REMPLACEMENT — corriger n'est jamais réécrire ----------
+// Budget Autonomie 100, W3.5 (FI-07) : corriger un mouvement POSTÉ
+// crée une écriture d'inversion LIÉE (reversesEntryId) puis une
+// remplaçante LIÉE (replacesEntryId) — l'originale ne bouge jamais.
+// Un PRÉVU n'est pas de l'histoire : il se remplace simplement. Le
+// comparateur reste à ZÉRO écart à travers toute la chaîne.
+currentTest = "W3.5 inversion remplacement";
+{
+  const ctx194 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p194 = await ctx194.newPage();
+  p194.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.5] ${msg.text()}`); });
+  await p194.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Inv" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p194.goto(APP_URL);
+  await p194.waitForSelector("#tabbar button");
+  const inv = await p194.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof ecritureActiveDuMouvement === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const chaine = txId => (S.journal || []).filter(e =>
+      e.idempotencyKey.startsWith(`mouvement:${txId}`) || (e.idempotencyKey.startsWith("inversion:")
+        && (S.journal || []).some(o => o.id === e.reversesEntryId
+          && o.idempotencyKey.startsWith(`mouvement:${txId}`))));
+    // 1. Corriger un POSTÉ : originale intacte + inversion liée (jambes
+    //    inversées) + remplaçante liée — trois écritures, une active.
+    const tx = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 5, title: "Loyer",
+      amount: 1500, type: "expense", cat: "Logement", acc: "cur", dest: null, status: "posted" });
+    const originale = ecritureActiveDuMouvement(tx.id);
+    tx.amount = 1450;
+    ombreJournalDepot(tx);
+    const membres = chaine(tx.id);
+    const inversion = membres.find(e => e.reversesEntryId === originale.id);
+    const remplacante = ecritureActiveDuMouvement(tx.id);
+    resultat.chaineTracee = membres.length === 3
+      && !!inversion
+      && inversion.postings.every(p => p.montantMineur === 150000)
+      && inversion.postings.some(p => p.compte === "compte:cur" && p.sens === "debit")
+      && remplacante.replacesEntryId === originale.id
+      && remplacante.postings.every(p => p.montantMineur === 145000)
+      && (S.journal || []).some(e => e.id === originale.id);
+    resultat.comparateurZero1 = comparerJournalEtSoldes().length === 0;
+    // 2. Re-corriger : la chaîne s'allonge (r2 → r3), toujours UNE
+    //    écriture active, comparateur toujours à zéro.
+    tx.amount = 1500.55;
+    ombreJournalDepot(tx);
+    const active2 = ecritureActiveDuMouvement(tx.id);
+    resultat.chaineAllongee = chaine(tx.id).length === 5
+      && active2.postings.every(p => p.montantMineur === 150055)
+      && active2.replacesEntryId === remplacante.id
+      && comparerJournalEtSoldes().length === 0;
+    // 3. Ré-appliquer la MÊME correction est IDEMPOTENT : rien ne bouge.
+    const tailleAvant = (S.journal || []).length;
+    ombreJournalDepot(tx);
+    resultat.idempotent = (S.journal || []).length === tailleAvant;
+    // 4. Un PRÉVU n'est pas de l'histoire : sa correction REMPLACE
+    //    simplement — pas d'inversion, une seule écriture.
+    const prevu = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 27, title: "Prévu",
+      amount: 300, type: "expense", cat: "Divers", acc: "cur", dest: null, status: "planned" });
+    prevu.amount = 250;
+    ombreJournalDepot(prevu);
+    resultat.prevuRemplace = chaine(prevu.id).length === 1
+      && ecritureActiveDuMouvement(prevu.id).postings.every(p => p.montantMineur === 25000)
+      && ecritureActiveDuMouvement(prevu.id).lifecycle === "pending";
+    // 5. Supprimer un PRÉVU l'efface ; supprimer un POSTÉ laisse
+    //    l'inversion tracée.
+    ombreJournalRetrait(prevu.id);
+    resultat.prevuEfface = chaine(prevu.id).length === 0;
+    ombreJournalRetrait(tx.id);
+    resultat.posteTrace = ecritureActiveDuMouvement(tx.id) == null
+      && chaine(tx.id).length === 6
+      && (S.journal || []).some(e => e.reversesEntryId === active2.id);
+    // Le mouvement parti, le journal raconte un aller-retour net zéro.
+    transactions.splice(transactions.findIndex(t => t.id === tx.id), 1);
+    resultat.comparateurZero2 = comparerJournalEtSoldes().length === 0;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(inv.fonctionExiste === true,
+    "ecritureActiveDuMouvement existe — la chaîne de correction a une tête lisible");
+  check(inv.chaineTracee === true,
+    "corriger un POSTÉ trace : originale intacte, inversion liée aux jambes inversées, remplaçante liée (FI-07)");
+  check(inv.comparateurZero1 === true,
+    "le comparateur reste à ZÉRO écart après la correction");
+  check(inv.chaineAllongee === true,
+    "re-corriger allonge la chaîne (r2 → r3) — toujours une seule écriture active, comparateur à zéro");
+  check(inv.idempotent === true,
+    "ré-appliquer la même correction est idempotent — rien ne bouge");
+  check(inv.prevuRemplace === true,
+    "un PRÉVU n'est pas de l'histoire : sa correction remplace simplement, sans inversion");
+  check(inv.prevuEfface === true && inv.posteTrace === true,
+    `supprimer : le prévu s'efface, le posté laisse son inversion tracée (prévu ${inv.prevuEfface} / posté ${inv.posteTrace})`);
+  check(inv.comparateurZero2 === true,
+    "après suppression du posté, le journal raconte un aller-retour net — comparateur à zéro");
+  await ctx194.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11221,4 +11333,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 193 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 194 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
