@@ -1477,6 +1477,10 @@
       </select>
       <label for="iName">Nom</label>
       <input id="iName" placeholder="Voiture familiale" autocomplete="off" />
+      <!-- W4.7 : une carte ou un prêt suivis comme COMPTE comptent déjà
+           dans le patrimoine — jamais deux fois. -->
+      <p class="caption" id="iDebtAccountWarning" style="display:none;margin:4px 0 0">Une carte ou un prêt suivis comme
+        compte comptent déjà dans votre patrimoine — ne les ajoutez pas une deuxième fois ici.</p>
       <label for="iAmount">Valeur, ou montant dû au départ (<span class="curlabel">CHF</span>)</label>
       <p class="caption" style="margin:4px 0 0">Pour une dette : le montant du début. Ce qu'il reste à payer se calcule tout seul à partir des mensualités déjà réglées.</p>
       <input id="iAmount" data-primary-amount inputmode="decimal" placeholder="12000.00" autocomplete="off" />
@@ -5445,6 +5449,16 @@ function renderYearReview() {
     <p class="caption no-print" style="padding:6px 4px 0">Le document reprend exactement cette page, en noir sur blanc. Rien ne quitte votre appareil autrement.</p>`;
 }
 
+/* W4.7 (FI-27) : « valeur au JJ.MM.AAAA » quand l'estimation est datée,
+   « valeur non datée » sinon — jamais une date inventée. */
+function dateValeurLabel(item) {
+  if (typeof item.valueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.valueDate)) {
+    const [y, m, d] = item.valueDate.split("-");
+    return `valeur au ${d}.${m}.${y}`;
+  }
+  return "valeur non datée";
+}
+
 function renderNetWorth() {
   const accountsTotal = ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
   const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
@@ -5483,6 +5497,7 @@ function renderNetWorth() {
   // qui ignorait le choix « ne compte pas dans le cash disponible ».
   const fortuneLiquideNW = snapshot(NOW.y, NOW.m).liquidWealth;
   return backBar("Patrimoine") + `
+    ${fxWarningHTML()}
     <div class="card hero">
       <p class="card-label">Tout ce qui est à vous</p>
       <p class="hero-amount${net < 0 ? " neg" : ""}${Math.abs(net) >= 1000000 ? " long" : ""}">${chf(net)}</p>
@@ -5575,7 +5590,7 @@ function renderNetWorth() {
     </div>` : ""}
     ${ASSETS.map(a => `<div class="card row tx read-row" data-assetid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("asset")}</div>
-      <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation${a.include === false ? " · pas compté ici" : ""}</div></div>
+      <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation · ${dateValeurLabel(a)}${a.include === false ? " · pas compté ici" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
     <p class="section-title">Ce que vous devez</p>
     ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Vous ne devez rien. Parfait.</span></div>` : ""}
@@ -5587,7 +5602,7 @@ function renderNetWorth() {
       <div class="ico" aria-hidden="true">${budgetGlyph("liability")}</div>
       <div class="meta"><div class="t">${esc(l.name)}</div><div class="s">${l.include === false ? "Pas comptée ici"
         : bal <= 0 ? "Remboursée"
-        : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"}</div></div>
+        : end ? `${chf(l.monthly)}/mois · terminé vers ${MONTH_NAMES[end.m - 1]} ${end.y}` : "Dette"} · ${dateValeurLabel(l)}</div></div>
       <span class="amount ${l.include === false ? "" : bal <= 0 ? "pos" : "neg"}">${bal <= 0 ? chf(0) : "−" + chf(bal)}</span></div>`;
     }).join("")}
     <button class="btn secondary" data-additem style="margin-top:8px">Ajouter un actif ou une dette</button>
@@ -8502,10 +8517,14 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     requireEntity(asset, "actif", assetIds);
     if (!validNonNegative(asset.value)) throw new Error("valeur d'actif invalide");
     asset.include = asset.include !== false;
+    // W4.7 (FI-27) : une date illisible est RETIRÉE — valeur non datée,
+    // jamais une date inventée (FI-34).
+    if (!(typeof asset.valueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(asset.valueDate))) delete asset.valueDate;
   }
   const liabilityIds = new Set();
   for (const liability of state.liabilities) {
     requireEntity(liability, "dette", liabilityIds);
+    if (!(typeof liability.valueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(liability.valueDate))) delete liability.valueDate;
     if (!validNonNegative(liability.value)
         || !validNonNegative(liability.monthly ?? 0)) {
       throw new Error("valeur de dette invalide");
@@ -9645,7 +9664,15 @@ function openItemSheet(kind, id) {
   kindSelect.value = kind === "liability" ? "liability" : "asset";
   kindSelect.disabled = !!item;
   const monthlyWrap = document.getElementById("iMonthlyWrap");
-  const syncMonthlyVisibility = () => { monthlyWrap.style.display = kindSelect.value === "liability" ? "" : "none"; };
+  // W4.7 : la mise en garde double compte n'apparaît que pour une DETTE
+  // quand un compte de dette existe déjà.
+  const garde = document.getElementById("iDebtAccountWarning");
+  const syncMonthlyVisibility = () => {
+    monthlyWrap.style.display = kindSelect.value === "liability" ? "" : "none";
+    garde.style.display = (kindSelect.value === "liability"
+      && ACCOUNTS.some(a => ACCOUNT_KINDS[a.kind] && ACCOUNT_KINDS[a.kind].dette && compteActif(a)))
+      ? "" : "none";
+  };
   syncMonthlyVisibility();
   kindSelect.onchange = syncMonthlyVisibility;
   syncItemKindChips();
@@ -9675,11 +9702,19 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
   const item = editingItem ? list.find(x => x.id === editingItem.id) : null;
   const monthlyRaw = document.getElementById("iMonthly").value.trim();
   const monthly = kind === "liability" && monthlyRaw ? parseAmountField(monthlyRaw) : 0;
+  // W4.7 (FI-27) : la date suit la VALEUR — renommer ne re-date jamais.
+  const dateEstimation = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
   let saved = item;
-  if (item) { Object.assign(item, { name, value, include, monthly: monthly || 0 }); toast(kind === "liability" ? "Dette modifiée" : "Actif modifié"); }
+  if (item) {
+    const valeurChangee = item.value !== value;
+    Object.assign(item, { name, value, include, monthly: monthly || 0 });
+    if (valeurChangee) item.valueDate = dateEstimation;
+    toast(kind === "liability" ? "Dette modifiée" : "Actif modifié");
+  }
   else {
     saved = { id: (kind === "liability" ? "li-" : "as-") + Date.now().toString(36),
-              name, value, include, monthly: monthly || 0, icon: kind === "liability" ? "📄" : "🏷" };
+              name, value, include, monthly: monthly || 0, icon: kind === "liability" ? "📄" : "🏷",
+              valueDate: dateEstimation };
     list.push(saved);
     toast(kind === "liability" ? "Dette ajoutée" : "Actif ajouté");
   }
