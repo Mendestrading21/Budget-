@@ -28,7 +28,9 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 
 ### W2 — Occurrences persistées (lot actif)
 
-**État : W2.1 EN PR** (Work Order : `docs/autonomie/w2/WORK_ORDER_W2.md`).
+**État : W2.1 fusionné et publié (`main` = `5ad72f3`, run
+`32843135559`) · W2.2 EN PR** (Work Order :
+`docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -72,7 +74,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.1 EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.2 EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -109,6 +111,21 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.2 : matérialisation idempotente des échéances
+
+Natif : `OccurrenceMaterializationService` — dates du service de
+calendrier EXISTANT (aucune nouvelle arithmétique), clé canonique,
+re-matérialiser ne duplique jamais et ne réécrit JAMAIS un état vécu
+(un report survit, l'origine ne bouge pas) ; état de naissance honnête
+(passé → « À confirmer », futur → « Prévu », jamais confirmé) ; deux
+échéances dans un mois = deux clés (REC2). PWA :
+`materialiserOccurrences(y, m)` — même idempotence, sémantique
+d'échéance PWA (dû dans le mois, décision du 06.08.2026 — l'unification
+des sémantiques de date passera par les fixtures W2.7, consigné).
+Parcours 182 né rouge (6 échecs nommés), sabotage mordant (doublons) ;
+les deux restent SHADOW : rien ne les lit (ADR-058). Publication W2.1
+vérifiée (run `32843135559`, succès).
 
 ### 25.08.2026 — W1 fusionné et publié · W2.1 livré
 
