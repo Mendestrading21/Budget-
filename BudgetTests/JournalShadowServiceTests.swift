@@ -48,25 +48,64 @@ final class JournalShadowServiceTests: XCTestCase {
         XCTAssertEqual(mouvement.amount, Decimal("84.30"), "le mouvement n'est jamais modifié")
     }
 
-    // Redéposer est IDEMPOTENT : la modification REMPLACE — jamais deux
-    // écritures pour un mouvement.
-    func testDeposerReplacesOnEdit() throws {
+    // W3.5b (FI-07) : corriger un POSTÉ ne réécrit pas — originale
+    // intacte, inversion liée aux jambes inversées, remplaçante liée,
+    // une seule écriture ACTIVE.
+    func testEditingAPostedMovementTracesInsteadOfRewriting() throws {
         let mouvement = BudgetTransaction(
             date: now, amount: Decimal("84.30"), type: .expense,
             title: "Courses", account: compte)
         context.insert(mouvement)
         service.deposer(mouvement, now: now, context: context)
         try context.save()
+        let originale = try XCTUnwrap(service.ecritureActive(transactionID: mouvement.id, context: context))
         mouvement.amount = Decimal("99.90")
         service.deposer(mouvement, now: now, context: context)
         try context.save()
-        let relues = try ecritures(pour: mouvement.id)
-        XCTAssertEqual(relues.count, 1, "jamais deux écritures pour un mouvement")
-        XCTAssertEqual(relues.first?.postings.map(\.minorUnits), [9990, 9990])
+        let toutes = try context.fetch(FetchDescriptor<JournalEntry>())
+        XCTAssertEqual(toutes.count, 3, "originale + inversion + remplaçante")
+        XCTAssertEqual(try ecritures(pour: mouvement.id).first?.postings.map(\.minorUnits),
+                       [8430, 8430], "l'originale ne bouge JAMAIS")
+        let inversion = try XCTUnwrap(toutes.first { $0.reversesEntryID == originale.id })
+        XCTAssertTrue(inversion.postings.contains { $0.accountKey.hasPrefix("compte:") && $0.isDebit },
+                      "l'inversion rend au compte ce que l'originale a pris")
+        let active = try XCTUnwrap(service.ecritureActive(transactionID: mouvement.id, context: context))
+        XCTAssertEqual(active.replacesEntryID, originale.id)
+        XCTAssertTrue(active.idempotencyKey.hasSuffix(":r2"))
+        XCTAssertEqual(active.postings.map(\.minorUnits), [9990, 9990])
+        // Redéposer la même photo est un no-op.
+        service.deposer(mouvement, now: now, context: context)
+        try context.save()
+        XCTAssertEqual(try context.fetch(FetchDescriptor<JournalEntry>()).count, 3)
     }
 
-    // L'écriture part avec le mouvement supprimé.
-    func testRetirerRemovesTheEntry() throws {
+    // Un PRÉVU n'est pas de l'histoire : correction = remplacement en
+    // place ; suppression = effacement.
+    func testPendingMovementReplacesAndErasesSimply() throws {
+        let prevu = BudgetTransaction(
+            date: now.addingTimeInterval(10 * 86_400), amount: Decimal("300.00"),
+            type: .expense, status: .planned, title: "Prévu", account: compte)
+        context.insert(prevu)
+        service.deposer(prevu, now: now, context: context)
+        try context.save()
+        prevu.amount = Decimal("250.00")
+        service.deposer(prevu, now: now, context: context)
+        try context.save()
+        let entrees = try context.fetch(FetchDescriptor<JournalEntry>())
+        XCTAssertEqual(entrees.count, 1, "un plan corrigé se remplace — pas d'inversion")
+        XCTAssertEqual(entrees.first?.postings.map(\.minorUnits), [25000, 25000])
+        XCTAssertEqual(entrees.first?.lifecycle, .pending)
+        service.retirer(transactionID: prevu.id, context: context)
+        context.delete(prevu)
+        try context.save()
+        XCTAssertTrue(try context.fetch(FetchDescriptor<JournalEntry>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<JournalPosting>()).isEmpty,
+                      "aucun posting orphelin")
+    }
+
+    // Supprimer un POSTÉ laisse la trace : plus d'écriture active, mais
+    // l'aller-retour net reste lisible.
+    func testDeletingAPostedMovementLeavesTheTrace() throws {
         let mouvement = BudgetTransaction(
             date: now, amount: Decimal("25.00"), type: .expense,
             title: "Café", account: compte)
@@ -76,9 +115,13 @@ final class JournalShadowServiceTests: XCTestCase {
         service.retirer(transactionID: mouvement.id, context: context)
         context.delete(mouvement)
         try context.save()
-        XCTAssertTrue(try ecritures(pour: mouvement.id).isEmpty)
-        XCTAssertTrue(try context.fetch(FetchDescriptor<JournalPosting>()).isEmpty,
-                      "aucun posting orphelin après le retrait")
+        XCTAssertNil(service.ecritureActive(transactionID: mouvement.id, context: context))
+        let toutes = try context.fetch(FetchDescriptor<JournalEntry>())
+        XCTAssertEqual(toutes.count, 2, "originale + inversion : la trace reste")
+        let net = toutes.flatMap(\.postings)
+            .filter { $0.accountKey.hasPrefix("compte:") }
+            .reduce(Int64(0)) { $0 + ($1.isDebit ? $1.minorUnits : -$1.minorUnits) }
+        XCTAssertEqual(net, 0, "le journal raconte un aller-retour net zéro")
     }
 
     // FI-34 : un mouvement intraduisible ne casse JAMAIS le geste — le
