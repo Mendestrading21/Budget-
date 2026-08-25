@@ -11588,6 +11588,116 @@ currentTest = "W4.1 typologie des comptes";
   await ctx197.close();
 }
 
+// ---------- 198. W4.2 : les TAUX DATÉS — chaque taux porte sa date et sa source ----------
+// Budget Autonomie 100, W4.2 (ADR-065, décision propriétaire :
+// « V1 base unique ») : un taux de change n'est plus un nombre nu —
+// chaque écriture de taux passe par UNE porte (enregistrerTaux) qui
+// consigne une quote datée et sourcée (FI-16), append-only ;
+// S.fxRates devient un CACHE dérivé (la dernière quote). L'historique
+// estampillé ne bouge jamais (FI-19) ; un taux absent reste un état
+// « incomplet » nommé (FI-17, déjà tenu — verrouillé ici).
+currentTest = "W4.2 taux datés";
+{
+  const ctx198 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p198 = await ctx198.newPage();
+  p198.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.2] ${msg.text()}`); });
+  await p198.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fx" },
+      baseCurrency: "CHF", fxRates: { EUR: 0.93, USD: 0.80 },
+      transactions: [
+        { id: 1, y: 2026, m: 7, d: 5, title: "Dépense en euros", amount: 100,
+          type: "expense", cat: "Divers", acc: "eur", dest: null, status: "posted",
+          sourceCurrency: "EUR", fx: 0.93, fxBase: "CHF" },
+      ],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "eur", name: "Euros", kind: "current", opening: 1000, cash: true, currency: "EUR" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p198.goto(APP_URL);
+  await p198.waitForSelector("#tabbar button");
+  const fxr = await p198.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof enregistrerTaux === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const quotes = devise => (S.fxQuotes || []).filter(q => q.quote === devise);
+    // 1. Le VRAI formulaire des réglages consigne des quotes datées et
+    //    sourcées, et le cache S.fxRates suit la DERNIÈRE quote.
+    fxEditKeys = ["EUR", "USD"];
+    document.getElementById("fxA").value = "0.95";
+    document.getElementById("fxB").value = "0.82";
+    document.getElementById("fxForm").requestSubmit();
+    const quoteEUR = quotes("EUR").at(-1);
+    const dateISO = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+    resultat.quotesConsignees = !!quoteEUR
+      && quoteEUR.base === "CHF" && quoteEUR.taux === 0.95
+      && quoteEUR.observedAt === dateISO && quoteEUR.source === "saisie manuelle"
+      && quotes("USD").at(-1) && quotes("USD").at(-1).taux === 0.82;
+    resultat.cacheSuit = S.fxRates.EUR === 0.95 && S.fxRates.USD === 0.82;
+    // 2. Append-only : re-soumettre le MÊME taux le même jour ne
+    //    duplique rien ; un NOUVEAU taux s'ajoute sans effacer l'ancien.
+    const nbAvant = (S.fxQuotes || []).length;
+    document.getElementById("fxA").value = "0.95";
+    document.getElementById("fxB").value = "0.82";
+    document.getElementById("fxForm").requestSubmit();
+    resultat.idempotent = (S.fxQuotes || []).length === nbAvant;
+    document.getElementById("fxA").value = "0.97";
+    document.getElementById("fxB").value = "0.82";
+    document.getElementById("fxForm").requestSubmit();
+    resultat.appendOnly = quotes("EUR").length >= 2
+      && quotes("EUR").some(q => q.taux === 0.95)
+      && quotes("EUR").at(-1).taux === 0.97
+      && S.fxRates.EUR === 0.97;
+    // 3. La porte refuse un taux illisible : rien n'est consigné, le
+    //    cache ne bouge pas (FI-34).
+    const refus = enregistrerTaux("EUR", 0, "test");
+    resultat.refusNomme = typeof refus === "string" && refus.length > 0
+      && S.fxRates.EUR === 0.97 && quotes("EUR").at(-1).taux === 0.97;
+    // 4. FI-19 : l'historique estampillé n'a pas bougé d'un centime.
+    const mouvement = transactions.find(t => t.id === 1);
+    resultat.historiqueFige = mouvement.fx === 0.93 && mouvement.fxBase === "CHF"
+      && Math.abs(txCHF(mouvement) - 93) < 0.005;
+    // 5. Restauration : une quote hostile (taux négatif) est ABANDONNÉE,
+    //    les saines survivent.
+    const etat = JSON.parse(JSON.stringify(S));
+    etat.fxQuotes.push({ base: "CHF", quote: "EUR", taux: -3, observedAt: "2026-08-25", source: "hostile" });
+    let restaure = null;
+    try { restaure = validatedRestoreState(etat); } catch (e) { restaure = null; }
+    resultat.restaurationFiltre = !!restaure
+      && !restaure.fxQuotes.some(q => q.taux === -3)
+      && restaure.fxQuotes.some(q => q.taux === 0.97);
+    // 6. FI-17 verrouillé : une devise de compte sans taux reste un
+    //    avertissement nommé — jamais un 1:1 inventé.
+    ACCOUNTS.push({ id: "gbp", name: "Livres", kind: "current", opening: 100, cash: true, currency: "GBP" });
+    resultat.incompletNomme = fxWarningHTML().includes("GBP");
+    ACCOUNTS.splice(ACCOUNTS.findIndex(a => a.id === "gbp"), 1);
+    // Nettoyage.
+    S.fxQuotes = []; saveState(); render();
+    return resultat;
+  });
+  check(fxr.fonctionExiste === true,
+    "enregistrerTaux existe — les taux ont UNE porte d'écriture");
+  check(fxr.quotesConsignees === true && fxr.cacheSuit === true,
+    `le vrai formulaire consigne des quotes datées et sourcées, le cache suit (quotes ${fxr.quotesConsignees} / cache ${fxr.cacheSuit})`);
+  check(fxr.idempotent === true,
+    "re-soumettre le même taux le même jour ne duplique rien");
+  check(fxr.appendOnly === true,
+    "un nouveau taux S'AJOUTE — l'ancienne quote survit, le cache pointe la dernière (FI-16)");
+  check(fxr.refusNomme === true,
+    "un taux illisible est refusé par la porte — rien n'est consigné (FI-34)");
+  check(fxr.historiqueFige === true,
+    "l'historique estampillé ne bouge JAMAIS quand un taux change (FI-19)");
+  check(fxr.restaurationFiltre === true,
+    "la restauration abandonne la quote hostile et garde les saines");
+  check(fxr.incompletNomme === true,
+    "FI-17 verrouillé : devise sans taux = avertissement nommé, jamais un 1:1 inventé");
+  await ctx198.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11597,4 +11707,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 197 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 198 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
