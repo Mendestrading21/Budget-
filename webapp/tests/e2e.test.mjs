@@ -10269,6 +10269,60 @@ currentTest = "W2.2 matérialisation";
   await ctx182.close();
 }
 
+// ---------- 183. W2.3 : la machine à états des échéances ----------
+// Budget Autonomie 100, W2.3 (shadow) : mêmes transitions que le natif.
+// « Confirmé » et « Annulé » sont terminaux, « Ignoré » se rouvre vers
+// « À confirmer » seulement, une transition interdite est REFUSÉE avec
+// une erreur nommée — jamais un repli silencieux (FI-34).
+currentTest = "W2.3 machine à états";
+{
+  const ctx183 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p183 = await ctx183.newPage();
+  p183.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.3] ${msg.text()}`); });
+  await p183.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Éta" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 0, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], bills: [], documents: [], budgets: {},
+    }));
+  });
+  await p183.goto(APP_URL);
+  await p183.waitForSelector("#tabbar button");
+  const eta = await p183.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof transitionOccurrence === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    const occ = { id: "o1", seriesId: "r1", dueDate: "2026-09-01", state: "scheduled",
+      idempotencyKey: "k1" };
+    // Chemin heureux : prévu → due → confirmé, horodaté.
+    resultat.versDue = transitionOccurrence(occ, "due");
+    resultat.versConfirme = transitionOccurrence(occ, "confirmed");
+    resultat.confirmeA = typeof occ.confirmedAt === "string" && occ.confirmedAt.length > 0;
+    // Terminal : confirmé ne bouge plus, erreur NOMMÉE.
+    resultat.retour = transitionOccurrence(occ, "due");
+    resultat.etatFinal = occ.state;
+    // Ignoré se rouvre vers due seulement.
+    const o2 = { id: "o2", seriesId: "r1", dueDate: "2026-09-01", state: "skipped", idempotencyKey: "k2" };
+    resultat.skipVersConfirme = transitionOccurrence(o2, "confirmed");
+    resultat.skipVersDue = transitionOccurrence(o2, "due");
+    // État inconnu en cible : refusé.
+    resultat.cibleInconnue = transitionOccurrence(o2, "etat-martien");
+    return resultat;
+  });
+  check(eta.fonctionExiste === true, "transitionOccurrence existe (W2.3)");
+  check(eta.versDue === null && eta.versConfirme === null && eta.confirmeA === true,
+    `le chemin heureux passe et la confirmation est horodatée (due ${eta.versDue} / confirmé ${eta.versConfirme} / horodaté ${eta.confirmeA})`);
+  check(typeof eta.retour === "string" && /interdite/i.test(eta.retour) && eta.etatFinal === "confirmed",
+    `« Confirmé » est terminal, le refus est NOMMÉ (« ${eta.retour} », état resté « ${eta.etatFinal} »)`);
+  check(typeof eta.skipVersConfirme === "string" && eta.skipVersDue === null,
+    `« Ignoré » se rouvre vers « À confirmer » seulement (confirmé direct : « ${eta.skipVersConfirme} »)`);
+  check(typeof eta.cibleInconnue === "string",
+    `une cible inconnue est refusée, jamais adoptée (« ${eta.cibleInconnue} »)`);
+  await ctx183.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10278,4 +10332,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 182 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 183 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

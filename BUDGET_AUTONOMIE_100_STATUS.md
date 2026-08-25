@@ -28,9 +28,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 
 ### W2 — Occurrences persistées (lot actif)
 
-**État : W2.1 fusionné et publié (`main` = `5ad72f3`, run
-`32843135559`) · W2.2 EN PR** (Work Order :
-`docs/autonomie/w2/WORK_ORDER_W2.md`).
+**État : W2.1 et W2.2 fusionnés (`main` = `ac8be98`) · W2.3 EN PR**
+(Work Order : `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
 pas attester un contrat sans forme (consigné, pas oublié).
@@ -74,7 +73,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.2 EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.3 EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -111,6 +110,18 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.3 : la machine à états des échéances
+
+Les MÊMES transitions sur les deux plateformes : « Confirmé » et
+« Annulé » terminaux (une correction passera par le journal, jamais par
+un retour d'état — FI-07 en germe), « Ignoré » se rouvre vers « À
+confirmer » seulement, « Échec » se retente par la porte, le temps ne
+recule pas, payer en avance est permis. Natif : `transition(to:at:)`
+seule porte, erreur typée nommée, confirmation horodatée — 8 tests.
+PWA : `transitionOccurrence` même table, erreur en français. Parcours
+183 né rouge (5 échecs nommés) ; sabotage mordant (« Confirmé » rendu
+réversible → refus disparu nommé). Toujours SHADOW (ADR-058).
 
 ### 25.08.2026 — W2.2 : matérialisation idempotente des échéances
 
