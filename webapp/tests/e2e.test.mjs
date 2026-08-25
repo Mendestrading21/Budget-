@@ -11324,6 +11324,106 @@ currentTest = "W3.5 inversion remplacement";
   await ctx194.close();
 }
 
+// ---------- 195. W3.6 : la BASCULE — les soldes lisent le journal, derrière un drapeau gardé ----------
+// Budget Autonomie 100, W3.6 (ADR-058 étape 6) : `balance()` passe au
+// journal quand `S.journalActif` est vrai. Allumer EXIGE le comparateur
+// à zéro écart (la gate W3.4 mord à la porte) ; éteindre est toujours
+// permis (rollback documenté). Sous journal, chaque geste et l'édition
+// d'une ouverture de compte gardent les soldes EXACTS.
+currentTest = "W3.6 bascule des soldes";
+{
+  const ctx195 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p195 = await ctx195.newPage();
+  p195.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W3.6] ${msg.text()}`); });
+  await p195.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Bsc" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 250.50, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p195.goto(APP_URL);
+  await p195.waitForSelector("#tabbar button");
+  const bsc = await p195.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionsExistent = typeof basculerJournal === "function"
+      && typeof soldeVivant === "function" && typeof ombreOuvertureDepot === "function";
+    if (!resultat.fonctionsExistent) return resultat;
+    const identiques = () => ACCOUNTS.every(a => Math.abs(balance(a.id) - soldeVivant(a.id)) < 0.005);
+    // 1. Éteint par défaut : balance == chemin vivant.
+    resultat.eteintParDefaut = S.journalActif !== true && identiques();
+    // 2. Allumer avec un écart REFUSE en nommant — le drapeau ne bouge pas.
+    transactions.push({ id: 555001, y: 2026, m: 7, d: 9, title: "Perdu hérité",
+      amount: 200, type: "saving", cat: null, acc: "cur", dest: null,
+      status: "posted", sourceCurrency: "CHF" });
+    const refus = basculerJournal(true);
+    resultat.basculeRefusee = typeof refus === "string" && refus.length > 0
+      && S.journalActif !== true;
+    transactions.splice(transactions.findIndex(t => t.id === 555001), 1);
+    // 3. Propre : la bascule passe, et CHAQUE solde reste identique.
+    addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 3, title: "Courses", amount: 84.30,
+      type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted" });
+    const ok = basculerJournal(true);
+    resultat.basculeReussie = ok === null && S.journalActif === true && identiques();
+    // 4. Sous journal, les gestes réels gardent l'exactitude : ajout,
+    //    correction d'un posté, suppression réelle.
+    const tx = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 6, title: "Resto", amount: 45.60,
+      type: "expense", cat: "Sorties", acc: "cur", dest: null, status: "posted" });
+    const apresAjout = identiques();
+    tx.amount = 52.10;
+    ombreJournalDepot(tx);
+    const apresCorrection = identiques();
+    const confirmOriginal = window.confirm; window.confirm = () => true;
+    openTxSheet(transactions.find(t => t.id === tx.id));
+    document.getElementById("fDelete").click();
+    window.confirm = confirmOriginal;
+    resultat.gestesExacts = apresAjout && apresCorrection && identiques();
+    // 5. Éditer l'OUVERTURE d'un compte par le VRAI formulaire : la
+    //    chaîne d'ouverture se corrige, le solde reste exact.
+    openAccSheet(ACCOUNTS.find(a => a.id === "sav"));
+    document.getElementById("aOpening").value = "600";
+    document.getElementById("accForm").requestSubmit();
+    const ouvertures = (S.journal || []).filter(e => e.idempotencyKey.startsWith("ouverture:sav"));
+    resultat.ouvertureChaine = ouvertures.length >= 2
+      && (S.journal || []).some(e => e.reversesEntryId
+        && ouvertures.some(o => o.id === e.reversesEntryId))
+      && identiques() && Math.abs(balance("sav") - 600) < 0.005;
+    // 6. Tout effacer sous journal : les soldes retombent aux ouvertures.
+    const confirm2 = window.confirm; window.confirm = () => true;
+    deleteAllData();
+    window.confirm = confirm2;
+    resultat.effacerExact = identiques() && Math.abs(balance("sav") - 600) < 0.005;
+    // 7. Rollback : éteindre est TOUJOURS permis, retour au chemin vivant.
+    const retour = basculerJournal(false);
+    resultat.rollback = retour === null && S.journalActif !== true && identiques();
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; S.journalActif = false; saveState(); render();
+    return resultat;
+  });
+  check(bsc.fonctionsExistent === true,
+    "basculerJournal, soldeVivant et ombreOuvertureDepot existent — la bascule a une porte gardée");
+  check(bsc.eteintParDefaut === true,
+    "éteint par défaut : balance() suit le chemin vivant, à l'identique");
+  check(bsc.basculeRefusee === true,
+    "allumer avec un écart REFUSE en nommant — le drapeau ne bouge pas (gate W3.4)");
+  check(bsc.basculeReussie === true,
+    "sur un état propre la bascule passe — chaque solde reste identique au centime");
+  check(bsc.gestesExacts === true,
+    "sous journal : ajout, correction tracée et suppression réelle gardent les soldes exacts");
+  check(bsc.ouvertureChaine === true,
+    "éditer l'ouverture par le vrai formulaire corrige la chaîne (FI-07/FI-12) et le solde suit");
+  check(bsc.effacerExact === true,
+    "tout effacer sous journal retombe exactement aux ouvertures");
+  check(bsc.rollback === true,
+    "le rollback est toujours permis : éteint, balance() retrouve le chemin vivant");
+  await ctx195.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11333,4 +11433,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 194 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 195 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
