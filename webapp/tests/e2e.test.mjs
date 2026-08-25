@@ -11791,6 +11791,101 @@ currentTest = "W4.3 relevés de réconciliation";
   await ctx199.close();
 }
 
+// ---------- 200. W4.4 : le RAPPROCHEMENT — réconcilier fige l'histoire du compte ----------
+// Budget Autonomie 100, W4.4 (FI-06/07) : le cycle de vie des
+// écritures avance dans UN seul sens (pending→posted→cleared→
+// reconciled, retours refusés nommés). Réconcilier un compte marque
+// « reconciled » ses écritures postées jusqu'à la date du relevé —
+// une écriture rapprochée ne MUTE jamais : sa correction vit en
+// chaîne (inversion + remplaçante), et le comparateur reste à zéro.
+currentTest = "W4.4 rapprochement du journal";
+{
+  const ctx200 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p200 = await ctx200.newPage();
+  p200.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W4.4] ${msg.text()}`); });
+  await p200.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rap" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 0, cash: true, currency: "CHF" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p200.goto(APP_URL);
+  await p200.waitForSelector("#tabbar button");
+  const rap = await p200.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionsExistent = typeof rapprocherJournal === "function"
+      && typeof avancerCycleEcriture === "function";
+    if (!resultat.fonctionsExistent) return resultat;
+    // Décor : une dépense passée sur cur, une dépense sur sav, un prévu.
+    const passee = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.max(1, NOW.d - 2),
+      title: "Courses", amount: 84.30, type: "expense", cat: "Alimentation",
+      acc: "cur", dest: null, status: "posted" });
+    const autre = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: Math.max(1, NOW.d - 2),
+      title: "Autre compte", amount: 20, type: "expense", cat: "Divers",
+      acc: "sav", dest: null, status: "posted" });
+    const prevu = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 28,
+      title: "Prévu", amount: 50, type: "expense", cat: "Divers",
+      acc: "cur", dest: null, status: "planned" });
+    // 1. La machine du cycle : un retour est refusé NOMMÉ.
+    const ecriture = ecritureActiveDuMouvement(passee.id);
+    const avancee = avancerCycleEcriture(ecriture, "cleared");
+    const retour = avancerCycleEcriture(ecriture, "posted");
+    resultat.machine = avancee === null && ecriture.lifecycle === "cleared"
+      && typeof retour === "string" && retour.length > 0
+      && ecriture.lifecycle === "cleared";
+    // 2. Réconcilier par le VRAI formulaire fige : les écritures du
+    //    compte jusqu'à la date passent « reconciled » — l'ajustement
+    //    du jour aussi ; l'autre compte et le prévu ne bougent pas.
+    editingAccId = "cur";
+    document.getElementById("reconAmount").value = "4900.00";
+    document.getElementById("reconNegative").checked = false;
+    document.getElementById("reconForm").requestSubmit();
+    const apres = ecritureActiveDuMouvement(passee.id);
+    const ajustement = transactions.find(t => t.type === "adjustment");
+    resultat.figee = apres.lifecycle === "reconciled"
+      && ecritureActiveDuMouvement(ajustement.id).lifecycle === "reconciled";
+    resultat.autresIntactes = ecritureActiveDuMouvement(autre.id).lifecycle === "posted"
+      && ecritureActiveDuMouvement(prevu.id).lifecycle === "pending";
+    // 3. Corriger un mouvement RAPPROCHÉ : l'écriture rapprochée reste
+    //    INTACTE (état et centimes), la correction vit en chaîne, le
+    //    comparateur reste à zéro.
+    passee.amount = 90.00;
+    ombreJournalDepot(passee);
+    const chaineActive = ecritureActiveDuMouvement(passee.id);
+    resultat.correctionEnChaine = apres.lifecycle === "reconciled"
+      && apres.postings.every(p => p.montantMineur === 8430)
+      && chaineActive.id !== apres.id
+      && chaineActive.replacesEntryId === apres.id
+      && chaineActive.postings.every(p => p.montantMineur === 9000)
+      && comparerJournalEtSoldes().length === 0;
+    // 4. Le solde dérivé compte les rapprochées comme les postées —
+    //    seul le prévu ne pèse rien (FI-01/06).
+    resultat.soldeCoherent = Math.abs(soldeDepuisJournal("cur") - balance("cur")) < 0.005;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; S.releves = []; saveState(); render();
+    return resultat;
+  });
+  check(rap.fonctionsExistent === true,
+    "rapprocherJournal et avancerCycleEcriture existent — le cycle a une porte");
+  check(rap.machine === true,
+    "le cycle avance dans UN sens — un retour est refusé nommé, l'état ne bouge pas");
+  check(rap.figee === true,
+    "réconcilier fige : les écritures du compte jusqu'à la date passent « reconciled », l'ajustement du jour aussi");
+  check(rap.autresIntactes === true,
+    "l'autre compte reste « posted » et le prévu reste « pending » — jamais rapprochés");
+  check(rap.correctionEnChaine === true,
+    "corriger un mouvement rapproché ne MUTE jamais l'écriture rapprochée — la chaîne corrige, comparateur à zéro (FI-07)");
+  check(rap.soldeCoherent === true,
+    "le solde dérivé compte les rapprochées comme les postées — seul le prévu ne pèse rien");
+  await ctx200.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -11800,4 +11895,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 199 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 200 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

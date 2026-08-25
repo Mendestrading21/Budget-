@@ -58,8 +58,10 @@ fusionné (`main` = `75c704b`, PR #150, publication run `32887978661`)
 **État : W4.1 fusionné et publié (`main` = `5d6455f`, PR #151,
 publication run `32891106635`, succès) · W4.2 fusionné et publié
 (`main` = `ee3c68b`, PR #152, publication run `32900122934`, succès) ·
-W4.2b fusionné (`main` = `0522518`, PR #153, publication run
-`32901342511`) · W4.3 EN PR** (Work Order :
+W4.2b fusionné et publié (`main` = `0522518`, PR #153, publication run
+`32901342511`, succès) · W4.3 fusionné (`main` = `422f875`, PR #154,
+publication run `32903417770`) · W4.4 EN PR (rapprochement PWA ; le
+miroir natif suit en W4.4b)** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -113,7 +115,7 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1–W4.2b fusionnés · W4.3 EN PR | W3 (fusionné) |
+| W4 | Comptes, devises, rapprochement | W4.1–W4.3 fusionnés · W4.4 EN PR | W3 (fusionné) |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
@@ -148,6 +150,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.4 : le rapprochement — réconcilier fige l'histoire
+
+Le CYCLE DE VIE des écritures avance dans UN seul sens
+(`avancerCycleEcriture` : pending → posted → cleared → reconciled,
+retour = refus nommé, l'état ne bouge pas — FI-06). Réconcilier par le
+vrai formulaire appelle `rapprocherJournal(compte, date)` : toutes les
+écritures postées (ou passées en banque) du compte jusqu'à la date du
+relevé deviennent « reconciled » — l'histoire confirmée par le solde
+constaté est FIGÉE ; l'ajustement du jour est rapproché aussi ; l'autre
+compte et le prévu ne bougent jamais (FI-01). Une écriture rapprochée
+ne MUTE jamais : sa correction vit en chaîne (inversion + remplaçante,
+W3.5), comparateur à zéro — FI-07 au complet. `memePhotoJournal`
+apprend que l'avancée du cycle n'est PAS une différence de contenu
+(un re-dépôt sans changement ne crée pas de chaîne). Preuves :
+parcours 200 né rouge (6 échecs nommés) → vert ; sabotage (le cycle
+autorise le retour) → le contrôle de machine mord seul ; restauré
+vert ; suites complètes vertes (200 e2e, 9 parités, 13 canon + schéma,
+design, catalogue, audit). Consigné : le miroir natif (transitions de
+cycle sur `JournalEntry`, rapprochement lié aux `Statement`, bascule
+de `balance()` du point nu vers le relevé) = W4.4b ; une écriture
+multi-comptes (virement) rapprochée par UN compte fige l'écriture
+entière — sémantique V1 consignée.
 
 ### 25.08.2026 — W4.3 : le relevé — réconcilier laisse une preuve datée
 
