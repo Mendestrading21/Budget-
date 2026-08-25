@@ -33,12 +33,26 @@ struct NetWorthService {
         accounts: [Account],
         assets: [Asset],
         pensions: [PensionAsset],
-        liabilities: [Liability]
+        liabilities: [Liability],
+        baseCurrency: String = "CHF",
+        fxQuotes: [FxQuote] = [],
+        asOf date: Date = Date()
     ) -> NetWorthBreakdown {
-        NetWorthBreakdown(
+        // W4.2b (ADR-065, FI-16/17) : un compte dans une autre devise
+        // n'entre dans le patrimoine qu'avec une quote datée — jamais
+        // 1:1 ; sans quote il est EXCLU (l'état « incomplet » visible
+        // arrive en W4.7).
+        let conversion = CurrencyConversionService()
+        return NetWorthBreakdown(
             accountsTotal: accounts
                 .filter { $0.isActive && $0.includeInNetWorth }
-                .reduce(.zero) { $0 + balanceService.balance(of: $1) },
+                .reduce(.zero) { partial, compte in
+                    let solde = balanceService.balance(of: compte)
+                    guard let converti = conversion.convert(
+                        solde, from: compte.currencyCode, to: baseCurrency,
+                        quotes: fxQuotes, on: date) else { return partial }
+                    return partial + converti
+                },
             assetsTotal: assets
                 .filter(\.includeInNetWorth)
                 .reduce(.zero) { $0 + $1.currentValue },

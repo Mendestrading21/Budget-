@@ -56,8 +56,8 @@ fusionné (`main` = `75c704b`, PR #150, publication run `32887978661`)
 ### W4 — Comptes, devises, rapprochement (lot actif)
 
 **État : W4.1 fusionné et publié (`main` = `5d6455f`, PR #151,
-publication run `32891106635`, succès) · W4.2 EN PR (taux datés PWA ;
-le miroir natif suit en W4.2b)** (Work Order :
+publication run `32891106635`, succès) · W4.2 (taux datés PWA) et
+W4.2b (moteur FX natif) EN PR** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -146,6 +146,27 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W4.2b : le moteur FX natif — le constat n° 6 se ferme
+
+Miroir natif d'ADR-065 : `FxQuote` (@Model, schéma V13 additif — base,
+cote, taux `Decimal`, `observedAt`, source) et
+`CurrencyConversionService` — paire EXACTE, dernière quote observée au
+plus tard à la date demandée ; aucune quote = nil, JAMAIS 1 ni 0
+(FI-17), la paire inverse n'est jamais inférée (un taux inventé).
+`MonthlySnapshotService` (liquide) et `NetWorthService` (patrimoine)
+convertissent désormais chaque compte étranger avec les quotes datées
+— sans quote, le compte est EXCLU (même règle que la PWA ; l'état
+« incomplet » visible arrive en W4.7). Le runner canonique Swift lit
+les `taux` des fixtures : **`enAttenteNatif` est VIDE** — les 13
+fixtures s'exécutent sur le moteur natif (constat n° 6 de l'audit
+fermé, la gate exige désormais 13/13). Tests :
+`CurrencyConversionServiceTests` (conversion exacte, la dernière quote
+datée gagne et l'histoire garde son taux FI-19, quote future
+invisible, nil jamais inventé, exclusion sans quote ↔ conversion avec,
+migration disque V12 → V13 FI-35). Consigné : la restauration native
+reste mono-devise (ADR-017) — revisite quand le produit ouvrira les
+devises à l'utilisateur (W4.7+) ; l'affichage « incomplet » = W4.7.
 
 ### 25.08.2026 — W4.2 : les taux datés — chaque taux porte sa date et sa source
 

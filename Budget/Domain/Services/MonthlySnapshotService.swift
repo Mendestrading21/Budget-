@@ -17,7 +17,8 @@ struct MonthlySnapshotService {
         household: Household?,
         accounts: [Account],
         transactions: [BudgetTransaction],
-        recurrings: [RecurringTransaction] = []
+        recurrings: [RecurringTransaction] = [],
+        fxQuotes: [FxQuote] = []
     ) -> MonthSnapshot {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let inMonth = transactions.filter { interval.contains($0.date) }
@@ -55,9 +56,21 @@ struct MonthlySnapshotService {
             - totalLivingExpenses
             - totalTaxPayments
 
+        // W4.2b (ADR-065, FI-16/17) : un compte dans une AUTRE devise
+        // n'entre dans le liquide qu'avec une quote datée — jamais 1:1.
+        // Sans quote, il est EXCLU (même règle que la PWA) ; l'état
+        // « incomplet » visible arrive en W4.7.
+        let deviseBase = household?.baseCurrencyCode ?? "CHF"
+        let conversion = CurrencyConversionService()
         let liquidBalance = accounts
             .filter { $0.isActive && $0.includeInAvailableCash }
-            .reduce(Decimal.zero) { $0 + balanceService.balance(of: $1) }
+            .reduce(Decimal.zero) { partial, compte in
+                let solde = balanceService.balance(of: compte)
+                guard let converti = conversion.convert(
+                    solde, from: compte.currencyCode, to: deviseBase,
+                    quotes: fxQuotes, on: now) else { return partial }
+                return partial + converti
+            }
 
         // Recurring occurrences of the month not yet covered by a linked
         // transaction; transfers stay neutral and enter neither side.

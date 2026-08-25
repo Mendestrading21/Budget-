@@ -16,13 +16,10 @@ import SwiftData
 final class CanonicalFixtureTests: XCTestCase {
 
     // Écarts consignés : fixture → (raison, lot). Retirer une entrée
-    // exige que la fixture passe — jamais l'inverse.
-    private let enAttenteNatif: [String: String] = [
-        // Constat n° 6 de l'audit : les agrégats natifs additionnent les
-        // Decimal sans conversion — le moteur FX arrive en W4.
-        "devise-conversion-datee": "conversion FX des agrégats — W4",
-        "comptes-par-devise": "soldes multi-devises dans les agrégats — W4",
-    ]
+    // exige que la fixture passe — jamais l'inverse. W4.2b a fermé le
+    // constat n° 6 (conversion FX datée des agrégats) : la liste est
+    // VIDE — chaque fixture canonique s'exécute sur le moteur natif.
+    private let enAttenteNatif: [String: String] = [:]
 
     private struct FixtureCanon: Decodable {
         struct Entrees: Decodable {
@@ -43,9 +40,14 @@ final class CanonicalFixtureTests: XCTestCase {
                 let nature: String?; let montantMineures: Int; let devise: String
                 let jour: Int; let rythme: String; let compte: String
             }
+            struct Taux: Decodable {
+                let base: String; let cote: String; let taux: String
+                let date: String; let source: String
+            }
             let deviseBase: String; let date: String
             let comptes: [Compte]; let mouvements: [Mouvement]
             let recurrences: [Recurrence]
+            let taux: [Taux]?
         }
         struct Attendus: Decodable {
             struct Mois: Decodable {
@@ -139,8 +141,8 @@ final class CanonicalFixtureTests: XCTestCase {
             try verifie(fixture, fichier: nomFichier)
             executees += 1
         }
-        XCTAssertGreaterThanOrEqual(executees, 10,
-            "la gate doit exécuter la quasi-totalité des fixtures — \(executees) seulement")
+        XCTAssertGreaterThanOrEqual(executees, 13,
+            "la gate doit exécuter TOUTES les fixtures depuis W4.2b — \(executees) seulement")
     }
 
     private func verifie(_ fixture: FixtureCanon, fichier: String) throws {
@@ -215,6 +217,19 @@ final class CanonicalFixtureTests: XCTestCase {
             mouvements.append(mouvement)
         }
 
+        // W4.2b (ADR-065) : les taux de la fixture deviennent des quotes
+        // datées et sourcées — un taux illisible fait échouer la fixture,
+        // jamais un repli silencieux.
+        var quotes: [FxQuote] = []
+        for t in (e.taux ?? []) {
+            guard let taux = Decimal(string: t.taux), taux > 0 else {
+                XCTFail("[\(fixture.nom)] taux illisible « \(t.taux) »"); return
+            }
+            quotes.append(FxQuote(
+                base: t.base, quote: t.cote, rate: taux,
+                observedAt: dateISO(t.date), source: t.source))
+        }
+
         let balanceService = AccountBalanceService()
 
         for (id, attendu) in fixture.attendus.soldesMineures {
@@ -232,7 +247,7 @@ final class CanonicalFixtureTests: XCTestCase {
             let snapshot = MonthlySnapshotService(calendar: calendar).snapshot(
                 monthOf: ancre, now: now, household: household,
                 accounts: listeComptes, transactions: mouvements,
-                recurrings: listeRecurrences
+                recurrings: listeRecurrences, fxQuotes: quotes
             )
             verifieChamp(fixture.nom, "mois.recuMineures", mois.recuMineures, snapshot.totalIncome)
             verifieChamp(fixture.nom, "mois.depenseMineures", mois.depenseMineures, snapshot.totalLivingExpenses)
@@ -247,7 +262,8 @@ final class CanonicalFixtureTests: XCTestCase {
             let netWorthService = NetWorthService(calendar: calendar, balanceService: balanceService)
             if let attendu = patrimoine.fortuneTotaleMineures {
                 let fortune = netWorthService.breakdown(
-                    accounts: listeComptes, assets: [], pensions: [], liabilities: []
+                    accounts: listeComptes, assets: [], pensions: [], liabilities: [],
+                    baseCurrency: e.deviseBase, fxQuotes: quotes, asOf: now
                 ).netWorth
                 let obtenu = mineures(fortune)
                 XCTAssertEqual(obtenu, attendu,
