@@ -3017,6 +3017,49 @@ function transitionOccurrence(occurrence, nouvelEtat) {
   return null;
 }
 
+/* W2.4b (Budget Autonomie 100) : CONFIRMER une échéance — un seul
+   geste écrit LE mouvement lié ET l'état. Idempotent : une échéance
+   déjà confirmée retrouve son mouvement, double tap = UNE écriture
+   (FI-04). Le montant RÉEL peut différer du montant ATTENDU, qui est
+   conservé (FI-05). Tout se valide AVANT d'écrire : un refus de la
+   machine à états ou un montant manquant ne laisse aucune trace
+   (FI-31). SHADOW : aucune vue ne l'appelle encore (ADR-058). */
+function confirmerOccurrence(occurrence, options) {
+  const opts = options || {};
+  // Idempotence : déjà confirmée → retrouver le mouvement lié.
+  if (occurrence.state === "confirmed" && occurrence.transactionId != null) {
+    const existant = transactions.find(t => t.id === occurrence.transactionId);
+    if (existant) return { mouvement: existant, erreur: null };
+  }
+  const montantReel = opts.montant != null ? opts.montant : occurrence.expectedAmount;
+  if (!(montantReel > 0)) return { mouvement: null, erreur: "Montant manquant : indiquez ce qui a réellement bougé." };
+  if (!ACCOUNTS.some(a => a.id === opts.compte)) return { mouvement: null, erreur: "Choisissez un compte." };
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(occurrence.dueDate || "");
+  if (!dateMatch) return { mouvement: null, erreur: "Échéance sans date lisible." };
+  // La machine à états d'abord : un refus ne laisse AUCUNE trace.
+  const refus = transitionOccurrence(occurrence, "confirmed");
+  if (refus) return { mouvement: null, erreur: refus };
+  const candidat = {
+    id: ++txSeq, y: +dateMatch[1], m: +dateMatch[2], d: +dateMatch[3],
+    type: opts.type || "expense", amount: montantReel,
+    cat: opts.categorie || null, title: opts.titre || "Échéance confirmée",
+    acc: opts.compte, dest: opts.destination || null, status: "posted",
+    recurringId: occurrence.seriesId || null,
+  };
+  try {
+    addTx(candidat);
+  } catch (e) {
+    // Atomicité : l'estampillage a refusé (taux manquant…) — l'état
+    // de l'échéance revient, rien n'est écrit.
+    occurrence.state = "due";
+    delete occurrence.confirmedAt;
+    return { mouvement: null, erreur: "Ce mouvement n'a pas pu être enregistré : " + (e && e.message ? e.message : "erreur") };
+  }
+  occurrence.transactionId = candidat.id;
+  saveState();
+  return { mouvement: candidat, erreur: null };
+}
+
 /* W2.2 (Budget Autonomie 100) : MATÉRIALISER les échéances d'un mois —
    idempotent (FI-03) : la clé canonique retombe sur l'occurrence
    existante, re-matérialiser ne duplique jamais et ne réécrit jamais un
@@ -7940,6 +7983,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && (o.originalDueDate == null || (typeof o.originalDueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.originalDueDate)))
     && (o.expectedAmount == null || (Number.isFinite(o.expectedAmount) && o.expectedAmount >= 0))
     && OCCURRENCE_STATES.has(o.state)
+    && (o.transactionId == null || Number.isFinite(o.transactionId))
     && typeof o.idempotencyKey === "string" && o.idempotencyKey);
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);

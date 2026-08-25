@@ -29,7 +29,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 ### W2 — Occurrences persistées (lot actif)
 
 **État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.4a EN PR** (Work Order :
+`32847580712`) · W2.4a puis W2.4b EN PR
+(empilées, fusion dans l'ordre)** (Work Order :
 `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
@@ -74,7 +75,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.4a EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.4a/b EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -111,6 +112,20 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.4b : la confirmation atomique
+
+Un geste écrit LE mouvement lié ET l'état — jamais l'un sans l'autre.
+Natif : `OccurrenceConfirmationService.confirm` (transition d'abord,
+insertion, lien, save ; échec de save → rollback COMPLET, FI-31/32) ;
+double tap retrouve le mouvement (FI-04) ; montant attendu conservé à
+côté du montant réel (FI-05) ; montant manquant = erreur nommée, jamais
+zéro (FI-34) ; le mouvement porte la date de l'ÉCHÉANCE — 5 tests.
+PWA : `confirmerOccurrence` mêmes règles (validation avant écriture,
+retour d'état sur échec d'estampillage). Parcours 185 né rouge
+(5 échecs nommés) ; sabotage mordant (idempotence retirée → double
+écriture nommée). Toujours SHADOW : les boutons « Reçu/Payé » actuels
+basculeront en W2.7.
 
 ### 25.08.2026 — W2.4a : une date n'est pas une preuve (ADR-062)
 
