@@ -29,8 +29,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 ### W2 — Occurrences persistées (lot actif)
 
 **État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.4a/b fusionnés
-(`main` = `6936a62`) · W2.5 EN PR** (Work Order :
+`32847580712`) · W2.4a/b et W2.5 fusionnés
+(`main` = `5647062`) · W2.6 EN PR** (Work Order :
 `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
@@ -75,7 +75,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.5 EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.6 EN PR | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -112,6 +112,18 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.6 : une facture est une occurrence sans série
+
+PWA : `materialiserFactures(y, m)` — clé `facture:<id>` idempotente,
+occurrence SANS série liée par `billId`, montant de la facture, état
+honnête (courue → « À confirmer », future → « Prévu ») ; une facture
+déjà couverte ne matérialise rien (sa liaison aux occurrences
+confirmées arrive avec la bascule W2.7, consigné). Parcours 187 né
+rouge (5 échecs nommés) ; sabotage mordant (la couverte matérialisée
+nommée). CONSIGNÉ : le natif n'a PAS de modèle de facture ponctuelle —
+son équivalent naîtra avec l'inbox (W5) sur le modèle d'occurrence
+déjà partagé ; aucun faux miroir n'est créé en attendant.
 
 ### 25.08.2026 — W2.5 : reporter, ignorer, annuler — jamais d'argent
 
