@@ -10645,6 +10645,88 @@ currentTest = "W2.7a comparateur";
   await ctx188.close();
 }
 
+// ---------- 189. W2.7b : le geste « Reçu/Payé » confirme AUSSI l'échéance persistée ----------
+// Budget Autonomie 100, W2.7b : le MÊME geste, le MÊME mouvement
+// qu'avant (aucune forme ne change) — mais l'échéance persistée est
+// désormais confirmée et LIÉE. Supprimer le mouvement efface l'échéance
+// (jamais un lien pendu) : elle renaît « À confirmer » à la
+// re-matérialisation, et le comparateur reste à ZÉRO écart. L'undo
+// restaure aussi les occurrences.
+currentTest = "W2.7b bascule du geste";
+{
+  const ctx189 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p189 = await ctx189.newPage();
+  p189.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W2.7b] ${msg.text()}`); });
+  await p189.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Bas" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "r-loyer", title: "Loyer", amount: 1500, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {},
+      bills: [],
+    }));
+  });
+  await p189.goto(APP_URL);
+  await p189.waitForSelector("#tabbar button");
+  const bas = await p189.evaluate(() => {
+    const resultat = {};
+    const ETATS_OUVERTS = ["scheduled", "due", "matchProposed", "snoozed"];
+    S.bills.push({ id: "b1", name: "Électricité", amount: 184.30, dueY: NOW.y, dueM: NOW.m, dueD: 12, cat: "Logement", accountId: "cur" });
+    // 1. Le geste récurrent : mouvement INCHANGÉ + échéance confirmée liée.
+    const geste = materializeRecurring(RECURRINGS[0], NOW.y, NOW.m);
+    const tx = geste.transaction;
+    resultat.mouvementForme = tx && tx.status === "posted" && tx.recurringId === "r-loyer"
+      && tx.d === NOW.d && tx.amount === 1500;
+    const occSerie = (S.occurrences || []).find(o => o.seriesId === "r-loyer");
+    resultat.occConfirmee = occSerie ? occSerie.state === "confirmed" : null;
+    resultat.occLiee = occSerie ? occSerie.transactionId === tx.id : null;
+    resultat.ecartsApresGeste = comparerOccurrencesEtCompteurs(1);
+    // 2. Supprimer le mouvement (vrai parcours : feuille + fDelete).
+    const confirmOriginal = window.confirm; window.confirm = () => true;
+    openTxSheet(tx);
+    document.getElementById("fDelete").click();
+    window.confirm = confirmOriginal;
+    resultat.occEffacee = !(S.occurrences || []).some(o => o.transactionId === tx.id);
+    // 3. Re-matérialiser : l'échéance renaît « À confirmer », comparateur à zéro.
+    materialiserOccurrences(NOW.y, NOW.m);
+    const renaissante = (S.occurrences || []).find(o => o.seriesId === "r-loyer");
+    resultat.renaitDue = renaissante ? renaissante.state === "due" : null;
+    resultat.ecartsApresSuppression = comparerOccurrencesEtCompteurs(1);
+    // 4. La facture : même contrat.
+    const paiement = materializeBill(S.bills[0]);
+    const occFacture = (S.occurrences || []).find(o => o.idempotencyKey === "facture:b1");
+    resultat.factureConfirmee = occFacture ? occFacture.state === "confirmed" && occFacture.transactionId === paiement.transaction.id : null;
+    // 5. L'undo restaure AUSSI les occurrences.
+    pushUndo();
+    S.occurrences = [];
+    undoLast();
+    resultat.undoRestaure = (S.occurrences || []).some(o => o.idempotencyKey === "facture:b1");
+    // Nettoyage.
+    transactions.length = 0; S.occurrences = []; S.bills = []; saveState(); render();
+    return resultat;
+  });
+  check(bas.mouvementForme === true,
+    "le geste crée le MÊME mouvement qu'avant — posté, daté du jour, lié à la série");
+  check(bas.occConfirmee === true && bas.occLiee === true,
+    `…ET confirme l'échéance persistée, liée au mouvement (confirmée ${bas.occConfirmee} / liée ${bas.occLiee})`);
+  check(Array.isArray(bas.ecartsApresGeste) && bas.ecartsApresGeste.length === 0,
+    `comparateur à ZÉRO écart après le geste (${JSON.stringify(bas.ecartsApresGeste)})`);
+  check(bas.occEffacee === true && bas.renaitDue === true,
+    `supprimer le mouvement efface l'échéance — elle renaît « À confirmer » (effacée ${bas.occEffacee} / renaît ${bas.renaitDue})`);
+  check(Array.isArray(bas.ecartsApresSuppression) && bas.ecartsApresSuppression.length === 0,
+    `comparateur à ZÉRO écart après la suppression (${JSON.stringify(bas.ecartsApresSuppression)})`);
+  check(bas.factureConfirmee === true,
+    "payer une facture confirme aussi son échéance sans série, liée");
+  check(bas.undoRestaure === true,
+    "l'undo restaure aussi les occurrences — jamais un état à moitié rendu");
+  await ctx189.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -10654,4 +10736,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 188 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 189 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

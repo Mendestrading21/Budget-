@@ -2833,6 +2833,16 @@ function materializeRecurring(recurring, y, m) {
     status: statusForDate(y, m, day), recurringId: recurring.id,
   };
   addTx(transaction);
+  // W2.7b : le MÊME geste confirme aussi l'échéance persistée — liée au
+  // mouvement, par la machine à états (jamais un état forcé).
+  materialiserOccurrences(y, m);
+  const prefixeSerie = `serie:${recurring.id}:${y}-${m}:`;
+  const echeanceOuverte = (S.occurrences || []).find(o =>
+    typeof o.idempotencyKey === "string" && o.idempotencyKey.startsWith(prefixeSerie)
+    && ["scheduled", "due", "matchProposed", "snoozed"].includes(o.state));
+  if (echeanceOuverte && transitionOccurrence(echeanceOuverte, "confirmed") === null) {
+    echeanceOuverte.transactionId = transaction.id;
+  }
   return { transaction, created: true };
 }
 function billLinkedTransaction(bill) {
@@ -2870,6 +2880,9 @@ function materializeBill(bill) {
   // D'IMPÔTS, pas une dépense de vie — sinon il gonfle le coût de la vie
   // et ne réduit jamais « il vous reste à payer » (taxSummary.paid ne
   // compte que les taxPayment).
+  // W2.7b : matérialiser l'échéance de la facture AVANT le paiement —
+  // après, elle serait couverte et ne naîtrait jamais.
+  materialiserFactures(y, m);
   const transaction = {
     id: ++txSeq, y, m, d: day,
     title: bill.name, amount: bill.amount,
@@ -2878,6 +2891,11 @@ function materializeBill(bill) {
     status: statusForDate(y, m, day), billId: bill.id,
   };
   addTx(transaction);
+  const echeanceFacture = (S.occurrences || []).find(o => o.idempotencyKey === `facture:${bill.id}`);
+  if (echeanceFacture && ["scheduled", "due", "matchProposed", "snoozed"].includes(echeanceFacture.state)
+      && transitionOccurrence(echeanceFacture, "confirmed") === null) {
+    echeanceFacture.transactionId = transaction.id;
+  }
   bill.paidTxId = transaction.id;
   return { transaction, created: true };
 }
@@ -5570,7 +5588,10 @@ function rollbackLastImport() {
   if (!S.lastImport) return;
   const batchId = S.lastImport.batchId;
   for (let i = transactions.length - 1; i >= 0; i--) {
-    if (transactions[i].importBatch === batchId) transactions.splice(i, 1);
+    if (transactions[i].importBatch === batchId) {
+      libererOccurrencesDuMouvement(transactions[i].id);
+      transactions.splice(i, 1);
+    }
   }
   S.lastImport = null;
   saveState();
@@ -7042,6 +7063,7 @@ function undoLast() {
   S.budgets = restored.budgets || {};
   S.documents = restored.documents || [];
   S.bills = restored.bills || [];
+  S.occurrences = restored.occurrences || []; // W2.7b
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
@@ -7546,6 +7568,17 @@ document.addEventListener("keydown", (e) => {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
+/* W2.7b : jamais une échéance confirmée pointant vers un mouvement
+   disparu — elle s'efface et renaîtra « À confirmer » à la
+   re-matérialisation (la correction traçable arrive avec le journal
+   W3, consigné). */
+function libererOccurrencesDuMouvement(txId) {
+  const occ = S.occurrences || [];
+  for (let i = occ.length - 1; i >= 0; i -= 1) {
+    if (occ[i].transactionId === txId) occ.splice(i, 1);
+  }
+}
+
 document.getElementById("fDelete").addEventListener("click", () => {
   if (editingTxId == null) return;
   if (!confirm("Supprimer définitivement cette opération ?")) return;
@@ -7553,6 +7586,7 @@ document.getElementById("fDelete").addEventListener("click", () => {
   const index = transactions.findIndex(t => t.id === editingTxId);
   const deleted = index >= 0 ? transactions[index] : null;
   if (index >= 0) transactions.splice(index, 1);
+  libererOccurrencesDuMouvement(editingTxId);
   // Une facture réglée par ce mouvement redevient « à payer » : on ne
   // laisse jamais une facture pointer vers un mouvement disparu.
   for (const bill of (S.bills || [])) {
@@ -9467,6 +9501,7 @@ document.getElementById("bUnpay").addEventListener("click", () => {
   const linked = billLinkedTransaction(bill);
   const index = linked ? transactions.indexOf(linked) : -1;
   if (index >= 0) transactions.splice(index, 1);
+  if (linked) libererOccurrencesDuMouvement(linked.id);
   bill.paidTxId = null;
   saveState();
   closeSheet();

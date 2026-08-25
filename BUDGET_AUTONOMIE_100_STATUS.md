@@ -29,8 +29,8 @@ squash ; publication par dispatch au SHA exact `7814cb8`
 ### W2 — Occurrences persistées (lot actif)
 
 **État : W2.1–W2.3 fusionnés et publiés (`main` = `8d0b570`, run
-`32847580712`) · W2.4a/b, W2.5 et W2.6 fusionnés
-(`main` = `3e768d6`) · W2.7a EN PR** (Work Order :
+`32847580712`) · W2.7a fusionné (`main` =
+`45890c7`) · W2.7b EN PR — DERNIER sous-lot de W2** (Work Order :
 `docs/autonomie/w2/WORK_ORDER_W2.md`).
 Les fixtures « doublons d'import » de W1.5 sont DIFFÉRÉES à W7 : le
 modèle d'import intermédiaire n'existe pas encore, une fixture ne peut
@@ -75,7 +75,7 @@ Livrables attendus :
 |---|---|---|---|
 | W0 | Gouvernance et vérité | DONE | — |
 | W1 | Fixtures canoniques | DONE | W0 |
-| W2 | Occurrences persistées | W2.7a EN PR | W1 (fusionné) |
+| W2 | Occurrences persistées | W2.7b EN PR (dernier) | W1 (fusionné) |
 | W3 | Journal financier | BLOCKED | W1, W2 |
 | W4 | Comptes, devises, rapprochement | BLOCKED | W3 |
 | W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
@@ -112,6 +112,24 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 25.08.2026 — W2.7b : le geste confirme l'échéance — W2 se ferme
+
+Le MÊME geste, le MÊME mouvement qu'avant (aucune forme ne change,
+aucun test verrouillé ne bouge) — mais l'échéance persistée est
+désormais confirmée et LIÉE par la machine à états. Supprimer le
+mouvement (feuille, facture remise à payer, retrait d'un import)
+efface l'échéance — jamais un lien pendu — et elle renaît « À
+confirmer » à la re-matérialisation ; l'undo restaure aussi les
+occurrences. Parcours 189 (7 volets) né rouge (3 échecs nommés) ;
+sabotage mordant DEUX FOIS (le contrôle direct ET le comparateur ont
+attrapé le lien pendu indépendamment — la gate W2.7a est vivante).
+CONSIGNÉ : la LECTURE des occurrences par les pages (inbox) arrive
+avec W5 — les compteurs actuels restent la source affichée, prouvés
+équivalents par le comparateur ; la correction traçable d'un mouvement
+confirmé (au lieu de sa suppression) arrive avec le journal W3 ;
+fixtures canoniques v2 (états) au schéma v2 avec W3. FI-03/04/05
+passent à TENUS côté moteur.
 
 ### 25.08.2026 — W2.7a : le comparateur ancien/nouveau (ADR-058 étape 4)
 
