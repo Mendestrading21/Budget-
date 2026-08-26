@@ -13756,6 +13756,101 @@ currentTest = "W7.6 règles d'import";
   await ctx222.close();
 }
 
+// ---------- 223. W7.7 : REVUE D'IMPORT — refuser ligne par ligne, annuler lot par lot ----------
+// Budget Autonomie 100, W7.7 (dernier sous-lot de W7) : mesuré —
+// l'aperçu d'import était tout-ou-rien (aucun refus ligne par ligne)
+// et le rollback ne visait que le DERNIER lot. Livré : exclusions à
+// l'écriture (verdict « refused » consigné au journal), rollback
+// CIBLÉ par lot, et l'écran Import porte les deux.
+currentTest = "W7.7 revue d'import";
+{
+  const ctx223 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p223 = await ctx223.newPage();
+  p223.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.7] ${msg.text()}`); });
+  await p223.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rev" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p223.goto(APP_URL);
+  await p223.waitForSelector("#tabbar button");
+  const rev = await p223.evaluate(() => {
+    const resultat = {};
+    const csvA = "Date;Montant;Libellé\n05.07.2026;-45.50;Pharmacie\n06.07.2026;-12.00;Kiosque\n07.07.2026;-30.00;Boulangerie";
+    // 1. REFUSER ligne par ligne : la ligne 3 (Kiosque) est écartée —
+    //    pas écrite, mais CONSIGNÉE au journal (verdict « refused »).
+    const analyseA = analyzeCSV(csvA, null, "cur");
+    const ligneKiosque = analyseA.rows.find(r => r.tx && r.tx.title === "Kiosque").line;
+    applyImport(analyseA, "releve-a.csv", "cur", [ligneKiosque]);
+    resultat.refusLigne = !transactions.some(t => t.title === "Kiosque")
+      && transactions.some(t => t.title === "Pharmacie")
+      && transactions.some(t => t.title === "Boulangerie");
+    const lotA = (S.imports || [])[0];
+    resultat.refusConsigne = !!lotA && lotA.imported === 2
+      && lotA.records.some(r => r.verdict === "refused" && r.line === ligneKiosque);
+    // 2. ROLLBACK CIBLÉ : deux lots, annuler le PREMIER seulement.
+    const csvB = "Date;Montant;Libellé\n08.07.2026;-9.00;Journal";
+    applyImport(analyzeCSV(csvB, null, "cur"), "releve-b.csv", "cur");
+    resultat.deuxLots = (S.imports || []).length === 2 && transactions.length === 3;
+    if (typeof rollbackImport !== "function") { resultat.rollbackCible = false; }
+    else {
+      rollbackImport(lotA.id);
+      resultat.rollbackCible = !transactions.some(t => t.title === "Pharmacie")
+        && transactions.some(t => t.title === "Journal")
+        && /^\d{4}-\d{2}-\d{2}T/.test(lotA.rolledBackAt || "")
+        && S.imports[1].rolledBackAt === undefined;
+    }
+    // 3. L'écran Import porte le JOURNAL des lots — avec l'annulation
+    //    ciblée du lot encore présent.
+    activeTab = "more"; moreView = "importcsv"; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    resultat.uiJournal = ecran().includes("Journal des imports")
+      && ecran().includes("releve-b.csv")
+      && !!document.querySelector("[data-rollbacklot]");
+    // 4. L'aperçu offre le refus ligne par ligne (toggle « Écarter »).
+    // Le brouillon est construit comme le fait startImportDraft (flux réel).
+    importDraft = { content: csvA, fileName: "encore.csv",
+                    mapping: { ...analyzeCSV(csvA, null, "cur").columns }, accountId: "cur", exclues: [] };
+    render();
+    const bouton = document.querySelector("[data-imprefuse]");
+    resultat.uiToggle = !!bouton;
+    if (bouton) {
+      const avant = ecran();
+      bouton.click();
+      resultat.toggleAgit = document.getElementById("screen").textContent !== avant
+        && (importDraft.exclues || []).length === 1;
+    }
+    importDraft = null; activeTab = "home"; moreView = null; render();
+    // 5. Restauration : un lot au verdict « refused » SURVIT.
+    const photo = JSON.parse(JSON.stringify(S));
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationGarde = !!restauree && restauree.imports.length === 2
+      && restauree.imports[0].records.some(r => r.verdict === "refused");
+    return resultat;
+  });
+  check(rev.refusLigne === true,
+    "la ligne refusée n'est pas écrite — les autres entrent");
+  check(rev.refusConsigne === true,
+    "le refus est CONSIGNÉ au journal : verdict « refused », compteurs justes");
+  check(rev.deuxLots === true, "deux lots vivent au journal (mise en place)");
+  check(rev.rollbackCible === true,
+    "le rollback est CIBLÉ : le premier lot part, le second reste, traces exactes");
+  check(rev.uiJournal === true,
+    "l'écran Import porte « Journal des imports » avec l'annulation ciblée");
+  check(rev.uiToggle === true,
+    "l'aperçu offre « Écarter » ligne par ligne");
+  check(rev.toggleAgit === true,
+    "écarter une ligne agit : l'exclusion est tenue, l'aperçu se met à jour");
+  check(rev.restaurationGarde === true,
+    "restauration : un lot au verdict « refused » survit tel quel");
+  await ctx223.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13765,4 +13860,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 222 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 223 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
