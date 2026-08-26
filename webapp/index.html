@@ -1973,6 +1973,36 @@ function dernierTauxConsigne(devise) {
   const [qy, qm, qd] = q.observedAt.split("-");
   return { ...q, dateFR: `${qd}.${qm}.${qy}` };
 }
+/* W8.3a : le taux DATÉ se lit enfin — dernière quote consignée le jour
+   J ou avant (journal append-only W4.2). null quand aucune quote
+   n'existait encore à cette date : un défaut n'est pas une mesure. */
+function tauxAuJour(devise, dateISO) {
+  if (!devise || devise === baseCurrency()) return 1;
+  if (typeof dateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return null;
+  let derniere = null;
+  for (const q of S.fxQuotes || []) {
+    if (q.quote !== devise || q.base !== baseCurrency()) continue;
+    if (typeof q.observedAt !== "string" || q.observedAt > dateISO) continue;
+    if (!derniere || q.observedAt >= derniere.observedAt) derniere = q;
+  }
+  return derniere && Number.isFinite(derniere.taux) && derniere.taux > 0 ? derniere.taux : null;
+}
+/* W8.3a (ADR-070) : conversion DATÉE des STOCKS en fin de mois — la
+   mesure du moment fait foi et l'histoire ne se réécrit plus. Avant la
+   première mesure, la première mesure fait foi (elle ne bouge plus) ;
+   sans aucune mesure consignée, le cache actuel (comportement
+   historique, consigné tel quel). */
+function toCHFAuMois(amount, currency, y, m) {
+  if (!currency || currency === baseCurrency()) return amount;
+  const finDeMois = `${y}-${String(m).padStart(2, "0")}-31`;
+  let taux = tauxAuJour(currency, finDeMois);
+  if (taux == null) {
+    const premiere = (S.fxQuotes || []).find(q =>
+      q.quote === currency && q.base === baseCurrency() && Number.isFinite(q.taux) && q.taux > 0);
+    taux = premiere ? premiere.taux : fxRateFor(currency);
+  }
+  return taux == null ? null : amount * taux;
+}
 /* Conversion vers la devise de référence via les taux MANUELS (aucun réseau). */
 function toCHF(amount, currency) {
   if (!currency || currency === baseCurrency()) return amount;
@@ -5797,11 +5827,14 @@ function renderNetWorth() {
   // Courbes DÉRIVÉES des soldes réels de fin de mois, sur 12 mois, par
   // classe (actifs/prévoyance manuelle/dettes sans historique : constants).
   const MONTHS12 = Array.from({ length: 12 }, (_, i) => shiftMonth(NOW, i - 11));
+  // W8.3a (ADR-070) : chaque point mensuel est converti au taux de SON
+  // moment (toCHFAuMois) — consigner un taux aujourd'hui ne réécrit
+  // plus l'histoire des stocks.
   const classSeries = kinds => MONTHS12.map(mm =>
     ACCOUNTS.filter(a => compteDansPatrimoine(a) && kinds.includes(a.kind))
-      .reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0));
+      .reduce((a, acc) => a + toCHFAuMois(balanceAt(acc.id, mm.y, mm.m), acc.currency, mm.y, mm.m), 0));
   const points = MONTHS12.map(mm =>
-    ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balanceAt(acc.id, mm.y, mm.m), acc.currency), 0)
+    ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHFAuMois(balanceAt(acc.id, mm.y, mm.m), acc.currency, mm.y, mm.m), 0)
       + assetsTotal + pensionTotal - liabTotal);
   // Les quatre classes empruntaient le vert, le corail et l'ambre : une
   // courbe « Prévoyance » tracée en corail se lisait comme une perte. Elles

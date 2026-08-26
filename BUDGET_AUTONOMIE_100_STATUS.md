@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1 fusionné · W8.2 EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.2 fusionnés · W8.3a EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,34 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.3a : taux datés — la courbe de patrimoine ne se réécrit plus (ADR-070)
+
+Mesuré d'abord : chaque point mensuel des courbes de patrimoine
+convertissait les soldes au taux COURANT (`toCHF`) — changer un taux
+réécrivait rétroactivement l'histoire des STOCKS, alors que
+`S.fxQuotes` (daté, sourcé, append-only — W4.2) n'était JAMAIS lu pour
+convertir. Décisions propriétaire du jour (AskUserQuestion, consignées
+en ADR-070) : devise de BASE par défaut pour les biens existants
+(W8.3b) ; performance V1 RACONTÉE sans taux annualisé (W8.4) ; port
+des échéances d'acomptes et de la provision annuelle du natif (W8.5).
+Livré : `tauxAuJour(devise, date)` (dernière quote consignée à la
+date, null sinon — un défaut n'est pas une mesure) ; `toCHFAuMois`
+(la mesure du moment fait foi ; avant la première mesure, la première
+mesure — elle ne bouge plus ; sans aucune mesure, le cache actuel,
+comportement historique consigné) ; les séries 12 mois (globale et par
+classe) passent par la conversion datée. Preuves : parcours 226 né
+rouge (6 échecs nommés) ; deux sabotages — le premier (classe repassée
+au taux courant) INERTE au premier passage car le contrôle acceptait
+UNE polyligne non plate (la globale suffisait) → contrôle DURCI (au
+moins deux polylignes non plates, l'« Argent disponible » en CHF pur
+restant le témoin plat), le sabotage mord ; `tauxAuJour` sans date →
+5 échecs. Captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-3a/`) ; suites complètes vertes
+(226 e2e, 9 parités, 13 canon + schéma, design, catalogue, audits).
+INCIDENT de publication W8.2 (`main` = `efd16c1`, PR #183) : premier
+run `32984252482` en `startup_failure` (échec AVANT tout job — côté
+GitHub), re-dispatch au même SHA lancé, verdict consigné dès la fin.
 
 ### 26.08.2026 — W8.2 : positions — plus-value honnête, devise du prix enfin lue
 

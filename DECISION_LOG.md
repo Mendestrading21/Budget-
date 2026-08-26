@@ -1,5 +1,44 @@
 # Budget decision log
 
+## ADR-070 — Conversion datée des stocks et devise par défaut des biens
+
+Date: 2026-08-26
+Status: accepted
+
+### Contexte
+
+Les mouvements sont estampillés à la création (FI-19) mais les STOCKS
+(soldes de comptes, biens, prévoyance) étaient convertis au taux
+COURANT sur toute la courbe 12 mois du patrimoine : changer un taux
+réécrivait rétroactivement l'histoire, alors que le journal
+`fxQuotes` (daté, sourcé, append-only — ADR-065) n'était jamais lu
+pour convertir. Par ailleurs, les actifs/dettes/prévoyances n'ont pas
+de devise enregistrée. Questions posées au propriétaire le 26.08.2026.
+
+### Décision
+
+1. Chaque point mensuel des courbes de patrimoine est converti par
+   `toCHFAuMois` : la dernière quote consignée à la fin de ce mois
+   fait foi. Avant la première mesure, la première mesure fait foi
+   (elle ne bouge plus). Sans aucune mesure consignée, le cache
+   actuel — comportement historique, assumé et consigné.
+2. Décision propriétaire : les actifs, dettes et prévoyances
+   existants sont réputés dans la devise de BASE par défaut (clé
+   additive, changeable par fiche — livraison W8.3b) ; aucun écran de
+   confirmation forcée.
+3. Décisions jumelles consignées le même jour : la performance V1
+   reste RACONTÉE (versé, retiré, valeur, différence — aucun taux
+   annualisé, W8.4) ; l'écran Impôts web portera les échéances
+   d'acomptes et la provision annuelle du modèle natif, sans aucun
+   calcul d'impôt (W8.5, ADR-035 intact).
+
+### Conséquences
+
+L'histoire des stocks ne bouge plus quand un taux change ; les mois
+antérieurs à toute mesure restent stables dès la première consignation.
+Le runner canon devra lire les dates des taux (W8.3b) pour prouver ce
+contrat dans le moteur.
+
 ## ADR-069 — Les parts d'une dépense vivent dans le mouvement
 
 Date: 2026-08-26

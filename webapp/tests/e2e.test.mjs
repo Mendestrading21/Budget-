@@ -14000,6 +14000,100 @@ currentTest = "W8.2 positions";
   await ctx225.close();
 }
 
+// ---------- 226. W8.3a : TAUX DATÉS — la courbe de patrimoine ne se réécrit plus ----------
+// Budget Autonomie 100, W8.3a : mesuré — chaque point mensuel de la
+// courbe de patrimoine convertissait les soldes au taux COURANT
+// (toCHF) : changer un taux réécrivait rétroactivement l'histoire des
+// STOCKS, alors que S.fxQuotes (daté, sourcé, append-only — W4.2)
+// n'était JAMAIS lu pour convertir. Livré : tauxAuJour(devise, date)
+// + conversion datée des points mensuels (ADR-070 : la mesure du
+// moment fait foi ; avant la première mesure, la première mesure ;
+// sans aucune mesure, le cache actuel — comportement historique).
+currentTest = "W8.3a taux datés";
+{
+  const ctx226 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p226 = await ctx226.newPage();
+  p226.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.3a] ${msg.text()}`); });
+  await p226.addInitScript(() => {
+    const now = new Date();
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const ilYA8Mois = new Date(now.getFullYear(), now.getMonth() - 8, 5);
+    const premierDuMois = new Date(now.getFullYear(), now.getMonth(), 1);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fx" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "eur", name: "Livret EUR", kind: "savings", opening: 1000, cash: false, currency: "EUR" },
+      ],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+      fxRates: { EUR: 1.0 },
+      fxQuotes: [
+        { base: "CHF", quote: "EUR", taux: 0.9, observedAt: iso(ilYA8Mois), source: "fixture test" },
+        { base: "CHF", quote: "EUR", taux: 1.0, observedAt: iso(premierDuMois), source: "fixture test" },
+      ],
+    }));
+  });
+  await p226.goto(APP_URL);
+  await p226.waitForSelector("#tabbar button");
+  const fx = await p226.evaluate(() => {
+    const resultat = {};
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const now = new Date();
+    if (typeof tauxAuJour !== "function" || typeof toCHFAuMois !== "function") {
+      return { fonctionsAbsentes: true };
+    }
+    // 1. Le taux daté se lit : rien avant la première quote, 0.90 dès
+    //    elle, 1.00 aujourd'hui.
+    const avant = new Date(now.getFullYear(), now.getMonth() - 10, 15);
+    const entre = new Date(now.getFullYear(), now.getMonth() - 3, 15);
+    resultat.tauxDate = tauxAuJour("EUR", iso(avant)) === null
+      && tauxAuJour("EUR", iso(entre)) === 0.9
+      && tauxAuJour("EUR", iso(now)) === 1.0;
+    // 2. Un mois PASSÉ est converti au taux de SON moment : 1000 EUR il
+    //    y a 3 mois = CHF 900, pas CHF 1000.
+    const m3 = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    resultat.moisFige = toCHFAuMois(1000, "EUR", m3.getFullYear(), m3.getMonth() + 1) === 900;
+    // 3. Avant la PREMIÈRE mesure : la première mesure fait foi (elle ne
+    //    bouge plus) — jamais le cache du jour.
+    const m10 = new Date(now.getFullYear(), now.getMonth() - 10, 1);
+    resultat.avantPremiereMesure = toCHFAuMois(1000, "EUR", m10.getFullYear(), m10.getMonth() + 1) === 900;
+    // 4. Consigner un NOUVEAU taux aujourd'hui ne réécrit PLUS le passé.
+    const refus = enregistrerTaux("EUR", 1.1, "test W8.3a");
+    resultat.pasDeReecriture = refus === null
+      && toCHFAuMois(1000, "EUR", m3.getFullYear(), m3.getMonth() + 1) === 900
+      && Math.abs(toCHFAuMois(1000, "EUR", now.getFullYear(), now.getMonth() + 1) - 1100) < 0.005;
+    // 5. La COURBE de patrimoine raconte le changement : la classe
+    //    « Épargne » n'est plus une droite plate au taux du jour.
+    activeTab = "more"; moreView = "networth"; render();
+    const lignes = [...document.querySelectorAll("#screen polyline")];
+    // Contrôle durci (sabotage inerte) : la courbe GLOBALE et la classe
+    // « Épargne » doivent toutes deux raconter le changement — au moins
+    // DEUX polylignes non plates (l'« Argent disponible », en CHF pur,
+    // reste plat : le témoin).
+    const nonPlates = lignes.filter(pl => {
+      const ys = (pl.getAttribute("points") || "").split(" ").map(pt => pt.split(",")[1]);
+      return new Set(ys).size > 1;
+    }).length;
+    resultat.courbeRaconte = nonPlates >= 2;
+    moreView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(fx.fonctionsAbsentes !== true, "tauxAuJour et toCHFAuMois existent");
+  check(fx.tauxDate === true,
+    "le taux daté se lit : null avant toute quote, 0.90 dès la première, 1.00 aujourd'hui");
+  check(fx.moisFige === true,
+    "un mois passé est converti au taux de SON moment (CHF 900, pas CHF 1000)");
+  check(fx.avantPremiereMesure === true,
+    "avant la première mesure, la première mesure fait foi — jamais le cache du jour");
+  check(fx.pasDeReecriture === true,
+    "consigner un taux aujourd'hui ne réécrit plus les mois passés");
+  check(fx.courbeRaconte === true,
+    "la courbe de patrimoine raconte le changement de taux (plus de droite plate au taux du jour)");
+  await ctx226.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14009,4 +14103,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 225 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 226 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
