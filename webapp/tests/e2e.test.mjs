@@ -13487,6 +13487,74 @@ currentTest = "W7.3 tags libres";
   await ctx219.close();
 }
 
+// ---------- 220. W7.4 : « IMPRÉVU » — le repli honnête, jamais une fausse catégorie ----------
+// Budget Autonomie 100, W7.4 : mesuré — la saisie force une catégorie
+// existante ou l'écriture libre ; rien pour dire honnêtement « je ne
+// sais pas encore ». Résultat : une fausse catégorie silencieuse.
+// Livré : « Imprévu » entre au référentiel (dépense), proposé à la
+// saisie avec un langage honnête ; le hors-budget le nomme déjà.
+currentTest = "W7.4 repli Imprévu";
+{
+  const ctx220 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p220 = await ctx220.newPage();
+  p220.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.4] ${msg.text()}`); });
+  await p220.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Imp" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p220.goto(APP_URL);
+  await p220.waitForSelector("#tabbar button");
+  const imprevu = await p220.evaluate(() => {
+    const resultat = {};
+    // 1. La saisie d'une dépense propose « Imprévu » — langage honnête.
+    openTxSheet(null);
+    document.getElementById("fType").value = "expense";
+    document.getElementById("fType").dispatchEvent(new Event("change"));
+    const options = [...document.getElementById("fCat").options];
+    const option = options.find(o => o.value === "Imprévu");
+    resultat.optionProposee = !!option;
+    resultat.langageHonnete = !!option && /reclasser/i.test(option.textContent);
+    // 2. Le référentiel le connaît comme une DÉPENSE.
+    resultat.referentiel = categoryKind("Imprévu") === "expense";
+    // 3. Choisir « Imprévu » stocke la catégorie telle quelle.
+    if (option) {
+      document.getElementById("fAmount").value = "37.90";
+      document.getElementById("fCat").value = "Imprévu";
+      document.getElementById("fCat").dispatchEvent(new Event("change"));
+      document.getElementById("fDate").value = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+      document.getElementById("fFait").checked = true;
+      document.getElementById("txForm").requestSubmit();
+    }
+    const saisie = transactions.find(t => t.cat === "Imprévu");
+    resultat.saisieStocke = !!saisie && saisie.type === "expense";
+    // 4. Sans ligne budgétaire, le Budget le nomme dans « Pas encore
+    //    classé » — rien n'est perdu, rien n'est déguisé.
+    const rapport = budgetReport(NOW.y, NOW.m);
+    resultat.budgetHonnete = rapport.outOfBudget.some(([cat, v]) => cat === "Imprévu" && v === 37.9);
+    // 5. Et une ligne budgétaire « Imprévu » reste possible (enveloppe).
+    resultat.budgetable = categoriesOfKinds(["expense"]).includes("Imprévu");
+    return resultat;
+  });
+  check(imprevu.optionProposee === true,
+    "la saisie d'une dépense propose « Imprévu »");
+  check(imprevu.langageHonnete === true,
+    "le langage est honnête : « à reclasser » est écrit dans l'option");
+  check(imprevu.referentiel === true,
+    "le référentiel connaît « Imprévu » comme une dépense");
+  check(imprevu.saisieStocke === true,
+    "choisir « Imprévu » stocke la catégorie telle quelle");
+  check(imprevu.budgetHonnete === true,
+    "sans enveloppe, le Budget nomme « Imprévu » dans « Pas encore classé »");
+  check(imprevu.budgetable === true,
+    "une enveloppe « Imprévu » reste possible dans le Budget");
+  await ctx220.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13496,4 +13564,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 219 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 220 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

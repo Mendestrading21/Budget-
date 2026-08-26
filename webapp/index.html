@@ -2183,6 +2183,9 @@ function seedMonths() { return [-2, -1, 0].map(k => shiftMonth(NOW, k)); }
 const CATEGORIES = {
   Salaire: "income", Logement: "expense", "Assurance maladie": "expense",
   Alimentation: "expense", Transports: "expense", "Restaurants et sorties": "expense",
+  // W7.4 : le repli HONNÊTE — « je ne sais pas encore » vaut mieux
+  // qu'une fausse catégorie. Une dépense ordinaire, budgétable.
+  Imprévu: "expense",
   Épargne: "saving", "Pilier 3a": "investment", Impôts: "tax",
 };
 /* CAT1 (ADR-051, demande propriétaire du 21.08.2026) : la personne écrit
@@ -8159,8 +8162,12 @@ function refreshCatOptions() {
   // impôts gardent leur liste (sens financier protégé).
   const libre = type !== "taxPayment"
     ? '<option value="__libre__">Écrire ma catégorie…</option>' : "";
-  catSelect.innerHTML = categoriesOfKinds(kinds)
-    .map(c => `<option>${esc(c)}</option>`).join("") + libre;
+  // W7.4 : « Imprévu » se présente avec son langage honnête — en fin de
+  // liste, jamais en défaut silencieux.
+  const imprevu = kinds.includes("expense")
+    ? '<option value="Imprévu">Imprévu — à reclasser plus tard</option>' : "";
+  catSelect.innerHTML = categoriesOfKinds(kinds).filter(c => c !== "Imprévu")
+    .map(c => `<option>${esc(c)}</option>`).join("") + imprevu + libre;
 }
 const PREFERRED_DEST_KIND = { saving: "savings", investment: "brokerage", transfer: "cash" };
 function refreshDestOptions(preselect) {
