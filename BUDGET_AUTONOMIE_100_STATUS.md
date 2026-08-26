@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.4 fusionnés · W8.5 EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.5 fusionnés · W8.6 EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,35 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.6 : assurances & prévoyance — cadences réelles, genre, préavis, pilier, devise
+
+Portés du natif `InsuranceContract`/`PensionAsset` (ADR-070). Mesuré :
+l'écran PROMETTAIT « chaque trimestre » depuis L6 mais
+`insuranceMonthly` ne connaissait que mois/année (une prime
+trimestrielle comptait TROIS fois trop) — et le validateur de
+restauration REJETAIT l'état entier sur une cadence inconnue (le
+né-rouge du parcours 230 s'est manifesté ainsi : graine « corrupt »,
+consigné) ; aucun genre de contrat ; aucun préavis ; aucun pilier
+typé ; une prévoyance non liée en devise étrangère comptait comme du
+CHF. Livré : cadences mois/trimestre/semestre/année (÷ 1/3/6/12,
+DITES sur chaque ligne avec la prime), genre de contrat
+(Santé/Ménage/Véhicule/Vie/Autre), « Résilier avant le … » CALCULÉ
+(renouvellement − préavis, jamais un rappel vague), pilier typé
+(1/2/3a/3b), devise des prévoyances non liées (sans taux → EXCLUE du
+patrimoine, nommée au bandeau — désormais affiché sur cet écran —,
+ligne dite en SA devise), restauration additive (cadence inconnue →
+mois, champs illisibles retirés, les sains restent). Preuves : trois
+sabotages qui mordent seuls (diviseurs neutralisés → 1 ; USD recompté
+en CHF → 1 ; validateur redevenu intolérant → 1) ; captures 320/390
+inspectées (`docs/neon-ultra/budget-prisme/w8-6/`) ; suites complètes
+vertes (230 e2e, 9 parités, 14 canon + schéma, design, catalogue,
+audits). Fusion W8.5 (`main` = `f6db489`, PR #188) et publication
+**succès** consignées. INCIDENT de méthode consigné (W8.5) : le
+commit avait d'abord été posé sur la branche W8.4 DÉJÀ fusionnée —
+réparé par cherry-pick sur base `main` propre et restauration de la
+branche fusionnée à son état exact ; leçon : vérifier
+`git branch --show-current` avant chaque commit de lot.
 
 ### 26.08.2026 — W8.5 : impôts — retards nommés, provision par année (portés du natif)
 
