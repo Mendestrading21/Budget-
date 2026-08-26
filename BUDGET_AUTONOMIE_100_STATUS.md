@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.2 fusionnés · W8.3a EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.3a fusionnés · W8.3b EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,36 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.3b : devise des biens — conversion datée, historique de valorisations
+
+Mesuré d'abord : actifs et dettes SANS devise (un bien en EUR compté
+comme du CHF en silence) ; une seule valeur écrasée à chaque édition
+(courbe fausse dès la première revalorisation) ; bandeau « non
+convertibles » aveugle aux biens. Livré (ADR-070) : devise par bien
+(défaut = devise de base, sélecteur dans la fiche) ;
+`assetsTotalCHF`/`liabilitiesTotalCHF` (taux manquant → bien EXCLU et
+NOMMÉ au bandeau, jamais de 1:1 inventé) ; historique de valorisations
+APPEND-ONLY à l'édition (l'ancienne valeur garde sa date) ;
+`valeurAuMois` ; la courbe de patrimoine date les biens (valeur ET
+taux du moment ; le solde des dettes reste vivant — l'historique de
+solde n'est pas modélisé, consigné) ; restauration additive (devise
+illisible retirée → base, entrée d'historique hostile écartée, les
+saines restent). La prévoyance suivra en W8.6 (divergence Work Order
+consignée : lot gardé focalisé). Preuves : parcours 227 né rouge
+(6 échecs nommés, après une garde d'existence de sonde) ; trois
+sabotages qui mordent seuls (valeurAuMois sans dates → 1 ; biens
+bruts → 1 ; bandeau aveugle → 1) ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-3b/`) ; suites complètes vertes
+(227 e2e, 9 parités, 13 canon + schéma, design, catalogue, audits).
+PUBLICATIONS consignées : le run W8.2 re-dispatché (`32984565895`)
+est resté COINCÉ en file (dégradation GitHub Actions, annulation
+refusée « not queued yet ») ; premier dispatch W8.3a (`32994684422`)
+en échec de GATE (la CI push de `c76e183` tournait encore) ;
+re-dispatch après CI push verte : run `32996084747`, **succès** — il
+couvre W8.2 ET W8.3a (SHA `c76e183` inclut les deux). Le vieux run
+reste surveillé : s'il aboutissait après coup, `c76e183` serait
+re-dispatché pour que le dernier SHA gagne.
 
 ### 26.08.2026 — W8.3a : taux datés — la courbe de patrimoine ne se réécrit plus (ADR-070)
 
