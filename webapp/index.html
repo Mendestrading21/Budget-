@@ -2579,6 +2579,7 @@ function loadState() {
     if (typeof s.journalActif !== "boolean") s.journalActif = false; // W3.6, drapeau de bascule
     if (!Array.isArray(s.fxQuotes)) s.fxQuotes = []; // W4.2, clé additive
     if (!Array.isArray(s.releves)) s.releves = []; // W4.3, clé additive
+    if (!Array.isArray(s.imports)) s.imports = []; // W7.1, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -6311,11 +6312,14 @@ function analyzeCSV(textContent, mappingOverride, accountId) {
       const type = negative ? "expense" : "income";
       const signedAmount = negative ? -amount : amount;
       const fingerprint = importFingerprint(date.y, date.m, date.d, amount, title, accountId, type, signedAmount);
-      if (seen.has(fingerprint)) return { state: "duplicate" };
+      // W7.1 : l'empreinte VOYAGE avec la ligne — le journal d'imports
+      // la conservera, verdict compris.
+      if (seen.has(fingerprint)) return { state: "duplicate", fingerprint };
       seen.add(fingerprint);
       const cat = columns.cat >= 0 ? (fields[columns.cat] || "").trim() : "";
       return {
         state: "ready",
+        fingerprint,
         // Convention des exports suisses : négatif = dépense, positif = revenu.
         tx: { ...date, amount, title, type,
               cat: categoryKind(cat) ? cat : null },
@@ -6325,23 +6329,51 @@ function analyzeCSV(textContent, mappingOverride, accountId) {
   }
   return { rows, delimiter, hasHeader, columns };
 }
+/* W7.1 : hash court (djb2) du texte brut d'une ligne — la source se
+   retrouve sans JAMAIS stocker le brut (vie privée). */
+function hashLigne(texte) {
+  let h = 5381;
+  const t = String(texte);
+  for (let i = 0; i < t.length; i += 1) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0;
+  return h.toString(16);
+}
 function applyImport(analysis, fileName, accountId) {
   const batchId = "batch-" + Date.now().toString(36);
   let imported = 0;
+  // W7.1 (modèle intermédiaire) : chaque ligne analysée laisse un
+  // ENREGISTREMENT SOURCE — verdict nommé, empreinte, hash du brut,
+  // lien vers le mouvement créé. Le journal d'imports est append-only.
+  const records = [];
   for (const row of analysis.rows) {
-    if (row.state !== "ready") continue;
-    const { y, m, d, amount, title, type, cat } = row.tx;
-    addTx({
-      id: ++txSeq, y, m, d, title, amount, type,
-      cat: cat || (type === "expense" ? null : null),
-      // L7 : import dans le compte CHOISI par l'utilisateur — le compte
-      // par défaut n'est qu'une pré-sélection, jamais une décision.
-      acc: accountId || defaultCashAccount(), dest: null,
-      status: statusForDate(y, m, d),
-      importBatch: batchId,
-    });
-    imported++;
+    const record = { line: row.line, verdict: row.state, rawHash: hashLigne(row.raw) };
+    if (row.fingerprint) record.fingerprint = row.fingerprint;
+    if (row.reason) record.motif = row.reason;
+    if (row.state === "ready") {
+      const { y, m, d, amount, title, type, cat } = row.tx;
+      const txId = ++txSeq;
+      addTx({
+        id: txId, y, m, d, title, amount, type,
+        cat: cat || (type === "expense" ? null : null),
+        // L7 : import dans le compte CHOISI par l'utilisateur — le compte
+        // par défaut n'est qu'une pré-sélection, jamais une décision.
+        acc: accountId || defaultCashAccount(), dest: null,
+        status: statusForDate(y, m, d),
+        importBatch: batchId,
+      });
+      record.txId = txId;
+      imported++;
+    }
+    records.push(record);
   }
+  (S.imports || (S.imports = [])).push({
+    id: batchId,
+    fileName: fileName || "collage",
+    compte: accountId || defaultCashAccount(),
+    appliedAt: new Date().toISOString(),
+    total: analysis.rows.length,
+    imported,
+    records,
+  });
   S.lastImport = {
     fileName: fileName || "collage",
     batchId,
@@ -6364,6 +6396,10 @@ function rollbackLastImport() {
       transactions.splice(i, 1);
     }
   }
+  // W7.1 : le rollback est TRACÉ — le lot garde son histoire, il ne
+  // disparaît jamais du journal d'imports.
+  const lot = (S.imports || []).find(b => b.id === batchId);
+  if (lot) lot.rolledBackAt = new Date().toISOString();
   S.lastImport = null;
   saveState();
 }
@@ -8960,6 +8996,15 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && RELEVE_ETATS.has(r.etat)
     && typeof r.source === "string" && r.source
     && (r.ajustementTxId == null || Number.isFinite(r.ajustementTxId)));
+  // W7.1 : le journal d'imports — clé ADDITIVE. Un lot illisible est
+  // écarté (verdict inconnu, structure cassée), les lots sains restent.
+  const VERDICTS_IMPORT = new Set(["ready", "duplicate", "invalid"]);
+  state.imports = (state.imports || []).filter(lot => isPlainRecord(lot)
+    && typeof lot.id === "string" && lot.id
+    && typeof lot.appliedAt === "string"
+    && Array.isArray(lot.records)
+    && lot.records.every(r => isPlainRecord(r) && VERDICTS_IMPORT.has(r.verdict)
+      && typeof r.rawHash === "string" && r.raw === undefined));
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);

@@ -13250,6 +13250,104 @@ currentTest = "W6.6 périodes étanches";
   await ctx216.close();
 }
 
+// ---------- 217. W7.1 : IMPORT — chaque ligne garde sa source et son verdict ----------
+// Budget Autonomie 100, W7.1 (modèle intermédiaire) : mesuré —
+// l'analyse (ready/duplicate/invalid) et l'empreinte existent, mais
+// RIEN n'est conservé : S.lastImport garde un résumé, le verdict de
+// chaque ligne est perdu, le rollback oublie tout. W7.1 : un journal
+// d'imports persisté (S.imports, append-only) — verdicts nommés,
+// empreintes, hash du brut (jamais le brut : vie privée), rollback
+// tracé. La porte d'import existante reste LA porte.
+currentTest = "W7.1 sources d'import";
+{
+  const ctx217 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p217 = await ctx217.newPage();
+  p217.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.1] ${msg.text()}`); });
+  await p217.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Imp" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, title: "Migros", amount: 80, type: "expense", cat: null, acc: "cur",
+          dest: null, status: "posted", y: 2026, m: 7, d: 3 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p217.goto(APP_URL);
+  await p217.waitForSelector("#tabbar button");
+  const imp = await p217.evaluate(() => {
+    const resultat = {};
+    const csv = [
+      "Date;Montant;Libellé",
+      "05.07.2026;-45.50;Pharmacie",   // nouvelle → ready
+      "03.07.2026;-80.00;Migros",      // déjà présente → duplicate
+      "pas-une-date;-12.00;Kiosque",   // invalide → motif nommé
+    ].join("\n");
+    const analyse = analyzeCSV(csv, null, "cur");
+    const avantTx = transactions.length;
+    applyImport(analyse, "releve-juillet.csv", "cur");
+    // 1. Le journal d'imports existe et raconte : verdicts nommés.
+    const lot = (S.imports || [])[0];
+    resultat.journalConserve = !!lot && typeof lot.id === "string"
+      && /^\d{4}-\d{2}-\d{2}T/.test(lot.appliedAt || "")
+      && Array.isArray(lot.records) && lot.records.length === 3;
+    const verdicts = lot ? lot.records.map(r => r.verdict).sort().join(",") : "";
+    resultat.verdictsNommes = verdicts === "duplicate,invalid,ready";
+    // 2. Empreinte pour ready/duplicate ; motif pour l'invalide ;
+    //    hash du brut partout — JAMAIS le texte brut (vie privée).
+    const ready = lot && lot.records.find(r => r.verdict === "ready");
+    const dup = lot && lot.records.find(r => r.verdict === "duplicate");
+    const inv = lot && lot.records.find(r => r.verdict === "invalid");
+    resultat.empreintesStockees = !!ready && typeof ready.fingerprint === "string" && ready.fingerprint.length > 0
+      && !!dup && typeof dup.fingerprint === "string"
+      && !!inv && inv.motif === "date illisible";
+    resultat.brutJamaisStocke = !!lot && lot.records.every(r =>
+      r.raw === undefined && typeof r.rawHash === "string" && r.rawHash.length > 0);
+    // 3. La ligne importée est LIÉE : le record ready porte le txId créé.
+    resultat.ligneLiee = !!ready && transactions.some(t => String(t.id) === String(ready.txId));
+    // 4. REJOUER le même relevé : zéro doublon, et la tentative se
+    //    consigne aussi (l'histoire des imports est complète).
+    const analyse2 = analyzeCSV(csv, null, "cur");
+    applyImport(analyse2, "releve-juillet.csv", "cur");
+    resultat.rejouerSansDoublon = transactions.length === avantTx + 1
+      && (S.imports || []).length === 2 && S.imports[1].imported === 0;
+    // 5. Le rollback est TRACÉ : le lot porte rolledBackAt, les
+    //    mouvements du lot partent, le journal reste.
+    rollbackLastImport();
+    resultat.rollbackTrace = (S.imports || []).length === 2
+      && /^\d{4}-\d{2}-\d{2}T/.test(S.imports[1].rolledBackAt || "");
+    // 6. Restauration : un lot illisible est écarté, les bons restent.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.imports = Array.isArray(photo.imports) ? photo.imports : [];
+    photo.imports.push({ nimporte: "quoi" });
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationFiltre = !!restauree && Array.isArray(restauree.imports)
+      && restauree.imports.length === 2;
+    return resultat;
+  });
+  check(imp.journalConserve === true,
+    "chaque import laisse un lot persisté : id, date d'application, 3 enregistrements");
+  check(imp.verdictsNommes === true,
+    "les verdicts sont nommés : ready, duplicate, invalid — rien n'est perdu");
+  check(imp.empreintesStockees === true,
+    "empreinte normalisée conservée (ready/duplicate), motif nommé pour l'invalide");
+  check(imp.brutJamaisStocke === true,
+    "le texte brut n'est JAMAIS stocké — un hash suffit (vie privée)");
+  check(imp.ligneLiee === true,
+    "l'enregistrement source est LIÉ au mouvement créé (txId)");
+  check(imp.rejouerSansDoublon === true,
+    "rejouer le même relevé n'écrit rien — et la tentative se consigne aussi");
+  check(imp.rollbackTrace === true,
+    "le rollback est tracé (rolledBackAt) — le journal d'imports survit");
+  check(imp.restaurationFiltre === true,
+    "restauration : un lot illisible est écarté, les lots sains restent");
+  await ctx217.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13259,4 +13357,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 216 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 217 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
