@@ -2599,6 +2599,7 @@ function loadState() {
     if (!Array.isArray(s.fxQuotes)) s.fxQuotes = []; // W4.2, clé additive
     if (!Array.isArray(s.releves)) s.releves = []; // W4.3, clé additive
     if (!Array.isArray(s.imports)) s.imports = []; // W7.1, clé additive
+    if (!Array.isArray(s.regles)) s.regles = []; // W7.6, clé additive
     if (!s.monthChecks || typeof s.monthChecks !== "object") s.monthChecks = {};
     s.goals = s.goals.map((g, i) => g.id ? g : {
       id: "g-migre-" + i, name: g.name, emoji: g.emoji || "🎯",
@@ -6384,18 +6385,47 @@ function analyzeCSV(textContent, mappingOverride, accountId) {
       if (seen.has(fingerprint)) return { state: "duplicate", fingerprint };
       seen.add(fingerprint);
       const cat = columns.cat >= 0 ? (fields[columns.cat] || "").trim() : "";
+      // W7.6 : sans catégorie de la SOURCE, une règle peut proposer la
+      // sienne — la source prime toujours, et la règle ne s'applique
+      // que si son sens (dépense/revenu) est celui de la ligne.
+      const catSource = categoryKind(cat) ? cat : null;
+      const catRegle = catSource ? null : catParRegle(title);
+      const kindAttendu = type === "income" ? "income" : "expense";
+      const catFinale = catSource
+        || (catRegle && categoryKind(catRegle) === kindAttendu ? catRegle : null);
       return {
         state: "ready",
         fingerprint,
         // Convention des exports suisses : négatif = dépense, positif = revenu.
-        tx: { ...date, amount, title, type,
-              cat: categoryKind(cat) ? cat : null },
+        tx: { ...date, amount, title, type, cat: catFinale },
       };
     };
     rows.push({ line: i + 1, raw, ...evaluate() });
   }
   return { rows, delimiter, hasHeader, columns };
 }
+/* W7.6 (décision propriétaire du 26.08.2026) : les RÈGLES de
+   catégorisation — « ce libellé → cette catégorie » — s'appliquent au
+   FUTUR seulement, à l'ANALYSE d'import (prévisualisée avant toute
+   écriture) : le passé ne bouge jamais tout seul. Porte unique,
+   refus nommés, motifs pliés. */
+function creerRegle(motif, cat) {
+  const motifPlie = fold(String(motif || "").trim()).slice(0, 40);
+  if (!motifPlie) return "Écrivez un motif — le morceau de libellé à reconnaître.";
+  if (categoryKind(cat) !== "expense" && categoryKind(cat) !== "income") {
+    return "Choisissez une catégorie connue pour cette règle.";
+  }
+  const regles = S.regles || (S.regles = []);
+  if (regles.some(r => r.motif === motifPlie)) return "Ce motif a déjà sa règle.";
+  regles.push({ id: "regle-" + Date.now().toString(36), motif: motifPlie, cat });
+  return null;
+}
+function catParRegle(titre) {
+  const plie = fold(String(titre || ""));
+  const regle = (S.regles || []).find(r => plie.includes(r.motif));
+  return regle ? regle.cat : null;
+}
+
 /* W7.1 : hash court (djb2) du texte brut d'une ligne — la source se
    retrouve sans JAMAIS stocker le brut (vie privée). */
 function hashLigne(texte) {
@@ -6405,7 +6435,10 @@ function hashLigne(texte) {
   return h.toString(16);
 }
 function applyImport(analysis, fileName, accountId) {
-  const batchId = "batch-" + Date.now().toString(36);
+  // Unicité RÉELLE : deux imports dans la même milliseconde ne
+  // partagent jamais un id (incident CI consigné — le rollback
+  // marquait le mauvais lot). Le rang dans le journal départage.
+  const batchId = "batch-" + Date.now().toString(36) + "-" + ((S.imports || []).length + 1);
   let imported = 0;
   // W7.1 (modèle intermédiaire) : chaque ligne analysée laisse un
   // ENREGISTREMENT SOURCE — verdict nommé, empreinte, hash du brut,
@@ -6547,6 +6580,23 @@ function renderImport() {
       <div style="font-size:12.5px"><span class="neg">Ligne ${inv.line} — ${esc(inv.reason)}</span><br>
         <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
     </div>`).join("")}` : ""}` : ""}
+    <p class="section-title">Règles de catégorisation</p>
+    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">« Ce libellé → cette catégorie » — appliquées aux PROCHAINS imports seulement, visibles dans l'aperçu avant toute écriture. Le passé ne bouge jamais tout seul.</p>
+    ${(S.regles || []).map(r => `<div class="card row tx">
+      <div class="meta"><div class="t">« ${esc(r.motif)} »</div><div class="s">→ ${esc(r.cat)}</div></div>
+      <button type="button" class="btn secondary" data-delregle="${esc(r.id)}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Supprimer la règle ${esc(r.motif)}">Suppr.</button>
+    </div>`).join("")}
+    <div class="card">
+      <label for="regleMotif" class="caption" style="display:block;margin-bottom:4px">Si le libellé contient…</label>
+      <input id="regleMotif" placeholder="migros" autocomplete="off"
+        style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-size:13px;padding:10px 12px;border-radius:11px" />
+      <label for="regleCat" class="caption" style="display:block;margin:8px 0 4px">… proposer la catégorie</label>
+      <select id="regleCat" style="width:100%;box-sizing:border-box;background:var(--field);border:1px solid var(--line);color:var(--offwhite);font-size:13px;padding:10px 12px;border-radius:11px">
+        ${categoriesOfKinds(["expense", "income"]).map(c => `<option>${esc(c)}</option>`).join("")}
+      </select>
+      <div class="error" id="regleError" role="alert"></div>
+      <button type="button" class="btn secondary" data-addregle style="margin-top:10px">Ajouter la règle</button>
+    </div>
     <p class="section-title">Documents (juste le nom)</p>
     ${S.documents.length === 0 ? `<div class="card empty-state">
       <span class="glyph" aria-hidden="true">${budgetGlyph("document")}</span>
@@ -7697,6 +7747,23 @@ document.getElementById("screen").addEventListener("click", (e) => {
     document.getElementById("fxBProv").textContent = provenanceTaux(others[1]);
     document.getElementById("fxError").textContent = "";
     openSheet("fxForm");
+    return;
+  }
+  // W7.6 : gestion des règles de catégorisation (écran Import).
+  if (e.target.closest("[data-addregle]")) {
+    const refus = creerRegle(document.getElementById("regleMotif").value,
+      document.getElementById("regleCat").value);
+    if (refus) { document.getElementById("regleError").textContent = refus; return; }
+    saveState(); render();
+    toast("Règle ajoutée — elle s'appliquera aux prochains imports.");
+    return;
+  }
+  const delRegle = e.target.closest("[data-delregle]");
+  if (delRegle) {
+    const index = (S.regles || []).findIndex(r => r.id === delRegle.dataset.delregle);
+    if (index >= 0) S.regles.splice(index, 1);
+    saveState(); render();
+    toast("Règle supprimée", true);
     return;
   }
   if (e.target.closest("[data-importpick]")) { document.getElementById("importFile").click(); return; }
@@ -9173,6 +9240,15 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && Array.isArray(lot.records)
     && lot.records.every(r => isPlainRecord(r) && VERDICTS_IMPORT.has(r.verdict)
       && typeof r.rawHash === "string" && r.raw === undefined));
+  // W7.6 : les règles — clé ADDITIVE ; une règle hostile (motif vide,
+  // catégorie inconnue de l'état RESTAURÉ) est écartée, les saines
+  // restent. Le référentiel jugé est celui du state restauré.
+  const kindRestaure = c => CATEGORIES[c]
+    || (((state.customCategories || []).find(cc => cc && cc.name === c)) || {}).kind;
+  state.regles = (state.regles || []).filter(r => isPlainRecord(r)
+    && typeof r.id === "string" && r.id
+    && typeof r.motif === "string" && r.motif
+    && ["expense", "income"].includes(kindRestaure(r.cat)));
   stampAllTransactions(state);
   linkDemoRecurringTransactions(state);
   repairReserveDestinations(state);

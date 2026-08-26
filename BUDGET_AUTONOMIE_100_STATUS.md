@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1–W7.4 fusionnés · W7.5 EN PR | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1–W7.5 fusionnés · W7.6 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,8 +156,44 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.6 : règles — « ce libellé → cette catégorie », le futur seulement
+
+Décision propriétaire (AskUserQuestion, consignée avec ADR-069) :
+**futur seulement** — le passé ne bouge jamais tout seul. Livré :
+porte unique `creerRegle(motif, cat)` (refus nommés — motif vide,
+catégorie inconnue, motif déjà pris ; motifs PLIÉS, bornés 40 car.) ;
+`catParRegle(titre)` (première règle dont le motif est contenu dans
+le libellé plié) ; la règle s'applique à l'ANALYSE d'import — donc
+PRÉVISUALISÉE dans l'aperçu avant toute écriture — et seulement si
+son sens (dépense/revenu) est celui de la ligne ; la colonne
+catégorie de la SOURCE prime toujours ; la saisie manuelle garde la
+main (aucune règle silencieuse au formulaire — consigné) ; UI sur
+l'écran Import : « Règles de catégorisation » (liste + création +
+suppression, honnêteté écrite « le passé ne bouge jamais tout
+seul ») ; restauration : clé additive, règle hostile écartée (le
+référentiel jugé est celui de l'état RESTAURÉ, catégories libres
+comprises). Preuves : parcours 222 né rouge (9 échecs nommés ; un
+faux rouge de route corrigé — la clé est `importcsv`, pas `import`) →
+vert ; sabotage (une passe rétroactive silencieuse à la création) →
+« l'histoire ne bouge pas » mord SEUL ; restauré vert ; captures
+320/390 inspectées (`docs/neon-ultra/budget-prisme/w7-6/`) ; suites
+complètes vertes (222 e2e, 9 parités, 13 canon + schéma, design,
+catalogue, audit). Consigné : proposer la règle à la SAISIE (préremplissage
+suggéré, jamais imposé) attendra un besoin mesuré ; miroir natif avec
+les écrans iOS de W7.
+
 ### 26.08.2026 — W7.5 : splits — une dépense, plusieurs catégories, la somme exacte (ADR-069)
 
+Fusionné (`main` = `4b439a6`, PR #178). INCIDENT CI consigné : la CI
+de main sur ce SHA a mordu — le contrôle « rollback tracé » du
+parcours 217 a échoué sur le coureur rapide : deux `applyImport` dans
+la MÊME milliseconde partageaient un `batchId` (`Date.now()` seul) et
+le rollback marquait le MAUVAIS lot. Vrai défaut d'unicité, corrigé
+dans la PR W7.6 (id = temps + rang dans le journal, contrôle
+`idsUniques` ajouté au 217, durci sur « le premier lot reste non
+marqué ») ; la publication W7.5 (échec de gate, run `32966550667`)
+est COUVERTE par la publication W7.6 au SHA suivant — consigné, rien
+de silencieux.
 Décision propriétaire (AskUserQuestion) : les parts vivent **dans le
 mouvement** → ADR-069 (décision jumelle consignée : W7.6 règles =
 futur seulement). Livré : porte unique `definirParts` (refus nommés —

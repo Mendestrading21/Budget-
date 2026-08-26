@@ -13318,7 +13318,12 @@ currentTest = "W7.1 sources d'import";
     //    mouvements du lot partent, le journal reste.
     rollbackLastImport();
     resultat.rollbackTrace = (S.imports || []).length === 2
-      && /^\d{4}-\d{2}-\d{2}T/.test(S.imports[1].rolledBackAt || "");
+      && /^\d{4}-\d{2}-\d{2}T/.test(S.imports[1].rolledBackAt || "")
+      && S.imports[1].rolledBackAt !== S.imports[0].rolledBackAt
+      && S.imports[0].rolledBackAt === undefined;
+    // Incident CI consigné : deux imports dans la même milliseconde
+    // partageaient un id — le rollback marquait le mauvais lot.
+    resultat.idsUniques = S.imports[0].id !== S.imports[1].id;
     // 6. Restauration : un lot illisible est écarté, les bons restent.
     const photo = JSON.parse(JSON.stringify(S));
     photo.imports = Array.isArray(photo.imports) ? photo.imports : [];
@@ -13343,6 +13348,8 @@ currentTest = "W7.1 sources d'import";
     "rejouer le même relevé n'écrit rien — et la tentative se consigne aussi");
   check(imp.rollbackTrace === true,
     "le rollback est tracé (rolledBackAt) — le journal d'imports survit");
+  check(imp.idsUniques === true,
+    "deux lots nés dans la même milliseconde gardent des ids distincts");
   check(imp.restaurationFiltre === true,
     "restauration : un lot illisible est écarté, les lots sains restent");
   await ctx217.close();
@@ -13664,6 +13671,91 @@ currentTest = "W7.5 splits";
   await ctx221.close();
 }
 
+// ---------- 222. W7.6 : RÈGLES — « ce libellé → cette catégorie », le futur seulement ----------
+// Budget Autonomie 100, W7.6 (décision propriétaire du 26.08.2026 :
+// FUTUR seulement — le passé ne bouge jamais tout seul). Une règle
+// s'applique à l'ANALYSE d'import (prévisualisée avant toute
+// écriture) ; porte unique creerRegle, refus nommés ; l'UI vit sur
+// l'écran Import.
+currentTest = "W7.6 règles d'import";
+{
+  const ctx222 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p222 = await ctx222.newPage();
+  p222.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.6] ${msg.text()}`); });
+  await p222.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Reg" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, title: "MIGROS SA", amount: 60, type: "expense", cat: null, acc: "cur",
+          dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 2 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p222.goto(APP_URL);
+  await p222.waitForSelector("#tabbar button");
+  const reg = await p222.evaluate(() => {
+    const resultat = {};
+    if (typeof creerRegle !== "function") return { porteExiste: false };
+    resultat.porteExiste = true;
+    // 1. Les refus sont nommés.
+    const refusMotif = creerRegle("", "Alimentation");
+    const refusCat = creerRegle("migros", "CategorieInconnue");
+    resultat.refusNommes = typeof refusMotif === "string" && /motif/i.test(refusMotif)
+      && typeof refusCat === "string" && /catégorie/i.test(refusCat);
+    // 2. La création passe par la porte, pliée.
+    const succes = creerRegle("  MIGROS ", "Alimentation");
+    resultat.porteStocke = succes === null && (S.regles || []).length === 1
+      && S.regles[0].motif === "migros" && S.regles[0].cat === "Alimentation";
+    // 3. La règle s'applique à l'ANALYSE d'import (prévisualisation) —
+    //    une ligne SANS catégorie reçoit la sienne avant toute écriture.
+    const analyse = analyzeCSV("Date;Montant;Libellé\n05.07.2026;-42.00;MIGROS GENEVE", null, "cur");
+    resultat.regleApplique = analyse.rows[0].state === "ready"
+      && analyse.rows[0].tx.cat === "Alimentation";
+    // 4. Et l'écriture suit la prévisualisation.
+    applyImport(analyse, "releve.csv", "cur");
+    resultat.ecritureSuit = transactions.some(t => t.title === "MIGROS GENEVE" && t.cat === "Alimentation");
+    // 5. FUTUR SEULEMENT : le mouvement passé « MIGROS SA » reste tel quel.
+    resultat.passeIntact = transactions.find(t => t.id === 1).cat === null;
+    // 6. Une colonne catégorie du CSV PRIME sur la règle (la source dit vrai).
+    const analyse2 = analyzeCSV("Date;Montant;Libellé;Catégorie\n06.07.2026;-15.00;MIGROS RESTO;Restaurants et sorties", null, "cur");
+    resultat.sourcePrime = analyse2.rows[0].tx.cat === "Restaurants et sorties";
+    // 7. L'écran Import porte la gestion des règles.
+    activeTab = "more"; moreView = "importcsv"; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    resultat.uiVisible = ecran().includes("Règles de catégorisation") && ecran().includes("migros");
+    // 8. Restauration : une règle hostile (catégorie inconnue) est écartée.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.regles = Array.isArray(photo.regles) ? photo.regles : [];
+    photo.regles.push({ id: "r-x", motif: "kiosque", cat: "PasUneCategorie" });
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationFiltre = !!restauree && Array.isArray(restauree.regles)
+      && restauree.regles.length === 1 && restauree.regles[0].motif === "migros";
+    activeTab = "home"; moreView = null; render();
+    return resultat;
+  });
+  check(reg.porteExiste === true, "la porte unique creerRegle existe");
+  check(reg.refusNommes === true, "les refus sont nommés : motif vide, catégorie inconnue");
+  check(reg.porteStocke === true, "la règle est stockée pliée (motif « migros »)");
+  check(reg.regleApplique === true,
+    "la règle s'applique à l'ANALYSE — visible avant toute écriture");
+  check(reg.ecritureSuit === true, "l'écriture suit la prévisualisation");
+  check(reg.passeIntact === true,
+    "FUTUR seulement : le mouvement passé reste tel quel — l'histoire ne bouge pas");
+  check(reg.sourcePrime === true,
+    "une colonne catégorie du CSV prime sur la règle — la source dit vrai");
+  check(reg.uiVisible === true,
+    "l'écran Import porte « Règles de catégorisation » et liste la règle");
+  check(reg.restaurationFiltre === true,
+    "restauration : une règle à catégorie inconnue est écartée, les saines restent");
+  await ctx222.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13673,4 +13765,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 221 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 222 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
