@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1–W7.2 fusionnés · W7.3 EN PR | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1–W7.3 fusionnés · W7.4 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,8 +156,30 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.4 : « Imprévu » — le repli honnête, jamais une fausse catégorie
+
+Mesuré : la saisie forçait une catégorie existante ou l'écriture
+libre — rien pour dire honnêtement « je ne sais pas encore », donc
+une fausse catégorie silencieuse. Livré : « Imprévu » entre au
+référentiel (`CATEGORIES`, dépense ordinaire — budgétable comme les
+autres, une enveloppe « Imprévu » est possible) ; le sélecteur de
+catégorie d'une DÉPENSE le propose en fin de liste avec son langage
+honnête (« Imprévu — à reclasser plus tard ») — jamais en défaut
+silencieux ; sans enveloppe, le Budget le nomme dans « Pas encore
+classé » comme les autres (rien n'est perdu, rien n'est déguisé) ;
+absent des impôts et des revenus (sens financier protégé). Preuves :
+parcours 220 né rouge (6 échecs nommés) → vert ; sabotage (le
+langage honnête se tait : « Imprévu » nu) → langageHonnete mord
+SEUL ; restauré vert ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w7-4/`) ; suites complètes vertes
+(220 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le reclassement guidé (retrouver les « Imprévu » du mois
+et les ranger) est le geste naturel de la review queue W7.7 ; le
+miroir natif suivra avec les écrans iOS de W7.
+
 ### 26.08.2026 — W7.3 : tags — vos mots sur un mouvement, retrouvables
 
+Fusionné (`main` = `eaddaa0`, PR #176) et publié par dispatch au SHA.
 Mesuré : un mouvement n'a qu'une catégorie ; aucun moyen d'y poser SES
 mots (« vacances », « remboursable ») ni de les retrouver. Livré :
 clé additive `tags` (esprit CAT1 — la personne écrit ses mots) —
