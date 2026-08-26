@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.3a fusionnés · W8.3b EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.3b fusionnés · W8.3c EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,41 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.3c : le canon prouve les taux datés — FI-17 tenu jusque dans le moteur → W8.3 FERMÉ
+
+Mesuré d'abord : le runner canon web APLATISSAIT les taux datés en un
+cache (dates et sources perdues — le runner Swift sème des `FxQuote`
+depuis W4.2b). La fixture née rouge a alors révélé une VRAIE
+divergence de parité : le web injectait `FX_DEFAULTS` en silence quand
+`fxRates` manquait (un compte USD compté à 0.80 codé en dur — un
+défaut n'est pas une mesure) et le validateur de restauration
+REJETAIT l'état entier au premier compte étranger sans taux, là où le
+natif CHARGE et EXCLUT (`NetWorthService`). Livré : runner canon qui
+sème les quotes datées telles quelles + auto-contrôle « quotes semées
+= taux fournis » ; fixture `devise-taux-absent-incomplet` (FI-17,
+différée depuis W1.5 — les 14 fixtures passent des DEUX côtés, le
+natif excluait déjà) ; plus AUCUNE injection silencieuse de
+`FX_DEFAULTS` (normalisation, restauration — les défauts restent des
+choix explicites : pays, onboarding, pré-remplissage du formulaire) ;
+un compte étranger sans taux charge, est exclu des totaux et NOMMÉ au
+bandeau ; Réglages dit « à saisir » au lieu d'afficher un défaut comme
+actif ; les devises des MOUVEMENTS gardent leurs exigences (taux
+courant + estampille FI-19). Incident de sonde consigné : la première
+suppression de garde a retiré `usedCurrencies` encore référencé plus
+bas → 83 échecs canon (ReferenceError silencieuse en « corrupt ») —
+corrigé, Set désormais alimenté par les seuls mouvements. Preuves :
+né-rouge en DEUX temps (auto-contrôle runner : 2 échecs nommés ;
+fixture FI-17 : rouge à 160000 — la divergence mesurée) ; deux
+sabotages qui mordent seuls (runner qui cesse de semer → 2 échecs ;
+`toCHF` qui invente du 1:1 → la fixture attrape 170000) ; captures
+320/390 du Réglages inspectées
+(`docs/neon-ultra/budget-prisme/w8-3c/`) ; suites complètes vertes
+(227 e2e, 9 parités, **14** canon + schéma, design, catalogue,
+audits). Publication W8.3b (`main` = `e170082`, PR #185) : **succès**
+(dispatch APRÈS CI push verte — leçon W8.3a appliquée). **W8.3 est
+FERMÉ** (a : conversion datée des stocks ; b : devise des biens +
+historique ; c : preuve canon + FI-17 moteur).
 
 ### 26.08.2026 — W8.3b : devise des biens — conversion datée, historique de valorisations
 
