@@ -13041,6 +13041,74 @@ currentTest = "W6.3 part engagée";
   await ctx213.close();
 }
 
+// ---------- 214. W6.4 : FONDS ANNUELS — le lissage se lit, l'argent ne bouge pas ----------
+// Budget Autonomie 100, W6.4 : mesuré — une charge annuelle (SERAFE,
+// prime auto) tombe d'un coup, sans repère de lissage nulle part.
+// Décision propriétaire du 26.08.2026 : INFORMATIF en V1 — l'écran
+// montre le douzième et où on devrait en être, AUCUN virement n'est
+// créé (« le bouton enregistre, jamais le calendrier »).
+currentTest = "W6.4 fonds annuels";
+{
+  const ctx214 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p214 = await ctx214.newPage();
+  p214.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.4] ${msg.text()}`); });
+  await p214.addInitScript(() => {
+    const now = new Date();
+    const m = now.getMonth() + 1;
+    // Échéance dans 4 mois → 8 douzièmes déjà « dus » depuis la dernière.
+    const dueM = ((m + 3) % 12) + 1;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fds" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 4000, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "serafe", title: "SERAFE", amount: 335, type: "expense", cat: "Logement",
+          accountId: "cur", every: "year", dueM, day: 10, nature: "facture" },
+        { id: "fitness", title: "Fitness", amount: 49, type: "expense", cat: "Logement",
+          accountId: "cur", every: "month", day: 5, nature: "abonnement" },
+      ],
+      transactions: [], bills: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {},
+    }));
+  });
+  await p214.goto(APP_URL);
+  await p214.waitForSelector("#tabbar button");
+  const fds = await p214.evaluate(() => {
+    const resultat = {};
+    const avant = JSON.stringify({ tx: transactions.length, occ: (S.occurrences || []).length });
+    openRecSheet(RECURRINGS.find(r => r.id === "serafe"));
+    const feuille = () => document.getElementById("recForm").textContent;
+    // 1. Le repère se lit : douzième mensuel + où on devrait en être.
+    resultat.blocVisible = feuille().includes("Fonds de lissage")
+      && feuille().includes("27.92");
+    resultat.repereJuste = feuille().includes("223.33") && feuille().includes("8/12");
+    // 2. L'honnêteté est écrite : rien n'est viré automatiquement.
+    resultat.honnete = feuille().includes("Rien n'est viré automatiquement");
+    document.getElementById("rCancel").click();
+    // 3. Une charge MENSUELLE n'a pas de fonds de lissage.
+    openRecSheet(RECURRINGS.find(r => r.id === "fitness"));
+    resultat.mensuelleMuette = !(() => {
+      const bloc = document.getElementById("rFondsAnnuel");
+      return bloc && bloc.style.display !== "none" && bloc.textContent.includes("Fonds de lissage");
+    })();
+    document.getElementById("rCancel").click();
+    // 4. Informatif : AUCUNE écriture — ni mouvement ni échéance.
+    resultat.aucuneEcriture = JSON.stringify({ tx: transactions.length, occ: (S.occurrences || []).length }) === avant;
+    return resultat;
+  });
+  check(fds.blocVisible === true,
+    "la feuille d'une charge annuelle montre le fonds de lissage (CHF 27.92 par mois)");
+  check(fds.repereJuste === true,
+    "le repère dit où on devrait en être : CHF 223.33 (8/12) — calculé sur le montant annuel");
+  check(fds.honnete === true,
+    "l'honnêteté est écrite : rien n'est viré automatiquement");
+  check(fds.mensuelleMuette === true,
+    "une charge mensuelle n'a pas de fonds de lissage");
+  check(fds.aucuneEcriture === true,
+    "informatif pur : aucune écriture, aucun mouvement, aucune échéance créée");
+  await ctx214.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13050,4 +13118,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 213 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 214 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

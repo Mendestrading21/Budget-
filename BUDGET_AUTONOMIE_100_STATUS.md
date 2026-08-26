@@ -122,7 +122,7 @@ Livrables attendus :
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
-| W6 | Plan, budgets, objectifs | W6.1 fusionné · W6.2+W6.3 EN PR | W2, W3, W5 (fusionnés) |
+| W6 | Plan, budgets, objectifs | W6.1–W6.3 fusionnés · W6.4 EN PR | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
@@ -155,6 +155,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W6.4 : fonds annuels — le lissage se lit, l'argent ne bouge pas (ADR-068)
+
+Décision propriétaire (AskUserQuestion) : **informatif en V1** →
+ADR-068. Mesuré : une charge annuelle tombait d'un coup, sans repère.
+Livré : la feuille d'une charge annuelle de dépense porte « Fonds de
+lissage (repère) » — douzième mensuel et cumul depuis la dernière
+échéance (« CHF 27.92 par mois … il faudrait avoir CHF 223.33 de côté
+(8/12) »), calculés sur le montant ANNUEL (G01) ; honnêteté écrite
+(« Rien n'est viré automatiquement — un repère, pas un geste. ») ;
+une charge mensuelle reste muette ; AUCUNE écriture (ni mouvement ni
+échéance). Preuves : parcours 214 né rouge (3 échecs nommés :
+blocVisible, repereJuste, honnete ; verrous mensuelleMuette/
+aucuneEcriture nés verts) → vert ; sabotage (le repère se calcule sur
+la mensualité arrondie : 223.36 ≠ 223.33) → repereJuste mord SEUL ;
+restauré vert ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w6-4/`) ; suites complètes vertes
+(214 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Noté : la note de rythme existante dit déjà le douzième « à titre de
+comparaison » — léger écho assumé, les deux phrases répondent à des
+questions différentes (comparer un rythme / savoir où on en est).
+Consigné : le miroir natif (feuille iOS d'une charge annuelle) suivra
+avec les écrans natifs de W6.
 
 ### 26.08.2026 — W6.3 : Budget — la part engagée se voit, à part des enveloppes
 
@@ -200,7 +223,9 @@ catalogue, audit). Consigné : le natif n'a PAS d'équivalent
 `irregularIncome` (la prévision iOS ne devine pas les revenus
 variables) — divergence mesurée, décision d'alignement à poser quand
 W6 touchera les écrans natifs ; la fenêtre « 3 mois » reste la
-décision existante (aucun changement).
+décision existante (aucun changement). W6.2+W6.3 fusionnés ensemble
+(`main` = `f2d5013`, PR #170, précédent W2.1–W2.3) et publiés (run
+`32944750458`, succès).
 
 ### 26.08.2026 — W6.1 : le reste se reporte — opt-in par ligne (ADR-067)
 
