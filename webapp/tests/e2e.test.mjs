@@ -13918,6 +13918,88 @@ currentTest = "W8.1 cash flows";
   await ctx224.close();
 }
 
+// ---------- 225. W8.2 : POSITIONS — plus-value honnête, devise du prix enfin lue ----------
+// Budget Autonomie 100, W8.2 : mesuré — le prix d'achat (costBasis)
+// était stocké mais aucune plus-value n'était dite par POSITION ;
+// priceCurrency était stocké et JAMAIS lu (une position au prix en
+// USD était affichée et additionnée comme du CHF) ; la devise d'un
+// compte à positions sans mouvement restait modifiable (désynchro
+// silencieuse). La date de saisie du prix, elle, était déjà montrée.
+currentTest = "W8.2 positions";
+{
+  const ctx225 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p225 = await ctx225.newPage();
+  p225.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.2] ${msg.text()}`); });
+  await p225.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Pos" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "brk", name: "Titres", kind: "brokerage", opening: 20000, cash: false, currency: "CHF" },
+      ],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+      positions: [
+        { id: "p1", accountId: "brk", instrumentName: "ETF Monde", tickerOrISIN: "VT", quantity: 10, manualPrice: 180, priceCurrency: "CHF", valuationDate: "2026-05-10", costBasis: 1500 },
+        { id: "p2", accountId: "brk", instrumentName: "Fonds Suisse", tickerOrISIN: "", quantity: 5, manualPrice: 200, priceCurrency: "CHF", valuationDate: "2026-04-01", costBasis: null },
+        { id: "p3", accountId: "brk", instrumentName: "Action US", tickerOrISIN: "ACME", quantity: 2, manualPrice: 100, priceCurrency: "USD", valuationDate: "2026-03-15", costBasis: null },
+      ],
+    }));
+  });
+  await p225.goto(APP_URL);
+  await p225.waitForSelector("#tabbar button");
+  const pos = await p225.evaluate(() => {
+    const resultat = {};
+    activeTab = "accounts"; accountView = "brk"; render();
+    const texte = document.getElementById("screen").textContent;
+    const ligne = id => ((document.querySelector(`[data-posid="${id}"]`) || {}).textContent) || "";
+    // 1. Plus-value PAR POSITION quand le prix d'achat est connu :
+    //    10 × 180 = 1800, acheté 1500 → +300, dit avec sa méthode.
+    resultat.plusValue = ligne("p1").includes("Plus-value") && ligne("p1").includes(money(300, "CHF", true));
+    // 2. Prix d'achat inconnu → RIEN (jamais de zéro inventé).
+    resultat.pasDeZeroInvente = ligne("p2").length > 0 && !ligne("p2").includes("Plus-value");
+    // 3. La devise du PRIX est enfin lue : la position en USD est dite
+    //    en USD, jamais déguisée en CHF.
+    resultat.devisePrixLue = ligne("p3").includes(money(100, "USD")) && !ligne("p3").includes(money(100, "CHF"));
+    // 4. Pas d'addition sans conversion (FI) : la position USD est
+    //    écartée du « non réparti » et l'écart est NOMMÉ.
+    //    non réparti = 20000 − 1800 − 1000 = 17200.
+    resultat.ecartNomme = texte.includes(money(17200, "CHF")) && texte.includes("devise du prix");
+    // 5. VERROU (né vert) : les positions expliquent le solde, elles ne
+    //    s'y ajoutent jamais — la phrase reste.
+    resultat.verrouSolde = texte.includes("les positions l'expliquent, elles ne s'y ajoutent jamais");
+    // 6. La devise d'un compte à POSITIONS est verrouillée même sans
+    //    mouvement (désynchro silencieuse fermée).
+    openAccSheet(ACCOUNTS.find(a => a.id === "brk"));
+    resultat.deviseVerrouillee = document.getElementById("aCurrency").disabled === true;
+    // Le DOM ne fait pas foi (sabotage inerte durci) : on force le champ
+    // et on SOUMET — la porte doit tenir la devise du compte.
+    const sel = document.getElementById("aCurrency");
+    sel.disabled = false; sel.value = "EUR";
+    document.getElementById("accForm").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    resultat.deviseTenueAuSubmit = ACCOUNTS.find(a => a.id === "brk").currency === "CHF";
+    closeSheet("accSheet");
+    accountView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(pos.plusValue === true,
+    "la plus-value d'une position au prix d'achat connu est dite : +CHF 300.00");
+  check(pos.pasDeZeroInvente === true,
+    "prix d'achat inconnu → aucune plus-value inventée (pas de faux zéro)");
+  check(pos.devisePrixLue === true,
+    "la devise du prix est LUE : la position en USD s'affiche en USD");
+  check(pos.ecartNomme === true,
+    "pas d'addition sans conversion : la position USD est écartée du « non réparti » et l'écart est nommé");
+  check(pos.verrouSolde === true,
+    "VERROU : « les positions expliquent le solde » reste dit tel quel");
+  check(pos.deviseVerrouillee === true,
+    "la devise d'un compte à positions est verrouillée même sans mouvement");
+  check(pos.deviseTenueAuSubmit === true,
+    "même champ forcé, la SOUMISSION tient la devise — le DOM ne fait pas foi");
+  await ctx225.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13927,4 +14009,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 224 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 225 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

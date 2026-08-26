@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1 EN PR (Work Order : `docs/autonomie/w8/WORK_ORDER_W8.md`) | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1 fusionné · W8.2 EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,33 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.2 : positions — plus-value honnête, devise du prix enfin lue
+
+Mesuré d'abord : `costBasis` stocké sans plus-value PAR POSITION ;
+`priceCurrency` stocké et JAMAIS lu (une position au prix en USD était
+affichée et ADDITIONNÉE comme du CHF — violation « aucune addition
+sans conversion ») ; la devise d'un compte à positions SANS mouvement
+restait modifiable (désynchro silencieuse) ; la date de saisie du
+prix, elle, était déjà montrée (divergence avec le Work Order,
+consignée). Livré : plus-value par position quand le prix d'achat est
+connu ET comparable (même devise) — jamais de zéro inventé — dite avec
+sa méthode (« valeur moins prix d'achat saisi ») ; prix et valeur dits
+dans la devise du PRIX ; position en devise étrangère écartée du « non
+réparti » avec écart NOMMÉ (la conversion datée viendra en W8.3) ;
+devise du compte verrouillée dès qu'une position existe — à la feuille
+ET à la soumission (le DOM ne fait pas foi). Preuves : parcours 225 né
+rouge (4 échecs nommés ; verrous « pas de zéro inventé » et « les
+positions expliquent le solde » nés verts, sabotages à l'appui) ;
+TROIS sabotages — dont un INERTE au premier passage (le verrou de
+soumission retiré ne mordait pas : le test ne contrôlait que
+l'attribut `disabled`) → test DURCI (champ forcé + soumission réelle),
+le sabotage mord ; addition étrangère rétablie → 1 échec ; zéro
+inventé → 1 échec. Captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-2/`) ; suites complètes vertes
+(225 e2e, 9 parités, 13 canon + schéma, design, catalogue, audits).
+Publication W8.1 (`main` = `bb8fd30`, PR #182) : run `32980063152`,
+**succès**.
 
 ### 26.08.2026 — W8.1 : cash flows — versements nets exposés, retraits datés
 
