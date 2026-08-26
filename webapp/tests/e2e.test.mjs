@@ -7713,8 +7713,9 @@ check(p11.ecran.emojis.length === 0,
   `zéro emoji sur l'écran Impôts (restants : ${p11.ecran.emojis.join(" ") || "aucun"})`);
 check(p11.ecran.glypheAcompte, "l'acompte listé porte le glyphe calendrier");
 // FE2-12 : la feuille Impôts ne propose PLUS de taux — il n'y a plus rien
-// d'automatique à régler. Elle ne corrige que le report saisi à la main,
-// et refuse un montant invalide sans rien changer.
+// d'automatique à régler. W8.5 (changement VOULU, consigné) : la feuille
+// écrit la PROVISION de l'année consultée par la porte unique — le
+// report hérité (S.taxReserve) n'est plus jamais réécrit.
 const borne136 = await page.evaluate(() => {
   const sansOnboarding = !bindOnboarding.toString().includes("obTaxPct");
   const avantReport = S.taxReserve;
@@ -7723,20 +7724,21 @@ const borne136 = await page.evaluate(() => {
   document.getElementById("txReserve").value = "abc";
   document.getElementById("taxForm").requestSubmit();
   const refus = document.getElementById("txError").textContent;
-  const reportApresRefus = S.taxReserve;
+  const provisionApresRefus = Number((S.taxProvisions || {})[String(cursor.y)]) || 0;
   document.getElementById("txReserve").value = "2400";
   document.getElementById("taxForm").requestSubmit();
-  const reportApresAccord = S.taxReserve;
-  S.taxReserve = avantReport; saveState(); render();
-  return { sansOnboarding, champTaux: !!champTaux, refus, reportApresRefus, reportApresAccord, avantReport };
+  const provisionApresAccord = Number((S.taxProvisions || {})[String(cursor.y)]) || 0;
+  const reportIntact = S.taxReserve === avantReport;
+  delete (S.taxProvisions || {})[String(cursor.y)]; saveState(); render();
+  return { sansOnboarding, champTaux: !!champTaux, refus, provisionApresRefus, provisionApresAccord, reportIntact };
 });
 check(borne136.sansOnboarding, "l'onboarding ne demande plus de taux d'impôts (A18)");
 check(!borne136.champTaux,
   "FE2-12 : la feuille Impôts n'offre PLUS de champ de taux — rien d'automatique à régler");
-check(borne136.refus.length > 0 && borne136.reportApresRefus === borne136.avantReport,
-  `un report invalide est refusé avec message, sans rien changer (obtenu « ${borne136.refus} »)`);
-check(borne136.reportApresAccord === 2400,
-  `le report saisi à la main est enregistré (obtenu ${borne136.reportApresAccord})`);
+check(borne136.refus.length > 0 && borne136.provisionApresRefus === 0,
+  `une provision invalide est refusée avec message, sans rien changer (obtenu « ${borne136.refus} »)`);
+check(borne136.provisionApresAccord === 2400 && borne136.reportIntact,
+  `W8.5 : la feuille écrit la provision de l'année consultée et le report hérité reste intact (obtenu ${borne136.provisionApresAccord})`);
 
 // ---------- Test 137 : P12 Patrimoine — glyphes de sens, dettes honnêtes, mots ----------
 // Budget Prisme, lot P12. Étiquettes « par classe » et lignes biens/dettes
@@ -14265,6 +14267,94 @@ currentTest = "W8.4 performance racontée";
   await ctx228.close();
 }
 
+// ---------- 229. W8.5 : IMPÔTS — retards nommés, provision par année ----------
+// Budget Autonomie 100, W8.5 (décision propriétaire ADR-070 : porter
+// échéances + provision du natif, AUCUN calcul d'impôt — ADR-035
+// intact) : mesuré — un acompte en retard s'affichait comme les autres
+// (« À payer 01.02.…», sans alarme) et le report manuel était GLOBAL
+// (S.taxReserve) : consulter Impôts 2025 affichait le même report que
+// 2026, étiqueté pareil. Le natif (TaxProvision/TaxService) a des
+// échéances en retard NOMMÉES et une provision PAR ANNÉE.
+currentTest = "W8.5 impôts";
+{
+  const ctx229 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p229 = await ctx229.newPage();
+  p229.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.5] ${msg.text()}`); });
+  await p229.addInitScript(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const hier = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fisc" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {},
+      bills: [
+        { id: "b-late", name: "Acompte cantonal", amount: 400, cat: "Impôts", accountId: "cur",
+          dueY: hier.getFullYear(), dueM: hier.getMonth() + 1, dueD: hier.getDate() },
+        { id: "b-next", name: "Acompte fédéral", amount: 300, cat: "Impôts", accountId: "cur",
+          dueY: y, dueM: 12, dueD: 20 },
+      ],
+      taxReserve: 300,
+      taxProvisions: { [String(y - 1)]: 800 },
+    }));
+  });
+  await p229.goto(APP_URL);
+  await p229.waitForSelector("#tabbar button");
+  const fisc = await p229.evaluate(() => {
+    const resultat = {};
+    activeTab = "more"; moreView = "taxes"; render();
+    const texte = () => document.getElementById("screen").textContent;
+    // 1. Un acompte échu hier est NOMMÉ « En retard » — plus d'échéance
+    //    passée affichée comme les autres.
+    resultat.enRetardNomme = texte().includes("En retard") && texte().includes("Acompte cantonal");
+    // 2. La provision est PAR ANNÉE : l'an dernier montre SA provision
+    //    (800), pas le report global.
+    cursor.y = new Date().getFullYear() - 1; render();
+    resultat.provisionAnneePassee = texte().includes(chf(800));
+    const pasDeReportGlobalAilleurs = !texte().includes("Report que vous aviez saisi");
+    cursor.y = new Date().getFullYear(); render();
+    // 3. L'année courante garde le report hérité (300), étiqueté.
+    resultat.provisionParAnnee = pasDeReportGlobalAilleurs
+      && texte().includes("Report que vous aviez saisi") && texte().includes(chf(300));
+    // 4. Porte unique à refus nommés.
+    if (typeof definirProvisionImpots !== "function") { resultat.porteRefus = false; }
+    else {
+      const refusNegatif = definirProvisionImpots(new Date().getFullYear(), -5);
+      const refusIllisible = definirProvisionImpots(new Date().getFullYear(), "abc");
+      const accepte = definirProvisionImpots(new Date().getFullYear(), 1200);
+      resultat.porteRefus = typeof refusNegatif === "string" && typeof refusIllisible === "string"
+        && accepte === null && (S.taxProvisions || {})[String(new Date().getFullYear())] === 1200;
+    }
+    // 5. VERROU (né vert) : aucun calcul d'impôt, la phrase reste.
+    resultat.verrouSansCalcul = texte().includes("ne calcule aucun impôt");
+    // 6. Restauration : clé additive, entrée hostile écartée.
+    const photo = JSON.parse(JSON.stringify(S));
+    if (photo.taxProvisions) photo.taxProvisions["1999"] = -50;
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationAdditive = !!restauree
+      && (restauree.taxProvisions || {})[String(new Date().getFullYear() - 1)] === 800
+      && (restauree.taxProvisions || {})["1999"] === undefined;
+    moreView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(fisc.enRetardNomme === true,
+    "un acompte échu est NOMMÉ « En retard » sur l'écran Impôts");
+  check(fisc.provisionAnneePassee === true,
+    "l'année passée montre SA provision (CHF 800), portée du modèle natif");
+  check(fisc.provisionParAnnee === true,
+    "le report hérité ne compte que pour l'année courante, étiqueté — plus de report global anonyme");
+  check(fisc.porteRefus === true,
+    "la porte definirProvisionImpots refuse nommément (négatif, illisible) et écrit sinon");
+  check(fisc.verrouSansCalcul === true,
+    "VERROU : « L'app ne calcule aucun impôt » reste dit tel quel (ADR-035)");
+  check(fisc.restaurationAdditive === true,
+    "restauration : taxProvisions survit, l'entrée hostile est écartée");
+  await ctx229.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14274,4 +14364,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 228 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 229 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

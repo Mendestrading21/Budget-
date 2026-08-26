@@ -1626,8 +1626,8 @@
     </form>
 
     <form class="sheet nu-pilot-sheet" id="taxForm" style="display:none">
-      <h3>Report d'impôts</h3>
-      <label for="txReserve">Déjà mis de côté avant l'app (<span class="curlabel">CHF</span>)</label>
+      <h3 id="taxSheetTitle">Provision d'impôts</h3>
+      <label for="txReserve">Déjà mis de côté pour cette année (<span class="curlabel">CHF</span>)</label>
       <input id="txReserve" data-primary-amount inputmode="decimal" placeholder="2400.00" autocomplete="off" />
       <div class="error" id="txError" role="alert"></div>
       <div class="actions sticky">
@@ -5606,6 +5606,18 @@ function fortuneTotale() {
     + pensionPositionsTotal() - liabilitiesTotalCHF();
 }
 
+/* W8.5 (ADR-070, porté du natif TaxProvision) : la provision d'impôts
+   se pose PAR ANNÉE — porte unique à refus nommés. Aucun calcul
+   d'impôt, jamais (ADR-035). */
+function definirProvisionImpots(annee, montant) {
+  const y = Number(annee);
+  if (!Number.isInteger(y) || y < 1900 || y > 2200) return "Année illisible — rien n'est enregistré.";
+  const valeur = Number(montant);
+  if (!Number.isFinite(valeur) || valeur < 0) return "Ce montant n'est pas valable : un nombre positif ou zéro. Rien n'est enregistré.";
+  (S.taxProvisions || (S.taxProvisions = {}))[String(y)] = round2(valeur);
+  saveState();
+  return null;
+}
 function taxSummary(year) {
   // Payés COMPTABILISÉS de la même année uniquement.
   const paid = transactions
@@ -5617,24 +5629,31 @@ function taxSummary(year) {
     .filter(t => t.y === year && t.status === "posted"
       && (t.type === "saving" || t.type === "investment") && t.cat === "Impôts")
     .reduce((a, t) => a + txCHF(t), 0));
-  // Le report saisi à la main n'est jamais effacé : il s'ajoute, à part.
-  const reservedManual = S.taxReserve ?? 0;
-  const reserved = round2(reservedFromMovements + reservedManual);
-  // Échéances réelles : les factures de catégorie Impôts encore ouvertes.
+  // W8.5 : le report HÉRITÉ (S.taxReserve, global) ne compte que pour
+  // l'année COURANTE — consulter une autre année ne l'affiche plus.
+  const reservedManual = year === NOW.y ? (S.taxReserve ?? 0) : 0;
+  const provisionAnnee = round2(Number((S.taxProvisions || {})[String(year)]) || 0);
+  const reserved = round2(reservedFromMovements + reservedManual + provisionAnnee);
+  // Échéances réelles : les factures de catégorie Impôts encore ouvertes —
+  // les RETARDS sont séparés et nommés (porté de TaxService).
   const taxBills = (S.bills || []).filter(b => !billIsCovered(b) && b.cat === "Impôts" && b.dueY === year);
-  return { paid, reserved, reservedFromMovements, reservedManual, taxBills };
+  const enRetard = taxBills.filter(billIsOverdue);
+  const aVenir = taxBills.filter(b => !billIsOverdue(b));
+  return { paid, reserved, reservedFromMovements, reservedManual, provisionAnnee, taxBills, enRetard, aVenir };
 }
 
 function renderTaxes() {
   const summary = taxSummary(cursor.y);
-  const { paid, reserved, reservedFromMovements, reservedManual, taxBills } = summary;
+  const { paid, reserved, reservedFromMovements, reservedManual, provisionAnnee, taxBills, enRetard, aVenir } = summary;
   return backBar(`Impôts ${cursor.y}`) + `
     <div class="card hero">
       <p class="card-label">Payé en ${cursor.y}</p>
       <p class="hero-amount${paid >= 1000000 ? " long" : ""}">${chf(paid)}</p>
-      <div style="margin:6px 0 4px">${taxBills.length
-        ? `<span class="pill warn">${taxBills.length > 1 ? `${taxBills.length} acomptes à venir` : "1 acompte à venir"}</span>`
-        : '<span class="pill pos">Aucun acompte en attente</span>'}</div>
+      <div style="margin:6px 0 4px">${enRetard.length
+        ? `<span class="pill neg">${enRetard.length > 1 ? `${enRetard.length} acomptes en retard` : "1 acompte en retard"}</span> `
+        : ""}${aVenir.length
+        ? `<span class="pill warn">${aVenir.length > 1 ? `${aVenir.length} acomptes à venir` : "1 acompte à venir"}</span>`
+        : (enRetard.length ? "" : '<span class="pill pos">Aucun acompte en attente</span>')}</div>
     </div>
     <div class="stat-grid">
       <div class="stat"><span class="card-label">Déjà payé</span><span class="amount pos">${chf(paid)}</span></div>
@@ -5644,18 +5663,24 @@ function renderTaxes() {
       <p class="card-label">D'où vient « déjà mis de côté »</p>
       <div class="breakdown">
         <div><span>Vos envois vers « Impôts »</span><span>${chf(reservedFromMovements)}</span></div>
+        ${provisionAnnee > 0 ? `<div><span>Provision posée pour ${cursor.y}</span><span>${chf(provisionAnnee)}</span></div>` : ""}
         ${reservedManual > 0 ? `<div><span>Report que vous aviez saisi</span><span>${chf(reservedManual)}</span></div>` : ""}
       </div>
       <p class="caption" style="margin:8px 0 0">Chaque envoi rangé dans « Impôts » compte ici tout seul. Plus rien à retaper.</p>
     </div>
+    ${enRetard.length ? `<p class="section-title">En retard</p>
+    ${enRetard.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer;border-color:var(--negative)">
+      <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
+      <div class="meta"><div class="t">${esc(b.name)}</div><div class="s neg">En retard — était à payer le ${billDueLabel(b)}</div></div>
+      <span class="amount neg">${chf(billAmountInBase(b))}</span></div>`).join("")}` : ""}
     <p class="section-title">Vos prochains acomptes</p>
-    ${taxBills.length ? taxBills.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
+    ${aVenir.length ? aVenir.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">À payer ${billDueLabel(b)}</div></div>
       <span class="amount">${chf(billAmountInBase(b))}</span></div>`).join("")
       : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez vos acomptes comme des factures : ils compteront dans votre mois, comme n'importe quelle sortie.</span></div>`}
     <button class="btn secondary" data-addtaxbill style="margin-top:8px">Ajouter un acompte</button>
-    <button class="btn secondary" data-adjusttax style="margin-top:8px">Corriger mon report</button>
+    <button class="btn secondary" data-adjusttax style="margin-top:8px">Poser la provision ${cursor.y}</button>
     <p class="caption" style="padding:6px 4px 0">L'app ne calcule aucun impôt à votre place : elle additionne seulement ce que vous notez en ${cursor.y}. Ce n'est pas un conseil fiscal.</p>`;
 }
 
@@ -8215,6 +8240,7 @@ function undoLast() {
   S.releves = restored.releves || []; // W4.3
   S.lastImport = restored.lastImport || null;
   S.taxRate = restored.taxRate; S.taxReserve = restored.taxReserve;
+  S.taxProvisions = restored.taxProvisions || {}; // W8.5
   S.faceIDEnabled = restored.faceIDEnabled; S.lockCode = restored.lockCode;
   if (restored.profile && typeof restored.profile === "object") S.profile = restored.profile;
   if (COUNTRIES[restored.country]) S.country = restored.country;
@@ -9342,6 +9368,17 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   }
   state.taxRate = state.taxRate ?? 0;
   state.taxReserve = state.taxReserve ?? 0;
+  // W8.5 : provisions d'impôts PAR ANNÉE — clé additive, une entrée
+  // hostile (année illisible, montant négatif) est écartée, les saines
+  // restent.
+  if (isPlainRecord(state.taxProvisions)) {
+    const saines = {};
+    for (const [annee, montant] of Object.entries(state.taxProvisions)) {
+      if (/^\d{4}$/.test(annee) && Number.isFinite(montant) && montant >= 0
+          && Number(annee) >= 1900 && Number(annee) <= 2200) saines[annee] = montant;
+    }
+    state.taxProvisions = saines;
+  } else if (state.taxProvisions !== undefined) delete state.taxProvisions;
   state.profile = state.profile || { name: null };
   state.projectionProfile = PROJECTION_PROFILES[state.projectionProfile]
     ? state.projectionProfile : "balanced";
@@ -10838,7 +10875,10 @@ document.getElementById("penDelete").addEventListener("click", () => {
 /* ---------- Feuille impôts (W4) ---------- */
 function openTaxSheet() {
   document.getElementById("taxForm").reset();
-  document.getElementById("txReserve").value = (S.taxReserve ?? 0).toFixed(2);
+  // W8.5 : la feuille pose la PROVISION de l'année consultée (le report
+  // hérité S.taxReserve reste tel quel, il compte pour l'année courante).
+  document.getElementById("taxSheetTitle").textContent = `Provision d'impôts ${cursor.y}`;
+  document.getElementById("txReserve").value = (Number((S.taxProvisions || {})[String(cursor.y)]) || 0).toFixed(2);
   document.getElementById("txError").textContent = "";
   openSheet("taxForm");
   document.getElementById("txReserve").focus();
@@ -10849,10 +10889,12 @@ document.getElementById("taxForm").addEventListener("submit", (e) => {
   const err = document.getElementById("txError");
   const reserveRaw = document.getElementById("txReserve").value.trim();
   const reserve = reserveRaw === "" ? 0 : parseAmountField(reserveRaw);
-  if (Number.isNaN(reserve) || reserve < 0) { err.textContent = "Ce montant mis de côté n'est pas valable. Exemple : 2400.00"; return; }
-  S.taxReserve = reserve;
-  saveState(); closeSheet();
-  toast("Report d'impôts mis à jour");
+  // W8.5 : la feuille écrit la provision de l'ANNÉE CONSULTÉE, par la
+  // porte unique — le report hérité n'est plus réécrit.
+  const refus = definirProvisionImpots(cursor.y, reserve);
+  if (refus) { err.textContent = refus; return; }
+  closeSheet();
+  toast(`Provision d'impôts ${cursor.y} mise à jour`);
   render();
 });
 

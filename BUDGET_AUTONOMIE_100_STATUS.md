@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.3 fusionnés · W8.4 EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.4 fusionnés · W8.5 EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,31 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.5 : impôts — retards nommés, provision par année (portés du natif)
+
+Décision propriétaire (ADR-070) : porter échéances + provision du
+modèle natif `TaxProvision`/`TaxService` — toujours AUCUN calcul
+d'impôt (ADR-035 intact, verrou né vert). Mesuré : un acompte échu
+s'affichait comme les autres (aucune alarme), et le report manuel
+GLOBAL (`S.taxReserve`) s'affichait sur TOUTE année consultée avec la
+même étiquette. Livré : section « En retard » nommée (pastille rouge,
+bordure, « était à payer le … ») séparée de « Vos prochains
+acomptes » ; provision PAR ANNÉE (`S.taxProvisions`, clé additive) via
+la porte unique `definirProvisionImpots` (refus nommés : année
+illisible, montant négatif/illisible) ; la feuille « Poser la
+provision {année} » écrit l'année CONSULTÉE — le report hérité n'est
+plus jamais réécrit et ne compte que pour l'année courante, étiqueté ;
+restauration additive (entrée hostile écartée, les saines restent).
+Test hérité 136 adapté au nouveau contrat (changement VOULU,
+consigné : la feuille écrivait `taxReserve`, elle écrit désormais la
+provision). Preuves : parcours 229 né rouge (5 échecs nommés) ; deux
+sabotages qui mordent seuls (retards fondus dans les acomptes → 1 ;
+report redevenu global → 1) ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-5/`) ; suites complètes vertes
+(229 e2e, 9 parités, 14 canon + schéma, design, catalogue, audits).
+Fusion W8.4 consignée (`main` = `59bcc5a`, PR #187) ; publication au
+SHA exact : **succès**.
 
 ### 26.08.2026 — W8.4 : performance racontée — un chiffre, sa phrase, sa méthode
 
