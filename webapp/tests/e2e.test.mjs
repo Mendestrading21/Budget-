@@ -12789,6 +12789,113 @@ currentTest = "W5.7 gestes d'agenda";
   await ctx210.close();
 }
 
+// ---------- 211. W6.1 : BUDGET — le reste se reporte (opt-in par ligne, ADR-067) ----------
+// Budget Autonomie 100, W6.1 : mesuré — le budget est plat, une
+// catégorie sous-dépensée repart de zéro chaque mois. Décision
+// propriétaire du 26.08.2026 : report OPT-IN par ligne (« reporter le
+// reste »), comportement actuel = défaut. Le report est CALCULÉ en
+// chaîne depuis les mois précédents, jamais stocké en double ; un
+// dépassement ne se reporte jamais (pas de dette de budget cachée).
+currentTest = "W6.1 report budgétaire";
+{
+  const ctx211 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p211 = await ctx211.newPage();
+  p211.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.1] ${msg.text()}`); });
+  await p211.addInitScript(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    const decale = d => {
+      const t = new Date(y, m - 1 + d, 1);
+      return { y: t.getFullYear(), m: t.getMonth() + 1 };
+    };
+    const m1 = decale(-1), m2 = decale(-2);
+    const tx = (id, mm, amount, cat) => ({
+      id, title: cat, amount, type: "expense", cat, acc: "cur", dest: null,
+      status: "posted", y: mm.y, m: mm.m, d: 5,
+    });
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rep" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      budgets: {
+        [`${m2.y}-${m2.m}`]: [
+          { cat: "Alimentation", amount: 600, report: true },
+        ],
+        [`${m1.y}-${m1.m}`]: [
+          { cat: "Alimentation", amount: 600, report: true },
+          { cat: "Restaurants et sorties", amount: 100, report: true },
+        ],
+        [`${y}-${m}`]: [
+          { cat: "Alimentation", amount: 600, report: true },
+          { cat: "Transports", amount: 250 },
+          { cat: "Restaurants et sorties", amount: 100, report: true },
+        ],
+      },
+      transactions: [
+        tx(1, m2, 500, "Alimentation"), // reste 100 → reporté
+        tx(2, m1, 400, "Alimentation"), // reste 600+100−400 = 300 → reporté
+        tx(3, { y, m }, 100, "Alimentation"),
+        tx(4, m1, 150, "Restaurants et sorties"), // dépassement : rien ne se reporte
+        tx(5, { y, m }, 100, "Transports"),
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], bills: [],
+    }));
+  });
+  await p211.goto(APP_URL);
+  await p211.waitForSelector("#tabbar button");
+  const rep = await p211.evaluate(() => {
+    const resultat = {};
+    const soldeAvant = balance("cur");
+    const rapport = budgetReport(NOW.y, NOW.m);
+    const ligne = nom => rapport.lines.find(l => l.cat === nom) || {};
+    // 1. La chaîne est CALCULÉE : 100 (M−2) + 600 − 400 = 300 arrivent.
+    resultat.chaineCalculee = ligne("Alimentation").carry === 300
+      && ligne("Alimentation").effectif === 900;
+    // 2. Sans report : rien ne change (comportement actuel = défaut).
+    resultat.sansReportIntact = ligne("Transports").carry === 0
+      && ligne("Transports").effectif === 250;
+    // 3. Un dépassement ne se reporte JAMAIS (Sport M−1 : 150 sur 100).
+    resultat.depassementJamaisNegatif = ligne("Restaurants et sorties").carry === 0
+      && ligne("Restaurants et sorties").effectif === 100;
+    // 4. L'écran raconte le report — montant effectif ET provenance.
+    const onglet = i => [...document.querySelectorAll("#tabbar button")][i];
+    onglet(2).click();
+    const texte = document.getElementById("screen").textContent;
+    resultat.ecranRaconte = texte.includes("900.00") && texte.includes("reporté");
+    // 5. La feuille de ligne offre la case « reporter le reste ».
+    const bouton = document.querySelector("#screen [data-addline]");
+    if (bouton) bouton.click();
+    resultat.caseVisible = !!document.getElementById("lReport");
+    if (document.getElementById("lineForm")) {
+      const annuler = document.getElementById("lCancel");
+      if (annuler) annuler.click();
+    }
+    // 6. Le report est calculé, jamais STOCKÉ : les lignes persistées ne
+    //    portent aucun champ carry/effectif.
+    const stockees = Object.values(S.budgets).flat();
+    resultat.jamaisStocke = stockees.every(l => l.carry === undefined && l.effectif === undefined);
+    // 7. FI-20 : le budget ne touche aucun solde bancaire.
+    resultat.fi20 = balance("cur") === soldeAvant;
+    return resultat;
+  });
+  check(rep.chaineCalculee === true,
+    "le report se calcule en CHAÎNE : 300 arrivent en plus des 600 (effectif 900)");
+  check(rep.sansReportIntact === true,
+    "une ligne sans report garde exactement le comportement actuel");
+  check(rep.depassementJamaisNegatif === true,
+    "un dépassement ne se reporte jamais — pas de dette de budget cachée");
+  check(rep.ecranRaconte === true,
+    "l'écran Budget raconte le report : montant effectif et « reporté »");
+  check(rep.caseVisible === true,
+    "la feuille de ligne offre « Reporter le reste au mois suivant » (opt-in)");
+  check(rep.jamaisStocke === true,
+    "le report est calculé, jamais stocké en double dans les lignes");
+  check(rep.fi20 === true,
+    "FI-20 : le budget ne touche aucun solde bancaire");
+  await ctx211.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12798,4 +12905,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 210 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 211 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

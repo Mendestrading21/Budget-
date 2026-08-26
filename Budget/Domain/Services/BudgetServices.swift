@@ -13,15 +13,42 @@ struct BudgetLineReport: Identifiable, Equatable {
     let isEssential: Bool
     let planned: Decimal
     let actual: Decimal
+    /// W6.1 (ADR-067) : montant REPORTÉ des mois précédents — calculé
+    /// en chaîne par BudgetVarianceService, jamais stocké. Zéro pour
+    /// toute ligne sans rollover : le comportement historique est
+    /// inchangé (effective == planned).
+    let carry: Decimal
 
-    var variance: Decimal { planned - actual }
-    var isOverrun: Bool { actual > planned }
+    init(
+        id: UUID,
+        categoryID: UUID?,
+        categoryName: String,
+        categoryKind: CategoryKind,
+        isEssential: Bool,
+        planned: Decimal,
+        actual: Decimal,
+        carry: Decimal = .zero
+    ) {
+        self.id = id
+        self.categoryID = categoryID
+        self.categoryName = categoryName
+        self.categoryKind = categoryKind
+        self.isEssential = isEssential
+        self.planned = planned
+        self.actual = actual
+        self.carry = carry
+    }
+
+    /// Enveloppe effective du mois : saisi + reporté.
+    var effective: Decimal { planned + carry }
+    var variance: Decimal { effective - actual }
+    var isOverrun: Bool { actual > effective }
     /// Consumed fraction clamped to [0, 1] for progress bars (a net-refund
     /// month floors at 0); overrun is signalled separately (never by color
     /// alone).
     var consumedFraction: Decimal {
-        guard planned > 0 else { return actual > 0 ? Decimal(1) : .zero }
-        return max(.zero, min(Decimal(1), FinanceMath.safeRatio(actual, planned)))
+        guard effective > 0 else { return actual > 0 ? Decimal(1) : .zero }
+        return max(.zero, min(Decimal(1), FinanceMath.safeRatio(actual, effective)))
     }
 }
 
@@ -110,12 +137,50 @@ struct BudgetVarianceService {
         return total
     }
 
+    /// W6.1 (ADR-067) : le report se calcule en CHAÎNE — on remonte les
+    /// mois précédents tant que leur ligne de la catégorie porte
+    /// `rollover`, puis on redescend : reste = max(0, prévu + reporté −
+    /// réel). Un dépassement ne se reporte jamais. Purement calculé.
+    func carryIn(
+        categoryID: UUID,
+        kind: CategoryKind,
+        monthOf anchor: Date,
+        previousBudgets: [MonthlyBudget],
+        transactions: [BudgetTransaction],
+        depth: Int = 12
+    ) -> Decimal {
+        var chain: [(interval: MonthInterval, planned: Decimal)] = []
+        var cursor = anchor
+        for _ in 0..<max(1, depth) {
+            guard let previousMonth = calendar.date(byAdding: .month, value: -1, to: cursor) else { break }
+            let interval = MonthInterval(containing: previousMonth, calendar: calendar)
+            let budget = previousBudgets.first {
+                $0.startDate(calendar: calendar).map(interval.contains) == true
+            }
+            guard let line = budget?.lines.first(where: { $0.category?.id == categoryID && $0.rollover }) else { break }
+            chain.append((interval, line.plannedAmount))
+            cursor = previousMonth
+        }
+        var carry: Decimal = .zero
+        for link in chain.reversed() {
+            let actual = actualAmount(
+                categoryID: categoryID, kind: kind,
+                interval: link.interval, transactions: transactions
+            )
+            carry = max(.zero, link.planned + carry - actual)
+        }
+        return carry
+    }
+
     /// Builds the month's reconciliation: one report per budget line, plus
     /// every out-of-budget actual so nothing is silently dropped.
+    /// `previousBudgets` (additif, défaut vide) nourrit le report W6.1 —
+    /// sans lui, carry = 0 et rien ne change.
     func report(
         budget: MonthlyBudget?,
         monthOf anchor: Date,
-        transactions: [BudgetTransaction]
+        transactions: [BudgetTransaction],
+        previousBudgets: [MonthlyBudget] = []
     ) -> BudgetReport {
         let interval = MonthInterval(containing: anchor, calendar: calendar)
         let lines = budget?.lines ?? []
@@ -134,7 +199,14 @@ struct BudgetVarianceService {
                     kind: category.kind,
                     interval: interval,
                     transactions: transactions
-                )
+                ),
+                carry: line.rollover && category.kind == .expense
+                    ? carryIn(
+                        categoryID: category.id, kind: category.kind,
+                        monthOf: anchor, previousBudgets: previousBudgets,
+                        transactions: transactions
+                    )
+                    : .zero
             )
         }
         .sorted { lhs, rhs in

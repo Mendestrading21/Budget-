@@ -46,6 +46,12 @@ final class BudgetLine {
     @Attribute(.unique) var id: UUID
     /// Always ≥ 0; a budget line plans an envelope, not a direction.
     var plannedAmount: Decimal
+    /// W6.1 (ADR-067, décision propriétaire du 26.08.2026) : report
+    /// OPT-IN par ligne — le reste non dépensé rejoint le mois suivant.
+    /// Défaut `false` = comportement historique intact ; le montant
+    /// reporté est toujours CALCULÉ (BudgetVarianceService), jamais
+    /// stocké. Ajout additif avec défaut : migration légère SwiftData.
+    var rollover: Bool = false
     var createdAt: Date
     var updatedAt: Date
 
@@ -55,12 +61,14 @@ final class BudgetLine {
     init(
         id: UUID = UUID(),
         plannedAmount: Decimal,
+        rollover: Bool = false,
         category: BudgetCategory? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
         self.id = id
         self.plannedAmount = plannedAmount
+        self.rollover = rollover
         self.category = category
         self.createdAt = createdAt
         self.updatedAt = updatedAt
