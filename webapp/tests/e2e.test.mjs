@@ -12185,6 +12185,87 @@ currentTest = "W4.7 patrimoine daté";
   await ctx203.close();
 }
 
+// ---------- 204. W5.1 : les ROUTES — la navigation ADR-026, verrouillée ----------
+// Budget Autonomie 100, W5.1 : W5 s'ouvre en VERROUILLANT la carte
+// mesurée (docs/autonomie/w5/INVENTAIRE_ROUTES.md) — cinq destinations
+// exactes, chaque sous-vue de Gérer atteignable ET revenant à Gérer,
+// aucune route morte, aucun bouton d'ajout global. Né VERT (c'est un
+// verrouillage d'un comportement déjà conforme) : le contrôle négatif
+// fait foi.
+currentTest = "W5.1 routes verrouillées";
+{
+  const ctx204 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p204 = await ctx204.newPage();
+  p204.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.1] ${msg.text()}`); });
+  await p204.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Nav" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p204.goto(APP_URL);
+  await p204.waitForSelector("#tabbar button");
+  const nav = await p204.evaluate(() => {
+    const resultat = {};
+    // 1. Les CINQ destinations ADR-026, ids et libellés exacts.
+    resultat.destinations = JSON.stringify(TABS) === JSON.stringify([
+      ["home", "Mois"], ["movements", "Historique"], ["budget", "Budget"],
+      ["accounts", "Comptes"], ["more", "Gérer"],
+    ]);
+    const boutons = [...document.querySelectorAll("#tabbar button")];
+    resultat.barreExacte = boutons.length === 5
+      && boutons.map(b => b.textContent.trim()).join("|") === "Mois|Historique|Budget|Comptes|Gérer";
+    // La tabbar se RE-REND à chaque navigation : chaque geste re-lit le
+    // DOM vivant, comme un doigt le ferait.
+    const onglet = i => [...document.querySelectorAll("#tabbar button")][i];
+    // 2. Chaque destination s'ouvre par le VRAI clic et rend un écran.
+    resultat.ecransVivants = [0, 1, 2, 3, 4].every(i => {
+      onglet(i).click();
+      return (document.getElementById("screen").innerHTML || "").length > 100;
+    });
+    // 3. Chaque sous-vue de Gérer s'ouvre et son retour REVIENT à Gérer.
+    onglet(4).click();
+    const entrees = [...document.querySelectorAll("[data-more]")].map(e => e.dataset.more);
+    resultat.sousVues = entrees.length >= 10 && entrees.every(route => {
+      const carte = document.querySelector(`[data-more="${route}"]`);
+      if (!carte) return false;
+      carte.click();
+      const ouverte = moreView === route && (document.getElementById("screen").innerHTML || "").length > 100;
+      const retour = document.querySelector("[data-back]");
+      if (retour) retour.click();
+      return ouverte && moreView === null;
+    });
+    // 4. Aucune route MORTE : chaque clé de MORE_RENDERERS est au menu
+    //    (ou consignée comme alias interne), chaque entrée a son rendeur.
+    const auMenu = new Set(entrees);
+    const ALIAS_INTERNES = new Set(["movements", "subs"]); // raccourcis consignés (inventaire W5.1)
+    const clesRendeurs = Object.keys(MORE_RENDERERS);
+    resultat.zeroRouteMorte = clesRendeurs.every(k => auMenu.has(k) || ALIAS_INTERNES.has(k))
+      && entrees.every(k => !!MORE_RENDERERS[k]);
+    // 5. Aucun bouton d'ajout GLOBAL flottant, nulle part.
+    resultat.zeroFab = [0, 1, 2, 3, 4].every(i => {
+      onglet(i).click();
+      return !document.querySelector(".fab, [data-fab], #fab");
+    });
+    onglet(0).click();
+    return resultat;
+  });
+  check(nav.destinations === true && nav.barreExacte === true,
+    "les cinq destinations ADR-026 — ids, libellés et ordre EXACTS");
+  check(nav.ecransVivants === true,
+    "chaque destination s'ouvre par le vrai clic et rend un écran vivant");
+  check(nav.sousVues === true,
+    "chaque sous-vue de Gérer s'ouvre ET son retour revient à Gérer");
+  check(nav.zeroRouteMorte === true,
+    "aucune route morte : le menu et les rendeurs se couvrent exactement (alias consignés)");
+  check(nav.zeroFab === true,
+    "aucun bouton d'ajout global flottant, sur aucun écran (ADR-026)");
+  await ctx204.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12194,4 +12275,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 203 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 204 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

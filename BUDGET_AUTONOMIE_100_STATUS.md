@@ -63,9 +63,10 @@ W4.2b fusionné et publié (`main` = `0522518`, PR #153, publication run
 publication run `32903417770`) · W4.4 fusionné et publié (`main` = `3407feb`, PR #155, publication
 run `32905617064`) · W4.4b fusionné (`main` = `7a333a1`, PR #156) ·
 W4.5 fusionné et publié (`main` = `162e1ff`, PR #157, publication run
-`32907853689`, succès) · W4.6 fusionné (`main` = `63d5140`, PR #158,
-publication run `32909892236`) · W4.7 EN PR — DERNIER sous-lot de
-W4** (Work Order :
+`32907853689`, succès) · W4.6 fusionné et publié (`main` = `63d5140`,
+PR #158, publication run `32909892236`, succès) · W4.7 fusionné
+(`main` = `a08997f`, PR #159, publication run `32911953686`) — **W4
+est COMPLET**** (Work Order :
 `docs/autonomie/w4/WORK_ORDER_W4.md`). ADR-065 (« V1 base unique » —
 décision propriétaire du 25.08.2026). ADR-063 (centimes entiers —
 question posée au propriétaire le 25.08.2026, écartée « continue » ;
@@ -119,8 +120,8 @@ Livrables attendus :
 | W1 | Fixtures canoniques | DONE | W0 |
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
-| W4 | Comptes, devises, rapprochement | W4.1–W4.6 fusionnés · W4.7 EN PR (dernier) | W3 (fusionné) |
-| W5 | Pages et inbox | BLOCKED | W2, W3, W4 |
+| W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
+| W5 | Pages et inbox | W5.1 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -154,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W5.1 : les routes — la navigation ADR-026, verrouillée
+
+W5 s'ouvre (Work Order : `docs/autonomie/w5/WORK_ORDER_W5.md` —
+ADR-026 prévaut : les cinq destinations restent, le vocabulaire
+générique de la charte se lit Historique/Budget/Gérer). W5.1 MESURE la
+carte réelle (`docs/autonomie/w5/INVENTAIRE_ROUTES.md` : 5 onglets
+identiques des deux côtés, 11 sous-vues de Gérer + 1 alias interne) et
+la VERROUILLE (parcours 204) : destinations exactes, chaque écran
+vivant par le vrai clic, chaque sous-vue ouvrable ET revenant à Gérer,
+zéro route morte (menu ↔ rendeurs couverts, alias consignés), zéro
+bouton d'ajout global. Né VERT (verrouillage d'un comportement déjà
+conforme — consigné) : les contrôles négatifs font foi, et ils ont
+mordu TROIS fois — rendeur retiré → un ancien parcours crashe (le
+registre était déjà tenu par la suite historique), entrée de menu
+retirée → un autre parcours attend sa carte, rendeur FANTÔME ajouté →
+le contrôle « zéro route morte » de 204 mord SEUL. Leçon consignée
+dans le test : la tabbar se re-rend à chaque navigation — un verrou de
+navigation re-lit le DOM vivant, comme un doigt. Suites complètes
+vertes (204 e2e, 9 parités, 13 canon + schéma, design, catalogue,
+audit). Prochain : W5.2 — la boîte de réception du Mois (les échéances
+persistées enfin LUES par un écran).
 
 ### 25.08.2026 — W4.7 : le patrimoine daté et sourcé — dernier sous-lot de W4
 
