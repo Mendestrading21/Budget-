@@ -31,7 +31,9 @@ lieux du 26.08.2026 (résumée ci-dessous, réconciliée avec le code).
   la première revalorisation.
 - Les positions de titres sont saines (INV1, parité native) mais
   aveugles : `priceCurrency` stocké jamais lu, `costBasis` manuel,
-  aucune plus-value affichée (la formule n'existe qu'en commentaire),
+  aucune plus-value PAR POSITION (celle du COMPTE titres existe :
+  `solde − ouverture − versements nets`, affichée avec sa méthode —
+  contre-mesure du 26.08 corrigeant le rapport d'exploration),
   aucun lien avec les mouvements.
 - L'écran Impôts est un additionneur honnête (revendiqué : « L'app ne
   calcule aucun impôt à votre place ») mais le modèle natif

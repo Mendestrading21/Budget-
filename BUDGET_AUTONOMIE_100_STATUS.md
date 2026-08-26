@@ -198,8 +198,9 @@ de l'existant (agent d'état des lieux, réconcilié avec le code).
 Constats moteurs : la courbe de patrimoine convertit les STOCKS au
 taux COURANT (rétroactif — FI-19 tenu pour les mouvements seulement) ;
 `S.fxQuotes` datées jamais lues pour convertir ; actifs/dettes/
-prévoyances/primes SANS devise ; positions sans plus-value affichée
-(formule en commentaire, jamais implémentée) ; impôts/assurances :
+prévoyances/primes SANS devise ; plus-value PAR POSITION absente
+(celle du compte titres existe et dit sa méthode — contre-mesure
+consignée au Work Order) ; impôts/assurances :
 modèles natifs riches non portés ; runner canon qui aplatit les taux
 datés. Sept sous-lots ordonnés, trois décisions propriétaire à poser
 (devise des actifs existants, forme de la performance V1, portée de
