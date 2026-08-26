@@ -1332,6 +1332,12 @@
       <select id="lCat"></select>
       <label for="lAmount">Montant prévu (<span class="curlabel">CHF</span> / mois)</label>
       <input id="lAmount" data-primary-amount inputmode="decimal" placeholder="250.00" autocomplete="off" />
+      <!-- W6.1 (ADR-067) : report OPT-IN par ligne — décision
+           propriétaire. Le reste est calculé, jamais copié. -->
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <input type="checkbox" id="lReport" style="width:auto" /> Reporter le reste au mois suivant
+      </label>
+      <p class="caption" style="margin:2px 0 0">Le reste non dépensé s'ajoutera au budget du mois suivant — calculé, jamais copié. Un dépassement ne se reporte pas.</p>
       <div class="error" id="lError" role="alert"></div>
       <div class="actions sticky">
         <button type="button" class="btn secondary" id="lCancel">Annuler</button>
@@ -3999,20 +4005,59 @@ function budgetLines(y, m) {
   return (S.budgets && S.budgets[`${y}-${m}`]) || [];
 }
 
+/* Le réel d'UNE catégorie sur UN mois, en centimes entiers (G01) —
+   la même règle que les lignes du budget (types par nature, les
+   remboursements réduisent une dépense). */
+function actualCentsForCat(cat, y, m) {
+  const kind = categoryKind(cat);
+  const types = kind === "expense" ? ["expense", "debtPayment"] : kind === "saving" ? ["saving"]
+              : kind === "investment" ? ["investment"] : kind === "tax" ? ["taxPayment"] : ["income"];
+  let actualC = 0;
+  for (const t of transactions) {
+    if (t.cat !== cat || !inMonth(t, y, m) || t.status !== "posted") continue;
+    if (types.includes(t.type)) actualC += toCents(txCHF(t));
+    else if (kind === "expense" && t.type === "refund") actualC -= toCents(txCHF(t));
+  }
+  return actualC;
+}
+
+/* W6.1 (ADR-067, décision propriétaire du 26.08.2026) : le REPORT est
+   CALCULÉ en chaîne depuis les mois précédents, jamais stocké — on
+   remonte tant que la ligne du mois d'avant existe avec « reporter le
+   reste », puis on redescend : reste = max(0, prévu + reporté − réel).
+   Un dépassement ne se reporte JAMAIS (pas de dette de budget cachée). */
+function carryInPourLigne(cat, y, m, profondeur = 12) {
+  const chaine = [];
+  let curseur = { y, m };
+  for (let i = 0; i < profondeur; i += 1) {
+    const pm = shiftMonth(curseur, -1);
+    const ligne = budgetLines(pm.y, pm.m).find(l => l.cat === cat && l.report === true);
+    if (!ligne) break;
+    chaine.push({ y: pm.y, m: pm.m, montant: ligne.amount });
+    curseur = pm;
+  }
+  let carryC = 0;
+  for (const maillon of chaine.reverse()) {
+    carryC = Math.max(0, toCents(maillon.montant) + carryC - actualCentsForCat(cat, maillon.y, maillon.m));
+  }
+  return fromCents(carryC);
+}
+
 function budgetReport(y, m) {
   const monthTx = transactions.filter(t => inMonth(t, y, m) && t.status === "posted");
-  const lines = budgetLines(y, m).map(({ cat, amount: plannedAmt }) => {
+  const lines = budgetLines(y, m).map(({ cat, amount: plannedAmt, report }) => {
     const kind = categoryKind(cat);
-    const types = kind === "expense" ? ["expense", "debtPayment"] : kind === "saving" ? ["saving"]
-                : kind === "investment" ? ["investment"] : kind === "tax" ? ["taxPayment"] : ["income"];
-    let actualC = 0; // accumulation en centimes entiers (G01)
-    for (const t of monthTx) {
-      if (t.cat !== cat) continue;
-      if (types.includes(t.type)) actualC += toCents(txCHF(t));
-      else if (kind === "expense" && t.type === "refund") actualC -= toCents(txCHF(t));
-    }
+    const actualC = actualCentsForCat(cat, y, m);
     const actual = fromCents(actualC);
-    return { cat, kind, planned: plannedAmt, actual, variance: round2(plannedAmt - actual), over: actualC > toCents(plannedAmt) };
+    // W6.1 : le report n'existe que sur une ligne de DÉPENSE qui l'a
+    // demandé — les autres gardent exactement le comportement actuel.
+    const carry = report === true && kind === "expense" ? carryInPourLigne(cat, y, m) : 0;
+    const effectif = round2(plannedAmt + carry);
+    return {
+      cat, kind, planned: plannedAmt, carry, effectif, actual,
+      report: report === true,
+      variance: round2(effectif - actual), over: actualC > toCents(effectif),
+    };
   });
   const budgeted = new Set(budgetLines(y, m).map(l => l.cat));
   const out = {};
@@ -4787,9 +4832,12 @@ function renderBudget() {
   // Les lignes d'épargne/impôts ne gonflent pas le « reste à dépenser »
   // (règle Phase 5 : le planifié de dépense seul compte ici).
   const spending = report.lines.filter(l => l.kind === "expense");
-  const totalPlanned = spending.reduce((a, l) => a + l.planned, 0);
+  // W6.1 : le « prévu » d'une ligne est son montant EFFECTIF (saisi +
+  // reporté) — sans report, effectif = saisi, rien ne change.
+  const totalPlanned = round2(spending.reduce((a, l) => a + l.effectif, 0));
+  const totalCarry = round2(spending.reduce((a, l) => a + l.carry, 0));
   const totalActual = spending.reduce((a, l) => a + l.actual, 0);
-  const remaining = totalPlanned - totalActual;
+  const remaining = round2(totalPlanned - totalActual);
   // W5.4 (ADR-055/056 confirmés sur cette destination) : le temps du
   // verbe suit le mois — futur au conditionnel, passé au passé. Aucun
   // agrégat ne change, seuls les mots et la comparaison affichée.
@@ -4808,7 +4856,7 @@ function renderBudget() {
 
   const lineHTML = ([title, lines]) => !lines.length ? "" : `
     <p class="section-title">${title}</p>` + lines.map(l => {
-      const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
+      const fr = Math.min(1, l.effectif > 0 ? l.actual / l.effectif : 1);
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
       // L3 : le statut est toujours écrit, jamais porté par la couleur seule.
       // W5.4 : « À surveiller » est un mot du présent — un mois CLOS ne
@@ -4818,9 +4866,9 @@ function renderBudget() {
       return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="bar-row" style="margin:0;min-width:0;flex:1">
           <div class="bar-head"><span>${esc(l.cat)}${badge}</span>
-            <span class="vals">${chf(l.actual)} dépensé sur ${chf(l.planned)} prévu</span></div>
+            <span class="vals">${chf(l.actual)} dépensé sur ${chf(l.effectif)} prévu</span></div>
           <div class="track"><div class="fill ${cls}" style="width:${(fr * 100).toFixed(1)}%"></div></div>
-          <div class="bar-foot">${l.over ? "Dépassement de " + chf(-l.variance) : "Reste " + chf(l.variance)}</div>
+          <div class="bar-foot">${l.over ? "Dépassement de " + chf(-l.variance) : "Reste " + chf(l.variance)}${l.carry > 0 ? ` · dont ${chf(l.carry)} reportés du mois dernier` : ""}</div>
         </div>
       </div>`;
     }).join("");
@@ -4892,7 +4940,7 @@ function renderBudget() {
       ${futurMois
         ? `<span class="caption">Si vous suivez le plan, vos dépenses resteront sous ${chf(totalPlanned)} — l'épargne et les impôts sont comptés à part.</span>`
         : `<span class="caption">Vous avez utilisé ${ringPct} % de votre budget — l'épargne et les impôts sont comptés à part.</span>`}
-      <span class="caption" style="display:block;margin-top:3px">Prévu ${chf(totalPlanned)} · dépensé ${chf(totalActual)}.</span>
+      <span class="caption" style="display:block;margin-top:3px">Prévu ${chf(totalPlanned)}${totalCarry > 0 ? ` (dont ${chf(totalCarry)} reportés)` : ""} · dépensé ${chf(totalActual)}.</span>
       ${(() => {
         // Comparaison pédagogique : le coût de la vie du mois précédent.
         // W5.4 : un mois FUTUR ne compare pas son mois vide au dernier.
@@ -8551,6 +8599,9 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
           || !Number.isFinite(line.amount) || line.amount < 0)) {
       throw new Error(`budget ${month} invalide`);
     }
+    // W6.1 : le report est un booléen strict — toute autre valeur
+    // retombe sur le défaut (pas de report), jamais un vrai déguisé.
+    for (const line of lines) if (line.report !== true) delete line.report;
   }
 
   const accountIds = new Set();
@@ -9148,6 +9199,7 @@ function openLineSheet(cat) {
     select.disabled = true;
     const line = lines.find(l => l.cat === cat);
     document.getElementById("lAmount").value = line ? line.amount.toFixed(2) : "";
+    document.getElementById("lReport").checked = !!(line && line.report === true);
   } else {
     const taken = new Set(lines.map(l => l.cat));
     const available = categoriesOfKinds(["expense", "saving", "investment", "tax"]).filter(c => !taken.has(c));
@@ -9172,9 +9224,18 @@ document.getElementById("lineForm").addEventListener("submit", (e) => {
   const key = `${y}-${m}`;
   if (!S.budgets[key]) S.budgets[key] = [];
   const cat = editingLineCat || document.getElementById("lCat").value;
+  // W6.1 : le report est un choix PAR ligne — stocké seulement à vrai,
+  // le reste est calculé à la lecture (jamais copié dans les montants).
+  const reporte = document.getElementById("lReport").checked && categoryKind(cat) === "expense";
   const line = S.budgets[key].find(l => l.cat === cat);
-  if (line) { line.amount = amount; toast("Ligne modifiée"); }
-  else { S.budgets[key].push({ cat, amount }); toast("Ligne ajoutée"); }
+  if (line) {
+    line.amount = amount;
+    if (reporte) line.report = true; else delete line.report;
+    toast("Ligne modifiée");
+  } else {
+    S.budgets[key].push(reporte ? { cat, amount, report: true } : { cat, amount });
+    toast("Ligne ajoutée");
+  }
   saveState();
   closeSheet();
   render();

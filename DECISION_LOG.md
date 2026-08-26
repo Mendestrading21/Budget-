@@ -1,5 +1,43 @@
 # Budget decision log
 
+## ADR-067 — Le report budgétaire est opt-in par ligne, calculé en chaîne
+
+Date: 2026-08-26
+Status: accepted
+
+### Contexte
+
+Le budget était plat : une catégorie sous-dépensée repartait de zéro
+chaque mois, sans mémoire de l'effort. W6.1 introduit le report
+(« enveloppe »). Question posée au propriétaire le 26.08.2026 :
+activer le report partout d'office, ou ligne par ligne ?
+
+### Décision
+
+Réponse du propriétaire : **opt-in par ligne**. Une ligne budgétaire
+porte « Reporter le reste au mois suivant » (PWA : clé additive
+`report: true` ; natif : `BudgetLine.rollover`). Défaut = comportement
+historique intact. Le montant reporté est CALCULÉ en chaîne à la
+lecture (on remonte les mois précédents tant que la ligne de la
+catégorie reporte, puis reste = max(0, prévu + reporté − réel)) —
+jamais stocké en double. Un dépassement ne se reporte JAMAIS (pas de
+dette de budget cachée). Le report n'existe que sur les lignes de
+DÉPENSE. FI-20 tenu : le budget ne touche aucun solde bancaire.
+Décision jumelle du même jour (pour W6.4) : les fonds annuels seront
+INFORMATIFS en V1 — aucune écriture automatique d'argent.
+
+### Vérification
+
+PWA : parcours 211 né rouge (5 échecs nommés) → vert ; sabotage (la
+borne max(0, …) saute) → « un dépassement ne se reporte jamais » mord
+seul — après DURCISSEMENT du scénario (une catégorie inconnue du
+référentiel et une chaîne absorbante rendaient le contrôle inerte :
+le sabotage a fait son travail en révélant le test faible, consigné).
+Natif : `BudgetRolloverTests` (5 — chaîne 300, sans rollover rien ne
+change, dépassement jamais négatif, appel sans historique inchangé,
+FI-20), prouvés par le job simulateur CI.
+
+
 ## ADR-066 — Ignorer une échéance libère le disponible
 
 Date: 2026-08-26

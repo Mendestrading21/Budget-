@@ -121,8 +121,8 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.7 fusionnés · W5.8 EN PR | W2, W3, W4 (fusionnés) |
-| W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
+| W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
+| W6 | Plan, budgets, objectifs | W6.1 EN PR | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
@@ -155,6 +155,54 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W6.1 : le reste se reporte — opt-in par ligne (ADR-067)
+
+Mesuré : le budget était plat, une catégorie sous-dépensée repartait
+de zéro. Décision propriétaire (AskUserQuestion) : **opt-in par
+ligne** → ADR-067. Livré DES DEUX CÔTÉS : PWA — clé additive
+`report: true` par ligne (case « Reporter le reste au mois suivant »
+dans la feuille de ligne, restauration normalise en booléen strict),
+`carryInPourLigne` calcule le report en CHAÎNE (remonte tant que la
+ligne du mois d'avant reporte ; reste = max(0, prévu + reporté −
+réel) ; dépassement jamais reporté ; dépenses seulement),
+`budgetReport` expose `carry`/`effectif` (sans report : effectif =
+saisi, rien ne change), l'écran Budget raconte (« Prévu CHF 1'000.00
+(dont CHF 150.00 reportés) », « dont … reportés du mois dernier » sur
+la ligne) ; helper `actualCentsForCat` extrait (une seule règle du
+réel par catégorie). Natif — `BudgetLine.rollover` (additif, défaut
+false, migration légère), `BudgetLineReport.carry`/`effective`
+(variance/dépassement/jauge basculent sur l'effectif ;
+carry par défaut zéro : API et rapports existants inchangés),
+`BudgetVarianceService.carryIn` + paramètre additif
+`previousBudgets: [] = défaut` sur `report(...)` ;
+`BudgetRolloverTests` (5). Preuves : parcours 211 né rouge (5 échecs
+nommés ; verrous jamaisStocke/fi20 nés verts) → vert ; sabotage (la
+borne max(0,…) saute) → « un dépassement ne se reporte jamais » mord
+SEUL — après durcissement du scénario (catégorie inconnue du
+référentiel + chaîne absorbante rendaient le contrôle inerte — le
+sabotage a révélé le test faible, corrigé et consigné) ; captures
+320/390 écran + feuille inspectées
+(`docs/neon-ultra/budget-prisme/w6-1/`) ; suites complètes vertes
+(211 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit) ;
+tests natifs prouvés par le job simulateur CI. Divergence mineure
+PRÉ-EXISTANTE notée (pas de ce lot) : à 390 px, le comparateur « ce
+mois -CHF 330.00 » peut couper entre le signe et le montant au retour
+de ligne — candidat à un correctif dédié. Écran Budget natif
+(affichage carry) consigné pour les écrans iOS de W6.
+
+### 26.08.2026 — W5 FERMÉ · Work Order W6 écrit
+
+W5.8 fusionné (`main` = `f7f27f3`, PR #168) et publié (run
+`32936739858`, succès). Note honnête : le run de publication W5.7
+(`32936249837`) a été ANNULÉ par le dispatch W5.8 qui l'a suivi de
+près (concurrence Pages) — le contenu W5.7 est publié par le run
+W5.8, dont le SHA `f7f27f3` contient `eec9627`. **W5 est fermé** :
+les huit sous-lots du Work Order sont livrés et publiés. Work Order
+W6 écrit en mode plan (`docs/autonomie/w6/WORK_ORDER_W6.md`).
+Décisions propriétaire du 26.08.2026 (AskUserQuestion) : W6.1 report
+**opt-in par ligne** (comportement actuel = défaut) ; W6.4 fonds
+annuels **informatifs en V1** (aucune écriture automatique).
 
 ### 26.08.2026 — W5.8 : nettoyage prouvé — zéro code mort, et un verrou pour que ça dure
 
