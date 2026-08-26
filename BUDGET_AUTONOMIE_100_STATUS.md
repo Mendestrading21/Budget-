@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.2 fusionnés · W5.2b EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.2b fusionnés · W5.3 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -155,6 +155,27 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W5.3 : l'Historique lit la chaîne — « corrigé » se voit
+
+La chaîne de correction du journal (W3.5 — l'histoire jamais réécrite)
+devient LISIBLE, en lecture SEULE : `traceCorrection(txId)` raconte
+(révisions, dernier montant d'avant) ; la ligne de l'Historique porte
+« · corrigé » (marqueur calculé UNE fois par état du journal —
+`idsMouvementsCorriges` avec cache, l'Historique pagine à 200 lignes
+sans balayer 200 fois le journal) ; la feuille du mouvement dit
+« Corrigé une fois — le journal garde chaque version (avant :
+CHF 84.30) ». INCIDENT attrapé en route : la note de la feuille
+gardait l'état de la feuille PRÉCÉDENTE (une création après une
+correction affichait une trace fantôme) — reset posé à l'ouverture,
+verrouillé par le parcours (« pas d'état rancunier »). Preuves :
+parcours 206 né rouge (6 échecs nommés) → vert ; sabotage (le
+marqueur se tait) → le contrôle de ligne mord seul ; restauré vert ;
+captures 320/390 inspectées (`docs/neon-ultra/budget-prisme/w5-3/` —
+ligne marquée, note de feuille lisible) ; suites complètes vertes (206
+e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : la trace natif (le détail iOS lisant la chaîne V12) suivra
+quand W5 touchera les écrans natifs correspondants.
 
 ### 26.08.2026 — W5.2b : l'accueil natif lit les échéances
 

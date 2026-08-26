@@ -1225,6 +1225,8 @@
         <label for="fDate">Date</label>
         <input id="fDate" type="date" min="2000-01-01" max="2100-12-31" />
         <p class="caption" id="fStatusNote" style="margin:4px 0 0"></p>
+        <!-- W5.3 : la trace de correction (W3.5), en lecture seule. -->
+        <p class="caption" id="fCorrectionNote" style="display:none;margin:4px 0 0"></p>
         <!-- W2.4a (ADR-062) : une date n'est pas une preuve. La case est
              COCHÉE par défaut pour une date passée — un seul tap comme
              avant — mais c'est la case de la personne, décochable. -->
@@ -3449,6 +3451,42 @@ function ecritureActiveDuMouvement(txId) {
   return ecritureActiveParCle(`mouvement:${txId}`);
 }
 
+/* W5.3 : la CHAÎNE de correction (W3.5), enfin LISIBLE — lecture
+   seule. La trace dit combien de fois un mouvement a été corrigé et
+   quel était le dernier montant d'avant. */
+function traceCorrection(txId) {
+  const journal = S.journal || [];
+  const prefixe = `mouvement:${txId}`;
+  const membres = journal.filter(e => e.idempotencyKey === prefixe
+    || (typeof e.idempotencyKey === "string" && e.idempotencyKey.startsWith(prefixe + ":r")));
+  if (membres.length < 2) return null;
+  const inversees = new Set(journal.filter(e => e.reversesEntryId).map(e => e.reversesEntryId));
+  const precedentes = membres.filter(e => inversees.has(e.id));
+  if (!precedentes.length) return null;
+  const derniere = precedentes[precedentes.length - 1];
+  return {
+    revisions: precedentes.length,
+    dernierMontantPrecedent: Math.max(...derniere.postings.map(p => p.montantMineur)),
+  };
+}
+
+/* Le marqueur de ligne se calcule UNE fois par état du journal (cache) —
+   l'Historique pagine à 200 lignes, jamais 200 balayages du journal. */
+let cacheCorriges = { cle: "", ids: new Set() };
+function idsMouvementsCorriges() {
+  const journal = S.journal || [];
+  const cle = journal.length + ":" + (journal.length ? journal[journal.length - 1].id : "");
+  if (cacheCorriges.cle === cle) return cacheCorriges.ids;
+  const inversees = new Set(journal.filter(e => e.reversesEntryId).map(e => e.reversesEntryId));
+  const ids = new Set();
+  for (const e of journal) {
+    const m = /^mouvement:(\d+)(?::r\d+)?$/.exec(e.idempotencyKey || "");
+    if (m && inversees.has(e.id)) ids.add(Number(m[1]));
+  }
+  cacheCorriges = { cle, ids };
+  return ids;
+}
+
 /* W3.6 (FI-12 + FI-07) : l'ouverture d'un compte vit dans le journal
    comme une chaîne corrigeable — éditer le solde d'ouverture inverse
    l'ancienne écriture et en lie une nouvelle ; la remettre à zéro
@@ -4119,6 +4157,8 @@ function txRow(t, options) {
   // que sans destination visible ; « neutre » reste toujours écrit.
   const natureNote = (t.type === "transfer" || t.type === "adjustment") ? " · neutre"
     : (t.type === "saving" || t.type === "investment") && !destName ? " · mis de côté" : "";
+  // W5.3 : la correction tracée (W3.5) se VOIT — discrète, jamais déduite.
+  const corrigeNote = idsMouvementsCorriges().has(t.id) ? " · corrigé" : "";
   const dateLabel = esc(`${String(t.d).padStart(2, "0")}.${String(t.m).padStart(2, "0")}.${t.y}`);
   // « Ajustement » suffit sur une ligne dense : la mention « · neutre » doit
   // rester VISIBLE, pas mangée par l'ellipse. Le formulaire garde le libellé
@@ -4128,7 +4168,7 @@ function txRow(t, options) {
     <div class="${icoClass(t.type)}" aria-hidden="true">${budgetGlyph(TYPE_GLYPH[t.type])}</div>
     <div class="meta">
       <div class="t"><span class="t-label">${esc(t.title)}</span>${plannedBadge}</div>
-      <div class="s">${opts.hideDate ? "" : `${dateLabel} · `}${typeLabel}${natureNote}${destName}</div>
+      <div class="s">${opts.hideDate ? "" : `${dateLabel} · `}${typeLabel}${natureNote}${corrigeNote}${destName}</div>
     </div>
     <span class="amount ${cls}">${sign}${money(t.amount, accountCurrency(t.acc))}</span>
   </div>`;
@@ -8068,6 +8108,11 @@ function refreshAccountOptions(selectedId) {
 function openTxSheet(tx, presetType) {
   editingTxId = tx ? tx.id : null;
   document.getElementById("txForm").reset();
+  // W5.3 : la note de correction repart de zéro — jamais d'état rancunier
+  // d'une feuille précédente (l'édition la remplit si une trace existe).
+  const noteCorrectionReset = document.getElementById("fCorrectionNote");
+  noteCorrectionReset.style.display = "none";
+  noteCorrectionReset.textContent = "";
   refreshAccountOptions(tx ? tx.acc : (ACCOUNTS.some(a => a.id === "cur") ? "cur" : (ACCOUNTS[0] || {}).id));
   document.getElementById("sheetTitle").textContent = tx ? "Modifier l'opération" : "Nouvelle opération";
   document.getElementById("fDelete").style.display = tx ? "block" : "none";
@@ -8092,6 +8137,16 @@ function openTxSheet(tx, presetType) {
     document.getElementById("fDate").value =
       `${tx.y}-${String(tx.m).padStart(2, "0")}-${String(tx.d).padStart(2, "0")}`;
     document.getElementById("fFait").checked = tx.status === "posted";
+    // W5.3 : la feuille raconte la correction — jamais ne la réécrit.
+    const trace = traceCorrection(tx.id);
+    const noteCorrection = document.getElementById("fCorrectionNote");
+    if (trace) {
+      noteCorrection.style.display = "";
+      noteCorrection.textContent = `Corrigé ${trace.revisions === 1 ? "une fois" : trace.revisions + " fois"} — le journal garde chaque version (avant : ${money(trace.dernierMontantPrecedent / 100, accountCurrency(tx.acc))}).`;
+    } else {
+      noteCorrection.style.display = "none";
+      noteCorrection.textContent = "";
+    }
   } else {
     if (presetType) document.getElementById("fType").value = presetType;
     refreshCatOptions();

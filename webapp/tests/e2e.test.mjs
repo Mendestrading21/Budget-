@@ -12363,6 +12363,97 @@ currentTest = "W5.2 bilan lit les échéances";
   await ctx205.close();
 }
 
+// ---------- 206. W5.3 : l'HISTORIQUE lit la chaîne — « corrigé » se voit ----------
+// Budget Autonomie 100, W5.3 : la chaîne de correction du journal
+// (W3.5 — inversion + remplaçante, l'histoire jamais réécrite) devient
+// LISIBLE : la ligne de l'Historique porte « corrigé », la feuille du
+// mouvement raconte la trace (combien de fois, l'ancien montant).
+// Lecture SEULE : afficher ne change ni le journal ni les mouvements.
+currentTest = "W5.3 historique lit la chaîne";
+{
+  const ctx206 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p206 = await ctx206.newPage();
+  p206.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.3] ${msg.text()}`); });
+  await p206.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "His" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p206.goto(APP_URL);
+  await p206.waitForSelector("#tabbar button");
+  const his = await p206.evaluate(() => {
+    const resultat = {};
+    resultat.fonctionExiste = typeof traceCorrection === "function";
+    if (!resultat.fonctionExiste) return resultat;
+    // Décor : un mouvement corrigé par le VRAI formulaire, un autre intact.
+    const corrige = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 5, title: "Courses",
+      amount: 84.30, type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted" });
+    const intact = addTx({ id: ++txSeq, y: NOW.y, m: NOW.m, d: 6, title: "Café",
+      amount: 4.50, type: "expense", cat: "Sorties", acc: "cur", dest: null, status: "posted" });
+    openTxSheet(corrige);
+    document.getElementById("fAmount").value = "99.90";
+    document.getElementById("txForm").requestSubmit();
+    // 1. La trace raconte : une révision, l'ancien montant en centimes.
+    const trace = traceCorrection(corrige.id);
+    resultat.traceRaconte = !!trace && trace.revisions === 1
+      && trace.dernierMontantPrecedent === 8430;
+    resultat.intactSansTrace = traceCorrection(intact.id) === null;
+    // 2. La ligne de l'Historique porte « corrigé » — la bonne SEULEMENT.
+    const ligneCorrigee = txRow(transactions.find(t => t.id === corrige.id));
+    const ligneIntacte = txRow(transactions.find(t => t.id === intact.id));
+    resultat.ligneMarquee = ligneCorrigee.includes("corrigé")
+      && !ligneIntacte.includes("corrigé");
+    // 3. La feuille raconte la trace, en français avec l'ancien montant.
+    openTxSheet(transactions.find(t => t.id === corrige.id));
+    const note = document.getElementById("fCorrectionNote");
+    resultat.feuilleRaconte = !!note && note.style.display !== "none"
+      && note.textContent.includes("Corrigé")
+      && note.textContent.includes("84.30");
+    closeSheet();
+    // 4. Un mouvement vierge : note cachée — et une feuille de CRÉATION
+    //    ouverte APRÈS une feuille corrigée repart de zéro (pas d'état
+    //    rancunier).
+    openTxSheet(transactions.find(t => t.id === corrige.id));
+    closeSheet();
+    openTxSheet(null);
+    const noteCreation = document.getElementById("fCorrectionNote");
+    resultat.creationSansNote = !!noteCreation && noteCreation.style.display === "none";
+    closeSheet();
+    openTxSheet(transactions.find(t => t.id === intact.id));
+    const noteIntacte = document.getElementById("fCorrectionNote");
+    resultat.viergeSansNote = !!noteIntacte && (noteIntacte.style.display === "none"
+      || noteIntacte.textContent === "");
+    closeSheet();
+    // 5. Lecture SEULE : rien n'a bougé.
+    const nbJournal = (S.journal || []).length;
+    const nbMouvements = transactions.length;
+    traceCorrection(corrige.id); txRow(transactions.find(t => t.id === corrige.id)); render();
+    resultat.lectureSeule = (S.journal || []).length === nbJournal
+      && transactions.length === nbMouvements
+      && comparerJournalEtSoldes().length === 0;
+    // Nettoyage.
+    transactions.length = 0; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(his.fonctionExiste === true,
+    "traceCorrection existe — la chaîne a une lecture");
+  check(his.traceRaconte === true && his.intactSansTrace === true,
+    `la trace raconte la correction (1 révision, ancien montant exact) et se tait pour l'intact (trace ${his.traceRaconte} / intact ${his.intactSansTrace})`);
+  check(his.ligneMarquee === true,
+    "la ligne de l'Historique porte « corrigé » — la bonne seulement");
+  check(his.feuilleRaconte === true,
+    "la feuille du mouvement raconte la correction avec l'ancien montant");
+  check(his.viergeSansNote === true && his.creationSansNote === true,
+    `un mouvement jamais corrigé n'a pas de note, une création non plus — pas d'état rancunier (vierge ${his.viergeSansNote} / création ${his.creationSansNote})`);
+  check(his.lectureSeule === true,
+    "afficher la trace ne change RIEN — lecture seule, comparateur à zéro");
+  await ctx206.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12372,4 +12463,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 205 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 206 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
