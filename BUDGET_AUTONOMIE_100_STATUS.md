@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1 fusionné · W5.2 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.2 fusionnés · W5.2b EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -155,6 +155,23 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W5.2b : l'accueil natif lit les échéances
+
+Miroir natif de W5.2 : `RecurringScheduleService` gagne
+`persistedOccurrences` (paramètre additif, `[]` par défaut — les
+agrégats financiers ne bougent pas) sur `remainingOccurrences`,
+`monthForecast` et `monthCheck` : une échéance PERSISTÉE ignorée ou
+annulée (machine W2.3/W2.5) n'attend plus — sans mouvement ; une
+reportée reste ouverte. `HomeTab` lit enfin `ScheduledOccurrence`
+(@Query) et nourrit sa prévision du mois avec. Tests
+(`ScheduleReadsOccurrencesTests`, 4) : ignorée n'attend plus, annulée
+pareil et reportée reste ouverte, le Check du mois compte la série
+ignorée comme réglée, ni un autre mois ni une autre série ne règlent
+ce mois. Consigné : le « disponible » (engagements) continue de
+réserver une charge sautée des DEUX côtés — la sémantique « sauter
+libère-t-il le disponible ? » est une décision produit pour l'inbox
+W5.7 ; les gestes à l'écran (Reporter/Ignorer) idem.
 
 ### 26.08.2026 — W5.2 : le bilan lit les échéances — ignorer libère le mois
 

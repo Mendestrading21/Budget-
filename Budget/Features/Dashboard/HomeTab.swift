@@ -252,6 +252,9 @@ struct HomeTab: View {
     @Query private var accounts: [Account]
     @Query private var households: [Household]
     @Query private var recurrings: [RecurringTransaction]
+    // W5.2b : l'accueil LIT les échéances persistées (W2) — une échéance
+    // ignorée/annulée par la machine à états n'attend plus.
+    @Query private var persistedOccurrences: [ScheduledOccurrence]
     /// Pour l'annonce de progrès quand « Marquer payée » alimente un
     /// compte relié à un objectif (mise de côté mensuelle).
     @Query private var goals: [FinancialGoal]
@@ -359,7 +362,8 @@ struct HomeTab: View {
         scheduleService.monthForecast(
             recurrings: recurrings,
             in: interval,
-            transactions: transactions
+            transactions: transactions,
+            persistedOccurrences: persistedOccurrences
         )
     }
 
