@@ -70,14 +70,23 @@ struct RecurringScheduleService {
     func remainingOccurrences(
         of recurring: RecurringTransaction,
         in interval: MonthInterval,
-        transactions: [BudgetTransaction]
+        transactions: [BudgetTransaction],
+        persistedOccurrences: [ScheduledOccurrence] = []
     ) -> [ForecastOccurrence] {
         let dates = occurrenceDates(of: recurring, in: interval)
         guard !dates.isEmpty else { return [] }
         let coveredCount = transactions.filter {
             $0.recurringID == recurring.id && interval.contains($0.date)
         }.count
-        return dates.dropFirst(min(coveredCount, dates.count)).map { date in
+        // W5.2b (miroir de W5.2 PWA) : une échéance PERSISTÉE ignorée ou
+        // annulée (machine W2.3/W2.5) est un CHOIX — elle n'attend plus,
+        // sans créer aucun mouvement. Reportée (snoozed) reste ouverte.
+        let sautees = persistedOccurrences.filter {
+            $0.seriesID == recurring.id
+                && interval.contains($0.originalDueDate)
+                && ($0.state == .skipped || $0.state == .cancelled)
+        }.count
+        return dates.dropFirst(min(coveredCount + sautees, dates.count)).map { date in
             ForecastOccurrence(
                 id: "\(recurring.id.uuidString)-\(Int(date.timeIntervalSince1970))",
                 recurringID: recurring.id,
@@ -95,10 +104,13 @@ struct RecurringScheduleService {
     func monthForecast(
         recurrings: [RecurringTransaction],
         in interval: MonthInterval,
-        transactions: [BudgetTransaction]
+        transactions: [BudgetTransaction],
+        persistedOccurrences: [ScheduledOccurrence] = []
     ) -> [ForecastOccurrence] {
         recurrings
-            .flatMap { remainingOccurrences(of: $0, in: interval, transactions: transactions) }
+            .flatMap { remainingOccurrences(
+                of: $0, in: interval, transactions: transactions,
+                persistedOccurrences: persistedOccurrences) }
             .sorted { $0.date < $1.date }
     }
 
@@ -109,12 +121,14 @@ struct RecurringScheduleService {
     func monthCheck(
         recurrings: [RecurringTransaction],
         in interval: MonthInterval,
-        transactions: [BudgetTransaction]
+        transactions: [BudgetTransaction],
+        persistedOccurrences: [ScheduledOccurrence] = []
     ) -> (done: Int, total: Int) {
         let due = recurrings.filter { $0.isActive && !occurrenceDates(of: $0, in: interval).isEmpty }
         guard !due.isEmpty else { return (0, 0) }
         let pendingIDs = Set(
-            monthForecast(recurrings: recurrings, in: interval, transactions: transactions)
+            monthForecast(recurrings: recurrings, in: interval, transactions: transactions,
+                          persistedOccurrences: persistedOccurrences)
                 .map(\.recurringID)
         )
         return (due.filter { !pendingIDs.contains($0.id) }.count, due.count)
