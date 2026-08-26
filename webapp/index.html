@@ -5115,19 +5115,33 @@ function chartScrubHTML(kind, opts) {
 function positionValue(p) { return round2(p.quantity * p.manualPrice); }
 function renderPositionsSection(a, bal) {
   const list = POSITIONS.filter(p => p.accountId === a.id);
-  const total = round2(list.reduce((sum, p) => sum + positionValue(p), 0));
-  const cash = round2(bal - total);
   const cur = a.currency || baseCurrency();
+  // W8.2 : la devise du PRIX est enfin LUE. Une position dont le prix
+  // vit dans une autre devise que le compte ne peut pas expliquer son
+  // solde sans conversion : elle est dite dans SA devise, écartée du
+  // « non réparti », et l'écart est NOMMÉ (jamais d'addition sans
+  // conversion — la conversion datée viendra avec W8.3).
+  const memeDevise = list.filter(p => (p.priceCurrency || cur) === cur);
+  const autresDevises = list.filter(p => (p.priceCurrency || cur) !== cur);
+  const total = round2(memeDevise.reduce((sum, p) => sum + positionValue(p), 0));
+  const cash = round2(bal - total);
   const fmtDate = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
   return `<p class="section-title">Positions</p>
     ${list.length === 0 ? `<div class="card row"><span class="caption">Notez ici ce que contient ce compte — actions, fonds, ETF. Les positions expliquent le solde, elles ne s'y ajoutent jamais.</span></div>` : ""}
-    ${list.map(p => `<div class="card row tx read-row" data-posid="${esc(p.id)}" role="button" tabindex="0" style="cursor:pointer">
+    ${list.map(p => {
+      const pcur = p.priceCurrency || cur;
+      // W8.2 : plus-value dite SEULEMENT si le prix d'achat est connu et
+      // comparable (même devise) — jamais de zéro inventé.
+      const pv = p.costBasis != null && pcur === cur ? round2(positionValue(p) - p.costBasis) : null;
+      return `<div class="card row tx read-row" data-posid="${esc(p.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("investment")}</div>
       <div class="meta"><div class="t">${esc(p.instrumentName)}${p.tickerOrISIN ? ` <span class="caption">${esc(p.tickerOrISIN)}</span>` : ""}</div>
-      <div class="s">${p.quantity} × ${money(p.manualPrice, cur)} · Prix saisi le ${fmtDate(p.valuationDate)}</div></div>
-      <span class="amount">${money(positionValue(p), cur)}</span></div>`).join("")}
+      <div class="s">${p.quantity} × ${money(p.manualPrice, pcur)} · Prix saisi le ${fmtDate(p.valuationDate)}</div>
+      ${pv !== null ? `<div class="s ${pv >= 0 ? "pos" : "neg"}">Plus-value : ${money(pv, cur, true)} — valeur moins prix d'achat saisi</div>` : ""}</div>
+      <span class="amount">${money(positionValue(p), pcur)}</span></div>`; }).join("")}
+    ${autresDevises.length ? `<div class="card row"><span class="caption warn">${autresDevises.length === 1 ? "Une position a" : autresDevises.length + " positions ont"} une devise du prix différente de celle du compte (${[...new Set(autresDevises.map(p => p.priceCurrency))].join(", ")}) — ${autresDevises.length === 1 ? "elle est comptée" : "elles sont comptées"} à part, jamais additionnée${autresDevises.length === 1 ? "" : "s"} sans conversion.</span></div>` : ""}
     ${list.length ? `<div class="card row"><div class="meta"><div class="t">Espèces / non réparti</div>
-      <div class="s">Solde du compte moins la valeur des positions</div></div>
+      <div class="s">Solde du compte moins la valeur des positions${autresDevises.length ? ` en ${cur}` : ""}</div></div>
       <span class="amount${cash < 0 ? " neg" : ""}">${money(cash, cur)}</span></div>
     ${cash < 0 ? `<div class="card row"><span class="caption warn">Vos positions dépassent le solde du compte. Mettez le solde à jour, ou corrigez un prix saisi.</span></div>` : ""}
     <p class="caption" style="padding:0 4px">La valeur des positions plus les espèces égale le solde du compte : ${money(bal, cur)}. Votre fortune lit ce solde — les positions l'expliquent, elles ne s'y ajoutent jamais.</p>` : ""}
@@ -9440,8 +9454,11 @@ function openAccSheet(account) {
     // qu'un mouvement existe — idem pour la devise. Passer par
     // « Réconcilier » pour le solde ; une autre devise exige un nouveau compte.
     const hasHistory = transactions.some(t => t.acc === account.id || t.dest === account.id);
+    // W8.2 : des positions portent la devise de leur prix — changer la
+    // devise du compte les désynchroniserait en silence. Verrouillée.
+    const hasPositions = POSITIONS.some(p => p.accountId === account.id);
     document.getElementById("aOpening").disabled = hasHistory;
-    document.getElementById("aCurrency").disabled = hasHistory;
+    document.getElementById("aCurrency").disabled = hasHistory || hasPositions;
     document.getElementById("aReconcile").style.display = hasHistory ? "block" : "none";
     document.getElementById("aCash").checked = !!account.cash;
     document.getElementById("aNetWorth").checked = account.netWorth !== false;
@@ -9509,7 +9526,9 @@ document.getElementById("accForm").addEventListener("submit", (e) => {
   const inst = document.getElementById("aInst").value.trim();
   const existing = editingAccId ? ACCOUNTS.find(a => a.id === editingAccId) : null;
   const currencyLocked = !!(existing
-    && transactions.some(t => t.acc === existing.id || t.dest === existing.id));
+    && (transactions.some(t => t.acc === existing.id || t.dest === existing.id)
+      // W8.2 : idem à la soumission — le DOM ne fait pas foi.
+      || POSITIONS.some(p => p.accountId === existing.id)));
   const currency = currencyLocked ? existing.currency : document.getElementById("aCurrency").value;
   // INV1-C (ADR-050) : quitter « Bourse / titres » rendrait les positions
   // invisibles alors que la suppression resterait bloquée — impasse.
