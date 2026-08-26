@@ -188,6 +188,44 @@ try {
   check("service worker : stratégie network-first déclarée", /network[- ]first|fetch\(/i.test(sw));
 }
 
+// 11. W5.8 : CODE VIVANT — chaque fonction de la PWA a un appelant
+// (app ou tests). Une fonction sans aucun lecteur est du code mort :
+// elle échoue l'audit au lieu de s'accumuler. Les exceptions sont
+// NOMMÉES et justifiées — jamais silencieuses.
+{
+  // Fonctions volontairement sans appelant applicatif (leur existence
+  // est un contrat, prouvé par les tests) :
+  const contratsTestesSeulement = new Map([
+    ["annulerOccurrence", "API domaine W2.5 — la surface « annuler » arrive avec les écrans natifs de W5"],
+    ["comparerOccurrencesEtCompteurs", "gate de parité W2.7a — son rôle EST d'être appelée par les tests"],
+    ["confirmerOccurrence", "porte de confirmation W2.4 — l'app confirme via transitionOccurrence, la porte reste le contrat testé"],
+    ["migrerHistoriqueJournal", "ADR-064 « préparer sans allumer » — jamais d'appelant UI avant décision propriétaire"],
+    ["misDeCoteParDestination", "spécification exécutable C4 (zéro double compte) — vérifiée au centime par les tests"],
+    ["pensionDisplayTotal", "spécification exécutable C3 (prévoyance sans double compte) — vérifiée par les tests"],
+  ]);
+  const app = read("webapp/index.html");
+  let tests = "";
+  for (const rel of walk("webapp/tests", [".mjs"])) tests += read(rel);
+  const noms = [...new Set([...app.matchAll(/^\s*function ([A-Za-z_$][\w$]*)\(/gm)].map(m => m[1]))];
+  const mortes = [];
+  const exceptionsInvalides = [];
+  for (const nom of noms) {
+    const usagesApp = (app.match(new RegExp(`\\b${nom}\\b`, "g")) || []).length - 1;
+    const usagesTests = (tests.match(new RegExp(`\\b${nom}\\b`, "g")) || []).length;
+    if (usagesApp === 0 && usagesTests === 0) mortes.push(nom);
+    else if (usagesApp === 0 && !contratsTestesSeulement.has(nom)) exceptionsInvalides.push(nom);
+  }
+  check("code vivant : aucune fonction sans appelant (app + tests)", mortes.length === 0, mortes.join(", "));
+  check(
+    "code vivant : toute fonction « tests seulement » est une exception nommée et justifiée",
+    exceptionsInvalides.length === 0,
+    exceptionsInvalides.join(", ")
+  );
+  const perimees = [...contratsTestesSeulement.keys()].filter(nom => !noms.includes(nom)
+    || (app.match(new RegExp(`\\b${nom}\\b`, "g")) || []).length - 1 > 0);
+  check("code vivant : la liste d'exceptions ne contient rien de périmé", perimees.length === 0, perimees.join(", "));
+}
+
 console.log("");
 if (failures > 0) {
   console.error(`AUDIT : ${failures} contrôle(s) en échec.`);

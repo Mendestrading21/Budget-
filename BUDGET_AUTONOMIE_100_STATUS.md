@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.6 fusionnés · W5.7 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.7 fusionnés · W5.8 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -155,6 +155,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W5.8 : nettoyage prouvé — zéro code mort, et un verrou pour que ça dure
+
+Mesure d'abord (inventaire outillé des 290 fonctions de la PWA,
+usages comptés dans l'app ET les tests) : **aucune fonction sans
+appelant** — il n'y a rien à retirer. Six fonctions vivent « tests
+seulement », toutes justifiées : `annulerOccurrence` (API domaine
+W2.5, surface à venir), `comparerOccurrencesEtCompteurs` (gate W2.7a
+— son rôle est d'être appelée par les tests), `confirmerOccurrence`
+(porte W2.4, contrat testé), `migrerHistoriqueJournal` (ADR-064 :
+préparer sans allumer), `misDeCoteParDestination` et
+`pensionDisplayTotal` (spécifications exécutables C4/C3, vérifiées au
+centime). Livré : l'audit dépôt gagne le contrôle « CODE VIVANT » —
+échec si une fonction n'a plus aucun appelant, échec si une fonction
+« tests seulement » n'est pas dans la liste d'exceptions NOMMÉES et
+JUSTIFIÉES, échec si la liste d'exceptions se périme (fonction
+disparue ou redevenue appelée). Verrou né vert (le constat EST la
+preuve) ; sabotage : une fonction fantôme injectée → l'audit crie
+(`fonctionFantomeSabotage` nommée) ; restauré vert. Non-objectif
+consigné : un audit des classes CSS mortes mentirait (classes
+composées dynamiquement — un grep naïf produirait des faux
+positifs) ; l'inventaire des fonctions est la surface mesurée
+honnête. Zéro changement d'interface — pas de captures.
 
 ### 26.08.2026 — W5.7 : Inbox — Reporter et Ignorer existent, ignorer libère (ADR-066)
 
@@ -190,7 +213,8 @@ Consigné : le natif applique déjà « ignorer libère » à sa prévision
 (W5.2b, `persistedOccurrences`) — les GESTES natifs à l'écran
 (feuille iOS) suivront avec les écrans natifs de W5 ; la fenêtre
 multi-mois reste la fenêtre de matérialisation W2 (aucune nouvelle
-décision) ; reste W5.8 (nettoyage prouvé) pour fermer W5.
+décision) ; reste W5.8 (nettoyage prouvé) pour fermer W5. Fusionné
+(`main` = `eec9627`, PR #167) et publié (run `32936249837`).
 
 ### 26.08.2026 — W5.6 : Gérer — les taux datés se voient
 
