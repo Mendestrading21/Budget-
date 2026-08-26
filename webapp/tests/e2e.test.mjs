@@ -13555,6 +13555,115 @@ currentTest = "W7.4 repli Imprévu";
   await ctx220.close();
 }
 
+// ---------- 221. W7.5 : SPLITS — une dépense, plusieurs catégories, la somme exacte ----------
+// Budget Autonomie 100, W7.5 (décision propriétaire du 26.08.2026 :
+// les parts vivent DANS le mouvement — un seul flux bancaire, le
+// solde ne bouge pas d'un centime ; seuls les rapports par catégorie
+// ventilent). Porte unique definirParts, refus nommés, centimes
+// entiers (G01), somme EXACTE.
+currentTest = "W7.5 splits";
+{
+  const ctx221 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p221 = await ctx221.newPage();
+  p221.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.5] ${msg.text()}`); });
+  await p221.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Spl" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, title: "Migros", amount: 120, type: "expense", cat: "Alimentation", acc: "cur",
+          dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 5 },
+        { id: 2, title: "Coop", amount: 89.99, type: "expense", cat: "Alimentation", acc: "cur",
+          dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 6 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], bills: [],
+      budgets: { [`${now.getFullYear()}-${now.getMonth() + 1}`]: [{ cat: "Alimentation", amount: 200 }] },
+    }));
+  });
+  await p221.goto(APP_URL);
+  await p221.waitForSelector("#tabbar button");
+  const spl = await p221.evaluate(() => {
+    const resultat = {};
+    const migros = transactions.find(t => t.id === 1);
+    const soldeAvant = balance("cur");
+    if (typeof definirParts !== "function") return { porteExiste: false };
+    resultat.porteExiste = true;
+    // 1. Les refus sont NOMMÉS — jamais un zéro silencieux.
+    const refusSomme = definirParts(migros, [
+      { cat: "Alimentation", montantMineur: 8000 },
+      { cat: "Logement", montantMineur: 3999 },
+    ]);
+    const refusSeule = definirParts(migros, [{ cat: "Alimentation", montantMineur: 12000 }]);
+    resultat.refusNommes = typeof refusSomme === "string" && /somme/i.test(refusSomme)
+      && typeof refusSeule === "string" && /deux/i.test(refusSeule);
+    // 2. Le succès stocke des centimes ENTIERS, somme exacte.
+    const succes = definirParts(migros, [
+      { cat: "Alimentation", montantMineur: 8000 },
+      { cat: "Logement", montantMineur: 4000 },
+    ]);
+    resultat.porteStocke = succes === null && Array.isArray(migros.parts)
+      && migros.parts.every(p => Number.isInteger(p.montantMineur))
+      && migros.parts.reduce((a, p) => a + p.montantMineur, 0) === 12000;
+    // 3. Le solde ne bouge pas d'un centime : UN seul flux bancaire.
+    resultat.soldeIntact = balance("cur") === soldeAvant;
+    // 4. Le Budget VENTILE : chaque part pèse sur SA catégorie.
+    const rapport = budgetReport(NOW.y, NOW.m);
+    const horsBudget = Object.fromEntries(rapport.outOfBudget);
+    const ligneAlim = rapport.lines.find(l => l.cat === "Alimentation");
+    resultat.budgetVentile = !!ligneAlim && ligneAlim.actual === round2(80 + 89.99)
+      && horsBudget["Logement"] === 40
+      && horsBudget["Alimentation"] === undefined;
+    // 5. L'UI scinde en deux : le reste se calcule EXACT (89.99 → 59.99 + 30.00).
+    openTxSheet(transactions.find(t => t.id === 2));
+    const champCat = document.getElementById("fSplitCat");
+    const champMontant = document.getElementById("fSplitAmount");
+    if (champCat && champMontant) {
+      champCat.value = "Transports";
+      champMontant.value = "30.00";
+      document.getElementById("txForm").requestSubmit();
+    }
+    const coop = transactions.find(t => t.id === 2);
+    resultat.uiScinde = Array.isArray(coop.parts) && coop.parts.length === 2
+      && coop.parts[0].cat === "Alimentation" && coop.parts[0].montantMineur === 5999
+      && coop.parts[1].cat === "Transports" && coop.parts[1].montantMineur === 3000;
+    // 6. La feuille RACONTE la scission au retour.
+    openTxSheet(coop);
+    const note = document.getElementById("fPartsNote");
+    resultat.feuilleRaconte = !!note && note.style.display !== "none"
+      && /59\.99/.test(note.textContent) && /30\.00/.test(note.textContent);
+    closeSheet();
+    // 7. Restauration : des parts qui MENTENT (somme fausse) sont
+    //    retirées — le mouvement reste vrai, la ventilation disparaît.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.transactions.find(t => t.id === 1).parts[0].montantMineur = 7999;
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    const t1 = restauree && restauree.transactions.find(t => t.id === 1);
+    resultat.restaurationFiltre = !!t1 && t1.parts === undefined && t1.amount === 120;
+    return resultat;
+  });
+  check(spl.porteExiste === true,
+    "la porte unique definirParts existe");
+  check(spl.refusNommes === true,
+    "les refus sont nommés : somme fausse, moins de deux parts");
+  check(spl.porteStocke === true,
+    "le succès stocke des centimes entiers, somme exacte (12000)");
+  check(spl.soldeIntact === true,
+    "le solde ne bouge pas d'un centime — un seul flux bancaire");
+  check(spl.budgetVentile === true,
+    "le Budget ventile : chaque part pèse sur sa catégorie");
+  check(spl.uiScinde === true,
+    "l'UI scinde en deux — le reste se calcule exact (59.99 + 30.00)");
+  check(spl.feuilleRaconte === true,
+    "la feuille raconte la scission au retour");
+  check(spl.restaurationFiltre === true,
+    "restauration : des parts qui mentent sont retirées, le mouvement reste vrai");
+  await ctx221.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13564,4 +13673,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 220 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 221 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1–W7.3 fusionnés · W7.4 EN PR | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1–W7.4 fusionnés · W7.5 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,9 +156,36 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.5 : splits — une dépense, plusieurs catégories, la somme exacte (ADR-069)
+
+Décision propriétaire (AskUserQuestion) : les parts vivent **dans le
+mouvement** → ADR-069 (décision jumelle consignée : W7.6 règles =
+futur seulement). Livré : porte unique `definirParts` (refus nommés —
+somme fausse, moins de deux parts, catégorie inconnue, centimes non
+entiers, devise étrangère V1) ; clé additive `parts` en centimes
+ENTIERS, somme EXACTE ; le solde ne bouge pas d'un centime (un seul
+flux bancaire) ; les rapports par catégorie VENTILENT (lignes du
+Budget via `actualCentsForCat`, « Pas encore classé » part par
+part) ; UI : « Scinder : une 2e catégorie » dans la feuille (le reste
+garde la catégorie principale, calcul exact 89.99 → 59.99 + 30.00),
+préremplie au retour, note « Scindé : … » ; ventilation périmée
+(montant changé) retirée plutôt que mensongère ; restauration : des
+parts qui mentent sont retirées, le mouvement reste vrai. Preuves :
+parcours 221 né rouge (8 échecs nommés) → vert ; sabotage (la
+ventilation des lignes coupée) d'abord INERTE — le contrôle ne
+passait que par le hors-budget : durci (ligne budgétaire + hors-
+budget + absence de doublon), il mord alors SEUL ; restauré vert ;
+captures 320/390 feuille + Budget inspectées
+(`docs/neon-ultra/budget-prisme/w7-5/`) ; suites complètes vertes
+(221 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le miroir natif (parts sur BudgetTransaction +
+BudgetVarianceService) suivra avec les écrans iOS de W7 ; l'UI à N
+parts attendra un besoin mesuré.
+
 ### 26.08.2026 — W7.4 : « Imprévu » — le repli honnête, jamais une fausse catégorie
 
-Mesuré : la saisie forçait une catégorie existante ou l'écriture
+Fusionné (`main` = `e089f64`, PR #177) et publié par dispatch au SHA
+(succès). Mesuré : la saisie forçait une catégorie existante ou l'écriture
 libre — rien pour dire honnêtement « je ne sais pas encore », donc
 une fausse catégorie silencieuse. Livré : « Imprévu » entre au
 référentiel (`CATEGORIES`, dépense ordinaire — budgétable comme les
