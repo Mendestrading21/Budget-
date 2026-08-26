@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1 fusionné · W7.2 EN PR | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1–W7.2 fusionnés · W7.3 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,9 +156,38 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.3 : tags — vos mots sur un mouvement, retrouvables
+
+Mesuré : un mouvement n'a qu'une catégorie ; aucun moyen d'y poser SES
+mots (« vacances », « remboursable ») ni de les retrouver. Livré :
+clé additive `tags` (esprit CAT1 — la personne écrit ses mots) —
+champ « Tags (facultatif) » dans la feuille du mouvement (création et
+édition, prérempli au retour), normalisation à la soumission (pliés,
+dédupliqués insensible à la casse, vides retirés, bornés 5 × 24
+caractères), stockés seulement s'il y en a (un mouvement sans tags ne
+porte pas la clé) ; la recherche de l'Historique trouve par tag (le
+placeholder le dit) ; restauration : tags hostiles ASSAINIS (types,
+vides, longueurs) sans jamais bloquer — des mots ne refusent pas une
+restauration. AUCUN agrégat ne lit les tags : des mots, pas de
+l'argent. Preuves : parcours 219 né rouge (6 échecs nommés ; un crash
+de sonde corrigé en garde — leçon connue) → vert ; sabotage (la
+normalisation saute, tags bruts) → 3 contrôles du 219 mordent
+(normalisation, préremplissage, re-soumission), rien d'autre ;
+restauré vert ; captures 320/390 feuille + recherche inspectées
+(`docs/neon-ultra/budget-prisme/w7-3/`) ; suites complètes vertes
+(219 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le natif n'a pas de champ tags (BudgetTransaction) — le
+miroir viendra avec les écrans iOS de W7 ; l'affichage d'un badge tag
+sur la ligne de l'Historique attendra un besoin mesuré (la recherche
+suffit à retrouver).
+
 ### 26.08.2026 — W7.2 : import — l'identité d'une ligne est normalisée (FI-29)
 
-Les fixtures « doublons d'import » DIFFÉRÉES depuis W1.5 sont livrées :
+Fusionné (`main` = `6023507`, PR #175 — après un correctif consigné :
+le test historique `testDuplicateRowsInsideTheSameFileAreCaughtOnce`
+assertait l'ancien comportement bogué, aligné sur l'identité
+normalisée, CI verte sur le HEAD exact `eec8909`) et publié par
+dispatch au SHA. Les fixtures « doublons d'import » DIFFÉRÉES depuis W1.5 sont livrées :
 la fixture PARTAGÉE `fixtures/import-doublons.json` est lue par les
 DEUX plateformes. Mesuré : le web tenait déjà FI-29 (empreinte sans
 nom de fichier, pliée, dédupliquée en fichier) — ses contrôles sont
