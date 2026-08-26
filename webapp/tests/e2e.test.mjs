@@ -14197,6 +14197,74 @@ currentTest = "W8.3b devise des biens";
   await ctx227.close();
 }
 
+// ---------- 228. W8.4 : PERFORMANCE RACONTÉE — un chiffre, sa phrase, sa méthode ----------
+// Budget Autonomie 100, W8.4 (décisions propriétaire ADR-070 : racontée
+// SIMPLE, aucun taux annualisé ; frais = retrait, statu quo) : mesuré —
+// la fiche du compte titres disait « Performance : ±P » et sa méthode,
+// mais AUCUNE phrase ne racontait d'où vient le chiffre (versé, retiré,
+// valeur d'aujourd'hui). Livré : la performance se lit comme une
+// phrase, la méthode reste, aucun pourcentage n'est promis.
+currentTest = "W8.4 performance racontée";
+{
+  const ctx228 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p228 = await ctx228.newPage();
+  p228.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.4] ${msg.text()}`); });
+  await p228.addInitScript(() => {
+    const y = new Date().getFullYear();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Perf" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "brk", name: "Titres", kind: "brokerage", opening: 10000, cash: false, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 2000, cash: false, currency: "CHF" },
+      ],
+      transactions: [
+        { id: 1, y: y - 1, m: 3, d: 10, title: "Versement initial", amount: 2000, type: "investment", cat: "Pilier 3a", acc: "cur", dest: "brk", status: "posted" },
+        { id: 2, y, m: 1, d: 15, title: "Versement janvier", amount: 1000, type: "investment", cat: "Pilier 3a", acc: "cur", dest: "brk", status: "posted" },
+        { id: 3, y, m: 2, d: 5, title: "Retrait pour projet", amount: 500, type: "transfer", cat: null, acc: "brk", dest: "cur", status: "posted" },
+        { id: 4, y: y - 1, m: 6, d: 20, title: "Frais de garde", amount: 100, type: "expense", cat: "Imprévu", acc: "brk", dest: null, status: "posted" },
+        { id: 5, y, m: 3, d: 1, title: "Dividende", amount: 200, type: "income", cat: "Salaire", acc: "brk", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p228.goto(APP_URL);
+  await p228.waitForSelector("#tabbar button");
+  const perf = await p228.evaluate(() => {
+    const resultat = {};
+    activeTab = "accounts"; accountView = "brk"; render();
+    const texte = () => document.getElementById("screen").textContent;
+    // versé 3000, retiré 600 (dont frais 100 = retrait, statu quo décidé),
+    // net 2400 ; solde 12600 (dividende +200) ; performance +200.
+    resultat.racontee = texte().includes("vous avez versé " + money(3000, "CHF"))
+      && texte().includes("retiré " + money(600, "CHF"))
+      && texte().includes("vaut " + money(12600, "CHF") + " aujourd'hui");
+    resultat.perfChiffre = texte().includes("Performance : " + money(200, "CHF", true));
+    // VERROUS (nés verts, sabotage à l'appui) : la méthode reste dite ;
+    // aucun pourcentage annualisé n'est promis.
+    resultat.methodeToujours = texte().includes("Valeur − versements nets");
+    resultat.pasDePourcent = !/% *par an/.test(texte()) && !texte().includes("annualis");
+    // Un compte d'épargne ne porte pas de « Performance » (périmètre V1).
+    accountView = "sav"; render();
+    resultat.horsTitres = !texte().includes("Performance :");
+    accountView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(perf.racontee === true,
+    "la performance est RACONTÉE : versé, retiré, valeur d'aujourd'hui — en une phrase");
+  check(perf.perfChiffre === true,
+    "le chiffre reste : Performance : +CHF 200.00 (dividende dans la valeur)");
+  check(perf.methodeToujours === true,
+    "VERROU : la méthode « Valeur − versements nets » reste dite");
+  check(perf.pasDePourcent === true,
+    "VERROU : aucun taux annualisé promis (décision propriétaire)");
+  check(perf.horsTitres === true,
+    "un compte d'épargne ne porte pas de « Performance » (périmètre V1)");
+  await ctx228.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14206,4 +14274,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 227 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 228 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

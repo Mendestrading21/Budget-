@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.3b fusionnés · W8.3c EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.3 fusionnés · W8.4 EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.4 : performance racontée — un chiffre, sa phrase, sa méthode
+
+Décisions propriétaire (AskUserQuestion) : performance RACONTÉE simple
+sans taux annualisé (ADR-070) ; et — question du jour — les FRAIS
+payés depuis le compte titres restent des RETRAITS (statu quo : l'app
+ne devine pas si une sortie est un frais ou une dépense personnelle,
+elle ne catégorise rien en secret). Mesuré : la fiche disait
+« Performance : ±P » et sa méthode, mais aucune phrase ne racontait
+d'où vient le chiffre. Livré : « Depuis l'ouverture, vous avez versé X
+et retiré Y — le compte vaut V aujourd'hui. La différence, c'est la
+performance. » — la méthode reste, aucun pourcentage n'est promis, un
+compte d'épargne ne porte pas de « Performance » (périmètre V1).
+Preuves : parcours 228 né rouge (1 échec nommé ; verrous
+méthode/sans-pourcent/hors-titres nés VERTS consignés) ; deux
+sabotages qui mordent seuls (phrase retirée → 1 échec ; « 4.1 % par
+an » inventé → le verrou sans-pourcent mord) ; captures 320/390
+inspectées (`docs/neon-ultra/budget-prisme/w8-4/`) ; suites complètes
+vertes (228 e2e, 9 parités, 14 canon + schéma, design, catalogue,
+audits). Fusion W8.3c consignée (`main` = `39b909a`, PR #186) ;
+publication au SHA exact : **succès** — **W8.3 FERMÉ**. Redémarrage de
+conteneur en cours de lot : resynchronisation propre, PR #186 et
+branche retrouvées intactes, rien de perdu.
 
 ### 26.08.2026 — W8.3c : le canon prouve les taux datés — FI-17 tenu jusque dans le moteur → W8.3 FERMÉ
 
