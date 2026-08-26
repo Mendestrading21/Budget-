@@ -13109,6 +13109,147 @@ currentTest = "W6.4 fonds annuels";
   await ctx214.close();
 }
 
+// ---------- 215. W6.5 : OBJECTIFS — la valeur manuelle est datée, la provenance se lit ----------
+// Budget Autonomie 100, W6.5 : contrat DATA_MODEL_TARGET — « un
+// objectif avance par affectation réelle ou valeur manuelle
+// explicitement DATÉE, jamais par projection seule ». Mesuré : le
+// solde lié fait foi (réel ✓) mais manualCurrent était un chiffre NU,
+// sans date ; l'écran ne disait pas de quand datait la saisie.
+currentTest = "W6.5 objectifs datés";
+{
+  const ctx215 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p215 = await ctx215.newPage();
+  p215.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.5] ${msg.text()}`); });
+  await p215.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Obj" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 2000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne", kind: "savings", opening: 4000, cash: false, currency: "CHF" },
+      ],
+      goals: [
+        { id: "g-velo", name: "Vélo", emoji: "🚲", target: 3000, manualCurrent: 1200,
+          linked: null, monthly: 100, dueY: now.getFullYear() + 1, dueM: 6, priority: false, achieved: false },
+        { id: "g-fonds", name: "Fonds", emoji: "🛟", target: 10000, manualCurrent: 0,
+          linked: "sav", monthly: 200, dueY: now.getFullYear() + 2, dueM: 1, priority: false, achieved: false },
+      ],
+      transactions: [], recurrings: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p215.goto(APP_URL);
+  await p215.waitForSelector("#tabbar button");
+  const obj = await p215.evaluate(() => {
+    const resultat = {};
+    activeTab = "more"; moreView = "goals"; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    // 1. L'ancien état (valeur jamais datée) le DIT au lieu d'inventer.
+    resultat.nonDateeDit = ecran().includes("non daté");
+    // 2. Saisir une nouvelle valeur la DATE (règle W4.7 : re-datée
+    //    seulement si la valeur change).
+    openGoalSheet(GOALS.find(g => g.id === "g-velo"));
+    document.getElementById("gCurrent").value = "1500";
+    document.getElementById("goalForm").requestSubmit();
+    const velo = GOALS.find(g => g.id === "g-velo");
+    const aujourdhui = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+    resultat.saisieDatee = velo.manualCurrentDate === aujourdhui;
+    const dateFR = `${String(NOW.d).padStart(2, "0")}.${String(NOW.m).padStart(2, "0")}.${NOW.y}`;
+    resultat.ecranRaconte = ecran().includes(`saisi le ${dateFR}`);
+    // 3. Re-soumettre SANS changer la valeur ne re-date pas (photo).
+    velo.manualCurrentDate = "2026-01-15"; saveState();
+    openGoalSheet(velo);
+    document.getElementById("goalForm").requestSubmit();
+    resultat.memeValeurGardeDate = GOALS.find(g => g.id === "g-velo").manualCurrentDate === "2026-01-15";
+    // 4. Un objectif LIÉ n'a pas de date manuelle — le solde fait foi.
+    resultat.lieSansDate = GOALS.find(g => g.id === "g-fonds").manualCurrentDate === undefined
+      && ecran().includes("Sur « Épargne »");
+    // 5. Restauration : une date illisible est retirée, jamais gardée.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.goals[0].manualCurrentDate = "n'importe quoi";
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationFiltre = !!restauree
+      && restauree.goals[0].manualCurrentDate === undefined;
+    activeTab = "home"; moreView = null; render();
+    return resultat;
+  });
+  check(obj.nonDateeDit === true,
+    "une valeur jamais datée le dit — « non daté », jamais une date inventée");
+  check(obj.saisieDatee === true,
+    "saisir une valeur manuelle la date du jour même");
+  check(obj.ecranRaconte === true,
+    "l'écran raconte la provenance : « saisi le JJ.MM.AAAA »");
+  check(obj.memeValeurGardeDate === true,
+    "re-soumettre la même valeur ne re-date pas — la date dit la photo (W4.7)");
+  check(obj.lieSansDate === true,
+    "un objectif lié n'a pas de date manuelle — le solde du compte fait foi");
+  check(obj.restaurationFiltre === true,
+    "restauration : une date illisible est retirée, la restauration reste acceptée");
+  await ctx215.close();
+}
+
+// ---------- 216. W6.6 : MOIS/ANNÉE — chaque période consultée utilise SA période (FI-23) ----------
+// Budget Autonomie 100, W6.6 : verrou d'existant — l'invariant FI-23
+// (« aucune horloge courante dans un agrégat historique ») est TENU
+// aujourd'hui ; ce parcours le fige. Né vert assumé : le sabotage
+// (l'année consultée lit l'horloge) fait foi, consigné au statut.
+currentTest = "W6.6 périodes étanches";
+{
+  const ctx216 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p216 = await ctx216.newPage();
+  p216.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.6] ${msg.text()}`); });
+  await p216.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Per" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      budgets: { "2024-5": [{ cat: "Alimentation", amount: 600 }] },
+      transactions: [
+        { id: 1, title: "Salaire", amount: 5000, type: "income", cat: "Salaire", acc: "cur", dest: null, status: "posted", y: 2024, m: 5, d: 25 },
+        { id: 2, title: "Courses", amount: 450, type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted", y: 2024, m: 5, d: 6 },
+        { id: 3, title: "Courses", amount: 333, type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 2 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], bills: [],
+    }));
+  });
+  await p216.goto(APP_URL);
+  await p216.waitForSelector("#tabbar button");
+  const per = await p216.evaluate(() => {
+    const resultat = {};
+    // 1. La page Année 2024 raconte 2024 — la dépense d'aujourd'hui
+    //    (333) n'y fuit pas, les chiffres de mai 2024 y sont exacts.
+    activeTab = "more"; moreView = "year"; yearCursor = 2024; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    resultat.anneeExacte = ecran().includes("5'000.00") && ecran().includes("450.00")
+      && !ecran().includes("333.00");
+    // 2. Une année PASSÉE n'a aucun mois « En cours » — l'horloge ne
+    //    fuit pas dans l'histoire.
+    resultat.sansHorloge = !ecran().includes("En cours") && !ecran().includes("· ce mois");
+    // 3. Les agrégats du mois consulté utilisent SA période.
+    const mai = snapshot(2024, 5);
+    resultat.moisExact = mai.living === 450 && mai.income === 5000;
+    // 4. Le budget consulté aussi : le réel de mai 2024, rien d'autre.
+    const rapport = budgetReport(2024, 5);
+    const ligne = rapport.lines.find(l => l.cat === "Alimentation");
+    resultat.budgetExact = !!ligne && ligne.actual === 450;
+    activeTab = "home"; moreView = null; yearCursor = NOW.y; render();
+    return resultat;
+  });
+  check(per.anneeExacte === true,
+    "FI-23 : l'année 2024 raconte 2024 — rien du mois courant n'y fuit");
+  check(per.sansHorloge === true,
+    "une année passée n'a aucun mois « En cours » — l'horloge reste chez elle");
+  check(per.moisExact === true,
+    "le mois consulté utilise sa période : mai 2024 = 450 dépensés, 5'000 reçus");
+  check(per.budgetExact === true,
+    "le budget consulté lit le réel de SA période");
+  await ctx216.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13118,4 +13259,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 214 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 216 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

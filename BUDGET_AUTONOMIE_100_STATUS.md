@@ -122,7 +122,7 @@ Livrables attendus :
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
-| W6 | Plan, budgets, objectifs | W6.1–W6.3 fusionnés · W6.4 EN PR | W2, W3, W5 (fusionnés) |
+| W6 | Plan, budgets, objectifs | W6.1–W6.4 fusionnés · W6.5+W6.6 EN PR | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
@@ -155,6 +155,63 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W6.6 : mois/année — chaque période consultée utilise SA période (FI-23)
+
+Lot de VERROUILLAGE (tests + consignation, aucun code produit) :
+l'invariant FI-23 (« aucune horloge courante dans un agrégat
+historique ») est TENU aujourd'hui — le parcours 216 le fige : la
+page Année 2024 raconte 2024 (rien du mois courant n'y fuit, chiffres
+exacts), aucune année passée n'a de mois « En cours » ni de marqueur
+« · ce mois », `snapshot(2024, 5)` et `budgetReport(2024, 5)` lisent
+LEUR période. Né vert ASSUMÉ (c'est un verrou d'existant) — le
+sabotage fait foi : la page Année lit l'horloge (`yearMonthRow(NOW.y,
+…)`) → les DEUX contrôles d'année mordent, rien d'autre ; restauré
+vert. Leçon de sonde consignée : le premier contrôle « ce mois » était
+trop large (« Aucune opération ce mois » est une phrase descriptive
+légitime) — resserré sur le marqueur exact « · ce mois ». Aucune
+capture (aucun pixel ne change). **W6 est COMPLET** : W6.1 (report
+opt-in, ADR-067), W6.2 (estimation nommée), W6.3 (part engagée),
+W6.4 (fonds annuels informatifs, ADR-068), W6.5 (valeur manuelle
+datée), W6.6 (périodes étanches).
+
+### 26.08.2026 — W6.4 fusionné — note de flux
+
+La PR brouillon #171 (CI verte sur le HEAD exact `e18a71a`) a été
+fermée et recréée PRÊTE en #172 (même branche, même HEAD) puis
+fusionnée (`main` = `7d44aaa`) : le jeton de l'outil GitHub était à
+court de quota horaire pour la sortie de brouillon, et l'API REST ne
+sait pas dé-brouilloner. Aucun contenu n'a changé — le HEAD fusionné
+est celui que la CI a validé. Publication au SHA `7d44aaa` : EN
+ATTENTE du retour du jeton (le dispatch pages.yml exige ce jeton ;
+consigné, à lancer dès que possible). Le run `32949031563` visible
+sur main est l'auto-déploiement bloqué ATTENDU (règle d'environnement
+github-pages, documentée).
+
+### 26.08.2026 — W6.5 : objectifs — la valeur manuelle est datée, la provenance se lit
+
+Contrat DATA_MODEL_TARGET : « un objectif avance par affectation
+réelle ou valeur manuelle explicitement DATÉE, jamais par projection
+seule ». Mesuré : le solde lié fait foi (réel ✓) mais `manualCurrent`
+était un chiffre NU, sans date. Livré DES DEUX CÔTÉS : PWA — clé
+additive `manualCurrentDate` posée à la saisie (re-datée seulement si
+la VALEUR change, règle W4.7/FI-27) ; un objectif lié n'en porte pas
+(le solde fait foi) ; la carte Objectifs raconte (« Montant saisi le
+26.08.2026 » / « Montant que vous avez saisi — non daté » pour
+l'existant — jamais une date inventée) ; restauration : date
+illisible RETIRÉE, restauration acceptée. Natif —
+`FinancialGoal.manualCurrentDate: Date?` (additif, défaut nil,
+migration légère) + `GoalProgressService.currentProvenance`
+(linkedBalance / manualDated / manualUndated) ;
+`GoalDatedManualValueTests` (3). Preuves : parcours 215 né rouge (4
+échecs nommés ; verrous memeValeurGardeDate/lieSansDate nés verts) →
+vert ; sabotage (le filtre de restauration saute) →
+restaurationFiltre mord SEUL ; restauré vert ; captures 320/390
+inspectées (`docs/neon-ultra/budget-prisme/w6-5/`) ; suites complètes
+vertes (215 e2e, 9 parités, 13 canon + schéma, design, catalogue,
+audit) ; tests natifs prouvés par le job simulateur CI. Consigné :
+`GoalAllocation` (lien affectation ↔ écriture) attendra l'allumage du
+journal (ADR-064) — le lien réel passe aujourd'hui par le compte lié.
 
 ### 26.08.2026 — W6.4 : fonds annuels — le lissage se lit, l'argent ne bouge pas (ADR-068)
 

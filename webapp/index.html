@@ -5364,7 +5364,9 @@ function renderGoals() {
       <div class="breakdown" style="margin-top:10px">
         <div><span>${g.linked
           ? `Sur « ${esc((ACCOUNTS.find(a => a.id === g.linked) || {}).name || "le compte")} »`
-          : "Montant que vous avez saisi"}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
+          : (/^\d{4}-\d{2}-\d{2}$/.test(g.manualCurrentDate || "")
+            ? (() => { const [gy, gm, gd] = g.manualCurrentDate.split("-"); return `Montant saisi le ${gd}.${gm}.${gy}`; })()
+            : "Montant que vous avez saisi — non daté")}</span><span>${chf(current)} / ${chf(g.target)}</span></div>
         <div><span>Pour quand</span><span>${MONTH_NAMES[g.dueM - 1]} ${g.dueY}${monthsLeft === 0 && !g.achieved ? " · passée" : ""}</span></div>
         ${g.achieved ? "" : `
         <div><span>Vous mettez</span><span class="${onTrack ? "pos" : "warn"}" aria-label="${chf(paceMonthly)} par mois — ${onTrack ? "dans les temps" : "en dessous du rythme nécessaire"}">${chf(paceMonthly)} / mois <span class="pace-glyph" aria-hidden="true">${budgetGlyph(onTrack ? "check" : "alert")}</span></span></div>
@@ -8781,6 +8783,13 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     goal.monthly = goal.monthly ?? 0;
     goal.achieved = goal.achieved === true;
     goal.priority = goal.priority === true;
+    // W6.5 : la date d'une valeur manuelle suit la règle W4.7 — une
+    // date illisible est RETIRÉE (valeur non datée), jamais inventée ;
+    // un objectif lié n'en porte pas (le solde fait foi).
+    if (goal.linked != null
+        || !(typeof goal.manualCurrentDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(goal.manualCurrentDate))) {
+      delete goal.manualCurrentDate;
+    }
   }
   const assetIds = new Set();
   for (const asset of state.assets) {
@@ -9379,8 +9388,28 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
     priority: document.getElementById("gPriority").checked,
   };
   const existing = editingGoalId ? GOALS.find(g => g.id === editingGoalId) : null;
-  if (existing) { Object.assign(existing, data); toast("Objectif modifié"); }
-  else { GOALS.push({ id: "g-" + Date.now().toString(36), achieved: false, ...data }); toast("Objectif ajouté"); }
+  // W6.5 (contrat DATA_MODEL_TARGET) : une valeur MANUELLE est datée —
+  // re-datée seulement si la VALEUR change (même règle que la valeur
+  // d'un bien, W4.7/FI-27). Un objectif lié n'en a pas : le solde fait
+  // foi. Jamais une date inventée sur l'existant.
+  let dateManuelle = existing ? existing.manualCurrentDate : undefined;
+  if (data.linked) {
+    dateManuelle = undefined;
+  } else if (existing ? manualCurrent !== (existing.manualCurrent || 0) : manualCurrent > 0) {
+    dateManuelle = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  }
+  if (existing) {
+    Object.assign(existing, data);
+    if (dateManuelle) existing.manualCurrentDate = dateManuelle;
+    else delete existing.manualCurrentDate;
+    toast("Objectif modifié");
+  } else {
+    GOALS.push({
+      id: "g-" + Date.now().toString(36), achieved: false, ...data,
+      ...(dateManuelle ? { manualCurrentDate: dateManuelle } : {}),
+    });
+    toast("Objectif ajouté");
+  }
   saveState();
   closeSheet();
   render();
