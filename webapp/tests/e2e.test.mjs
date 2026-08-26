@@ -12896,6 +12896,151 @@ currentTest = "W6.1 report budgétaire";
   await ctx211.close();
 }
 
+// ---------- 212. W6.2 : REVENUS VARIABLES — l'estimation se nomme, rien n'est promis ----------
+// Budget Autonomie 100, W6.2 : mesuré — pour un indépendant (aucun
+// revenu récurrent), la prévision « Fin du mois » utilise une moyenne
+// des 3 derniers mois (irregularIncome)… FONDUE dans « + CHF X à
+// recevoir », indistincte des revenus réellement planifiés. Une
+// estimation statistique n'est pas une promesse : elle se NOMME.
+currentTest = "W6.2 revenus variables";
+{
+  const ctx212 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p212 = await ctx212.newPage();
+  p212.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.2] ${msg.text()}`); });
+  await p212.addInitScript(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    const decale = d => {
+      const t = new Date(y, m - 1 + d, 1);
+      return { y: t.getFullYear(), m: t.getMonth() + 1 };
+    };
+    const m1 = decale(-1), m2 = decale(-2), m3 = decale(-3);
+    const revenu = (id, mm, amount) => ({
+      id, title: "Mandat", amount, type: "income", cat: "Salaire", acc: "cur",
+      dest: null, status: "posted", y: mm.y, m: mm.m, d: 10,
+    });
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Indé" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [revenu(1, m3, 4000), revenu(2, m2, 5000), revenu(3, m1, 4500)],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p212.goto(APP_URL);
+  await p212.waitForSelector("#tabbar button");
+  const inde = await p212.evaluate(() => {
+    const resultat = {};
+    const s = snapshot(NOW.y, NOW.m);
+    resultat.moyenneCalculee = s.irregularIncome === 4500; // (4000+5000+4500)/3
+    // Vue « Fin du mois » du mois courant.
+    heroVue = "finmois"; render();
+    const note = () => {
+      const el = document.querySelector("#screen .home-hero");
+      return el ? el.textContent : "";
+    };
+    // 1. L'estimation se NOMME — montant, méthode, honnêteté.
+    resultat.termeNomme = note().includes("estimés")
+      && note().includes("4'500.00") && note().includes("3 derniers mois");
+    // 2. Elle n'est PLUS fondue dans « à recevoir » (rien n'est promis).
+    resultat.plusFondue = !note().includes("4'500.00 à recevoir");
+    // 3. Aucun agrégat ne bouge : la prévision reste liquid + moyenne.
+    resultat.calculIntact = s.endOfMonthForecast === round2(s.liquid + 4500);
+    // 4. Un salarié (revenu récurrent) ne voit JAMAIS ce terme.
+    RECURRINGS.push({ id: "r-sal", title: "Salaire", amount: 6000, type: "income",
+      cat: "Salaire", day: 25, every: "month", accountId: "cur" });
+    render();
+    resultat.salarieMuet = !note().includes("estimés");
+    RECURRINGS.pop(); heroVue = null; render();
+    return resultat;
+  });
+  check(inde.moyenneCalculee === true,
+    "la moyenne des 3 derniers mois vaut 4'500 (mesure de départ)");
+  check(inde.termeNomme === true,
+    "l'estimation se nomme : montant, « estimés », « 3 derniers mois »");
+  check(inde.plusFondue === true,
+    "l'estimation n'est plus fondue dans « à recevoir » — rien n'est promis");
+  check(inde.calculIntact === true,
+    "aucun agrégat ne bouge : seule la phrase change");
+  check(inde.salarieMuet === true,
+    "un salarié ne voit jamais ce terme — l'estimation est réservée aux revenus variables");
+  await ctx212.close();
+}
+
+// ---------- 213. W6.3 : BUDGET — la part engagée se voit, à part des enveloppes ----------
+// Budget Autonomie 100, W6.3 : mesuré — l'écran Budget ne montre que
+// les enveloppes par catégorie ; les charges régulières et factures du
+// mois (la part ENGAGÉE, non discrétionnaire) n'y apparaissent nulle
+// part. Livré : une carte de LECTURE (sortiesReelles du Mois réutilisé
+// — zéro nouveau compteur), qui respecte ADR-066 (ignorer libère).
+currentTest = "W6.3 part engagée";
+{
+  const ctx213 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p213 = await ctx213.newPage();
+  p213.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W6.3] ${msg.text()}`); });
+  await p213.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Eng" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 8000, cash: true, currency: "CHF" }],
+      recurrings: [{ id: "loyer", title: "Loyer", amount: 1800, type: "expense", cat: "Logement", accountId: "cur", every: "month", day: 1, nature: "facture" }],
+      bills: [{ id: "prime", name: "Prime auto", amount: 400, dueY: now.getFullYear(), dueM: now.getMonth() + 1, dueD: 20, cat: "Transports", paidTxId: null }],
+      budgets: {
+        [`${now.getFullYear()}-${now.getMonth() + 1}`]: [{ cat: "Alimentation", amount: 600 }],
+      },
+      transactions: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], occurrences: [],
+    }));
+  });
+  await p213.goto(APP_URL);
+  await p213.waitForSelector("#tabbar button");
+  const eng = await p213.evaluate(() => {
+    const resultat = {};
+    const onglet = i => [...document.querySelectorAll("#tabbar button")][i];
+    const s0 = snapshot(NOW.y, NOW.m);
+    onglet(2).click();
+    const texte = () => document.getElementById("screen").textContent;
+    // 1. La part engagée se voit : 1800 + 400 = 2'200 encore à sortir.
+    resultat.carteVisible = texte().includes("Engagements du mois")
+      && texte().includes("2'200.00") && texte().includes("à part de vos enveloppes");
+    // 2. Lecture seule : aucun agrégat n'a bougé.
+    const s1 = snapshot(NOW.y, NOW.m);
+    resultat.lectureSeule = s1.endOfMonthForecast === s0.endOfMonthForecast
+      && s1.recurringCharges === s0.recurringCharges;
+    // 3. ADR-066 : ignorer l'échéance du loyer libère aussi cette carte.
+    materialiserOccurrences(NOW.y, NOW.m);
+    const occ = echeanceOuverteSerie("loyer", NOW.y, NOW.m);
+    if (occ) ignorerOccurrence(occ);
+    render();
+    resultat.respecteIgnorer = !texte().includes("2'200.00") && texte().includes("400.00");
+    // 4. Plus d'engagement du tout : la carte se tait.
+    const prime = (S.bills || []).find(b => b.id === "prime");
+    materialiserFactures(NOW.y, NOW.m);
+    const occPrime = (S.occurrences || []).find(o => o.idempotencyKey === "facture:prime");
+    if (occPrime) ignorerOccurrence(occPrime);
+    render();
+    resultat.sansEngagementMuet = !texte().includes("Engagements du mois") && !!prime;
+    // 5. Un mois PASSÉ ne parle pas d'engagements — le passé est réel.
+    cursor = shiftMonth(cursor, -1); render();
+    resultat.passeMuet = !texte().includes("Engagements du mois");
+    cursor = shiftMonth(cursor, 1); render();
+    return resultat;
+  });
+  check(eng.carteVisible === true,
+    "la part engagée du mois se voit sur Budget : 2'200 à part des enveloppes");
+  check(eng.lectureSeule === true,
+    "la carte LIT — aucun agrégat ne bouge");
+  check(eng.respecteIgnorer === true,
+    "ADR-066 tenu : ignorer le loyer libère aussi la carte (reste 400)");
+  check(eng.sansEngagementMuet === true,
+    "sans engagement restant, la carte se tait");
+  check(eng.passeMuet === true,
+    "un mois passé ne parle pas d'engagements — le passé est réel");
+  await ctx213.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12905,4 +13050,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 211 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 213 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
