@@ -25,15 +25,23 @@ function etatDepuisFixture(f) {
   const francs = c => c / 100;
   const [y0, m0, d0] = [0, 0, 0];
   const parseDate = iso => ({ y: +iso.slice(0, 4), m: +iso.slice(5, 7), d: +iso.slice(8, 10) });
+  // W8.3c : les taux de la fixture deviennent des quotes DATÉES et
+  // sourcées (comme le runner Swift depuis W4.2b) ; le cache dérivé
+  // fxRates reflète la DERNIÈRE quote par devise (par date d'observation,
+  // pas par ordre du fichier).
+  const fxQuotes = (e.taux || []).filter(t => t.cote === e.deviseBase).map(t => ({
+    base: e.deviseBase, quote: t.base, taux: Number(t.taux), observedAt: t.date, source: t.source,
+  }));
   const fxRates = {};
-  for (const t of e.taux || []) {
-    if (t.cote === e.deviseBase) fxRates[t.base] = Number(t.taux);
+  for (const q of [...fxQuotes].sort((a, b) => (a.observedAt < b.observedAt ? -1 : 1))) {
+    fxRates[q.quote] = q.taux;
   }
   let seq = 9000;
   return {
     version: 1, onboarded: true, isDemo: false, profile: { name: "Canon" },
     baseCurrency: e.deviseBase,
     ...(Object.keys(fxRates).length ? { fxRates } : {}),
+    ...(fxQuotes.length ? { fxQuotes } : {}),
     accounts: (e.comptes || []).map(c => ({
       id: c.id, name: c.nom, kind: c.genre, opening: francs(c.ouvertureMineures),
       cash: c.cash, currency: c.devise,
@@ -96,8 +104,17 @@ for (const nom of fichiers) {
       fortuneTotaleMineures: versMineures(fortuneTotale()),
       epargneAccessibleMineures: versMineures(sNow.savingsAccessible),
     };
+    // W8.3c : les quotes DATÉES de la fixture doivent être semées telles
+    // quelles (date + source) — le runner Swift le fait depuis W4.2b, le
+    // runner web ne peut pas prouver FI-16 en aplatissant les dates.
+    sortie.quotesSemees = (S.fxQuotes || []).length;
     return sortie;
   }, { mois });
+
+  const tauxFournis = ((fixture.entrees || {}).taux || []).length;
+  if (obtenu.quotesSemees !== tauxFournis) {
+    failures.push(`[${fixture.nom}] quotes datées semées : ${obtenu.quotesSemees} ≠ ${tauxFournis} taux fournis — le runner aplatit les dates (FI-16 non prouvé)`);
+  }
 
   for (const [cid, attendu] of Object.entries(attendus.soldesMineures || {})) {
     if (obtenu.soldes[cid] !== attendu) {

@@ -2666,7 +2666,11 @@ function loadState() {
     if (!CURRENCIES.includes(s.baseCurrency)) s.baseCurrency = "CHF";
     if (!COUNTRIES[s.country]) s.country = "CH";
     if (!PROJECTION_PROFILES[s.projectionProfile]) s.projectionProfile = "balanced";
-    if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = { ...FX_DEFAULTS[s.baseCurrency] };
+    // W8.3c (FI-17, parité native) : un état SANS taux n'en reçoit plus
+    // en silence — sans taux, un montant étranger est EXCLU et nommé au
+    // bandeau. Les défauts ne servent qu'aux choix EXPLICITES (pays,
+    // onboarding) et au pré-remplissage du formulaire Réglages.
+    if (!s.fxRates || typeof s.fxRates !== "object") s.fxRates = {};
     if (!Array.isArray(s.occurrences)) s.occurrences = []; // W2.1, clé additive
     if (!Array.isArray(s.journal)) s.journal = []; // W3.1, clé additive
     if (typeof s.journalActif !== "boolean") s.journalActif = false; // W3.6, drapeau de bascule
@@ -6896,7 +6900,9 @@ function renderSettings() {
       <div class="ico" aria-hidden="true">${budgetGlyph("transfer")}</div>
       <div class="meta"><div class="t">Taux de change manuels</div>
         <div class="s">${CURRENCIES.filter(c => c !== baseCurrency()).map(c =>
-          `1 ${CURRENCY_SYMBOL[c]} = ${(fx[c] || FX_DEFAULTS[baseCurrency()][c]).toFixed(2)} ${baseCurrency()}`).join(" · ")} — ${(() => {
+          // W8.3c : un taux non posé est DIT « à saisir » — jamais affiché
+          // comme s'il était actif.
+          fx[c] ? `1 ${CURRENCY_SYMBOL[c]} = ${fx[c].toFixed(2)} ${baseCurrency()}` : `${CURRENCY_SYMBOL[c]} à saisir`).join(" · ")} — ${(() => {
           // W5.6 : la date du dernier taux consigné (W4.2) se voit ici.
           const dernieres = CURRENCIES.filter(c => c !== baseCurrency())
             .map(dernierTauxConsigne).filter(Boolean)
@@ -8216,7 +8222,7 @@ function undoLast() {
   S.onboarded = restored.onboarded !== false;
   S.baseCurrency = CURRENCIES.includes(restored.baseCurrency) ? restored.baseCurrency : "CHF";
   S.fxRates = (restored.fxRates && typeof restored.fxRates === "object")
-    ? restored.fxRates : { ...FX_DEFAULTS[S.baseCurrency] };
+    ? restored.fxRates : {}; // W8.3c (FI-17) : rien d'inventé
   S.monthChecks = (restored.monthChecks && typeof restored.monthChecks === "object")
     ? restored.monthChecks : {};
   txSeq = transactionSequenceFloor(transactions, txSeq);
@@ -9042,7 +9048,9 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   if (!CURRENCIES.includes(state.baseCurrency)) throw new Error("devise de référence invalide");
   if (state.country == null) state.country = "CH";
   if (!COUNTRIES[state.country]) throw new Error("pays invalide");
-  if (state.fxRates == null) state.fxRates = { ...FX_DEFAULTS[state.baseCurrency] };
+  // W8.3c (FI-17) : une sauvegarde sans taux est restaurée SANS taux —
+  // rien d'inventé, l'exclusion est nommée au bandeau.
+  if (state.fxRates == null) state.fxRates = {};
   if (!isPlainRecord(state.fxRates)) throw new Error("taux de change invalides");
   if (!isPlainRecord(state.budgets || {})) throw new Error("budgets invalides");
   state.budgets = state.budgets || {};
@@ -9069,13 +9077,13 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
   }
   const defaultAccount = state.accounts.find(a => a.cash && a.currency === state.baseCurrency)
     || state.accounts.find(a => a.cash) || state.accounts[0] || null;
-  const usedCurrencies = new Set(state.accounts.map(a => a.currency));
-  for (const currency of usedCurrencies) {
-    if (currency !== state.baseCurrency) {
-      const rate = Number(state.fxRates[currency]);
-      if (!Number.isFinite(rate) || rate <= 0) throw new Error(`taux ${currency} manquant`);
-    }
-  }
+  // W8.3c (FI-17, parité native) : un compte étranger SANS taux ne
+  // rejette plus l'état entier — il est chargé, EXCLU des totaux en
+  // devise de base et NOMMÉ au bandeau « montants non convertibles »
+  // (patrimoine incomplet, même contrat que NetWorthService natif).
+  // Les devises des MOUVEMENTS, elles, gardent leurs exigences (taux
+  // courant ci-dessous, estampille historique FI-19 plus bas).
+  const usedCurrencies = new Set();
 
   const transactionIds = new Set();
   for (const transaction of state.transactions) {

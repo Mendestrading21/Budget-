@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "nom": "devise-taux-absent-incomplet",
+  "description": "W8.3c (FI-17, différée depuis W1.5) — Un taux ABSENT ne devient jamais 1 ni 0 : le compte en USD sans quote datée est EXCLU de la fortune totale (patrimoine incomplet, nommé au bandeau côté interface — parcours e2e 227). Seuls les 120000 centimes de franc comptent ; le solde du compte dollar reste dit dans SA devise.",
+  "entrees": {
+    "deviseBase": "CHF",
+    "date": "2026-05-15",
+    "comptes": [
+      {
+        "id": "cur",
+        "nom": "Compte courant",
+        "genre": "current",
+        "devise": "CHF",
+        "ouvertureMineures": 120000,
+        "cash": true,
+        "patrimoine": true,
+        "actif": true
+      },
+      {
+        "id": "usd",
+        "nom": "Compte dollar",
+        "genre": "current",
+        "devise": "USD",
+        "ouvertureMineures": 50000,
+        "cash": false,
+        "patrimoine": true,
+        "actif": true
+      }
+    ],
+    "mouvements": [],
+    "recurrences": [],
+    "taux": []
+  },
+  "attendus": {
+    "soldesMineures": { "cur": 120000, "usd": 50000 },
+    "mois": {
+      "annee": 2026,
+      "mois": 5,
+      "recuMineures": 0,
+      "depenseMineures": 0,
+      "misDeCoteMineures": 0,
+      "liquideMineures": 120000,
+      "finDeMoisMineures": 120000
+    },
+    "patrimoine": {
+      "fortuneTotaleMineures": 120000,
+      "epargneAccessibleMineures": 0
+    }
+  }
+}
