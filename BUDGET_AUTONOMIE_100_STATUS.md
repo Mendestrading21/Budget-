@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1 fusionné · W5.2 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -155,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W5.2 : le bilan lit les échéances — ignorer libère le mois
+
+Le morceau attendu depuis W2 : l'écran Mois LIT enfin les échéances
+persistées. `monthCheckItems` matérialise (idempotent, W2.2/W2.6) puis
+laisse la MACHINE À ÉTATS décider de « réglé » : confirmée, IGNORÉE ou
+annulée — le geste `ignorerOccurrence` (W2.5) a enfin une surface : une
+charge qu'on choisit de sauter ne bloque plus le mois et ne crée AUCUN
+mouvement. L'histoire couverte par ses mouvements garde sa règle
+d'avant (un mois passé reste « fait »). Le comparateur W2.7a APPREND
+la nouvelle vérité : l'attendu se réduit des échéances sautées
+volontairement (`attenduNet`) — les compteurs ne connaissent pas ce
+choix, le comparateur le réconcilie. Preuves : parcours 205 né rouge
+(5 échecs nommés, dont le comparateur — légitime : avant W5.2, rien ne
+matérialisait la 2e série) → vert ; sabotage (« ignoré » ne règle
+plus) → les 2 contrôles ciblés mordent ; restauré vert ; suites
+complètes vertes (205 e2e, 9 parités, 13 canon + schéma, design,
+catalogue, audit). Consigné : l'affichage du bilan reste
+titre + compteur (« N à faire ») + liste d'obligations — la carte
+détaillée et les gestes Reporter/Ignorer À L'ÉCRAN arrivent avec
+l'inbox W5.7 ; le miroir natif (HomeTab lit `ScheduledOccurrence`) =
+W5.2b.
 
 ### 26.08.2026 — W5.1 : les routes — la navigation ADR-026, verrouillée
 
