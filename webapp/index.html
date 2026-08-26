@@ -5137,7 +5137,7 @@ function renderAccountDetail(a) {
   const bal = balance(a.id);
   const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
   const c = isPlacement ? contributions(a.id) : null;
-  const perf = (a.kind === "brokerage" && c) ? bal - a.opening - (c.total - c.withdrawn) : null;
+  const perf = (a.kind === "brokerage" && c) ? bal - a.opening - c.net : null;
   const history = transactions
     .filter(t => t.acc === a.id || t.dest === a.id)
     .sort((x, z) => z.y - x.y || z.m - x.m || z.d - x.d || z.id - x.id)
@@ -5160,7 +5160,8 @@ function renderAccountDetail(a) {
       <p class="card-label">${kindLabel(a.kind)}${a.inst ? " · " + esc(a.inst) : ""}${a.currency && a.currency !== baseCurrency() ? " · " + a.currency : ""}</p>
       <p class="hero-amount${bal < 0 ? " neg" : ""}${Math.abs(bal) >= 1000000 ? " long" : ""}">${money(bal, a.currency || baseCurrency())}</p>
       ${(() => { const f = accountFreshness(a.id); return f ? `<span class="caption">Solde ${esc(f)} — calculé depuis votre solde de départ et vos opérations</span>` : ""; })()}
-      ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${c.withdrawn > 0 ? ` · retraits : ${money(c.withdrawn, a.currency)}` : ""}</span>` : ""}
+      ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)}${c.withdrawnYear > 0 ? ` · retiré cette année : ${money(c.withdrawnYear, a.currency)}` : ""}</span>
+      <span class="caption" style="display:block">Depuis l'ouverture : versé ${money(c.total, a.currency)} · retiré ${money(c.withdrawn, a.currency)} · Versements nets : ${money(c.net, a.currency)}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
@@ -5302,7 +5303,7 @@ function renderAccounts() {
         const isPlacement = ["savings", "brokerage", "pension", "lifeinsurance"].includes(a.kind);
         const c = isPlacement ? contributions(a.id) : null;
         const perf = (a.kind === "brokerage" && c)
-          ? balance(a.id) - a.opening - (c.total - c.withdrawn) : null;
+          ? balance(a.id) - a.opening - c.net : null;
         const contribLine = c && (c.total > 0 || (perf !== null && Math.abs(perf) >= 0.005))
           ? `<div class="caption" style="margin-top:2px">Mis de côté cette année : ${money(c.year, a.currency)} · en tout : ${money(c.total, a.currency)}${
               perf !== null ? ` · <span class="${perf >= 0 ? "pos" : "neg"}" style="font-weight:600">perf. ${money(perf, a.currency, true)}</span>` : ""}</div>`
@@ -5575,16 +5576,23 @@ function contributions(accId, year = NOW.y) {
   // réellement consultée pour que l'étiquette et le chiffre disent la
   // même chose.
   const destCur = accountCurrency(accId);
-  let totalC = 0, yearC = 0, withdrawnC = 0; // centimes entiers (G01), devise du compte (E05)
+  let totalC = 0, yearC = 0, withdrawnC = 0, withdrawnYearC = 0; // centimes entiers (G01), devise du compte (E05)
   for (const t of transactions) {
     if (t.status !== "posted") continue;
     if (t.dest === accId) {
       const inDest = toCents(t.destAmount != null ? t.destAmount : convertAmount(t.amount, accountCurrency(t.acc), destCur));
       totalC += inDest; if (t.y === year) yearC += inDest;
     }
-    else if (t.acc === accId && OUTFLOWS.has(t.type)) withdrawnC += toCents(t.amount);
+    else if (t.acc === accId && OUTFLOWS.has(t.type)) {
+      // W8.1 : le retrait est DATÉ lui aussi — l'écran ne colle plus un
+      // cumul de toujours à un chiffre annuel.
+      const outC = toCents(t.amount);
+      withdrawnC += outC; if (t.y === year) withdrawnYearC += outC;
+    }
   }
-  return { total: fromCents(totalC), year: fromCents(yearC), withdrawn: fromCents(withdrawnC) };
+  return { total: fromCents(totalC), year: fromCents(yearC),
+           withdrawn: fromCents(withdrawnC), withdrawnYear: fromCents(withdrawnYearC),
+           net: fromCents(totalC - withdrawnC) };
 }
 
 /* Cumuls agrégés par nature de compte, en devise de référence. */

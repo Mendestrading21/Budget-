@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | READY — Work Order écrit (`docs/autonomie/w8/WORK_ORDER_W8.md`) | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1 EN PR (Work Order : `docs/autonomie/w8/WORK_ORDER_W8.md`) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,31 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.1 : cash flows — versements nets exposés, retraits datés
+
+Mesuré d'abord : la fiche d'un compte de placement collait un CUMUL DE
+TOUJOURS (« retraits ») à un chiffre annuel (« Mis de côté cette
+année »), et le versement NET (versé − retiré) n'était dit nulle part.
+DIVERGENCE consignée avec le Work Order : le cas « un achat de titres
+depuis le compte titres compté en retrait » n'existe PAS dans le
+modèle (aucun type d'achat, positions déconnectées des mouvements — la
+formule actuelle, qui traite toute sortie comme un retrait, est
+défendable) ; la question « frais de courtage : retrait ou coût qui
+réduit la performance ? » est reportée à W8.4 comme décision
+propriétaire. Livré : `contributions()` rend aussi `withdrawnYear` et
+`net` (centimes entiers, clés additives) ; la fiche dit « retiré
+cette année » (daté) et « Depuis l'ouverture : versé · retiré ·
+Versements nets » ; la performance passe par `c.net` (même valeur,
+même méthode affichée « Valeur − versements nets »). Preuves :
+parcours 224 né rouge (4 échecs nommés ; verrou performance né VERT
+consigné, sabotage à l'appui) ; deux sabotages qui mordent seuls
+(retrait annuel redevenu cumul → 1 échec ; net qui oublie les
+retraits → 2 échecs dont le verrou) ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-1/`) ; suites complètes vertes
+(224 e2e, 9 parités, 13 canon + schéma, design, catalogue, audits).
+Publication du plan W8 (`main` = `ba16218`, PR #181) : run
+`32976120699`, **succès**.
 
 ### 26.08.2026 — W7.7 : revue d'import — écarter ligne par ligne, annuler lot par lot → W7 FERMÉ
 
