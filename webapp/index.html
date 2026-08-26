@@ -3136,11 +3136,20 @@ function comparerOccurrencesEtCompteurs(fenetreMois) {
         && typeof o.idempotencyKey === "string"
         && o.idempotencyKey.startsWith(prefixe)
         && ETATS_OUVERTS.has(o.state)).length;
+      // W5.2 : IGNORER/ANNULER est une vérité que les compteurs ne
+      // connaissent pas — l'attendu se réduit des échéances sautées
+      // volontairement (aucun mouvement, aucun oubli : un choix).
+      const sautees = (S.occurrences || []).filter(o =>
+        o.seriesId === r.id
+        && typeof o.idempotencyKey === "string"
+        && o.idempotencyKey.startsWith(prefixe)
+        && (o.state === "skipped" || o.state === "cancelled")).length;
       const liees = transactions.filter(t =>
         inMonth(t, mm.y, mm.m) && t.recurringId === r.id).length;
       const effectives = Math.max(0, ouvertes - liees);
-      if (effectives !== attendu) {
-        ecarts.push(`${r.id} ${mm.y}-${mm.m} : compteur ${attendu}, occurrences ouvertes ${effectives}`);
+      const attenduNet = Math.max(0, attendu - sautees);
+      if (effectives !== attenduNet) {
+        ecarts.push(`${r.id} ${mm.y}-${mm.m} : compteur ${attenduNet}, occurrences ouvertes ${effectives}`);
       }
     }
   }
@@ -3739,6 +3748,19 @@ function closedStreak(y, m) {
 }
 
 function monthCheckItems(y, m) {
+  // W5.2 (Budget Autonomie 100) : le bilan LIT les échéances
+  // persistées (W2) — matérialisation idempotente, puis la MACHINE À
+  // ÉTATS décide de « réglé » : confirmée, IGNORÉE (geste W2.5, enfin
+  // une surface) ou annulée. L'histoire couverte par ses mouvements
+  // garde sa règle d'avant — le comparateur W2.7a reste la gate.
+  materialiserOccurrences(y, m);
+  materialiserFactures(y, m);
+  const ETATS_REGLES = new Set(["confirmed", "skipped", "cancelled"]);
+  const echeancesReglees = prefixe => {
+    const occs = (S.occurrences || []).filter(o =>
+      typeof o.idempotencyKey === "string" && o.idempotencyKey.startsWith(prefixe));
+    return occs.length > 0 && occs.every(o => ETATS_REGLES.has(o.state));
+  };
   const items = [];
   const representedTransactionIDs = new Set();
   // Le rituel ne demande de valider que ce qui est DÛ ce mois : sans ce
@@ -3752,9 +3774,11 @@ function monthCheckItems(y, m) {
       icon: r.icon || (r.type === "income" ? "💰" : "🔁"),
       label: dueCount > 1 ? `${r.title} (${dueCount} × ce mois)` : r.title,
       amount: r.amount, income: r.type === "income",
-      // REC2 : fait = TOUTES les échéances couvertes et comptabilisées.
-      done: recurringRemainingCount(r, y, m) === 0 && linked.length > 0
-        && linked.every(t => t.status === "posted"),
+      // REC2 : fait = TOUTES les échéances couvertes et comptabilisées —
+      // OU réglées par la machine à états (W5.2 : ignorer libère).
+      done: (recurringRemainingCount(r, y, m) === 0 && linked.length > 0
+        && linked.every(t => t.status === "posted"))
+        || echeancesReglees(`serie:${r.id}:${y}-${m}:`),
       action: "postrec", ref: r.id,
       cta: r.type === "income" ? "✓ Reçu" : "✓ Fait",
     });
@@ -3764,7 +3788,8 @@ function monthCheckItems(y, m) {
     if (linked) representedTransactionIDs.add(String(linked.id));
     items.push({
       icon: "🧾", label: b.name, amount: b.amount, income: false,
-      done: billIsPaid(b), action: "paybill", ref: b.id, cta: "Payer",
+      done: billIsPaid(b) || echeancesReglees(`facture:${b.id}`),
+      action: "paybill", ref: b.id, cta: "Payer",
     });
   }
   // Une ligne peut être supprimée, arrêtée ou déplacée après la création de

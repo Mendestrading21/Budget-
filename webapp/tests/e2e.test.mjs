@@ -12266,6 +12266,103 @@ currentTest = "W5.1 routes verrouillées";
   await ctx204.close();
 }
 
+// ---------- 205. W5.2 : le BILAN lit les échéances — ignorer libère le mois ----------
+// Budget Autonomie 100, W5.2 : l'écran Mois LIT enfin les échéances
+// persistées (W2). Le bilan matérialise les occurrences du mois
+// (idempotent), « fait » suit la MACHINE À ÉTATS — et une échéance
+// IGNORÉE (geste W2.5, jusqu'ici sans surface) cesse de bloquer le
+// mois. L'histoire ancienne garde sa règle (couverture par
+// mouvements) ; le comparateur W2.7a reste la gate.
+currentTest = "W5.2 bilan lit les échéances";
+{
+  const ctx205 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p205 = await ctx205.newPage();
+  p205.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.2] ${msg.text()}`); });
+  await p205.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Bil" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [
+        { id: "r-loyer", title: "Loyer", amount: 1500, type: "expense", nature: "facture",
+          cat: "Logement", day: 1, every: "month", accountId: "cur", icon: "🏠" },
+        { id: "r-fitness", title: "Fitness", amount: 49, type: "expense", nature: "abonnement",
+          cat: "Sport", day: 5, every: "month", accountId: "cur", icon: "🏋️" },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {},
+      bills: [],
+    }));
+  });
+  await p205.goto(APP_URL);
+  await p205.waitForSelector("#tabbar button");
+  const bil = await p205.evaluate(() => {
+    const resultat = {};
+    // 1. L'écran LIT le modèle persisté : appeler le bilan matérialise
+    //    les occurrences du mois.
+    const items = monthCheckItems(NOW.y, NOW.m);
+    resultat.ecranLit = (S.occurrences || []).some(o => o.seriesId === "r-loyer")
+      && (S.occurrences || []).some(o => o.seriesId === "r-fitness")
+      && items.length === 2 && items.every(i => i.done === false);
+    // 1b. Le VRAI écran affiche le bilan VIVANT quand il reste à faire.
+    render();
+    const texteEcran = document.getElementById("screen").textContent;
+    resultat.ecranVivant = !!document.getElementById("monthlyTasksTitle")
+      && texteEcran.includes("Bilan du mois")
+      && /à faire/.test(texteEcran)
+      && texteEcran.includes("Loyer");
+    // 2. Confirmer par le geste existant : « fait » suit.
+    materializeRecurring(RECURRINGS.find(r => r.id === "r-loyer"), NOW.y, NOW.m);
+    resultat.confirmerFait = monthCheckItems(NOW.y, NOW.m)
+      .find(i => i.ref === "r-loyer").done === true;
+    // 3. NOUVEAU : IGNORER une échéance (geste W2.5) la règle — le
+    //    mois n'est plus bloqué par une charge qu'on a choisi de
+    //    sauter, sans créer AUCUN mouvement.
+    const occFitness = (S.occurrences || []).find(o => o.seriesId === "r-fitness");
+    const nbMouvements = transactions.length;
+    const refus = occFitness ? ignorerOccurrence(occFitness) : "échéance absente — l'écran ne lit pas encore";
+    resultat.ignorerRegle = refus === null
+      && transactions.length === nbMouvements
+      && monthCheckItems(NOW.y, NOW.m).find(i => i.ref === "r-fitness").done === true;
+    // 4. Une facture ignorée aussi.
+    S.bills.push({ id: "b1", name: "Électricité", amount: 184.30, dueY: NOW.y, dueM: NOW.m, dueD: 12, cat: "Logement", accountId: "cur" });
+    let itemFacture = monthCheckItems(NOW.y, NOW.m).find(i => i.ref === "b1");
+    const factureAvant = itemFacture && itemFacture.done === false;
+    const occFacture = (S.occurrences || []).find(o => o.idempotencyKey === "facture:b1");
+    if (occFacture) ignorerOccurrence(occFacture);
+    itemFacture = monthCheckItems(NOW.y, NOW.m).find(i => i.ref === "b1");
+    resultat.factureIgnoree = factureAvant && itemFacture.done === true;
+    // 5. L'HISTOIRE ancienne garde sa règle : un mois passé couvert par
+    //    ses mouvements reste « fait » même sans échéances confirmées.
+    const passe = shiftMonth(NOW, -2);
+    addTx({ id: ++txSeq, y: passe.y, m: passe.m, d: 1, title: "Loyer",
+      amount: 1500, type: "expense", cat: "Logement", acc: "cur", dest: null,
+      status: "posted", recurringId: "r-loyer" });
+    resultat.histoireCouverte = monthCheckItems(passe.y, passe.m)
+      .find(i => i.ref === "r-loyer").done === true;
+    // 6. Le comparateur W2.7a reste la gate : zéro écart après tout ça.
+    resultat.comparateurZero = comparerOccurrencesEtCompteurs(1).length === 0;
+    // Nettoyage.
+    transactions.length = 0; S.occurrences = []; S.bills = []; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(bil.ecranLit === true,
+    "le bilan MATÉRIALISE et lit les échéances persistées — l'écran lit enfin le modèle W2");
+  check(bil.confirmerFait === true,
+    "confirmer par le geste existant règle l'élément du bilan");
+  check(bil.ignorerRegle === true,
+    "IGNORER une échéance la règle — aucun mouvement créé, le mois n'est plus bloqué (W2.5 a une surface)");
+  check(bil.factureIgnoree === true,
+    "une facture ignorée est réglée aussi");
+  check(bil.histoireCouverte === true,
+    "l'histoire ancienne garde sa règle — un mois passé couvert reste fait");
+  check(bil.comparateurZero === true,
+    "le comparateur W2.7a reste à ZÉRO écart — la gate tient");
+  check(bil.ecranVivant === true,
+    "le vrai écran Mois affiche le bilan vivant");
+  await ctx205.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12275,4 +12372,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 204 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 205 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
