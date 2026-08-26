@@ -1525,6 +1525,14 @@
       <label for="iAmount">Valeur, ou montant dû au départ (<span class="curlabel">CHF</span>)</label>
       <p class="caption" style="margin:4px 0 0">Pour une dette : le montant du début. Ce qu'il reste à payer se calcule tout seul à partir des mensualités déjà réglées.</p>
       <input id="iAmount" data-primary-amount inputmode="decimal" placeholder="12000.00" autocomplete="off" />
+      <!-- W8.3b (ADR-070) : chaque bien porte sa monnaie — défaut : la
+           devise de base, décision propriétaire. -->
+      <label for="iCurrency">Monnaie</label>
+      <select id="iCurrency">
+        <option value="CHF">CHF</option>
+        <option value="EUR">EUR</option>
+        <option value="USD">USD</option>
+      </select>
       <div id="iMonthlyWrap">
         <label for="iMonthly">Mensualité (facultatif — dettes)</label>
         <input id="iMonthly" inputmode="decimal" placeholder="0.00" autocomplete="off" />
@@ -2003,6 +2011,35 @@ function toCHFAuMois(amount, currency, y, m) {
   }
   return taux == null ? null : amount * taux;
 }
+/* W8.3b : la valeur d'un bien À un mois donné — dernière valorisation
+   consignée à la fin de ce mois (historique append-only). Avant la
+   première valorisation, la première fait foi ; sans historique, la
+   valeur actuelle (comportement historique, constant). */
+function valeurAuMois(item, y, m) {
+  const finDeMois = `${y}-${String(m).padStart(2, "0")}-31`;
+  const histo = Array.isArray(item.histo) ? item.histo : [];
+  let derniere = null;
+  for (const h of histo) {
+    if (typeof h.date !== "string" || h.date > finDeMois) continue;
+    if (!derniere || h.date >= derniere.date) derniere = h;
+  }
+  if (derniere) return derniere.value;
+  return histo.length ? histo[0].value : item.value;
+}
+/* W8.3b : totaux des biens et dettes CONVERTIS — la devise du bien est
+   lue, un taux manquant EXCLUT (bandeau) au lieu d'inventer du 1:1. */
+function assetsTotalCHF() {
+  return ASSETS.filter(x => x.include !== false).reduce((a, x) => {
+    const v = toCHF(x.value, x.currency);
+    return v == null ? a : a + v;
+  }, 0);
+}
+function liabilitiesTotalCHF() {
+  return fromCents(LIABILITIES.filter(x => x.include !== false).reduce((a, x) => {
+    const v = toCHF(liabilityBalance(x), x.currency);
+    return v == null ? a : a + toCents(v);
+  }, 0));
+}
 /* Conversion vers la devise de référence via les taux MANUELS (aucun réseau). */
 function toCHF(amount, currency) {
   if (!currency || currency === baseCurrency()) return amount;
@@ -2174,6 +2211,13 @@ function missingFxCurrencies() {
         && !(transaction.fx > 0 && transaction.fxBase === baseCurrency())) {
       missing.add(currency);
     }
+  }
+  // W8.3b : les biens et dettes portent leur devise eux aussi — un taux
+  // manquant est NOMMÉ ici, jamais un 1:1 inventé.
+  for (const item of [...ASSETS, ...LIABILITIES]) {
+    if (item.include === false) continue;
+    const currency = item.currency || baseCurrency();
+    if (currency !== baseCurrency() && fxRateFor(currency) == null) missing.add(currency);
   }
   return [...missing].sort();
 }
@@ -5550,9 +5594,11 @@ function compteActif(account) { return account.archived !== true; }
 function compteDansPatrimoine(account) { return account.netWorth !== false && compteActif(account); }
 
 function fortuneTotale() {
+  // W8.3b : biens et dettes convertis via leur devise (exclusion nommée
+  // au bandeau si le taux manque — jamais de 1:1 inventé).
   return ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0)
-    + ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0)
-    + pensionPositionsTotal() - liabilitiesTotal();
+    + assetsTotalCHF()
+    + pensionPositionsTotal() - liabilitiesTotalCHF();
 }
 
 function taxSummary(year) {
@@ -5820,9 +5866,11 @@ function dateValeurLabel(item) {
 
 function renderNetWorth() {
   const accountsTotal = ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHF(balance(acc.id), acc.currency), 0);
-  const assetsTotal = ASSETS.filter(x => x.include !== false).reduce((a, x) => a + x.value, 0);
+  // W8.3b : biens et dettes convertis via LEUR devise (taux manquant →
+  // exclu et nommé au bandeau).
+  const assetsTotal = assetsTotalCHF();
   const pensionTotal = pensionPositionsTotal();
-  const liabTotal = liabilitiesTotal();
+  const liabTotal = liabilitiesTotalCHF();
   const net = accountsTotal + assetsTotal + pensionTotal - liabTotal;
   // Courbes DÉRIVÉES des soldes réels de fin de mois, sur 12 mois, par
   // classe (actifs/prévoyance manuelle/dettes sans historique : constants).
@@ -5833,9 +5881,21 @@ function renderNetWorth() {
   const classSeries = kinds => MONTHS12.map(mm =>
     ACCOUNTS.filter(a => compteDansPatrimoine(a) && kinds.includes(a.kind))
       .reduce((a, acc) => a + toCHFAuMois(balanceAt(acc.id, mm.y, mm.m), acc.currency, mm.y, mm.m), 0));
+  // W8.3b : les biens sont DATÉS deux fois — leur valorisation du moment
+  // (valeurAuMois) ET le taux du moment (toCHFAuMois). Les dettes
+  // gardent leur solde vivant (l'historique de solde n'est pas modélisé,
+  // consigné) mais leur devise suit le taux du mois.
+  const biensAuMois = mm => ASSETS.filter(x => x.include !== false).reduce((a, x) => {
+    const v = toCHFAuMois(valeurAuMois(x, mm.y, mm.m), x.currency, mm.y, mm.m);
+    return v == null ? a : a + v;
+  }, 0);
+  const dettesAuMois = mm => LIABILITIES.filter(x => x.include !== false).reduce((a, x) => {
+    const v = toCHFAuMois(liabilityBalance(x), x.currency, mm.y, mm.m);
+    return v == null ? a : a + v;
+  }, 0);
   const points = MONTHS12.map(mm =>
     ACCOUNTS.filter(compteDansPatrimoine).reduce((a, acc) => a + toCHFAuMois(balanceAt(acc.id, mm.y, mm.m), acc.currency, mm.y, mm.m), 0)
-      + assetsTotal + pensionTotal - liabTotal);
+      + biensAuMois(mm) + pensionTotal - dettesAuMois(mm));
   // Les quatre classes empruntaient le vert, le corail et l'ambre : une
   // courbe « Prévoyance » tracée en corail se lisait comme une perte. Elles
   // prennent la rampe non sémantique, et chacune un TRAIT différent — deux
@@ -9159,6 +9219,19 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     ids.add(value.id);
   };
   const validNonNegative = value => Number.isFinite(value) && value >= 0;
+  // W8.3b : clés ADDITIVES devise + historique de valorisations — une
+  // devise illisible est retirée (le bien redevient devise de base,
+  // ADR-070), une entrée d'historique hostile est écartée, les saines
+  // restent (jamais de casse totale pour une clé additive).
+  const validerDeviseEtHisto = item => {
+    if (!(typeof item.currency === "string" && /^[A-Z]{3}$/.test(item.currency))) delete item.currency;
+    if (Array.isArray(item.histo)) {
+      item.histo = item.histo.filter(h => isPlainRecord(h)
+        && typeof h.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(h.date)
+        && Number.isFinite(h.value) && h.value >= 0);
+      if (!item.histo.length) delete item.histo;
+    } else if (item.histo !== undefined) delete item.histo;
+  };
   const goalIds = new Set();
   for (const goal of state.goals) {
     requireEntity(goal, "objectif", goalIds);
@@ -9190,6 +9263,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     // W4.7 (FI-27) : une date illisible est RETIRÉE — valeur non datée,
     // jamais une date inventée (FI-34).
     if (!(typeof asset.valueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(asset.valueDate))) delete asset.valueDate;
+    validerDeviseEtHisto(asset);
   }
   const liabilityIds = new Set();
   for (const liability of state.liabilities) {
@@ -9201,6 +9275,7 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     }
     liability.monthly = liability.monthly ?? 0;
     liability.include = liability.include !== false;
+    validerDeviseEtHisto(liability);
   }
   const pensionIds = new Set();
   for (const pension of state.pensions) {
@@ -10461,8 +10536,10 @@ function openItemSheet(kind, id) {
     document.getElementById("iName").value = item.name;
     document.getElementById("iAmount").value = item.value.toFixed(2);
     document.getElementById("iInclude").checked = item.include !== false;
+    document.getElementById("iCurrency").value = item.currency || baseCurrency();
   } else {
     document.getElementById("iInclude").checked = true;
+    document.getElementById("iCurrency").value = baseCurrency();
   }
   document.getElementById("iError").textContent = "";
   openSheet("itemForm");
@@ -10484,17 +10561,26 @@ document.getElementById("itemForm").addEventListener("submit", (e) => {
   const monthly = kind === "liability" && monthlyRaw ? parseAmountField(monthlyRaw) : 0;
   // W4.7 (FI-27) : la date suit la VALEUR — renommer ne re-date jamais.
   const dateEstimation = `${NOW.y}-${String(NOW.m).padStart(2, "0")}-${String(NOW.d).padStart(2, "0")}`;
+  const currency = document.getElementById("iCurrency").value || baseCurrency();
   let saved = item;
   if (item) {
     const valeurChangee = item.value !== value;
-    Object.assign(item, { name, value, include, monthly: monthly || 0 });
+    if (valeurChangee) {
+      // W8.3b : l'historique de valorisations est APPEND-ONLY —
+      // l'ancienne valeur garde SA date, la courbe pourra la raconter.
+      const histo = Array.isArray(item.histo) ? item.histo : (item.histo = []);
+      if (!histo.length) histo.push({ date: item.valueDate || dateEstimation, value: item.value });
+      histo.push({ date: dateEstimation, value });
+    }
+    Object.assign(item, { name, value, include, monthly: monthly || 0, currency });
     if (valeurChangee) item.valueDate = dateEstimation;
     toast(kind === "liability" ? "Dette modifiée" : "Actif modifié");
   }
   else {
     saved = { id: (kind === "liability" ? "li-" : "as-") + Date.now().toString(36),
               name, value, include, monthly: monthly || 0, icon: kind === "liability" ? "📄" : "🏷",
-              valueDate: dateEstimation };
+              valueDate: dateEstimation, currency,
+              histo: [{ date: dateEstimation, value }] };
     list.push(saved);
     toast(kind === "liability" ? "Dette ajoutée" : "Actif ajouté");
   }

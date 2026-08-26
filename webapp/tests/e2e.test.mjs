@@ -14094,6 +14094,109 @@ currentTest = "W8.3a taux datés";
   await ctx226.close();
 }
 
+// ---------- 227. W8.3b : DEVISE DES BIENS — conversion datée, historique de valorisations ----------
+// Budget Autonomie 100, W8.3b (ADR-070) : mesuré — les actifs et
+// dettes n'avaient AUCUNE devise (un bien en EUR était compté comme
+// du CHF, silencieusement), une seule valeur écrasée à chaque édition
+// (courbe de patrimoine fausse dès la première revalorisation), et le
+// bandeau « montants non convertibles » ne surveillait que comptes et
+// mouvements. Livré : devise par bien (défaut = base, décision
+// propriétaire), conversion datée, exclusion NOMMÉE si taux manquant,
+// historique de valorisations append-only (valeurAuMois).
+currentTest = "W8.3b devise des biens";
+{
+  const ctx227 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p227 = await ctx227.newPage();
+  p227.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.3b] ${msg.text()}`); });
+  await p227.addInitScript(() => {
+    const now = new Date();
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Biens" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [],
+      assets: [
+        { id: "as-eur", name: "Studio ES", value: 10000, include: true, icon: "🏷", currency: "EUR",
+          valueDate: iso(new Date(now.getFullYear(), now.getMonth() - 3, 10)) },
+        { id: "as-usd", name: "Montre US", value: 2000, include: true, icon: "🏷", currency: "USD" },
+      ],
+      liabilities: [
+        { id: "li-eur", name: "Prêt EUR", value: 1000, include: true, monthly: 0, icon: "📄", currency: "EUR" },
+      ],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+      fxRates: { EUR: 0.85 },
+      fxQuotes: [
+        { base: "CHF", quote: "EUR", taux: 0.9, observedAt: iso(new Date(now.getFullYear(), now.getMonth() - 8, 5)), source: "fixture test" },
+        { base: "CHF", quote: "EUR", taux: 0.85, observedAt: iso(new Date(now.getFullYear(), now.getMonth(), 1)), source: "fixture test" },
+      ],
+    }));
+  });
+  await p227.goto(APP_URL);
+  await p227.waitForSelector("#tabbar button");
+  const biens = await p227.evaluate(() => {
+    const resultat = {};
+    activeTab = "more"; moreView = "networth"; render();
+    const texte = () => document.getElementById("screen").textContent;
+    // 1. Un bien en EUR est CONVERTI (10000 × 0.85 = 8500), plus jamais
+    //    compté brut comme du CHF.
+    resultat.biensConvertis = texte().includes(chf(8500)) && !texte().includes(chf(12000));
+    // 2. La dette en EUR aussi (1000 × 0.85 = 850).
+    resultat.detteConvertie = texte().includes(chf(-850, true));
+    // 3. Le bien en USD SANS taux est exclu et l'écart est NOMMÉ au
+    //    bandeau (« Montants non convertibles … USD »).
+    resultat.tauxManquantNomme = texte().includes("USD") && texte().includes("non convertibles");
+    // 4. L'édition de la valeur HISTORISE (append-only) : l'ancienne
+    //    valeur garde sa date, valeurAuMois la restitue.
+    if (typeof valeurAuMois !== "function") { resultat.histoAppend = false; }
+    else {
+      openItemSheet("asset", "as-eur");
+      document.getElementById("iAmount").value = "12000.00";
+      document.getElementById("itemForm").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      const a = ASSETS.find(x => x.id === "as-eur");
+      const now = new Date();
+      const m2 = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      resultat.histoAppend = Array.isArray(a.histo) && a.histo.length === 2
+        && a.histo[0].value === 10000 && a.histo[1].value === 12000
+        && valeurAuMois(a, m2.getFullYear(), m2.getMonth() + 1) === 10000
+        && valeurAuMois(a, now.getFullYear(), now.getMonth() + 1) === 12000;
+    }
+    // 5. La courbe du patrimoine raconte : biens datés (valeur ET taux
+    //    de leur moment) — le point global n'est plus une droite plate.
+    render();
+    const nonPlates = [...document.querySelectorAll("#screen polyline")].filter(pl => {
+      const ys = (pl.getAttribute("points") || "").split(" ").map(pt => pt.split(",")[1]);
+      return new Set(ys).size > 1;
+    }).length;
+    resultat.courbeBiensDatee = nonPlates >= 1;
+    // 6. Restauration : devise et historique survivent (clés additives),
+    //    une entrée d'historique hostile est écartée sans casser le reste.
+    const photo = JSON.parse(JSON.stringify(S));
+    if (Array.isArray((photo.assets[0] || {}).histo)) photo.assets[0].histo.push({ date: "pas-une-date", value: -5 });
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationAdditive = !!restauree
+      && restauree.assets[0].currency === "EUR"
+      && Array.isArray(restauree.assets[0].histo)
+      && restauree.assets[0].histo.length === 2;
+    moreView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(biens.biensConvertis === true,
+    "un bien en EUR est converti au taux consigné (CHF 8'500), plus jamais compté brut");
+  check(biens.detteConvertie === true,
+    "une dette en EUR est convertie elle aussi (CHF 850)");
+  check(biens.tauxManquantNomme === true,
+    "un bien sans taux est exclu et NOMMÉ au bandeau « non convertibles »");
+  check(biens.histoAppend === true,
+    "l'édition historise : l'ancienne valeur garde sa date, valeurAuMois la restitue");
+  check(biens.courbeBiensDatee === true,
+    "la courbe du patrimoine date les biens (valeur et taux de leur moment)");
+  check(biens.restaurationAdditive === true,
+    "restauration : devise et historique survivent, l'entrée hostile est écartée");
+  await ctx227.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14103,4 +14206,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 226 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 227 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
