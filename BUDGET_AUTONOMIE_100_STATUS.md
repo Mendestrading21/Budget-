@@ -124,7 +124,7 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.5 fusionnés · W8.6 EN PR | W3, W4 (fusionnés) |
+| W8 | Investissements et modules régionaux | W8.1–W8.6 fusionnés · W8.7 EN PR | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -155,6 +155,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W8.7 : activation régionale — les mots du pays, partout → W8 FERMÉ
+
+Dernier sous-lot de W8. Mesuré d'abord : le `taxHint` régional
+(COUNTRIES, écrit en W4) n'était AFFICHÉ nulle part — trois phrases
+soigneusement rédigées, jamais lues ; et les libellés de piliers
+restaient suisses (« Pilier 3a ») même en France ou en Belgique.
+Livré : l'écran Impôts dit la phrase fiscale du pays (acomptes en
+Suisse ; retenue à la source en France et Belgique) ; les piliers
+parlent la langue du pays — MÊMES clés stables (« 1 », « 2 », « 3a »,
+« 3b »), mots locaux (retraite de base, complémentaire, PER,
+épargne-pension, assurance groupe) — sur la ligne de prévoyance ET
+dans les options de la feuille. Aucun nouveau pays, aucune nouvelle
+devise (non-objectif tenu). Preuves : parcours 231 né rouge (4 échecs
+nommés ; verrou « Pilier 3a reste suisse » né vert) ; deux sabotages
+qui mordent seuls (piliers forcés suisses → 2 échecs ; phrase fiscale
+retirée → 2 échecs) ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w8-7/` — prévoyance FR avec « PER »,
+Impôts FR avec la retenue à la source) ; suites complètes vertes
+(231 e2e, 9 parités, 14 canon + schéma, design, catalogue, audits).
+Fusion W8.6 (`main` = `02be07c`, PR #189) et publication **succès**
+consignées. **W8 est FERMÉ après fusion de ce lot** (7 sous-lots dont
+W8.3 en trois parties — 9 PR au total).
 
 ### 26.08.2026 — W8.6 : assurances & prévoyance — cadences réelles, genre, préavis, pilier, devise
 

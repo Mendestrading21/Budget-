@@ -14455,6 +14455,66 @@ currentTest = "W8.6 assurances-prévoyance";
   await ctx230.close();
 }
 
+// ---------- 231. W8.7 : ACTIVATION RÉGIONALE — les mots du pays, partout ----------
+// Budget Autonomie 100, W8.7 (dernier sous-lot de W8) : mesuré — le
+// `taxHint` régional (COUNTRIES) n'était AFFICHÉ nulle part, et les
+// libellés de piliers restaient suisses (« Pilier 3a ») même en
+// France ou en Belgique. Livré : l'écran Impôts dit la phrase fiscale
+// du pays, et les piliers parlent la langue du pays (PER,
+// épargne-pension…) — mêmes clés stables, mots locaux. Aucun nouveau
+// pays, aucune nouvelle devise (non-objectif).
+currentTest = "W8.7 activation régionale";
+{
+  const ctx231 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p231 = await ctx231.newPage();
+  p231.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.7] ${msg.text()}`); });
+  await p231.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Pays" },
+      baseCurrency: "CHF", country: "CH",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      documents: [], budgets: {}, bills: [], insurances: [],
+      pensions: [{ id: "p-3a", name: "Mon épargne retraite", value: 10000, projection: null, accountId: null, rente: false, pillar: "3a" }],
+    }));
+  });
+  await p231.goto(APP_URL);
+  await p231.waitForSelector("#tabbar button");
+  const pays = await p231.evaluate(() => {
+    const resultat = {};
+    const texte = () => document.getElementById("screen").textContent;
+    // 1. CH : l'écran Impôts dit la phrase fiscale du pays (acomptes).
+    activeTab = "more"; moreView = "taxes"; render();
+    resultat.hintCH = texte().includes("notez vos acomptes");
+    // 2. CH : le pilier parle suisse.
+    moreView = "insurance"; render();
+    resultat.pilierCH = texte().includes("Pilier 3a");
+    // 3. FR : les MÊMES écrans changent de mots — retenue à la source,
+    //    et « PER » à la place de « Pilier 3a ».
+    S.country = "FR";
+    moreView = "taxes"; render();
+    resultat.hintFR = texte().includes("déjà retenus sur le salaire");
+    moreView = "insurance"; render();
+    resultat.pilierFR = texte().includes("PER") && !texte().includes("Pilier 3a");
+    // 4. BE : épargne-pension.
+    S.country = "BE";
+    render();
+    resultat.pilierBE = texte().includes("Épargne-pension");
+    S.country = "CH";
+    moreView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(pays.hintCH === true,
+    "Suisse : l'écran Impôts dit la phrase du pays (« notez vos acomptes »)");
+  check(pays.pilierCH === true, "Suisse : « Pilier 3a » reste suisse");
+  check(pays.hintFR === true,
+    "France : l'écran Impôts dit la retenue à la source — même écran, mots du pays");
+  check(pays.pilierFR === true,
+    "France : « PER » remplace « Pilier 3a » — mêmes clés, mots locaux");
+  check(pays.pilierBE === true, "Belgique : « Épargne-pension »");
+  await ctx231.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14464,4 +14524,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 230 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 231 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

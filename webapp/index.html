@@ -2538,6 +2538,18 @@ const INSURANCE_DIVISOR = { month: 1, quarter: 3, semester: 6, year: 12 };
 const INSURANCE_CADENCE = { quarter: "par trimestre", semester: "par semestre", year: "par an" };
 const INSURANCE_KINDS = { sante: "Santé", menage: "Ménage et RC", auto: "Véhicule", vie: "Vie", autre: "Autre" };
 const PENSION_PILLARS = { "1": "Pilier 1 (AVS)", "2": "Pilier 2 (LPP)", "3a": "Pilier 3a", "3b": "Pilier 3b" };
+/* W8.7 : les MÊMES clés stables de pilier, les MOTS du pays — jamais un
+   « Pilier 3a » imposé à la France ou à la Belgique. */
+const PENSION_PILLAR_LABELS = {
+  "1": { CH: "Pilier 1 (AVS)", FR: "Retraite de base", BE: "Pension légale" },
+  "2": { CH: "Pilier 2 (LPP)", FR: "Retraite complémentaire", BE: "Assurance groupe" },
+  "3a": { CH: "Pilier 3a", FR: "PER", BE: "Épargne-pension" },
+  "3b": { CH: "Pilier 3b", FR: "Assurance vie", BE: "Assurance vie (21/23)" },
+};
+function pilierLabel(cle) {
+  const entry = PENSION_PILLAR_LABELS[cle] || {};
+  return entry[S.country || "CH"] || entry.CH || null;
+}
 function insuranceMonthly(i) {
   if (typeof i.premium === "number") return i.premium / (INSURANCE_DIVISOR[i.unit] || 1);
   return i.monthly || 0; // ancienne forme stockée
@@ -5731,6 +5743,7 @@ function renderTaxes() {
       : `<div class="card row"><span class="caption">Rien pour l'instant. Ajoutez vos acomptes comme des factures : ils compteront dans votre mois, comme n'importe quelle sortie.</span></div>`}
     <button class="btn secondary" data-addtaxbill style="margin-top:8px">Ajouter un acompte</button>
     <button class="btn secondary" data-adjusttax style="margin-top:8px">Poser la provision ${cursor.y}</button>
+    <p class="caption" style="padding:6px 4px 0">${esc((COUNTRIES[S.country || "CH"] || COUNTRIES.CH).taxHint)}</p>
     <p class="caption" style="padding:6px 4px 0">L'app ne calcule aucun impôt à votre place : elle additionne seulement ce que vous notez en ${cursor.y}. Ce n'est pas un conseil fiscal.</p>`;
 }
 
@@ -6182,7 +6195,7 @@ function renderInsurance() {
     </div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>
       <div class="meta"><div class="t">${esc(p.name)}${p.rente !== true && !pensionIsLinked(p) && /\bavs\b|1er pilier|\brente\b/i.test(p.name)
-        ? '<span class="badge planned">À confirmer : rente ou capital ?</span>' : ""}</div><div class="s">${PENSION_PILLARS[p.pillar] ? `${PENSION_PILLARS[p.pillar]} · ` : ""}${p.rente === true
+        ? '<span class="badge planned">À confirmer : rente ou capital ?</span>' : ""}</div><div class="s">${pilierLabel(p.pillar) ? `${pilierLabel(p.pillar)} · ` : ""}${p.rente === true
         ? "Rente estimée — hors patrimoine · montant tel que saisi"
         : pensionIsLinked(p)
         ? `Suit le solde de « ${esc((ACCOUNTS.find(a => a.id === p.accountId) || {}).name || "")} »`
@@ -10911,6 +10924,10 @@ function openPenSheet(position) {
     + ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))
       .map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join("");
   sel.value = position && position.accountId ? position.accountId : "";
+  // W8.7 : les options de pilier parlent la langue du pays.
+  for (const opt of document.getElementById("penPillar").options) {
+    if (opt.value && pilierLabel(opt.value)) opt.textContent = pilierLabel(opt.value);
+  }
   const renteBox = document.getElementById("penRente");
   renteBox.checked = position ? position.rente === true : false;
   // Une rente ne suit jamais un solde de compte : le lien se coupe.
