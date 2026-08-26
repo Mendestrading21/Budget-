@@ -46,6 +46,20 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-1.61.1-${{ runner.os }}
 
+      # W9.1 — build TypeScript « à vide » : porte de types + artefact
+      # vérifié au octet près contre le monofichier servi. Version de
+      # typescript ÉPINGLÉE dans webapp/build/package.json (même motif
+      # que playwright ci-dessous).
+      - name: Build TypeScript (W9.1 — types + artefact au octet près)
+        working-directory: webapp/build
+        run: |
+          npm install --no-audit --no-fund
+          node build.mjs --check
+
+      - name: Suite du pipeline de build (webapp/tests/build.test.mjs)
+        working-directory: webapp/tests
+        run: node build.test.mjs
+
       - name: Dépendances (Playwright + Chromium)
         working-directory: webapp/tests
         run: |

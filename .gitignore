@@ -23,3 +23,10 @@ xcuserdata/
 *.backup.json
 Exports/
 __pycache__/
+
+# W9.1 — outillage de build web : le dossier est VERSIONNÉ (exception au
+# « build/ » d'Xcode ci-dessus) ; ses dépendances et l'artefact non.
+!webapp/build/
+webapp/build/node_modules/
+webapp/build/package-lock.json
+webapp/dist/

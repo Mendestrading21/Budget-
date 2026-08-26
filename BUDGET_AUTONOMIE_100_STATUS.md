@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | READY — Work Order écrit (`docs/autonomie/w9/WORK_ORDER_W9.md`) | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1 EN PR (Work Order : `docs/autonomie/w9/WORK_ORDER_W9.md`) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,31 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W9.1 : build TypeScript à vide — porte de types, artefact au octet près
+
+Premier sous-lot du chantier PWA modulaire. Livré :
+`webapp/build/build.mjs` — porte de types (`tsc --noEmit`, typescript
+ÉPINGLÉ 5.6.3, même motif que playwright) puis artefact
+`webapp/dist/index.html` en copie AU OCTET PRÈS du monofichier servi,
+`--check` qui échoue à la moindre dérive ; `webapp/src/` (tsconfig
+strict, `main.ts` point d'entrée — rien n'est servi depuis src jusqu'à
+W9.8) ; `webapp/tests/build.test.mjs` (4 contrôles : build vert,
+octets identiques, reproductible, porte de types qui MORD en nommant
+le fichier cassé) ; étape CI avant l'e2e ; `.gitignore` corrigé (le
+« build/ » d'Xcode avalait `webapp/build` — exception nommée,
+node_modules et dist ignorés). Divergence Work Order consignée : la CI
+a le réseau (npm déjà en usage) — l'épinglage exact remplace le
+vendoring. Preuves : né-rouge nommé (« build.mjs absent — aucun
+pipeline ») ; deux sabotages qui mordent seuls (un octet ajouté à
+l'artefact → dérive nommée 670922 vs 670923 ; porte de types
+débranchée → « une source cassée passe le build ») ; aucune UI
+touchée (pas de captures, consigné) ; suites complètes vertes
+(231 e2e, build, 9 parités, 14 canon + schéma, design, catalogue,
+audits — le contrôle « code vivant » accepte src/ sans exception).
+Fusion du plan W9 (`main` = `4d2b710`, PR #191) consignée ;
+publications W8.7 (fermeture W8, SHA `8c09c30`) et plan W9 : dispatch
+après CI push verte, verdicts au poll (W8.7 : **succès**).
 
 ### 26.08.2026 — W9 : Work Order écrit (mode plan)
 
