@@ -188,8 +188,8 @@ natif suivra avec les écrans iOS de W7 (miroir des exclusions et du
 rollback ciblé — `CSVImportService.rollback(batchID:)` existe déjà).
 **W7 est FERMÉ** (7 sous-lots fusionnés). FUSIONNÉ (`main` = `6bd2199`,
 PR #180, CI verte sur le HEAD exact `74391e9`) ; publication par
-dispatch au SHA exact `6bd2199` : run `32973930646` (verdict consigné
-ci-dessous dès la fin du run — rien n'est déclaré avant d'être vu).
+dispatch au SHA exact `6bd2199` : run `32973930646`, **succès**
+(poll observé jusqu'à `completed success`).
 
 ### 26.08.2026 — W8 : Work Order écrit (mode plan)
 
