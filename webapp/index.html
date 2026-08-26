@@ -4948,6 +4948,17 @@ function renderAccountDetail(a) {
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
+    ${(() => {
+      // W5.5 : le DERNIER RELEVÉ (W4.3) se voit — montant constaté,
+      // date, provenance. Sans relevé, rien n'est inventé.
+      const releve = (S.releves || []).filter(r => r.compte === a.id).at(-1);
+      if (!releve) return "";
+      const [ry, rm, rd] = releve.date.split("-");
+      return `<div class="card">
+        <p class="card-label">Dernier relevé</p>
+        <p class="caption" style="margin:4px 0 0">Solde constaté ${money(releve.soldeMineur / 100, a.currency || baseCurrency())} le ${rd}.${rm}.${ry} — ${esc(releve.source)}.</p>
+      </div>`;
+    })()}
     <div class="card">
       <p class="card-label">Solde — 12 derniers mois</p>
       ${chartScrubHTML("acc", {
@@ -4986,11 +4997,16 @@ function renderAccounts() {
   }
   const liquid = fromCents(ACCOUNTS.filter(a => a.cash && compteActif(a)).reduce((a, acc) => a + toCents(toCHF(balance(acc.id), acc.currency)), 0));
   const hasForeign = ACCOUNTS.some(a => a.currency && a.currency !== baseCurrency());
+  // W5.5 : les groupes ne montrent que les comptes ACTIFS — les
+  // archivés vivent dans leur section, plus bas ; les cartes et prêts
+  // (W4.1) ont enfin leur groupe.
   const groups = [
-    ["Argent disponible", ACCOUNTS.filter(a => ["current", "cash"].includes(a.kind))],
-    ["Épargne et placements", ACCOUNTS.filter(a => ["savings", "brokerage"].includes(a.kind))],
-    [L("pensionGroup"), ACCOUNTS.filter(a => ["pension", "lifeinsurance"].includes(a.kind))],
+    ["Argent disponible", ACCOUNTS.filter(a => compteActif(a) && ["current", "cash"].includes(a.kind))],
+    ["Épargne et placements", ACCOUNTS.filter(a => compteActif(a) && ["savings", "brokerage"].includes(a.kind))],
+    [L("pensionGroup"), ACCOUNTS.filter(a => compteActif(a) && ["pension", "lifeinsurance"].includes(a.kind))],
+    ["Cartes et prêts", ACCOUNTS.filter(a => compteActif(a) && ACCOUNT_KINDS[a.kind] && ACCOUNT_KINDS[a.kind].dette)],
   ].filter(([, accs]) => accs.length);
+  const archives = ACCOUNTS.filter(a => !compteActif(a));
   // Répartition de l'argent entre les trois natures de comptes : une
   // liste de soldes ne dit pas où le patrimoine se trouve. Une seule
   // barre segmentée le montre, avec sa légende écrite — jamais la
@@ -5084,6 +5100,14 @@ function renderAccounts() {
         <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
       </div>`;
       }).join("")}`).join("")}
+    ${archives.length ? `
+      <p class="section-title">Archivés</p>
+      ${archives.map(a => `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer;opacity:.75">
+        <div class="ico" aria-hidden="true">${budgetGlyph("accounts")}</div>
+        <div class="meta"><div class="t">${esc(a.name)}</div>
+          <div class="s">${esc(kindLabel(a.kind))} · archivé — l'histoire reste</div></div>
+        <span class="amount acct-total">${money(balance(a.id), a.currency || baseCurrency())}</span>
+      </div>`).join("")}` : ""}
     <button class="btn secondary" data-addacc style="margin-top:10px">Ajouter un compte</button>`;
 }
 
