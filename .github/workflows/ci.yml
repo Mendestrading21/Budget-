@@ -77,6 +77,12 @@ jobs:
           BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
           node e2e.test.mjs
 
+      - name: Comparateur du domaine extrait (W9.2 — miroir TS ≡ monofichier)
+        working-directory: webapp/tests
+        run: |
+          BUDGET_CHROMIUM="$(node -e 'console.log(require("playwright").chromium.executablePath())')" \
+          node domaine.test.mjs
+
       - name: Suite de parité web/natif (fixtures canoniques)
         working-directory: webapp/tests
         run: |

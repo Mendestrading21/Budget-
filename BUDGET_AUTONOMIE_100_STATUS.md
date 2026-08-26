@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1 EN PR (Work Order : `docs/autonomie/w9/WORK_ORDER_W9.md`) | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1 fusionné · W9.2 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W9.2 : domaine extrait en miroir vérifié — monnaie et taux datés typés
+
+Mesuré d'abord : les tests chargent l'app en `file://`, où les modules
+ES sont bloqués (CORS) — le BRANCHEMENT dans la page attendra le
+bundling (W9.8). Contrat du lot : la SOURCE DE VÉRITÉ typée vit dans
+`webapp/src/domaine/` — `monnaie.ts` (centimes/francs/arrondi, G01) et
+`taux.ts` (quotes datées, cache, conversion des stocks au taux du
+mois — l'état en PARAMÈTRES explicites, aucun global) — et le
+comparateur `webapp/tests/domaine.test.mjs` prouve à chaque CI que le
+miroir TS et le monofichier produisent EXACTEMENT les mêmes sorties
+(13 montants pièges dont `0.1+0.2`, 24 cas de taux, 5 cas de stock
+avec toute la chaîne de replis) : toute dérive de l'un OU de l'autre
+est un échec nommé, modifier l'un sans l'autre en silence est devenu
+impossible. `build --emit <dossier>` transpile le domaine pour les
+comparateurs (rien de servi). Étape CI ajoutée. Preuves : né-rouge
+nommé (2 sources absentes) ; comparateur vert du premier coup ; deux
+sabotages qui mordent seuls avec les CHIFFRES de la dérive (miroir qui
+tronque → `1235 ≠ 1234` sur 0.005 ; repli « première mesure » sauté →
+`900 ≠ 850`) ; aucune UI touchée (pas de captures, consigné) ; suites
+complètes vertes (231 e2e, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits). Fusion W9.1 (`main` = `c6a4314`,
+PR #192 — la CI de la PR a exercé la nouvelle étape de build en
+conditions réelles) ; publication du plan W9 : **succès**.
 
 ### 26.08.2026 — W9.1 : build TypeScript à vide — porte de types, artefact au octet près
 

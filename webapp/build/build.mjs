@@ -32,6 +32,24 @@ try {
   process.exit(1);
 }
 
+// 1b. W9.2 — `--emit <dossier>` : transpiler le domaine pour les
+// COMPARATEURS de tests (miroir TS ≡ monofichier). Rien de servi.
+const emitIdx = process.argv.indexOf("--emit");
+if (emitIdx >= 0) {
+  const cible = process.argv[emitIdx + 1];
+  if (!cible) { console.error("build --emit : dossier cible manquant."); process.exit(1); }
+  try {
+    execFileSync("node", [TSC, "-p", path.join(SRC, "tsconfig.json"),
+      "--noEmit", "false", "--outDir", cible, "--module", "ES2022", "--pretty", "false"], { encoding: "utf8" });
+  } catch (e) {
+    console.error("build --emit : transpilation en échec :");
+    console.error(String(e.stdout || e.message).slice(0, 2000));
+    process.exit(1);
+  }
+  console.log(`build : domaine transpilé vers ${cible}.`);
+  process.exit(0);
+}
+
 // 2. Artefact au octet près.
 mkdirSync(DIST_DIR, { recursive: true });
 const source = readFileSync(SOURCE);
