@@ -1438,6 +1438,12 @@
         <input type="date" id="rStartOn" />
       </div>
       <p class="caption" id="rDueNote" style="margin:4px 0 0"></p>
+      <!-- W6.4 (décision propriétaire du 26.08.2026) : fonds annuel
+           INFORMATIF — un repère de lissage, jamais un virement. -->
+      <div id="rFondsAnnuel" style="display:none;margin-top:8px">
+        <p class="card-label" style="margin:0 0 2px">Fonds de lissage (repère)</p>
+        <p class="caption" id="rFondsTexte" style="margin:0"></p>
+      </div>
       <!-- 5. La destination — visible SEULEMENT pour une mise de côté, et
            obligatoire. Sans elle, l'argent quittait le compte sans arriver
            nulle part et le patrimoine baissait chaque mois. -->
@@ -9434,6 +9440,20 @@ function openRecSheet(rec) {
   // charge annuelle hors de son mois, ou résiliée, n'a rien à valider.
   const dueThisMonth = rec && recurringDueIn(rec, NOW.y, NOW.m);
   postBtn.style.display = rec && dueThisMonth && !alreadyThisMonth ? "block" : "none";
+  // W6.4 (décision propriétaire : informatif en V1) : le lissage d'une
+  // charge ANNUELLE de dépense se lit — douzième mensuel et repère
+  // depuis la dernière échéance, calculés sur le montant ANNUEL (G01).
+  // Rien n'est viré : l'argent ne bouge que par vos gestes.
+  const fondsAnnuel = document.getElementById("rFondsAnnuel");
+  const chargeAnnuelle = rec && recurringEvery(rec) === "year" && rec.type !== "income";
+  fondsAnnuel.style.display = chargeAnnuelle ? "block" : "none";
+  if (chargeAnnuelle) {
+    const douzieme = round2(rec.amount / 12);
+    const ecoules = ((NOW.m - recurringDueMonth(rec)) % 12 + 12) % 12;
+    const repere = round2(rec.amount * ecoules / 12);
+    document.getElementById("rFondsTexte").textContent =
+      `${chf(douzieme)} par mois pour lisser cette charge. Depuis la dernière échéance, il faudrait avoir ${chf(repere)} de côté (${ecoules}/12). Rien n'est viré automatiquement — un repère, pas un geste.`;
+  }
   // W5.7 (ADR-066) : les gestes d'agenda accompagnent le règlement — la
   // même condition exactement (une échéance de CE mois reste ouverte).
   const agendaGestes = document.getElementById("rAgendaGestes");

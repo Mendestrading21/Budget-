@@ -1,5 +1,37 @@
 # Budget decision log
 
+## ADR-068 — Les fonds annuels sont informatifs en V1
+
+Date: 2026-08-26
+Status: accepted
+
+### Contexte
+
+Une charge annuelle (SERAFE, prime d'assurance) tombe d'un coup sur
+son mois d'échéance ; aucun repère de lissage n'existait. Question
+posée au propriétaire le 26.08.2026 : le fonds de lissage doit-il
+créer des virements réels chaque mois, ou rester un repère ?
+
+### Décision
+
+Réponse du propriétaire : **informatif en V1**. La feuille d'une
+charge annuelle de dépense LIT le lissage — douzième mensuel et
+repère cumulé depuis la dernière échéance (« CHF 27.92 par mois …
+il faudrait avoir CHF 223.33 de côté (8/12) »), calculés sur le
+montant ANNUEL (jamais sur la mensualité arrondie, G01). AUCUNE
+écriture automatique : « le bouton enregistre, jamais le
+calendrier » ; l'honnêteté est écrite à l'écran (« Rien n'est viré
+automatiquement — un repère, pas un geste. »). Des virements réels
+resteraient une évolution possible, sur nouvelle décision.
+
+### Vérification
+
+Parcours 214 né rouge (3 échecs nommés) → vert ; sabotage (le repère
+se calcule sur la mensualité arrondie) → « calculé sur le montant
+annuel » mord seul ; verrous nés verts : une charge mensuelle reste
+muette, aucune écriture créée.
+
+
 ## ADR-067 — Le report budgétaire est opt-in par ligne, calculé en chaîne
 
 Date: 2026-08-26
