@@ -40,6 +40,26 @@ struct GoalProgressService {
         return goal.manualCurrentAmount
     }
 
+    /// W6.5 — la PROVENANCE de la valeur courante, toujours nommée :
+    /// solde du compte relié (affectation réelle), saisie manuelle datée,
+    /// ou saisie manuelle jamais datée (l'existant le DIT — aucune date
+    /// n'est inventée). Miroir du contrat PWA.
+    enum CurrentProvenance: Equatable {
+        case linkedBalance(accountName: String)
+        case manualDated(Date)
+        case manualUndated
+    }
+
+    func currentProvenance(of goal: FinancialGoal) -> CurrentProvenance {
+        if let account = goal.linkedAccount {
+            return .linkedBalance(accountName: account.name)
+        }
+        if let date = goal.manualCurrentDate {
+            return .manualDated(date)
+        }
+        return .manualUndated
+    }
+
     /// Photo des valeurs AVANT l'écriture : sans elle, impossible de dire de
     /// combien ça a bougé. À prendre juste avant d'insérer le mouvement.
     func snapshotCurrents(goals: [FinancialGoal]) -> [UUID: Decimal] {

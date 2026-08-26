@@ -124,6 +124,11 @@ final class FinancialGoal {
     var targetDate: Date?
     /// Used only when no account is linked.
     var manualCurrentAmount: Decimal
+    /// W6.5 (contrat DATA_MODEL_TARGET) : une valeur MANUELLE est
+    /// explicitement DATÉE — `nil` pour l'existant (« non daté »,
+    /// jamais une date inventée) et pour un objectif lié (le solde du
+    /// compte fait foi). Ajout additif : migration légère SwiftData.
+    var manualCurrentDate: Date?
     /// What the user plans to put aside each month.
     var plannedMonthlyContribution: Decimal
 
@@ -158,6 +163,7 @@ final class FinancialGoal {
         targetAmount: Decimal,
         targetDate: Date? = nil,
         manualCurrentAmount: Decimal = .zero,
+        manualCurrentDate: Date? = nil,
         plannedMonthlyContribution: Decimal = .zero,
         priority: GoalPriority = .normal,
         status: GoalStatus = .active,
@@ -173,6 +179,7 @@ final class FinancialGoal {
         self.targetAmount = targetAmount
         self.targetDate = targetDate
         self.manualCurrentAmount = manualCurrentAmount
+        self.manualCurrentDate = manualCurrentDate
         self.plannedMonthlyContribution = plannedMonthlyContribution
         self.priorityRawValue = priority.rawValue
         self.statusRawValue = status.rawValue
