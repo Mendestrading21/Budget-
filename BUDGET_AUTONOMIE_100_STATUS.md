@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.3 fusionnés · W5.5 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.3 + W5.5 fusionnés · W5.4 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -156,6 +156,36 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W5.4 : Budget — le futur parle au conditionnel, le passé au passé
+
+ADR-055/056 confirmés sur la destination Budget. Mesure d'abord (sonde
+navigateur) : un mois FUTUR avec budget disait « Il vous reste à
+dépenser » + « Dans le plan » + « utilisé 0 % » (le présent de
+l'indicatif sur un mois qui n'a pas commencé) et comparait son coût de
+la vie VIDE au mois dernier (« ce mois −CHF 3'626.45 ») ; un mois
+PASSÉ disait encore « reste à dépenser » alors qu'il est clos. Aucun
+calcul ne change — seuls les mots et ce qui s'affiche : au FUTUR le
+héros dit « Prévu pour ce mois », pastille « À venir », phrase au
+conditionnel (« Si vous suivez le plan, vos dépenses resteront sous
+CHF X »), anneau tu (rien n'a couru), comparaison tue ; au PASSÉ « Il
+vous est resté », pastille « Budget tenu »/« Dépassé » (« À
+surveiller » disparaît — un mois clos ne se surveille plus, sur le
+héros comme sur les lignes) ; le mois COURANT garde ses mots (verrou).
+Preuves : parcours 208 né rouge (5 échecs nommés : futurConditionnel,
+futurSansPresent, comparaisonTue, passeAuPasse, passePille ; le verrou
+passeSansSurveiller est né avec l'implémentation — le sabotage fait
+foi) → vert ; sabotage double chirurgical (le futur reparle au présent
+→ futurSansPresent mord seul ; « À surveiller » revient au passé →
+passeSansSurveiller mord seul — exactement 2 échecs, rien d'autre) ;
+restauré vert ; NU2 (test 74) aligné sans affaiblir : son budget vit
+sur un mois futur (+6), la pastille attendue devient « À venir » et
+l'anneau doit y être ABSENT (contrat renforcé) ; captures 320/390
+futur+passé inspectées (`docs/neon-ultra/budget-prisme/w5-4/`) ;
+suites complètes vertes (208 e2e, 9 parités, 13 canon + schéma,
+design, catalogue, audit). Consigné : le miroir natif (BudgetTab au
+conditionnel) suivra avec les écrans iOS de W5 ; prochain lot W5.6
+(Gérer — taux datés visibles).
+
 ### 26.08.2026 — W5.5 : Comptes — les dettes ont leur groupe, les archivés leur place, les relevés se voient
 
 Mesure d'abord : les comptes de dette créés en W4.1 (`creditCard`,
@@ -179,7 +209,8 @@ vertes (207 e2e, 9 parités, 13 canon + schéma, design, catalogue,
 audit). Consigné : le formulaire compte natif (typologie + solde dû)
 et la présentation archivés/relevés iOS suivront quand W5 touchera
 les écrans natifs ; prochains lots W5.4 (Budget — projections au
-conditionnel) et W5.6 (Gérer — taux datés visibles).
+conditionnel) et W5.6 (Gérer — taux datés visibles). Fusionné
+(`main` = `d165fb0`, PR #164) et publié (run `32922555366`, succès).
 
 ### 26.08.2026 — W5.3 : l'Historique lit la chaîne — « corrigé » se voit
 

@@ -4732,6 +4732,11 @@ function renderBudget() {
   const totalPlanned = spending.reduce((a, l) => a + l.planned, 0);
   const totalActual = spending.reduce((a, l) => a + l.actual, 0);
   const remaining = totalPlanned - totalActual;
+  // W5.4 (ADR-055/056 confirmés sur cette destination) : le temps du
+  // verbe suit le mois — futur au conditionnel, passé au passé. Aucun
+  // agrégat ne change, seuls les mots et la comparaison affichée.
+  const futurMois = y > NOW.y || (y === NOW.y && m > NOW.m);
+  const passeMois = y < NOW.y || (y === NOW.y && m < NOW.m);
 
   const groups = [
     ["Essentiel", report.lines.filter(l => l.kind === "expense" && ["Logement", "Assurance maladie", "Alimentation", "Transports"].includes(l.cat))],
@@ -4748,8 +4753,10 @@ function renderBudget() {
       const fr = Math.min(1, l.planned > 0 ? l.actual / l.planned : 1);
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
       // L3 : le statut est toujours écrit, jamais porté par la couleur seule.
+      // W5.4 : « À surveiller » est un mot du présent — un mois CLOS ne
+      // se surveille plus (« Dépassé » reste un fait, à tous les temps).
       const badge = l.over ? '<span class="badge">Dépassé</span>'
-        : (fr > 0.85 && l.planned > 0 ? '<span class="badge planned">À surveiller</span>' : "");
+        : (fr > 0.85 && l.planned > 0 && !passeMois ? '<span class="badge planned">À surveiller</span>' : "");
       return `<div class="card row" data-linecat="${esc(l.cat)}" role="button" tabindex="0" style="cursor:pointer">
         <div class="bar-row" style="margin:0;min-width:0;flex:1">
           <div class="bar-head"><span>${esc(l.cat)}${badge}</span>
@@ -4795,10 +4802,14 @@ function renderBudget() {
   const ringColor = ringFraction > 1 ? "var(--nu-negative)" : (ringFraction > 0.85 ? "var(--nu-warning)" : "var(--nu-violet)");
   const ringCirc = 2 * Math.PI * 34;
   // L3 : l'état du plan est toujours ÉCRIT (jamais la couleur seule).
-  const planState = ringFraction > 1
+  const planState = futurMois
+    ? '<span class="pill">À venir</span>'
+    : ringFraction > 1
     ? '<span class="pill neg">Dépassé</span>'
+    : passeMois
+    ? '<span class="pill pos">Budget tenu</span>'
     : (ringFraction > 0.85 ? '<span class="pill warn">À surveiller</span>' : '<span class="pill pos">Dans le plan</span>');
-  const ring = totalPlanned > 0 ? `
+  const ring = totalPlanned > 0 && !(futurMois && totalActual === 0) ? `
     <div style="flex:none;text-align:center">
     <svg viewBox="0 0 80 80" width="84" height="84" role="img"
          aria-label="Vous avez utilisé ${pct(ringShown)} de votre budget"
@@ -4817,13 +4828,17 @@ function renderBudget() {
     <div class="card hero">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="min-width:0;flex:1;flex-basis:${Math.abs(remaining) >= 1000000 ? "100%" : "200px"}">
-      <p class="card-label">Il vous reste à dépenser</p>
+      <p class="card-label">${futurMois ? "Prévu pour ce mois" : passeMois ? "Il vous est resté" : "Il vous reste à dépenser"}</p>
       <p class="hero-amount fit-row${remaining < 0 ? " neg" : ""}${Math.abs(remaining) >= 1000000 ? " long" : ""}">${chf(remaining)}</p>
       <div style="margin:6px 0 4px">${planState}</div>
-      <span class="caption">Vous avez utilisé ${ringPct} % de votre budget — l'épargne et les impôts sont comptés à part.</span>
+      ${futurMois
+        ? `<span class="caption">Si vous suivez le plan, vos dépenses resteront sous ${chf(totalPlanned)} — l'épargne et les impôts sont comptés à part.</span>`
+        : `<span class="caption">Vous avez utilisé ${ringPct} % de votre budget — l'épargne et les impôts sont comptés à part.</span>`}
       <span class="caption" style="display:block;margin-top:3px">Prévu ${chf(totalPlanned)} · dépensé ${chf(totalActual)}.</span>
       ${(() => {
         // Comparaison pédagogique : le coût de la vie du mois précédent.
+        // W5.4 : un mois FUTUR ne compare pas son mois vide au dernier.
+        if (futurMois) return "";
         const pm = shiftMonth(cursor, -1);
         const prevLiving = snapshot(pm.y, pm.m).living;
         if (prevLiving <= 0) return "";

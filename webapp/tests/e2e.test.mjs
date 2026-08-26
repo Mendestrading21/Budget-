@@ -2913,10 +2913,12 @@ await page.waitForTimeout(250);
   });
   check(charge74.lines === 1,
     `Budget chargé : la ligne créée est bien affichée (obtenu ${charge74.lines})`);
-  check(/Dans le plan|À surveiller|Dépassé/.test(charge74.planState),
+  // W5.4 : ce budget vit sur un mois FUTUR (+6) — l'état écrit y est
+  // « À venir » et l'anneau « 0 % utilisé » se tait (rien n'a couru).
+  check(/À venir|Dans le plan|À surveiller|Dépassé/.test(charge74.planState),
     `Budget chargé : l'état du plan est ÉCRIT, jamais la couleur seule (obtenu « ${charge74.planState} »)`);
-  check(/Vous avez utilisé .* de votre budget/.test(charge74.ringLabel),
-    `Budget chargé : l'anneau reste annoncé aux lecteurs d'écran (obtenu « ${charge74.ringLabel} »)`);
+  check(charge74.ringLabel === "",
+    `Budget chargé (mois futur, rien dépensé) : pas d'anneau « utilisé » — le futur ne se consomme pas (obtenu « ${charge74.ringLabel} »)`);
   check(/prévu/i.test(charge74.text) && /dépensé/i.test(charge74.text),
     "Budget chargé : prévu et dépensé restent nommés séparément");
   check(charge74.text.includes("400.00") || /400/.test(charge74.text),
@@ -12535,6 +12537,97 @@ currentTest = "W5.5 comptes rangés";
   await ctx207.close();
 }
 
+// ---------- 208. W5.4 : BUDGET — le futur parle au conditionnel, le passé au passé ----------
+// Budget Autonomie 100, W5.4 (ADR-055/056 confirmés sur la destination
+// Budget) : mesuré — un mois FUTUR avec budget disait « Il vous reste à
+// dépenser » + « Dans le plan » (présent de l'indicatif sur un mois qui
+// n'a pas commencé) et comparait son coût de la vie VIDE au mois
+// dernier ; un mois PASSÉ disait encore « reste à dépenser » alors que
+// le mois est clos. Aucun calcul ne change — seuls les mots.
+currentTest = "W5.4 budget conditionnel";
+{
+  const ctx208 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p208 = await ctx208.newPage();
+  p208.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.4] ${msg.text()}`); });
+  await p208.addInitScript(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    const cle = (yy, mm) => `${yy}-${mm}`;
+    const decale = d => {
+      const t = new Date(y, m - 1 + d, 1);
+      return { y: t.getFullYear(), m: t.getMonth() + 1 };
+    };
+    const prev = decale(-1), next = decale(1);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Plan" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      budgets: {
+        [cle(prev.y, prev.m)]: [{ cat: "Alimentation", amount: 600 }],
+        [cle(y, m)]: [{ cat: "Alimentation", amount: 600 }],
+        [cle(next.y, next.m)]: [{ cat: "Alimentation", amount: 600 }],
+      },
+      transactions: [
+        { id: 1, title: "Courses", amount: 120, type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted", y, m, d: 2 },
+        { id: 2, title: "Courses", amount: 560, type: "expense", cat: "Alimentation", acc: "cur", dest: null, status: "posted", y: prev.y, m: prev.m, d: 3 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], bills: [],
+    }));
+  });
+  await p208.goto(APP_URL);
+  await p208.waitForSelector("#tabbar button");
+  const plan = await p208.evaluate(() => {
+    const resultat = {};
+    const onglet = i => [...document.querySelectorAll("#tabbar button")][i];
+    onglet(2).click(); // Budget (ADR-026)
+    const hero = () => {
+      const el = document.querySelector("#screen .card.hero");
+      return el ? el.textContent : "";
+    };
+    // 1. Le mois COURANT garde ses mots (verrou d'existant — le
+    //    sabotage fait foi) : le présent est le bon temps.
+    resultat.courantIntact = hero().includes("Il vous reste à dépenser")
+      && hero().includes("480.00") && hero().includes("Dans le plan");
+    const ecran = () => document.getElementById("screen").textContent;
+    // 2. Le mois FUTUR parle au CONDITIONNEL — prévu, pas couru.
+    cursor = shiftMonth(cursor, 1); render();
+    resultat.futurConditionnel = hero().includes("Prévu pour ce mois")
+      && hero().includes("Si vous suivez le plan") && hero().includes("600.00");
+    resultat.futurSansPresent = !hero().includes("Il vous reste à dépenser")
+      && !hero().includes("Dans le plan");
+    // 3. Le futur ne compare pas son mois VIDE au mois dernier.
+    resultat.comparaisonTue = !hero().includes("Mois dernier");
+    // 4. Le mois PASSÉ parle au PASSÉ : le mois est clos.
+    cursor = shiftMonth(cursor, -2); render();
+    resultat.passeAuPasse = hero().includes("Il vous est resté")
+      && hero().includes("40.00") && !hero().includes("Il vous reste à dépenser");
+    resultat.passePille = hero().includes("Budget tenu")
+      && !hero().includes("Dans le plan") && !hero().includes("À surveiller");
+    // 5. La ligne à 93 % d'un mois CLOS ne dit plus « À surveiller »
+    //    (verrou né avec l'implémentation — le sabotage fait foi).
+    resultat.passeSansSurveiller = !ecran().includes("À surveiller")
+      && ecran().includes("Alimentation");
+    cursor = shiftMonth(cursor, 1); render();
+    return resultat;
+  });
+  check(plan.courantIntact === true,
+    "le mois courant garde « Il vous reste à dépenser » — le présent est son temps");
+  check(plan.futurConditionnel === true,
+    "le mois futur dit « Prévu pour ce mois » et « Si vous suivez le plan » — le conditionnel (ADR-055/056)");
+  check(plan.futurSansPresent === true,
+    "le futur ne parle plus au présent : ni « reste à dépenser » ni « Dans le plan »");
+  check(plan.comparaisonTue === true,
+    "le futur ne compare pas son mois vide au mois dernier");
+  check(plan.passeAuPasse === true,
+    "le mois passé dit « Il vous est resté » — le mois est clos");
+  check(plan.passePille === true,
+    "au passé la pastille raconte le résultat : « Budget tenu » ou « Dépassé »");
+  check(plan.passeSansSurveiller === true,
+    "une ligne d'un mois clos ne se « surveille » plus — seul « Dépassé » reste un fait");
+  await ctx208.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12544,4 +12637,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 207 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 208 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
