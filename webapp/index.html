@@ -5255,6 +5255,7 @@ function renderAccountDetail(a) {
       ${c ? `<span class="caption" style="display:block">Mis de côté cette année : ${money(c.year, a.currency)}${c.withdrawnYear > 0 ? ` · retiré cette année : ${money(c.withdrawnYear, a.currency)}` : ""}</span>
       <span class="caption" style="display:block">Depuis l'ouverture : versé ${money(c.total, a.currency)} · retiré ${money(c.withdrawn, a.currency)} · Versements nets : ${money(c.net, a.currency)}</span>` : ""}
       ${perf !== null ? `<span class="caption ${perf >= 0 ? "pos" : "neg"}" style="display:block;font-weight:700">Performance : ${money(perf, a.currency, true)}</span>
+      <span class="caption" style="display:block">Depuis l'ouverture, vous avez versé ${money(c.total, a.currency)} et retiré ${money(c.withdrawn, a.currency)} — le compte vaut ${money(bal, a.currency)} aujourd'hui. La différence, c'est la performance.</span>
       <span class="caption">Valeur − versements nets — tenez le solde à jour via « Mettre le solde à jour »</span>` : ""}
     </div>
     ${(() => {
