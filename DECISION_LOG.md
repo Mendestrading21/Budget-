@@ -1,5 +1,44 @@
 # Budget decision log
 
+## ADR-066 — Ignorer une échéance libère le disponible
+
+Date: 2026-08-26
+Status: accepted
+
+### Contexte
+
+W2.5 a donné à l'agenda ses gestes (reporter, ignorer, annuler) sans
+surface à l'écran, et W5.2 a fait lire les échéances au rituel du mois
+(« ignorer libère le compteur »). Restait une divergence mesurée et
+consignée depuis W5.2/W5.2b : le « disponible » (« Prévu fin du
+mois ») continuait de RÉSERVER une charge ignorée —
+`recurringRemainingCount` (PWA) ne lisait pas les échéances
+persistées, alors que le natif (`RecurringScheduleService`, W5.2b) les
+soustrait déjà de sa prévision. Question posée au propriétaire le
+26.08.2026 : « quand vous ignorez une échéance ce mois-ci, l'argent
+qu'elle réservait doit-il redevenir disponible ? »
+
+### Décision
+
+Réponse du propriétaire : **« Oui, ignorer libère »**. Sur les deux
+plateformes : une échéance IGNORÉE ou ANNULÉE (machine W2.3/W2.5) ne
+pèse plus sur le disponible, la prévision de fin de mois ni la liste
+« à faire » du mois — sans créer ni toucher aucun mouvement. REPORTER
+garde l'échéance ouverte : reporté ≠ libéré. Les compteurs PWA
+(`recurringRemainingCount`, `openBillsDue`) apprennent la même vérité
+que les occurrences ; le comparateur W2.7a n'a plus d'écart à
+compenser. Le geste vaut pour LE mois de l'échéance seulement — la
+série continue les mois suivants.
+
+### Vérification
+
+Parcours 210 (né rouge) : gestes exposés dans les feuilles série et
+facture, reporter garde la date d'origine et la réservation, ignorer
+libère (1500 puis 400 rendus au disponible), la ligne quitte « à
+faire », zéro mouvement créé, comparateur W2.7a à zéro écart.
+Sabotage ciblé consigné dans le statut W5.7.
+
+
 ## ADR-065 — Devises V1 : base unique, taux datés et sourcés
 
 Date: 2026-08-25
