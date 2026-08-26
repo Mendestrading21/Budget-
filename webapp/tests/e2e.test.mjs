@@ -14355,6 +14355,106 @@ currentTest = "W8.5 impôts";
   await ctx229.close();
 }
 
+// ---------- 230. W8.6 : ASSURANCES & PRÉVOYANCE — cadences réelles, genre, préavis, pilier, devise ----------
+// Budget Autonomie 100, W8.6 (ADR-070, modèles portés du natif
+// InsuranceContract/PensionAsset) : mesuré — l'écran PROMETTAIT
+// « chaque trimestre » mais insuranceMonthly ne connaissait que
+// mois/année (une prime trimestrielle comptait 3× trop) ; aucun genre
+// de contrat ; aucun préavis de résiliation ; aucun pilier typé ; une
+// prévoyance non liée en devise étrangère était comptée comme du CHF.
+currentTest = "W8.6 assurances-prévoyance";
+{
+  const ctx230 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p230 = await ctx230.newPage();
+  p230.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.6] ${msg.text()}`); });
+  await p230.addInitScript(() => {
+    const now = new Date();
+    const dans30j = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Assur" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      documents: [], budgets: {}, bills: [],
+      insurances: [
+        { id: "i-q", name: "RC et ménage", insurer: "", premium: 300, unit: "quarter", kind: "menage" },
+        { id: "i-s", name: "Assurance auto", insurer: "", premium: 600, unit: "semester", kind: "auto" },
+        { id: "i-n", name: "Caisse maladie", insurer: "", premium: 400, unit: "month", kind: "sante",
+          dueM: dans30j.getMonth() + 1, dueD: dans30j.getDate(), noticeDays: 10 },
+      ],
+      pensions: [
+        { id: "p-3a", name: "3e pilier banque", value: 10000, projection: null, accountId: null, rente: false, pillar: "3a" },
+        { id: "p-usd", name: "Plan retraite US", value: 1000, projection: null, accountId: null, rente: false, currency: "USD" },
+      ],
+      fxRates: {},
+    }));
+  });
+  await p230.goto(APP_URL);
+  await p230.waitForSelector("#tabbar button");
+  const assur = await p230.evaluate(() => {
+    const resultat = {};
+    activeTab = "more"; moreView = "insurance"; render();
+    const texte = () => document.getElementById("screen").textContent;
+    const ligne = id => ((document.querySelector(`[data-insid="${id}"]`) || document.querySelector(`[data-penid="${id}"]`) || {}).textContent) || "";
+    // 1. Les cadences RÉELLES comptent juste : 300/trimestre = 100/mois,
+    //    600/semestre = 100/mois, 400/mois → total 600/mois (pas 1300).
+    resultat.cadenceJuste = texte().includes(chf(600)) && !texte().includes(chf(1300));
+    // 2. La cadence est DITE sur la ligne.
+    resultat.cadenceDite = ligne("i-q").includes("par trimestre") && ligne("i-s").includes("par semestre");
+    // 3. Le genre du contrat est dit.
+    resultat.genreDit = ligne("i-s").includes("Véhicule") && ligne("i-q").includes("Ménage");
+    // 4. Le préavis fait naître « Résilier avant le … » (renouvellement
+    //    dans 30 j − préavis 10 j = date à 20 j).
+    const now = new Date();
+    const limite = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 20);
+    const attendu = `Résilier avant le ${String(limite.getDate()).padStart(2, "0")}.${String(limite.getMonth() + 1).padStart(2, "0")}`;
+    resultat.resilierAvant = texte().includes(attendu);
+    // 5. Le pilier typé est dit.
+    resultat.pilierDit = ligne("p-3a").includes("Pilier 3a");
+    // 6. Une prévoyance non liée en USD SANS taux est EXCLUE du total
+    //    (10000, pas 11000) et l'écart est NOMMÉ ; sa ligne parle en USD.
+    resultat.devisePension = typeof pensionPositionsTotal === "function"
+      && pensionPositionsTotal() === 10000
+      && texte().includes("USD")
+      && ligne("p-usd").includes(money(1000, "USD"));
+    // 7. Restauration : champs additifs assainis — cadence inconnue
+    //    ramenée au mois, genre/pilier/préavis/devise illisibles retirés.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.insurances[0].unit = "biweekly";
+    photo.insurances[0].kind = "hack";
+    photo.insurances[0].noticeDays = -3;
+    photo.pensions[0].pillar = "9z";
+    photo.pensions[1].currency = "dollars";
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    resultat.restaurationAdditive = !!restauree
+      && restauree.insurances[0].unit === "month"
+      && restauree.insurances[0].kind === undefined
+      && restauree.insurances[0].noticeDays === undefined
+      && restauree.pensions[0].pillar === undefined
+      && restauree.pensions[1].currency === undefined
+      && restauree.insurances[2].kind === "sante"
+      && restauree.insurances[2].noticeDays === 10;
+    moreView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(assur.cadenceJuste === true,
+    "les cadences réelles comptent juste : trimestre ÷ 3, semestre ÷ 6 — total CHF 600/mois");
+  check(assur.cadenceDite === true,
+    "la cadence est dite sur chaque ligne (« par trimestre », « par semestre »)");
+  check(assur.genreDit === true,
+    "le genre du contrat est dit (Véhicule, Ménage) — porté du natif");
+  check(assur.resilierAvant === true,
+    "préavis + renouvellement → « Résilier avant le … » à la bonne date");
+  check(assur.pilierDit === true,
+    "le pilier typé est dit (Pilier 3a) — porté du natif");
+  check(assur.devisePension === true,
+    "une prévoyance en USD sans taux est exclue du patrimoine, nommée, et parle en USD");
+  check(assur.restaurationAdditive === true,
+    "restauration : cadence inconnue → mois ; genre/pilier/préavis/devise illisibles retirés, les sains restent");
+  await ctx230.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14364,4 +14464,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 229 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 230 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

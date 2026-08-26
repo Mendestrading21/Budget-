@@ -1587,11 +1587,25 @@
       <label for="insUnit">Vous payez</label>
       <select id="insUnit">
         <option value="month">Par mois</option>
+        <option value="quarter">Par trimestre</option>
+        <option value="semester">Par semestre</option>
         <option value="year">Par an</option>
+      </select>
+      <label for="insKind">Genre de contrat (facultatif)</label>
+      <select id="insKind">
+        <option value="">— à préciser —</option>
+        <option value="sante">Santé</option>
+        <option value="menage">Ménage et RC</option>
+        <option value="auto">Véhicule</option>
+        <option value="vie">Vie</option>
+        <option value="autre">Autre</option>
       </select>
       <label for="insDue">Date de renouvellement (facultatif)</label>
       <input id="insDue" type="date" aria-describedby="insDueHint" />
       <p class="caption" id="insDueHint" style="margin:4px 0 0">Jour et mois du renouvellement — pour penser à comparer ou résilier à temps.</p>
+      <label for="insNotice">Préavis de résiliation (jours, facultatif)</label>
+      <input id="insNotice" inputmode="numeric" placeholder="90" autocomplete="off" />
+      <p class="caption" style="margin:4px 0 0">Avec la date de renouvellement, Budget calcule « Résilier avant le … ».</p>
       <div class="error" id="insError" role="alert"></div>
       <div class="actions sticky">
         <button type="button" class="btn secondary" id="insCancel">Annuler</button>
@@ -1612,8 +1626,22 @@
         <input type="checkbox" id="penRente" style="width:auto" /> C'est une rente (par exemple l'AVS), pas un capital
       </label>
       <p class="caption" style="margin:4px 0 0">Une rente n'entre jamais dans votre patrimoine : Budget l'affiche à part, comme une information.</p>
-      <label for="penValue">Valeur actuelle (<span class="curlabel">CHF</span>)</label>
+      <label for="penPillar">Pilier (facultatif)</label>
+      <select id="penPillar">
+        <option value="">— à préciser —</option>
+        <option value="1">Pilier 1 (AVS)</option>
+        <option value="2">Pilier 2 (LPP)</option>
+        <option value="3a">Pilier 3a</option>
+        <option value="3b">Pilier 3b</option>
+      </select>
+      <label for="penValue">Valeur actuelle</label>
       <input id="penValue" data-primary-amount inputmode="decimal" placeholder="85000.00" autocomplete="off" />
+      <label for="penCurrency">Monnaie (positions non liées)</label>
+      <select id="penCurrency">
+        <option value="CHF">CHF</option>
+        <option value="EUR">EUR</option>
+        <option value="USD">USD</option>
+      </select>
       <label for="penProjection">Montant prévu à la retraite (<span class="curlabel">CHF</span>, selon votre certificat, facultatif)</label>
       <input id="penProjection" inputmode="decimal" placeholder="420000.00" autocomplete="off" />
       <div class="error" id="penError" role="alert"></div>
@@ -2219,6 +2247,12 @@ function missingFxCurrencies() {
     const currency = item.currency || baseCurrency();
     if (currency !== baseCurrency() && fxRateFor(currency) == null) missing.add(currency);
   }
+  // W8.6 : idem pour les prévoyances NON liées (les liées suivent leur compte).
+  for (const pension of PENSIONS) {
+    if (pensionIsLinked(pension)) continue;
+    const currency = pension.currency || baseCurrency();
+    if (currency !== baseCurrency() && fxRateFor(currency) == null) missing.add(currency);
+  }
   return [...missing].sort();
 }
 function fxWarningHTML() {
@@ -2496,8 +2530,16 @@ const INSURANCES_SEED = [
   { id: "ins-lamal", name: "Caisse maladie (LAMal)", insurer: "Assureur Exemple", premium: 745.60, unit: "month", icon: "🩺" },
   { id: "ins-rc", name: "RC + ménage", insurer: "Assureur Exemple", premium: 390.00, unit: "year", icon: "🏠" },
 ];
+/* W8.6 (ADR-070, porté du natif InsuranceContract) : les cadences
+   RÉELLES — l'écran promettait « chaque trimestre » depuis L6, le
+   moteur ne connaissait que mois/année (une prime trimestrielle
+   comptait trois fois trop). */
+const INSURANCE_DIVISOR = { month: 1, quarter: 3, semester: 6, year: 12 };
+const INSURANCE_CADENCE = { quarter: "par trimestre", semester: "par semestre", year: "par an" };
+const INSURANCE_KINDS = { sante: "Santé", menage: "Ménage et RC", auto: "Véhicule", vie: "Vie", autre: "Autre" };
+const PENSION_PILLARS = { "1": "Pilier 1 (AVS)", "2": "Pilier 2 (LPP)", "3a": "Pilier 3a", "3b": "Pilier 3b" };
 function insuranceMonthly(i) {
-  if (typeof i.premium === "number") return i.unit === "year" ? i.premium / 12 : i.premium;
+  if (typeof i.premium === "number") return i.premium / (INSURANCE_DIVISOR[i.unit] || 1);
   return i.monthly || 0; // ancienne forme stockée
 }
 
@@ -2776,12 +2818,20 @@ function pensionValue(p) {
    patrimoine. Une ancienne ligne ambiguë non marquée reste comptée telle
    quelle : on l'affiche « À confirmer », on ne réécrit rien en douce. */
 function pensionPositionsTotal() {
+  // W8.6 : la devise d'une position NON liée est lue — sans taux, elle
+  // est EXCLUE et nommée au bandeau (jamais de 1:1 inventé).
   return round2(PENSIONS.filter(p => !pensionIsLinked(p) && p.rente !== true)
-    .reduce((a, p) => a + (p.value || 0), 0));
+    .reduce((a, p) => {
+      const v = toCHF(p.value || 0, p.currency);
+      return v == null ? a : a + v;
+    }, 0));
 }
 /* Le total À MONTRER sur l'écran Prévoyance : tout, lié ou non. */
 function pensionDisplayTotal() {
-  return round2(PENSIONS.reduce((a, p) => a + pensionValue(p), 0));
+  return round2(PENSIONS.reduce((a, p) => {
+    const v = pensionIsLinked(p) ? pensionValue(p) : toCHF(p.value || 0, p.currency);
+    return v == null ? a : a + v;
+  }, 0));
 }
 /* C4 (07.08.2026) — OÙ VA CHAQUE FRANC MIS DE CÔTÉ.
    « Je veux pouvoir comprendre rapidement combien j'ai mis de côté, combien
@@ -6065,6 +6115,7 @@ function renderNetWorth() {
 function renderInsurance() {
   const monthlyTotal = INSURANCES.reduce((a, i) => a + insuranceMonthly(i), 0);
   return backBar("Assurances & prévoyance") + `
+    ${fxWarningHTML()}
     <div class="card hero">
       <p class="card-label">Vos assurances, par mois</p>
       <p class="hero-amount">${chf(monthlyTotal)}</p>
@@ -6080,12 +6131,19 @@ function renderInsurance() {
     ${INSURANCES.map(i => {
       // L6 : échéance annuelle ≤ 45 jours = état ÉCRIT (déjà alerté sur Mois).
       let soon = "";
+      let resilier = "";
       if (i.dueM && i.dueD) {
         const today = new Date(NOW.y, NOW.m - 1, NOW.d);
         let due = new Date(NOW.y, i.dueM - 1, i.dueD);
         if (due < today) due = new Date(NOW.y + 1, i.dueM - 1, i.dueD);
         const days = Math.round((due - today) / 86400000);
         if (days <= 45) soon = `<span class="pill warn">Échéance dans ${days} j</span>`;
+        // W8.6 : préavis de résiliation (porté du natif) — la date limite
+        // est CALCULÉE et dite, jamais un simple rappel vague.
+        if (Number.isInteger(i.noticeDays) && i.noticeDays > 0) {
+          const limite = new Date(due.getTime() - i.noticeDays * 86400000);
+          if (limite >= today) resilier = ` · Résilier avant le ${String(limite.getDate()).padStart(2, "0")}.${String(limite.getMonth() + 1).padStart(2, "0")}`;
+        }
       }
       // P13-C (ADR-045) : un assureur du catalogue est reconnu par son nom
       // EXACT — l'identité décore, la prime et les totaux ne changent jamais.
@@ -6093,7 +6151,7 @@ function renderInsurance() {
       return `<div class="card row tx read-row" data-insid="${esc(i.id || "")}" role="button" tabindex="0" style="cursor:pointer">${insurerEntry
         ? identityTile(insurerEntry.displayName)
         : `<div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>`}
-      <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${i.unit === "year" ? ` · ${chf(i.premium)} par an` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}</div></div>
+      <div class="meta"><div class="t">${esc(i.name)}${soon}</div><div class="s">${esc(i.insurer || "")}${INSURANCE_KINDS[i.kind] ? ` · ${INSURANCE_KINDS[i.kind]}` : ""}${INSURANCE_CADENCE[i.unit] ? ` · ${chf(i.premium)} ${INSURANCE_CADENCE[i.unit]}` : " · prime mensuelle"}${i.dueM && i.dueD ? ` · échéance ${String(i.dueD).padStart(2, "0")}.${String(i.dueM).padStart(2, "0")}` : ""}${resilier}</div></div>
       <span class="amount">${chf(insuranceMonthly(i))}/mois</span>
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span></div>`;
     }).join("")}
@@ -6124,12 +6182,12 @@ function renderInsurance() {
     </div>` : ""}
     ${PENSIONS.map(p => `<div class="card" data-penid="${esc(p.id || "")}" role="button" tabindex="0" style="cursor:pointer"><div class="tx read-row"><div class="ico" aria-hidden="true">${budgetGlyph("shield")}</div>
       <div class="meta"><div class="t">${esc(p.name)}${p.rente !== true && !pensionIsLinked(p) && /\bavs\b|1er pilier|\brente\b/i.test(p.name)
-        ? '<span class="badge planned">À confirmer : rente ou capital ?</span>' : ""}</div><div class="s">${p.rente === true
+        ? '<span class="badge planned">À confirmer : rente ou capital ?</span>' : ""}</div><div class="s">${PENSION_PILLARS[p.pillar] ? `${PENSION_PILLARS[p.pillar]} · ` : ""}${p.rente === true
         ? "Rente estimée — hors patrimoine · montant tel que saisi"
         : pensionIsLinked(p)
         ? `Suit le solde de « ${esc((ACCOUNTS.find(a => a.id === p.accountId) || {}).name || "")} »`
         : "Le montant de votre certificat"}</div></div>
-      <span class="amount acct-total">${chf(pensionValue(p))}</span>
+      <span class="amount acct-total">${pensionIsLinked(p) ? chf(pensionValue(p)) : money(p.value || 0, p.currency || baseCurrency())}</span>
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span></div>
       ${p.projection ? `<div class="breakdown" style="margin-top:10px">
         <div><span>Prévu à 65 ans, selon le certificat</span><span>${chf(p.projection)}</span></div>
@@ -9319,17 +9377,27 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
         || (pension.projection != null && !validNonNegative(pension.projection))) {
       throw new Error("valeur de prévoyance invalide");
     }
+    // W8.6 : pilier typé + devise — clés additives, une valeur illisible
+    // est retirée (le pilier redevient « à préciser », la devise la base).
+    if (!(typeof pension.pillar === "string" && PENSION_PILLARS[pension.pillar])) delete pension.pillar;
+    if (!(typeof pension.currency === "string" && /^[A-Z]{3}$/.test(pension.currency))) delete pension.currency;
   }
   const insuranceIds = new Set();
   for (const insurance of state.insurances) {
     requireEntity(insurance, "assurance", insuranceIds);
     const premium = insurance.premium ?? insurance.monthly;
     if (!validNonNegative(premium)
-        || (insurance.unit != null && !["month", "year"].includes(insurance.unit))
         || ((insurance.dueM != null || insurance.dueD != null)
           && !validCalendarDate(2000, insurance.dueM, insurance.dueD))) {
       throw new Error("contrat d'assurance invalide");
     }
+    // W8.6 : cadences réelles (mois/trimestre/semestre/année) — une
+    // cadence inconnue est RAMENÉE au mois (comportement historique) ;
+    // les champs additifs illisibles (genre, préavis) sont retirés,
+    // les sains restent.
+    if (insurance.unit != null && !INSURANCE_DIVISOR[insurance.unit]) insurance.unit = "month";
+    if (!(typeof insurance.kind === "string" && INSURANCE_KINDS[insurance.kind])) delete insurance.kind;
+    if (!(Number.isInteger(insurance.noticeDays) && insurance.noticeDays > 0 && insurance.noticeDays <= 365)) delete insurance.noticeDays;
   }
   const documentIds = new Set();
   for (const document of state.documents) {
@@ -10709,7 +10777,9 @@ function openInsSheet(contract) {
     document.getElementById("insName").value = contract.name;
     document.getElementById("insInsurer").value = contract.insurer || "";
     document.getElementById("insPremium").value = (contract.premium ?? contract.monthly ?? 0).toFixed(2);
-    document.getElementById("insUnit").value = contract.unit === "year" ? "year" : "month";
+    document.getElementById("insUnit").value = INSURANCE_DIVISOR[contract.unit] ? contract.unit : "month";
+    document.getElementById("insKind").value = INSURANCE_KINDS[contract.kind] ? contract.kind : "";
+    document.getElementById("insNotice").value = Number.isInteger(contract.noticeDays) && contract.noticeDays > 0 ? String(contract.noticeDays) : "";
     if (contract.dueM && contract.dueD) {
       document.getElementById("insDue").value =
         `${NOW.y}-${String(contract.dueM).padStart(2, "0")}-${String(contract.dueD).padStart(2, "0")}`;
@@ -10731,11 +10801,29 @@ document.getElementById("insForm").addEventListener("submit", (e) => {
   const due = /^\d{4}-\d{2}-\d{2}$/.test(dueRaw)
     ? { dueM: Number(dueRaw.slice(5, 7)), dueD: Number(dueRaw.slice(8, 10)) }
     : { dueM: null, dueD: null };
+  // W8.6 : genre + préavis (portés du natif) — un préavis illisible est
+  // un refus nommé, jamais un zéro silencieux.
+  const noticeRaw = document.getElementById("insNotice").value.trim();
+  const noticeDays = noticeRaw === "" ? null : Number(noticeRaw);
+  if (noticeRaw !== "" && !(Number.isInteger(noticeDays) && noticeDays > 0 && noticeDays <= 365)) {
+    err.textContent = "Le préavis n'est pas valable : un nombre de jours entier, entre 1 et 365."; return;
+  }
+  const kindChoisi = document.getElementById("insKind").value;
   const data = { name, insurer: document.getElementById("insInsurer").value.trim(),
                  premium, unit: document.getElementById("insUnit").value, ...due };
   const existing = editingInsId ? INSURANCES.find(i => i.id === editingInsId) : null;
-  if (existing) { delete existing.monthly; Object.assign(existing, data); toast("Assurance modifiée"); }
-  else { INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Assurance ajoutée"); }
+  if (existing) {
+    delete existing.monthly; Object.assign(existing, data);
+    if (INSURANCE_KINDS[kindChoisi]) existing.kind = kindChoisi; else delete existing.kind;
+    if (noticeDays != null) existing.noticeDays = noticeDays; else delete existing.noticeDays;
+    toast("Assurance modifiée");
+  }
+  else {
+    INSURANCES.push({ id: "ins-" + Date.now().toString(36), icon: "🛡️", ...data,
+      ...(INSURANCE_KINDS[kindChoisi] ? { kind: kindChoisi } : {}),
+      ...(noticeDays != null ? { noticeDays } : {}) });
+    toast("Assurance ajoutée");
+  }
   saveState();
   closeSheet();
   render();
@@ -10835,6 +10923,10 @@ function openPenSheet(position) {
     document.getElementById("penName").value = position.name;
     document.getElementById("penValue").value = (position.value || 0).toFixed(2);
     document.getElementById("penProjection").value = position.projection ? position.projection.toFixed(2) : "";
+    document.getElementById("penPillar").value = PENSION_PILLARS[position.pillar] ? position.pillar : "";
+    document.getElementById("penCurrency").value = position.currency || baseCurrency();
+  } else {
+    document.getElementById("penCurrency").value = baseCurrency();
   }
   document.getElementById("penError").textContent = "";
   openSheet("penForm");
@@ -10858,10 +10950,23 @@ document.getElementById("penForm").addEventListener("submit", (e) => {
   const projectionRaw = document.getElementById("penProjection").value.trim();
   const projection = projectionRaw === "" ? null : parseAmountField(projectionRaw);
   if (projectionRaw !== "" && Number.isNaN(projection)) { err.textContent = "Le montant prévu à 65 ans n'est pas valable."; return; }
+  // W8.6 : pilier typé + devise (portés du natif PensionAsset).
+  const pillarChoisi = document.getElementById("penPillar").value;
+  const deviseChoisie = document.getElementById("penCurrency").value || baseCurrency();
   const data = { name, value, projection, accountId, rente };
   const existing = editingPenId ? PENSIONS.find(p => p.id === editingPenId) : null;
-  if (existing) { Object.assign(existing, data); toast("Prévoyance modifiée"); }
-  else { PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data }); toast("Prévoyance ajoutée"); }
+  if (existing) {
+    Object.assign(existing, data);
+    if (PENSION_PILLARS[pillarChoisi]) existing.pillar = pillarChoisi; else delete existing.pillar;
+    existing.currency = deviseChoisie;
+    toast("Prévoyance modifiée");
+  }
+  else {
+    PENSIONS.push({ id: "pen-" + Date.now().toString(36), icon: "🛡️", ...data,
+      ...(PENSION_PILLARS[pillarChoisi] ? { pillar: pillarChoisi } : {}),
+      currency: deviseChoisie });
+    toast("Prévoyance ajoutée");
+  }
   saveState(); closeSheet(); render();
 });
 document.getElementById("penDelete").addEventListener("click", () => {
