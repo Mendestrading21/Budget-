@@ -13851,6 +13851,73 @@ currentTest = "W7.7 revue d'import";
   await ctx223.close();
 }
 
+// ---------- 224. W8.1 : CASH FLOWS — versements nets exposés, retraits datés ----------
+// Budget Autonomie 100, W8.1 : mesuré — la fiche d'un compte de
+// placement affichait « Mis de côté cette année · en tout · retraits »
+// où « retraits » est un cumul DE TOUJOURS collé à un chiffre annuel,
+// et le versement NET (versé − retiré) n'existait nulle part. Livré :
+// retraits datés (année ET depuis l'ouverture) + « versements nets »
+// dits avec leur méthode. La performance (solde − ouverture − net) ne
+// bouge pas — verrou.
+currentTest = "W8.1 cash flows";
+{
+  const ctx224 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p224 = await ctx224.newPage();
+  p224.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W8.1] ${msg.text()}`); });
+  await p224.addInitScript(() => {
+    const y = new Date().getFullYear();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Flux" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "brk", name: "Titres", kind: "brokerage", opening: 10000, cash: false, currency: "CHF" },
+      ],
+      transactions: [
+        { id: 1, y: y - 1, m: 3, d: 10, title: "Versement initial", amount: 2000, type: "investment", cat: "Pilier 3a", acc: "cur", dest: "brk", status: "posted" },
+        { id: 2, y, m: 1, d: 15, title: "Versement janvier", amount: 1000, type: "investment", cat: "Pilier 3a", acc: "cur", dest: "brk", status: "posted" },
+        { id: 3, y, m: 2, d: 5, title: "Retrait pour projet", amount: 500, type: "transfer", cat: null, acc: "brk", dest: "cur", status: "posted" },
+        { id: 4, y: y - 1, m: 6, d: 20, title: "Frais de garde", amount: 100, type: "expense", cat: "Imprévu", acc: "brk", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p224.goto(APP_URL);
+  await p224.waitForSelector("#tabbar button");
+  const flux = await p224.evaluate(() => {
+    const resultat = {};
+    // Attendus calculés par le moteur réel (versé 3000, retiré 600 dont
+    // 500 cette année, net 2400 ; solde 12400 ; performance 0).
+    activeTab = "accounts"; accountView = "brk"; render();
+    const texte = document.getElementById("screen").textContent;
+    resultat.netVisible = texte.includes("Versements nets") && texte.includes(money(2400, "CHF"));
+    resultat.depuisOuverture = texte.includes("versé " + money(3000, "CHF"))
+      && texte.includes("retiré " + money(600, "CHF"));
+    resultat.retireCetteAnnee = texte.includes("retiré cette année : " + money(500, "CHF"));
+    // L'ancien libellé ambigu (« retraits : » cumul de toujours collé au
+    // chiffre annuel) a disparu.
+    resultat.ambiguiteRetiree = !texte.includes("retraits :");
+    // VERROU (né vert, sabotage à l'appui) : la performance reste
+    // « solde − ouverture − versements nets » et dit sa méthode.
+    resultat.perfInchangee = texte.includes("Performance : " + money(0, "CHF", true))
+      && texte.includes("Valeur − versements nets");
+    accountView = null; activeTab = "home"; render();
+    return resultat;
+  });
+  check(flux.netVisible === true,
+    "la fiche du compte de placement dit les VERSEMENTS NETS (versé − retiré)");
+  check(flux.depuisOuverture === true,
+    "depuis l'ouverture : versé et retiré sont dits séparément, au franc près");
+  check(flux.retireCetteAnnee === true,
+    "le retrait de l'année est daté « cette année » — plus de cumul déguisé");
+  check(flux.ambiguiteRetiree === true,
+    "l'ancien libellé ambigu « retraits : » (cumul de toujours) a disparu");
+  check(flux.perfInchangee === true,
+    "VERROU : la performance reste « solde − ouverture − versements nets » et dit sa méthode");
+  await ctx224.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13860,4 +13927,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 223 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 224 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
