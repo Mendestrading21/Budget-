@@ -52,6 +52,29 @@ struct ImportRowResult: Identifiable, Equatable {
     let title: String?
     let categoryName: String?
     let fingerprint: String?
+    /// W7.2 (FI-29) : identité NORMALISÉE — sans nom de fichier ni
+    /// numéro de ligne. C'est ELLE qui fait foi pour les doublons ;
+    /// l'empreinte legacy ci-dessus est conservée (compatibilité).
+    let normalizedFingerprint: String?
+
+    init(
+        id: Int, rawLine: String, state: ImportRowState,
+        date: Date? = nil, amount: Decimal? = nil,
+        type: TransactionType? = nil, title: String? = nil,
+        categoryName: String? = nil, fingerprint: String? = nil,
+        normalizedFingerprint: String? = nil
+    ) {
+        self.id = id
+        self.rawLine = rawLine
+        self.state = state
+        self.date = date
+        self.amount = amount
+        self.type = type
+        self.title = title
+        self.categoryName = categoryName
+        self.fingerprint = fingerprint
+        self.normalizedFingerprint = normalizedFingerprint
+    }
 }
 
 /// Final report: counters always reconcile
@@ -213,6 +236,42 @@ struct CSVImportService {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
+    /// W7.2 (FI-29, fixture partagée `fixtures/import-doublons.json`) :
+    /// identité NORMALISÉE d'une ligne — date (jour), montant, type,
+    /// libellé plié. NI nom de fichier NI numéro de ligne : le même
+    /// relevé re-exporté sous un autre nom reste le même relevé, et deux
+    /// lignes identiques d'un même fichier sont un doublon. L'empreinte
+    /// legacy reste calculée (les mouvements existants la portent).
+    func normalizedFingerprint(
+        date: Date,
+        amount: Decimal,
+        type: TransactionType,
+        title: String
+    ) -> String {
+        let dateKey = ISO8601DateFormatter().string(from: calendar.startOfDay(for: date))
+        let identity = [
+            dateKey,
+            "\(amount)",
+            type.rawValue,
+            title.lowercased().trimmingCharacters(in: .whitespaces),
+        ].joined(separator: "|")
+        let digest = SHA256.hash(data: Data(identity.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Les empreintes normalisées des mouvements DÉJÀ enregistrés — la
+    /// base contre laquelle un nouvel import se compare.
+    func existingNormalizedFingerprints(transactions: [BudgetTransaction]) -> Set<String> {
+        Set(transactions.map { transaction in
+            normalizedFingerprint(
+                date: transaction.date,
+                amount: transaction.amount,
+                type: transaction.type,
+                title: transaction.title
+            )
+        })
+    }
+
     // MARK: Validation (pure — no store writes)
 
     /// Validates every row and marks duplicates against `existingFingerprints`.
@@ -220,7 +279,8 @@ struct CSVImportService {
         parsed: ParsedCSV,
         mapping: ColumnMapping,
         fileName: String,
-        existingFingerprints: Set<String>
+        existingFingerprints: Set<String>,
+        existingNormalizedFingerprints: Set<String> = []
     ) -> [ImportRowResult] {
         guard let dateIndex = mapping.dateIndex,
               let amountIndex = mapping.amountIndex,
@@ -229,6 +289,11 @@ struct CSVImportService {
         }
 
         var seenInFile = Set<String>()
+        // W7.2 (FI-29) : la déduplication NORMALISÉE — en fichier ET
+        // contre l'existant — attrape ce que l'empreinte legacy
+        // (fileName/rowIndex) laissait passer : relevé renommé, ligne
+        // doublée dans le même fichier.
+        var seenNormalizedInFile = Set<String>()
         return parsed.rows.enumerated().map { rowIndex, values in
             let rawLine = parsed.rawLines.indices.contains(rowIndex) ? parsed.rawLines[rowIndex] : ""
 
@@ -268,13 +333,25 @@ struct CSVImportService {
                 fileName: fileName, rowIndex: rowIndex,
                 date: date, amount: amount, type: type, title: title
             )
-            if existingFingerprints.contains(rowFingerprint) || seenInFile.contains(rowFingerprint) {
-                return result(.duplicate, date: date, amount: amount, type: type, title: title,
-                              category: categoryName, fingerprint: rowFingerprint)
+            let rowNormalized = normalizedFingerprint(
+                date: date, amount: amount, type: type, title: title
+            )
+            func result2(_ state: ImportRowState) -> ImportRowResult {
+                ImportRowResult(
+                    id: rowIndex, rawLine: rawLine, state: state,
+                    date: date, amount: amount, type: type, title: title,
+                    categoryName: categoryName, fingerprint: rowFingerprint,
+                    normalizedFingerprint: rowNormalized
+                )
+            }
+            if existingFingerprints.contains(rowFingerprint) || seenInFile.contains(rowFingerprint)
+                || existingNormalizedFingerprints.contains(rowNormalized)
+                || seenNormalizedInFile.contains(rowNormalized) {
+                return result2(.duplicate)
             }
             seenInFile.insert(rowFingerprint)
-            return result(.ready, date: date, amount: amount, type: type, title: title,
-                          category: categoryName, fingerprint: rowFingerprint)
+            seenNormalizedInFile.insert(rowNormalized)
+            return result2(.ready)
         }
     }
 

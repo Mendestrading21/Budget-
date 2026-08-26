@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1 EN COURS | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1 fusionné · W7.2 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,9 +156,41 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.2 : import — l'identité d'une ligne est normalisée (FI-29)
+
+Les fixtures « doublons d'import » DIFFÉRÉES depuis W1.5 sont livrées :
+la fixture PARTAGÉE `fixtures/import-doublons.json` est lue par les
+DEUX plateformes. Mesuré : le web tenait déjà FI-29 (empreinte sans
+nom de fichier, pliée, dédupliquée en fichier) — ses contrôles sont
+des VERROUS ; le NATIF avait le défaut exact de l'audit : l'empreinte
+`CSVImportService` incluait `fileName` + `rowIndex` → un relevé
+RENOMMÉ créait des doublons, et deux lignes identiques d'un même
+fichier n'étaient JAMAIS dédupliquées. Livré natif :
+`normalizedFingerprint(date, montant, type, libellé plié)` — ni nom
+de fichier ni numéro de ligne ; `existingNormalizedFingerprints
+(transactions:)` (un mouvement saisi à la main bloque aussi le
+doublon d'import) ; `validate(...)` gagne le paramètre additif
+`existingNormalizedFingerprints` et marque doublon sur l'identité
+NORMALISÉE (en fichier et contre l'existant) ; l'empreinte legacy
+reste calculée (compatibilité) ; `ImportRowResult.normalizedFingerprint`
+additif. `ImportDoublonsFixtureTests` (2) rejoue la fixture partagée —
+sur l'ancienne implémentation, « rejeuRenomme » rendrait ready ≠
+duplicate par construction (le rouge natif est le défaut mesuré ; la
+CI verte sur le HEAD prouve le fix). Web : parcours 218 (verrous nés
+verts assumés) ; DEUX sabotages : la casse cesse d'être pliée →
+casseDifferente mord SEUL ; une séquence entre dans l'empreinte (le
+défaut natif simulé) → 7 contrôles crient à travers TROIS parcours
+(L7 historique, 217, 218) — le filet est multi-couches ; premier
+sabotage « sel temporel » consigné INERTE (même milliseconde → même
+sel) et remplacé. Suites complètes vertes (218 e2e, 9 parités, 13
+canon + schéma, design, catalogue, audit) ; tests natifs prouvés par
+le job simulateur CI. FI-29 passe d'OUVERT à TENU (registre W0 —
+consigné ici, le registre est un document d'audit figé).
+
 ### 26.08.2026 — W7.1 : import — chaque ligne garde sa source et son verdict
 
-Mesuré : l'analyse CSV (ready/duplicate/invalid) et l'empreinte
+Fusionné (`main` = `9483874`, PR #174, prête via curl) et publié par
+dispatch au SHA exact (run consigné au poll). Mesuré : l'analyse CSV (ready/duplicate/invalid) et l'empreinte
 existaient, mais RIEN n'était conservé — `S.lastImport` garde un
 résumé, le verdict de chaque ligne se perdait, le rollback oubliait
 tout. Livré (modèle intermédiaire, la porte existante reste LA

@@ -13348,6 +13348,63 @@ currentTest = "W7.1 sources d'import";
   await ctx217.close();
 }
 
+// ---------- 218. W7.2 : IMPORT — l'identité d'une ligne est normalisée (FI-29, fixture partagée) ----------
+// Budget Autonomie 100, W7.2 : les fixtures « doublons d'import »
+// différées depuis W1.5 arrivent — la MÊME fixture
+// (fixtures/import-doublons.json) est lue par les deux plateformes.
+// Côté web, l'empreinte était déjà normalisée (sans nom de fichier) :
+// verrous en partie nés verts, le sabotage fait foi.
+currentTest = "W7.2 doublons d'import";
+{
+  const fixtureDoublons = JSON.parse(fs.readFileSync(
+    path.resolve(HERE, "..", "..", "fixtures", "import-doublons.json"), "utf8"));
+  const ctx218 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p218 = await ctx218.newPage();
+  p218.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.2] ${msg.text()}`); });
+  await p218.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fp" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p218.goto(APP_URL);
+  await p218.waitForSelector("#tabbar button");
+  const fp = await p218.evaluate((fx) => {
+    const resultat = {};
+    const verdicts = analyse => analyse.rows.map(r => r.state);
+    // 1. Premier import : tout entre.
+    const a1 = analyzeCSV(fx.csv, null, "cur");
+    resultat.premierImport = JSON.stringify(verdicts(a1)) === JSON.stringify(fx.premierImport.verdicts);
+    applyImport(a1, fx.premierImport.fichier, "cur");
+    // 2. Le MÊME contenu sous un AUTRE nom : tout est doublon.
+    const a2 = analyzeCSV(fx.csv, null, "cur");
+    resultat.rejeuRenomme = JSON.stringify(verdicts(a2)) === JSON.stringify(fx.rejeuRenomme.verdicts);
+    // 3. Deux lignes identiques d'un MÊME fichier : la 2e est un doublon.
+    const a3 = analyzeCSV(fx.memeFichierLigneDoublee.csv, null, "cur");
+    resultat.ligneDoublee = JSON.stringify(verdicts(a3)) === JSON.stringify(fx.memeFichierLigneDoublee.verdicts);
+    // 4. La casse ne change pas l'identité ; un montant différent, si.
+    const a4 = analyzeCSV("Date;Montant;Libellé\n" + fx.casseDifferente.ligne, null, "cur");
+    resultat.casseDifferente = verdicts(a4)[0] === fx.casseDifferente.verdict;
+    const a5 = analyzeCSV("Date;Montant;Libellé\n" + fx.vraieNouvelle.ligne, null, "cur");
+    resultat.vraieNouvelle = verdicts(a5)[0] === fx.vraieNouvelle.verdict;
+    return resultat;
+  }, fixtureDoublons);
+  check(fp.premierImport === true,
+    "fixture doublons : le premier import entre entièrement (3 ready)");
+  check(fp.rejeuRenomme === true,
+    "FI-29 : le même contenu sous un AUTRE nom de fichier = doublons, jamais réimporté");
+  check(fp.ligneDoublee === true,
+    "deux lignes identiques d'un même fichier : la seconde est un doublon");
+  check(fp.casseDifferente === true,
+    "le libellé est plié — la casse ne change pas l'identité");
+  check(fp.vraieNouvelle === true,
+    "un montant différent est une autre opération — elle entre");
+  await ctx218.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13357,4 +13414,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 217 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 218 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

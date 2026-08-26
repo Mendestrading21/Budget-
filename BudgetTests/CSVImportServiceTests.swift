@@ -165,10 +165,15 @@ final class CSVImportServiceTests: XCTestCase {
         01.06.2026;-100.00;Courses
         01.06.2026;-100.00;Courses
         """
-        // Deux lignes identiques mais index différents → empreintes
-        // différentes : les deux passent (identité de ligne source).
+        // W7.2 (FI-29) : l'identité NORMALISÉE fait foi — deux lignes
+        // identiques d'un même fichier sont UN doublon, plus jamais deux
+        // entrées (l'ancien comportement, empreintes par index, était le
+        // défaut mesuré de l'audit ; fixture partagée import-doublons).
         let rows = validated(csv)
-        XCTAssertEqual(rows.filter { $0.state.isImportable }.count, 2)
+        XCTAssertEqual(rows.filter { $0.state.isImportable }.count, 1,
+                       "la première ligne entre")
+        XCTAssertEqual(rows.filter { $0.state == .duplicate }.count, 1,
+                       "la seconde, identique, est un doublon nommé")
     }
 
     // MARK: - Categories
