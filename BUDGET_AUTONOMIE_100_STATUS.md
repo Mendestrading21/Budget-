@@ -123,8 +123,8 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1–W7.6 fusionnés · W7.7 EN PR | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
+| W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
+| W8 | Investissements et modules régionaux | READY — Work Order écrit (`docs/autonomie/w8/WORK_ORDER_W8.md`) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
@@ -186,7 +186,26 @@ emporté l'implémentation non commitée (réappliquée à l'identique,
 revalidée) — leçon : COMMIT AVANT sabotage, toujours. Consigné : le
 natif suivra avec les écrans iOS de W7 (miroir des exclusions et du
 rollback ciblé — `CSVImportService.rollback(batchID:)` existe déjà).
-**W7 est FERMÉ** (7 sous-lots fusionnés).
+**W7 est FERMÉ** (7 sous-lots fusionnés). FUSIONNÉ (`main` = `6bd2199`,
+PR #180, CI verte sur le HEAD exact `74391e9`) ; publication par
+dispatch au SHA exact `6bd2199` : run `32973930646`, **succès**
+(poll observé jusqu'à `completed success`).
+
+### 26.08.2026 — W8 : Work Order écrit (mode plan)
+
+`docs/autonomie/w8/WORK_ORDER_W8.md` — fondé sur une mesure complète
+de l'existant (agent d'état des lieux, réconcilié avec le code).
+Constats moteurs : la courbe de patrimoine convertit les STOCKS au
+taux COURANT (rétroactif — FI-19 tenu pour les mouvements seulement) ;
+`S.fxQuotes` datées jamais lues pour convertir ; actifs/dettes/
+prévoyances/primes SANS devise ; plus-value PAR POSITION absente
+(celle du compte titres existe et dit sa méthode — contre-mesure
+consignée au Work Order) ; impôts/assurances :
+modèles natifs riches non portés ; runner canon qui aplatit les taux
+datés. Sept sous-lots ordonnés, trois décisions propriétaire à poser
+(devise des actifs existants, forme de la performance V1, portée de
+la provision fiscale). Non-objectifs tenus : pas de cours de marché,
+pas de FIFO/PRU, pas de TWR/IRR, pas de nouveau pays/devise.
 
 ### 26.08.2026 — W7.6 : règles — « ce libellé → cette catégorie », le futur seulement
 
