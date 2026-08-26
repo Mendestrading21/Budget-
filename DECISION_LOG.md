@@ -1,5 +1,44 @@
 # Budget decision log
 
+## ADR-069 — Les parts d'une dépense vivent dans le mouvement
+
+Date: 2026-08-26
+Status: accepted
+
+### Contexte
+
+Une dépense réelle est souvent mixte (Migros : alimentation ET
+ménage), mais un mouvement ne portait qu'une catégorie. Question
+posée au propriétaire le 26.08.2026 : les parts vivent-elles dans le
+mouvement, ou comme mouvements liés séparés ? Décision jumelle du
+même jour (pour W7.6) : les règles de catégorisation s'appliquent au
+FUTUR seulement — le passé ne bouge jamais tout seul.
+
+### Décision
+
+Réponse du propriétaire : **dans le mouvement**. Un mouvement scindé
+reste UN seul flux bancaire — aucun solde ne bouge d'un centime ;
+clé additive `parts` [{cat, montantMineur}] en CENTIMES ENTIERS
+(G01), somme EXACTEMENT égale au montant, au moins deux parts,
+catégories de dépense connues, porte UNIQUE `definirParts` à refus
+NOMMÉS. Seuls les rapports par catégorie ventilent (lignes du Budget
+et « Pas encore classé » — part par part, la catégorie principale du
+mouvement scindé ne compte plus). V1 : l'UI scinde en DEUX parts (le
+reste garde la catégorie principale) ; le modèle en accepte N ; une
+dépense en devise étrangère ne se scinde pas encore ; une ventilation
+périmée (montant changé) disparaît plutôt que mentir ; à la
+restauration, des parts qui mentent sont RETIRÉES — le mouvement
+reste vrai.
+
+### Vérification
+
+Parcours 221 né rouge (8 échecs nommés) → vert ; sabotage (la
+ventilation des lignes coupée) d'abord INERTE — le contrôle ne
+passait que par « Pas encore classé » : durci (ligne budgétaire +
+hors-budget), le sabotage mord alors SEUL ; consigné. Suites
+complètes vertes.
+
+
 ## ADR-068 — Les fonds annuels sont informatifs en V1
 
 Date: 2026-08-26
