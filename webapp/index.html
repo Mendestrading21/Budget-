@@ -4337,7 +4337,11 @@ function renderSimpleHome() {
   // résumé sur une seule vue. Fortune totale (LE chiffre de Comptes) et
   // lignes écrites — aucun nouveau calcul, uniquement l'existant.
   const heroTout = s.isCurrent && heroVue === "tout";
-  const enAttente = round2(s.plannedIncome + s.recurringIncome + s.irregularIncome);
+  // W6.2 : « à recevoir » = uniquement le PLANIFIÉ (mouvements prévus
+  // et récurrents). L'estimation statistique d'un revenu variable
+  // (moyenne des 3 derniers mois, irregularIncome) se NOMME à part —
+  // une moyenne n'est pas une promesse. Aucun agrégat ne change.
+  const enAttente = round2(s.plannedIncome + s.recurringIncome);
   // FE2-10 : chaque terme réel est NOMMÉ, un terme à zéro se tait.
   // FE2-12 (ADR-035) : plus AUCUN terme d'impôts automatique — seuls les
   // mouvements et factures saisis pèsent sur la projection.
@@ -4345,6 +4349,7 @@ function renderSimpleHome() {
   const noteFinMois = [
     `${chf(s.liquid)} maintenant`,
     ...(enAttente > 0 ? [`+ ${chf(enAttente)} à recevoir`] : []),
+    ...(s.irregularIncome > 0 ? [`+ ${chf(s.irregularIncome)} estimés d'après vos 3 derniers mois — rien n'est promis`] : []),
     ...(sortiesReelles > 0 ? [`− ${chf(sortiesReelles)} à sortir`] : []),
   ].join(" ") + ".";
   // MF1 (ADR-055, demande propriétaire du 24.08.2026) : sur un mois
@@ -4955,6 +4960,21 @@ function renderBudget() {
         ${ring}
       </div>
     </div>
+    ${(() => {
+      // W6.3 : la part ENGAGÉE du mois — charges régulières et factures
+      // encore à sortir. LECTURE des compteurs du Mois (déjà W5.7-aware :
+      // une échéance ignorée ne pèse plus, ADR-066) — zéro nouveau
+      // compteur, chaque franc compté une fois, à part des enveloppes.
+      const sEng = snapshot(y, m);
+      if (!sEng.isCurrent) return "";
+      const engagements = round2(sEng.plannedOut + sEng.recurringCharges);
+      if (!(engagements > 0)) return "";
+      return `<div class="card">
+        <p class="card-label">Engagements du mois</p>
+        <p style="font-size:20px;font-weight:800;margin:2px 0 4px">${chf(engagements)}</p>
+        <span class="caption">Charges régulières et factures encore à sortir — comptées à part de vos enveloppes, jamais deux fois.</span>
+      </div>`;
+    })()}
     ${groups.map(lineHTML).join("")}
     <button class="btn secondary" data-addline style="margin-top:8px">Ajouter une ligne budgétaire</button>
     ${outHTML}

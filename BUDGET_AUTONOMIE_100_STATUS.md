@@ -122,7 +122,7 @@ Livrables attendus :
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
-| W6 | Plan, budgets, objectifs | W6.1 EN PR | W2, W3, W5 (fusionnés) |
+| W6 | Plan, budgets, objectifs | W6.1 fusionné · W6.2+W6.3 EN PR | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
@@ -155,6 +155,52 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W6.3 : Budget — la part engagée se voit, à part des enveloppes
+
+Mesuré : l'écran Budget ne montrait que les enveloppes par catégorie —
+les charges régulières et factures du mois (la part NON
+discrétionnaire) n'y apparaissaient nulle part. Livré : la carte
+« Engagements du mois » (mois courant seulement) — « CHF 2'200.00 ·
+Charges régulières et factures encore à sortir — comptées à part de
+vos enveloppes, jamais deux fois. » LECTURE des compteurs du Mois
+(`plannedOut + recurringCharges`, déjà W5.7-aware) — zéro nouveau
+compteur ; ADR-066 respecté (une échéance ignorée libère aussi cette
+carte) ; sans engagement restant, la carte se tait ; un mois passé
+n'en parle pas (le passé est réel). Preuves : parcours 213 né rouge
+(2 échecs nommés : carteVisible, respecteIgnorer ; verrous
+lectureSeule/sansEngagementMuet/passeMuet nés verts) → vert ;
+sabotage (la carte calcule sur des compteurs BRUTS, aveugles à
+« ignorer ») → les DEUX contrôles ADR-066 mordent (respecteIgnorer +
+sansEngagementMuet), rien d'autre ; restauré vert ; captures 320/390
+inspectées (`docs/neon-ultra/budget-prisme/w6-3/`) ; suites complètes
+vertes (213 e2e, 9 parités, 13 canon + schéma, design, catalogue,
+audit). Consigné : l'état vide du Budget ne porte pas la carte (elle
+accompagne un budget existant) ; abonnements vs factures : la
+distinction fine (sous-groupes) attendra un besoin mesuré.
+
+### 26.08.2026 — W6.2 : revenus variables — l'estimation se nomme, rien n'est promis
+
+Mesuré : pour un indépendant (aucun revenu récurrent), la prévision
+« Fin du mois » utilise une moyenne des 3 derniers mois
+(`irregularIncome`, mécanisme existant)… FONDUE dans « + CHF X à
+recevoir », indistincte des revenus réellement planifiés — une
+estimation statistique présentée comme une promesse. Livré (mots
+seulement, aucun agrégat ne bouge) : « à recevoir » = uniquement le
+planifié (mouvements prévus + récurrents) ; l'estimation se NOMME à
+part — « + CHF 4'500.00 estimés d'après vos 3 derniers mois — rien
+n'est promis » ; un salarié (revenu récurrent) ne voit jamais ce
+terme. Preuves : parcours 212 né rouge (2 échecs nommés :
+termeNomme, plusFondue ; verrous moyenneCalculee/calculIntact/
+salarieMuet nés verts) → vert ; sabotage (l'estimation refond dans
+« à recevoir ») → plusFondue mord SEUL ; restauré vert ; captures
+320/390 inspectées (`docs/neon-ultra/budget-prisme/w6-2/`) ; suites
+complètes vertes (212 e2e, 9 parités, 13 canon + schéma, design,
+catalogue, audit). Consigné : le natif n'a PAS d'équivalent
+`irregularIncome` (la prévision iOS ne devine pas les revenus
+variables) — divergence mesurée, décision d'alignement à poser quand
+W6 touchera les écrans natifs ; la fenêtre « 3 mois » reste la
+décision existante (aucun changement).
 
 ### 26.08.2026 — W6.1 : le reste se reporte — opt-in par ligne (ADR-067)
 
@@ -189,7 +235,8 @@ tests natifs prouvés par le job simulateur CI. Divergence mineure
 PRÉ-EXISTANTE notée (pas de ce lot) : à 390 px, le comparateur « ce
 mois -CHF 330.00 » peut couper entre le signe et le montant au retour
 de ligne — candidat à un correctif dédié. Écran Budget natif
-(affichage carry) consigné pour les écrans iOS de W6.
+(affichage carry) consigné pour les écrans iOS de W6. Fusionné
+(`main` = `843ffaa`, PR #169) et publié (run `32943851091`).
 
 ### 26.08.2026 — W5 FERMÉ · Work Order W6 écrit
 
