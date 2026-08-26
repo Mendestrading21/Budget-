@@ -124,8 +124,8 @@ Livrables attendus :
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
-| W8 | Investissements et modules régionaux | W8.1–W8.6 fusionnés · W8.7 EN PR | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
+| W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | READY — Work Order écrit (`docs/autonomie/w9/WORK_ORDER_W9.md`) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,22 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W9 : Work Order écrit (mode plan)
+
+W8 est FERMÉ (fusion W8.7 : `main` = `8c09c30`, PR #190 ; publication
+consignée dans l'entrée suivante dès le verdict). Le Work Order W9
+(`docs/autonomie/w9/WORK_ORDER_W9.md`) cadre la PWA modulaire en HUIT
+sous-lots INCRÉMENTAUX : build TypeScript à vide (artefact vérifié au
+octet près), extraction des calculs purs avec comparateur canon,
+IndexedDB additive en double écriture, migration prouvée (aller, échec
+au milieu, retour), routes restaurables, CSP/SW, offline/quota/
+multi-onglets, et retrait du monolithe SEULEMENT en dernier. La règle
+du skill « aucune refonte massive » PRIME : le monofichier reste la
+référence vivante jusqu'à W9.8, les 231 parcours e2e + 14 fixtures
+canon + 9 parités sont la gate de non-régression à chaque étape.
+Aucune décision propriétaire nécessaire (chiffrement → W10.4,
+Android → W11.4).
 
 ### 26.08.2026 — W8.7 : activation régionale — les mots du pays, partout → W8 FERMÉ
 
