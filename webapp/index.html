@@ -6434,21 +6434,28 @@ function hashLigne(texte) {
   for (let i = 0; i < t.length; i += 1) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0;
   return h.toString(16);
 }
-function applyImport(analysis, fileName, accountId) {
+function applyImport(analysis, fileName, accountId, exclues = []) {
   // Unicité RÉELLE : deux imports dans la même milliseconde ne
   // partagent jamais un id (incident CI consigné — le rollback
   // marquait le mauvais lot). Le rang dans le journal départage.
   const batchId = "batch-" + Date.now().toString(36) + "-" + ((S.imports || []).length + 1);
   let imported = 0;
+  let refused = 0;
+  // W7.7 : une ligne prête peut être ÉCARTÉE à la revue — jamais
+  // écrite, mais consignée au journal (verdict « refused »). Le refus
+  // laisse une trace, il ne s'évapore pas.
+  const ecartees = new Set(Array.isArray(exclues) ? exclues : []);
   // W7.1 (modèle intermédiaire) : chaque ligne analysée laisse un
   // ENREGISTREMENT SOURCE — verdict nommé, empreinte, hash du brut,
   // lien vers le mouvement créé. Le journal d'imports est append-only.
   const records = [];
   for (const row of analysis.rows) {
-    const record = { line: row.line, verdict: row.state, rawHash: hashLigne(row.raw) };
+    const refusee = row.state === "ready" && ecartees.has(row.line);
+    const record = { line: row.line, verdict: refusee ? "refused" : row.state, rawHash: hashLigne(row.raw) };
     if (row.fingerprint) record.fingerprint = row.fingerprint;
     if (row.reason) record.motif = row.reason;
-    if (row.state === "ready") {
+    if (refusee) { record.motif = "Écartée à la revue"; refused++; }
+    if (row.state === "ready" && !refusee) {
       const { y, m, d, amount, title, type, cat } = row.tx;
       const txId = ++txSeq;
       addTx({
@@ -6479,6 +6486,7 @@ function applyImport(analysis, fileName, accountId) {
     batchId,
     total: analysis.rows.length,
     imported,
+    refused,
     duplicates: analysis.rows.filter(r => r.state === "duplicate").length,
     invalids: analysis.rows.filter(r => r.state === "invalid")
       .map(r => ({ line: r.line, raw: r.raw.slice(0, 120), reason: r.reason })),
@@ -6486,9 +6494,15 @@ function applyImport(analysis, fileName, accountId) {
   saveState();
   return S.lastImport;
 }
-function rollbackLastImport() {
-  if (!S.lastImport) return;
-  const batchId = S.lastImport.batchId;
+/* W7.7 : rollback CIBLÉ — n'importe quel lot du journal s'annule par
+   son id, pas seulement le dernier. Le lot garde son histoire
+   (rolledBackAt), il ne disparaît jamais du journal d'imports. */
+function rollbackImport(batchId) {
+  if (!batchId) return;
+  // Un lot hérité (sauvegarde d'avant le journal) peut manquer :
+  // l'annulation par empreinte de lot reste possible, sans trace de plus.
+  const lot = (S.imports || []).find(b => b.id === batchId);
+  if (lot && lot.rolledBackAt) return;
   for (let i = transactions.length - 1; i >= 0; i--) {
     if (transactions[i].importBatch === batchId) {
       libererOccurrencesDuMouvement(transactions[i].id);
@@ -6496,12 +6510,13 @@ function rollbackLastImport() {
       transactions.splice(i, 1);
     }
   }
-  // W7.1 : le rollback est TRACÉ — le lot garde son histoire, il ne
-  // disparaît jamais du journal d'imports.
-  const lot = (S.imports || []).find(b => b.id === batchId);
   if (lot) lot.rolledBackAt = new Date().toISOString();
-  S.lastImport = null;
+  if (S.lastImport && S.lastImport.batchId === batchId) S.lastImport = null;
   saveState();
+}
+function rollbackLastImport() {
+  if (!S.lastImport) return;
+  rollbackImport(S.lastImport.batchId);
 }
 
 function renderImport() {
@@ -6521,9 +6536,14 @@ function renderImport() {
     ${(() => {
       if (!importDraft) return "";
       const analysis = analyzeCSV(importDraft.content, importDraft.mapping, importDraft.accountId);
-      const ready = analysis.rows.filter(r => r.state === "ready").length;
+      // W7.7 : lignes écartées à la revue — tenues dans le brouillon,
+      // jamais écrites, consignées « refused » au journal à la confirmation.
+      const ecartees = new Set(Array.isArray(importDraft.exclues) ? importDraft.exclues : []);
+      const readyRows = analysis.rows.filter(r => r.state === "ready");
+      const ready = readyRows.filter(r => !ecartees.has(r.line)).length;
+      const refuses = readyRows.length - ready;
       const dupes = analysis.rows.filter(r => r.state === "duplicate").length;
-      const bad = analysis.rows.length - ready - dupes;
+      const bad = analysis.rows.length - readyRows.length - dupes;
       const firstData = analysis.rows[0] ? splitCSVLine(analysis.rows[0].raw, analysis.delimiter) : [];
       const columnCount = Math.max(firstData.length, 3);
       const colOptions = (selected, allowNone) => {
@@ -6552,12 +6572,15 @@ function renderImport() {
           <select id="impAccount" style="${selStyle}">${ACCOUNTS.map(acct =>
             `<option value="${esc(acct.id)}" ${acct.id === importDraft.accountId ? "selected" : ""}>${esc(acct.name)}${acct.currency && acct.currency !== baseCurrency() ? ` (${acct.currency})` : ""}</option>`).join("")}</select>
         </div>
-        <div style="margin:12px 0 6px"><span class="pill pos">${ready} prête${ready > 1 ? "s" : ""}</span> <span class="pill">${dupes} doublon${dupes > 1 ? "s" : ""}</span> <span class="pill neg">${bad} invalide${bad > 1 ? "s" : ""}</span></div>
-        ${analysis.rows.slice(0, 6).map(r => `<div class="card row" style="margin:6px 0;padding:10px 12px">
-          <div class="meta" style="min-width:0"><div class="t" style="font-size:12.5px">${r.tx ? `${String(r.tx.d).padStart(2, "0")}.${String(r.tx.m).padStart(2, "0")}.${r.tx.y} · ${esc(r.tx.title)}` : esc(r.raw.slice(0, 40))} ${stateLabel[r.state] || ""}</div>
+        <div style="margin:12px 0 6px"><span class="pill pos">${ready} prête${ready > 1 ? "s" : ""}</span>${refuses ? ` <span class="pill">${refuses} écartée${refuses > 1 ? "s" : ""}</span>` : ""} <span class="pill">${dupes} doublon${dupes > 1 ? "s" : ""}</span> <span class="pill neg">${bad} invalide${bad > 1 ? "s" : ""}</span></div>
+        ${analysis.rows.slice(0, 6).map(r => {
+          const ecartee = r.state === "ready" && ecartees.has(r.line);
+          return `<div class="card row" style="margin:6px 0;padding:10px 12px${ecartee ? ";opacity:0.6" : ""}">
+          <div class="meta" style="min-width:0"><div class="t" style="font-size:12.5px">${r.tx ? `${String(r.tx.d).padStart(2, "0")}.${String(r.tx.m).padStart(2, "0")}.${r.tx.y} · ${esc(r.tx.title)}` : esc(r.raw.slice(0, 40))} ${ecartee ? '<span class="pill">Écartée</span>' : stateLabel[r.state] || ""}</div>
           ${r.reason ? `<div class="s neg">${esc(r.reason)}</div>` : ""}</div>
           ${r.tx ? `<span class="amount ${r.tx.type === "income" ? "pos" : "neg"}">${r.tx.type === "income" ? "+" : "−"}${chf(r.tx.amount)}</span>` : ""}
-        </div>`).join("")}
+          ${r.state === "ready" ? `<button type="button" class="btn secondary" data-imprefuse="${r.line}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px${ecartee ? "" : ";color:var(--negative)"}" aria-label="${ecartee ? "Reprendre" : "Écarter"} la ligne ${r.line}">${ecartee ? "Reprendre" : "Écarter"}</button>` : ""}
+        </div>`; }).join("")}
         ${analysis.rows.length > 6 ? `<p class="caption">… et ${analysis.rows.length - 6} autres lignes analysées.</p>` : ""}
         <button type="button" class="btn" data-impconfirm ${ready === 0 ? "disabled" : ""} style="margin-top:10px">Confirmer l'import (${ready} opération${ready > 1 ? "s" : ""})</button>
         <button type="button" class="btn secondary" data-impcancel style="margin-top:8px">Annuler — rien n'est écrit</button>
@@ -6572,7 +6595,7 @@ function renderImport() {
         <div><span class="info">Doublons ignorés (empreinte)</span><span>${report.duplicates}</span></div>
         <div><span class="neg">Invalides</span><span>${report.invalids.length}</span></div>
       </div>
-      ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} opérations)</button>` : ""}
+      ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} opération${report.imported > 1 ? "s" : ""})</button>` : ""}
     </div>
     ${report.invalids.length ? `
     <p class="section-title">File de réparation</p>
@@ -6580,6 +6603,20 @@ function renderImport() {
       <div style="font-size:12.5px"><span class="neg">Ligne ${inv.line} — ${esc(inv.reason)}</span><br>
         <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
     </div>`).join("")}` : ""}` : ""}
+    ${(S.imports || []).length ? `
+    <p class="section-title">Journal des imports</p>
+    <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Chaque lot garde son histoire. Annulez celui que vous voulez — le reste survit.</p>
+    ${[...S.imports].reverse().slice(0, 8).map(lot => {
+      const encore = transactions.filter(t => t.importBatch === lot.id).length;
+      const refusesLot = lot.records.filter(r => r.verdict === "refused").length;
+      const quand = typeof lot.appliedAt === "string" && lot.appliedAt.length >= 10
+        ? `${lot.appliedAt.slice(8, 10)}.${lot.appliedAt.slice(5, 7)}.${lot.appliedAt.slice(0, 4)}` : "";
+      return `<div class="card row tx">
+      <div class="meta" style="min-width:0"><div class="t">${esc(lot.fileName)}</div>
+        <div class="s">${quand} · ${lot.imported} importée${lot.imported > 1 ? "s" : ""}${refusesLot ? ` · ${refusesLot} écartée${refusesLot > 1 ? "s" : ""}` : ""}${lot.rolledBackAt ? " · lot annulé" : ""}</div></div>
+      ${!lot.rolledBackAt && encore ? `<button type="button" class="btn secondary" data-rollbacklot="${esc(lot.id)}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Annuler le lot ${esc(lot.fileName)}">Annuler</button>` : ""}
+    </div>`; }).join("")}
+    ${S.imports.length > 8 ? `<p class="caption" style="padding:0 4px">… et ${S.imports.length - 8} lot${S.imports.length - 8 > 1 ? "s" : ""} plus ancien${S.imports.length - 8 > 1 ? "s" : ""} conservé${S.imports.length - 8 > 1 ? "s" : ""} dans vos données.</p>` : ""}` : ""}
     <p class="section-title">Règles de catégorisation</p>
     <p class="caption" style="margin:-4px 0 8px;padding:0 4px">« Ce libellé → cette catégorie » — appliquées aux PROCHAINS imports seulement, visibles dans l'aperçu avant toute écriture. Le passé ne bouge jamais tout seul.</p>
     ${(S.regles || []).map(r => `<div class="card row tx">
@@ -7794,16 +7831,44 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (e.target.closest("[data-impconfirm]")) {
     if (!importDraft) return;
     const analysis = analyzeCSV(importDraft.content, importDraft.mapping, importDraft.accountId);
-    if (!analysis.rows.some(r => r.state === "ready")) { toast("Aucune ligne prête à importer"); return; }
-    const report = applyImport(analysis, importDraft.fileName, importDraft.accountId);
+    // W7.7 : les lignes écartées à la revue ne comptent pas comme prêtes.
+    const ecartees = new Set(Array.isArray(importDraft.exclues) ? importDraft.exclues : []);
+    if (!analysis.rows.some(r => r.state === "ready" && !ecartees.has(r.line))) { toast("Aucune ligne prête à importer"); return; }
+    const report = applyImport(analysis, importDraft.fileName, importDraft.accountId, importDraft.exclues || []);
     importDraft = null;
-    toast(`Import : ${report.imported} importées, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
+    toast(`Import : ${report.imported} importées${report.refused ? `, ${report.refused} écartées` : ""}, ${report.duplicates} doublons, ${report.invalids.length} invalides`);
+    render();
+    return;
+  }
+  // W7.7 : écarter/reprendre une ligne prête de l'aperçu — tenu dans le
+  // brouillon, rien n'est écrit avant la confirmation.
+  const refuseBtn = e.target.closest("[data-imprefuse]");
+  if (refuseBtn) {
+    if (!importDraft) return;
+    const ligne = parseInt(refuseBtn.getAttribute("data-imprefuse"), 10);
+    if (!Number.isFinite(ligne)) return;
+    const liste = Array.isArray(importDraft.exclues) ? importDraft.exclues : (importDraft.exclues = []);
+    const idx = liste.indexOf(ligne);
+    if (idx >= 0) liste.splice(idx, 1); else liste.push(ligne);
+    render();
+    return;
+  }
+  // W7.7 : rollback CIBLÉ depuis le journal — un lot, pas « le dernier ».
+  const lotBtn = e.target.closest("[data-rollbacklot]");
+  if (lotBtn) {
+    const lot = (S.imports || []).find(b => b.id === lotBtn.getAttribute("data-rollbacklot"));
+    if (!lot || lot.rolledBackAt) return;
+    const encore = transactions.filter(t => t.importBatch === lot.id).length;
+    if (!confirm(`Annuler le lot « ${lot.fileName} » (${encore} opération${encore > 1 ? "s" : ""}) ? Le reste survit.`)) return;
+    pushUndo();
+    rollbackImport(lot.id);
+    toast("Lot annulé. Vos autres opérations sont intactes.", true);
     render();
     return;
   }
   if (e.target.closest("[data-rollbackimport]")) {
     if (!S.lastImport) return;
-    if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} opérations) ? Le reste survit.`)) return;
+    if (!confirm(`Annuler le lot « ${S.lastImport.fileName} » (${S.lastImport.imported} opération${S.lastImport.imported > 1 ? "s" : ""}) ? Le reste survit.`)) return;
     pushUndo();
     rollbackLastImport();
     toast("Import annulé. Vos autres opérations sont intactes.", true);
@@ -9233,7 +9298,8 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     && (r.ajustementTxId == null || Number.isFinite(r.ajustementTxId)));
   // W7.1 : le journal d'imports — clé ADDITIVE. Un lot illisible est
   // écarté (verdict inconnu, structure cassée), les lots sains restent.
-  const VERDICTS_IMPORT = new Set(["ready", "duplicate", "invalid"]);
+  // W7.7 : « refused » = ligne écartée à la revue, consignée sans écrire.
+  const VERDICTS_IMPORT = new Set(["ready", "duplicate", "invalid", "refused"]);
   state.imports = (state.imports || []).filter(lot => isPlainRecord(lot)
     && typeof lot.id === "string" && lot.id
     && typeof lot.appliedAt === "string"
@@ -10432,6 +10498,8 @@ function startImportDraft(content, fileName) {
     content, fileName: fileName || "collage",
     mapping: { ...analysis.columns },
     accountId,
+    // W7.7 : lignes écartées à la revue (numéros de ligne source).
+    exclues: [],
   };
   render();
 }

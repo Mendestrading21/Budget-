@@ -123,7 +123,7 @@ Livrables attendus :
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | W7.1–W7.5 fusionnés · W7.6 EN PR | W1, W3, W6 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1–W7.6 fusionnés · W7.7 EN PR | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -156,6 +156,38 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W7.7 : revue d'import — écarter ligne par ligne, annuler lot par lot → W7 FERMÉ
+
+Mesuré d'abord : l'aperçu d'import était TOUT-OU-RIEN (aucun refus
+ligne par ligne) et le rollback ne visait que le DERNIER lot
+(`rollbackLastImport`). Livré : `applyImport(analysis, fileName,
+accountId, exclues = [])` — une ligne prête écartée à la revue n'est
+JAMAIS écrite mais reste CONSIGNÉE au journal (verdict « refused »,
+motif « Écartée à la revue », compteurs justes) ; `rollbackImport(id)`
+CIBLÉ (n'importe quel lot du journal, `rollbackLastImport` devient un
+cas particulier ; un lot hérité sans entrée au journal reste annulable) ;
+restauration : `VERDICTS_IMPORT` admet « refused » (clé additive) ;
+UI : toggle « Écarter/Reprendre » (`data-imprefuse`) sur chaque ligne
+prête de l'aperçu (pastille « Écartée », décomptes nets, bouton de
+confirmation au juste compte) + section « Journal des imports »
+(8 derniers lots, reste annoncé, annulation par lot `data-rollbacklot`,
+lots annulés marqués sans bouton). Deux pluriels codés en dur corrigés
+(« 1 opération »). Preuves : parcours 223 né rouge (8 échecs NOMMÉS,
+après correction d'un crash de sonde — `importDraft.mapping: null`
+alors que le flux réel construit `{ ...analysis.columns }`) → vert ;
+TROIS sabotages qui mordent seuls (l'exclusion écrit quand même → 3
+échecs ; rollback non ciblé qui vide tous les lots → 2 échecs ;
+restauration qui rejette « refused » → 1 échec) ; restauré vert ;
+captures 320/390 inspectées (`docs/neon-ultra/budget-prisme/w7-7/`) ;
+suites complètes vertes (223 e2e, 9 parités, 13 canon + schéma,
+design, catalogue, audit dépôt, catalogue d'identités). INCIDENT de
+méthode consigné : un `git checkout` de nettoyage de sabotage a
+emporté l'implémentation non commitée (réappliquée à l'identique,
+revalidée) — leçon : COMMIT AVANT sabotage, toujours. Consigné : le
+natif suivra avec les écrans iOS de W7 (miroir des exclusions et du
+rollback ciblé — `CSVImportService.rollback(batchID:)` existe déjà).
+**W7 est FERMÉ** (7 sous-lots fusionnés).
+
 ### 26.08.2026 — W7.6 : règles — « ce libellé → cette catégorie », le futur seulement
 
 Décision propriétaire (AskUserQuestion, consignée avec ADR-069) :
@@ -180,7 +212,9 @@ vert ; sabotage (une passe rétroactive silencieuse à la création) →
 complètes vertes (222 e2e, 9 parités, 13 canon + schéma, design,
 catalogue, audit). Consigné : proposer la règle à la SAISIE (préremplissage
 suggéré, jamais imposé) attendra un besoin mesuré ; miroir natif avec
-les écrans iOS de W7.
+les écrans iOS de W7. FUSIONNÉ (`main` = `739137a`, PR #179) ;
+publication par dispatch au SHA exact : **succès** (elle couvre aussi
+W7.5, dont la gate avait mordu — consigné ci-dessous).
 
 ### 26.08.2026 — W7.5 : splits — une dépense, plusieurs catégories, la somme exacte (ADR-069)
 
