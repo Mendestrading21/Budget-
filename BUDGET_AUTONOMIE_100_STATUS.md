@@ -122,8 +122,8 @@ Livrables attendus :
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
 | W5 | Pages et inbox | DONE | W2, W3, W4 (fusionnés) |
-| W6 | Plan, budgets, objectifs | W6.1–W6.4 fusionnés · W6.5+W6.6 EN PR | W2, W3, W5 (fusionnés) |
-| W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
+| W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
+| W7 | Import, règles, tags, splits | W7.1 EN COURS | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
 | W9 | PWA modulaire et IndexedDB | BLOCKED | W1, W2, W3 |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
@@ -155,6 +155,45 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 26.08.2026 — W7.1 : import — chaque ligne garde sa source et son verdict
+
+Mesuré : l'analyse CSV (ready/duplicate/invalid) et l'empreinte
+existaient, mais RIEN n'était conservé — `S.lastImport` garde un
+résumé, le verdict de chaque ligne se perdait, le rollback oubliait
+tout. Livré (modèle intermédiaire, la porte existante reste LA
+porte) : journal d'imports persisté `S.imports` (append-only) — un
+LOT par application {id, fichier, compte, appliedAt ISO, total,
+imported, records} ; un ENREGISTREMENT SOURCE par ligne {line,
+verdict nommé, fingerprint (ready/duplicate), motif (invalid),
+rawHash — JAMAIS le texte brut (vie privée, hash djb2), txId (lien
+vers le mouvement créé)} ; rejouer un relevé n'écrit rien ET se
+consigne (l'histoire des tentatives est complète) ; le rollback est
+TRACÉ (`rolledBackAt`) — le journal survit ; restauration : clé
+additive, lots illisibles écartés (verdict inconnu, brut présent),
+lots sains gardés. Preuves : parcours 217 né rouge (8 échecs nommés ;
+un crash de sonde corrigé en garde d'existence — leçon connue) →
+vert ; sabotage (le brut fuit dans le journal) → les DEUX contrôles
+vie-privée mordent (stockage + restauration), rien d'autre ; restauré
+vert ; suites complètes vertes (217 e2e, 9 parités, 13 canon +
+schéma, design, catalogue, audit). Aucune capture (aucun pixel — la
+review queue arrive en W7.7). Consigné : le miroir natif
+(CSVImportService : SourceRecord/fingerprints normalisés) suivra en
+W7.2 avec les fixtures doublons W1.5.
+
+### 26.08.2026 — W6 FERMÉ · Work Order W7 écrit
+
+W6.5+W6.6 fusionnés (`main` = `e6144f6`, PR #173, prête via curl —
+même contournement de jeton que #172) et publiés (run `32950092605`).
+INCIDENT CI consigné : le premier HEAD `c2039ef` a échoué au
+simulateur iOS (« Type 'GoalKind' has no member 'emergency' » — mon
+test natif utilisait un cas inexistant, le vrai est `emergencyFund`) ;
+correctif ciblé `95cbf83`, CI VERTE sur ce HEAD exact, fusion faite
+sur lui. La CI a fait exactement son travail : le rouge a précédé la
+fusion. Publications rattrapées : W6.4 au SHA `7d44aaa` (run
+`32949155915`, succès). **W6 est COMPLET et publié.** Work Order W7
+écrit en mode plan (`docs/autonomie/w7/WORK_ORDER_W7.md`) — les
+fixtures doublons différées de W1.5 y reviennent (W7.2).
 
 ### 26.08.2026 — W6.6 : mois/année — chaque période consultée utilise SA période (FI-23)
 
