@@ -12688,6 +12688,107 @@ currentTest = "W5.6 taux datés visibles";
   await ctx209.close();
 }
 
+// ---------- 210. W5.7 : INBOX — Reporter et Ignorer existent enfin, ignorer libère (ADR-066) ----------
+// Budget Autonomie 100, W5.7 : mesuré — les gestes d'agenda W2.5
+// (reporterOccurrence, ignorerOccurrence) n'avaient AUCUN appelant à
+// l'écran, et une échéance ignorée pesait encore sur le disponible
+// (recurringRemainingCount = dues − liées, sans lire les échéances).
+// Décision propriétaire du 26.08.2026 (ADR-066) : IGNORER LIBÈRE — un
+// choix explicite rend l'argent au « Prévu fin du mois ». Reporter
+// garde l'échéance ouverte : reporté ≠ libéré.
+currentTest = "W5.7 gestes d'agenda";
+{
+  const ctx210 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p210 = await ctx210.newPage();
+  p210.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.7] ${msg.text()}`); });
+  p210.on("dialog", dialog => dialog.accept());
+  await p210.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Inbox" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      recurrings: [{ id: "loyer", title: "Loyer", amount: 1500, type: "expense", cat: "Logement", accountId: "cur", every: "month", day: 1, nature: "facture" }],
+      bills: [{ id: "prime", name: "Prime auto", amount: 400, dueY: now.getFullYear(), dueM: now.getMonth() + 1, dueD: 20, cat: "Assurances", paidTxId: null }],
+      transactions: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, occurrences: [],
+    }));
+  });
+  await p210.goto(APP_URL);
+  await p210.waitForSelector("#tabbar button");
+  const inbox = await p210.evaluate(() => {
+    const resultat = {};
+    const loyer = RECURRINGS.find(r => r.id === "loyer");
+    const prime = (S.bills || []).find(b => b.id === "prime");
+    const avantTx = transactions.length;
+    const s0 = snapshot(NOW.y, NOW.m);
+    const dispo = () => snapshot(NOW.y, NOW.m).available;
+    // 1. La feuille de la série offre les gestes d'agenda.
+    openRecSheet(loyer);
+    const bloc = document.getElementById("rAgendaGestes");
+    resultat.gestesVisibles = !!bloc && bloc.style.display !== "none"
+      && !!document.getElementById("rSkipMonth") && !!document.getElementById("rSnoozeBtn");
+    // 2. REPORTER garde l'échéance ouverte — la date d'origine ne bouge
+    //    jamais, et l'argent reste réservé (reporté ≠ libéré).
+    const dans10jours = (() => {
+      const d = new Date(Date.now() + 10 * 86400000);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })();
+    const champDate = document.getElementById("rSnoozeDate");
+    if (champDate) champDate.value = dans10jours;
+    if (document.getElementById("rSnoozeBtn")) document.getElementById("rSnoozeBtn").click();
+    const occLoyer = () => (S.occurrences || []).find(o =>
+      typeof o.idempotencyKey === "string" && o.idempotencyKey.startsWith(`serie:loyer:${NOW.y}-${NOW.m}:`));
+    const apresReport = occLoyer();
+    resultat.reporterGarde = !!apresReport && apresReport.state === "snoozed"
+      && apresReport.dueDate === dans10jours
+      && apresReport.originalDueDate !== apresReport.dueDate;
+    resultat.reporteReserve = dispo() === s0.available;
+    // 3. IGNORER libère (ADR-066) : l'échéance est réglée d'un choix,
+    //    la charge ne pèse plus, l'argent revient au disponible.
+    openRecSheet(loyer);
+    if (document.getElementById("rSkipMonth")) document.getElementById("rSkipMonth").click();
+    const apresSkip = occLoyer();
+    resultat.ignorerAgit = !!apresSkip && apresSkip.state === "skipped";
+    resultat.ignorerLibere = round2(dispo() - s0.available) === 1500;
+    resultat.attenteLiberee = !monthlyObligations(NOW.y, NOW.m).some(i =>
+      i.id === "loyer" && !["paid", "skipped"].includes(i.state));
+    // 4. Une FACTURE s'ignore pareil — et libère pareil.
+    openBillSheet(prime);
+    if (document.getElementById("bSkipMonth")) document.getElementById("bSkipMonth").click();
+    resultat.factureLiberee = typeof factureSautee === "function" && factureSautee(prime) === true
+      && round2(dispo() - s0.available) === 1900;
+    // 5. Des gestes d'AGENDA : aucun mouvement créé ni touché.
+    resultat.argentIntact = transactions.length === avantTx;
+    // 6. Le comparateur W2.7a raconte toujours zéro écart (fenêtre
+    //    matérialisée d'abord — verrou, le sabotage fait foi).
+    materialiserOccurrences(NOW.y, NOW.m);
+    const prochain = shiftMonth({ y: NOW.y, m: NOW.m }, 1);
+    materialiserOccurrences(prochain.y, prochain.m);
+    resultat.comparateurZero = comparerOccurrencesEtCompteurs(2).length === 0;
+    return resultat;
+  });
+  check(inbox.gestesVisibles === true,
+    "la feuille d'une série due offre enfin Reporter et Ignorer (W2.5 exposé)");
+  check(inbox.reporterGarde === true,
+    "reporter déplace l'échéance en gardant la date d'ORIGINE — elle reste ouverte");
+  check(inbox.reporteReserve === true,
+    "reporté ≠ libéré : l'argent reste réservé après un report");
+  check(inbox.ignorerAgit === true,
+    "ignorer passe l'échéance en skipped — un choix, pas un oubli");
+  check(inbox.ignorerLibere === true,
+    "ADR-066 : ignorer LIBÈRE — la charge ignorée rend ses 1500 au disponible");
+  check(inbox.attenteLiberee === true,
+    "la ligne ignorée quitte la liste « à faire » — on ne propose pas de payer un choix");
+  check(inbox.factureLiberee === true,
+    "une facture s'ignore pareil — et libère pareil (400 de plus)");
+  check(inbox.argentIntact === true,
+    "gestes d'agenda : aucun mouvement créé ni touché");
+  check(inbox.comparateurZero === true,
+    "le comparateur W2.7a garde zéro écart — les compteurs ont appris la même vérité");
+  await ctx210.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12697,4 +12798,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 209 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 210 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

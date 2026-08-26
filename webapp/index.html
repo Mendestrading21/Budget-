@@ -1459,6 +1459,17 @@
         <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn" id="rPost" style="display:none;margin-top:10px">Régler ce mois</button>
+      <!-- W5.7 (ADR-066) : gestes d'AGENDA sur l'échéance du mois —
+           aucun argent ne bouge, le choix vaut pour ce mois seulement. -->
+      <div id="rAgendaGestes" style="display:none;margin-top:10px">
+        <p class="caption" style="margin:0 0 8px">Gestes d'agenda pour ce mois — aucun argent ne bouge. Ignorer libère le disponible ; reporter garde l'échéance à faire.</p>
+        <button type="button" class="btn secondary" id="rSkipMonth">Ignorer ce mois-ci</button>
+        <label for="rSnoozeDate" style="margin-top:8px">Reporter à</label>
+        <div style="display:flex;gap:8px">
+          <input type="date" id="rSnoozeDate" style="flex:1;min-width:0" />
+          <button type="button" class="btn secondary" id="rSnoozeBtn" style="width:auto;flex:none;padding:0 14px">Reporter</button>
+        </div>
+      </div>
       <button type="button" class="btn secondary" id="rEnd"
               style="display:none;margin-top:10px">Résilier à partir de ce mois</button>
       <button type="button" class="btn secondary" id="rDelete"
@@ -1636,6 +1647,12 @@
         <button type="submit" class="btn nu-cta">Enregistrer</button>
       </div>
       <button type="button" class="btn" id="bPay" style="display:none;margin-top:10px">Marquer payée (crée la dépense)</button>
+      <!-- W5.7 (ADR-066) : ignorer = geste d'agenda, aucun argent ne
+           bouge. Reporter une facture = changer sa date d'échéance. -->
+      <div id="bAgendaGestes" style="display:none;margin-top:10px">
+        <button type="button" class="btn secondary" id="bSkipMonth">Ignorer cette facture ce mois-ci</button>
+        <p class="caption" style="margin:6px 0 0">Aucun argent ne bouge : l'échéance n'attend plus, le disponible est libéré. Pour la reporter, changez simplement sa date d'échéance ci-dessus.</p>
+      </div>
       <button type="button" class="btn secondary" id="bUnpay" style="display:none;margin-top:10px">Marquer non payée</button>
       <button type="button" class="btn secondary" id="bDelete"
               style="display:none;margin-top:10px;color:var(--negative)">Supprimer cette facture</button>
@@ -2858,7 +2875,11 @@ function recurringLinkedCount(recurring, y, m) {
    couvrent les N premières échéances — un mois à double échéance attend
    deux gestes. */
 function recurringRemainingCount(recurring, y, m) {
-  return Math.max(0, recurringDueCount(recurring, y, m) - recurringLinkedCount(recurring, y, m));
+  // W5.7 (ADR-066, décision propriétaire du 26.08.2026) : une échéance
+  // SAUTÉE réduit le compteur — le disponible, l'agenda et les feuilles
+  // lisent la même vérité que les échéances persistées (W2.3/W2.5).
+  return Math.max(0, recurringDueCount(recurring, y, m) - recurringLinkedCount(recurring, y, m)
+    - echeancesSauteesSerie(recurring.id, y, m));
 }
 /* Résiliée : à partir du mois indiqué INCLUS, la charge ne pèse plus. */
 function recurringEnded(recurring, y, m) {
@@ -3009,8 +3030,10 @@ function snapshot(y, m) {
   const taxes = sum(posted, "taxPayment");
 
   const plannedIncome = sum(planned, "income");
+  // W5.7 (ADR-066) : une facture IGNORÉE ce mois (échéance sautée) ne
+  // réserve plus l'argent — un choix n'est pas une dette.
   const openBillsDue = fromCents((S.bills || [])
-    .filter(b => !billIsCovered(b) && b.dueY === y && b.dueM === m)
+    .filter(b => !billIsCovered(b) && !factureSautee(b) && b.dueY === y && b.dueM === m)
     .reduce((a, b) => a + toCents(billAmountInBase(b)), 0));
   const plannedOut = round2(["expense", "saving", "investment", "taxPayment"].reduce((a, ty) => a + sum(planned, ty), 0)
     + openBillsDue);
@@ -3149,18 +3172,13 @@ function comparerOccurrencesEtCompteurs(fenetreMois) {
         && typeof o.idempotencyKey === "string"
         && o.idempotencyKey.startsWith(prefixe)
         && ETATS_OUVERTS.has(o.state)).length;
-      // W5.2 : IGNORER/ANNULER est une vérité que les compteurs ne
-      // connaissent pas — l'attendu se réduit des échéances sautées
-      // volontairement (aucun mouvement, aucun oubli : un choix).
-      const sautees = (S.occurrences || []).filter(o =>
-        o.seriesId === r.id
-        && typeof o.idempotencyKey === "string"
-        && o.idempotencyKey.startsWith(prefixe)
-        && (o.state === "skipped" || o.state === "cancelled")).length;
+      // W5.7 (ADR-066) : les compteurs LISENT désormais les échéances
+      // sautées (recurringRemainingCount les soustrait à la source) —
+      // le comparateur n'a plus d'écart W5.2 à compenser.
       const liees = transactions.filter(t =>
         inMonth(t, mm.y, mm.m) && t.recurringId === r.id).length;
       const effectives = Math.max(0, ouvertes - liees);
-      const attenduNet = Math.max(0, attendu - sautees);
+      const attenduNet = attendu;
       if (effectives !== attenduNet) {
         ecarts.push(`${r.id} ${mm.y}-${mm.m} : compteur ${attenduNet}, occurrences ouvertes ${effectives}`);
       }
@@ -3220,6 +3238,28 @@ function ignorerOccurrence(occurrence) {
 }
 function annulerOccurrence(occurrence) {
   return transitionOccurrence(occurrence, "cancelled");
+}
+
+/* W5.7 (ADR-066) : IGNORER LIBÈRE — une échéance sautée (skipped ou
+   cancelled, machine W2.3) est un CHOIX : elle ne pèse plus sur les
+   compteurs, le disponible ni la liste « à faire ». Trois portes de
+   LECTURE, rien d'autre n'écrit. */
+function echeancesSauteesSerie(recurringId, y, m) {
+  const prefixe = `serie:${recurringId}:${y}-${m}:`;
+  return (S.occurrences || []).filter(o =>
+    typeof o.idempotencyKey === "string" && o.idempotencyKey.startsWith(prefixe)
+    && (o.state === "skipped" || o.state === "cancelled")).length;
+}
+function factureSautee(bill) {
+  if (!bill) return false;
+  const occ = (S.occurrences || []).find(o => o && o.idempotencyKey === `facture:${bill.id}`);
+  return !!occ && (occ.state === "skipped" || occ.state === "cancelled");
+}
+function echeanceOuverteSerie(recurringId, y, m) {
+  const prefixe = `serie:${recurringId}:${y}-${m}:`;
+  return (S.occurrences || []).find(o =>
+    typeof o.idempotencyKey === "string" && o.idempotencyKey.startsWith(prefixe)
+    && ["scheduled", "due", "matchProposed", "snoozed"].includes(o.state)) || null;
 }
 
 /* ===== W3.1 (Budget Autonomie 100, ADR-063) : le JOURNAL financier =====
@@ -3884,6 +3924,11 @@ function monthlyObligations(y, m) {
     // REC2 : tant qu'une échéance du mois reste à couvrir, la ligne est en
     // attente — le bouton matérialise la suivante.
     const linked = recurringRemainingCount(r, y, m) > 0 ? null : recurringOccurrence(r, y, m);
+    // W5.7 (ADR-066) : plus rien à couvrir PARCE QUE l'échéance a été
+    // ignorée — la ligne quitte « à faire » : on ne propose pas de payer
+    // un choix.
+    const sautee = !linked && recurringRemainingCount(r, y, m) === 0
+      && echeancesSauteesSerie(r.id, y, m) > 0;
     return {
       key: `recurring:${r.id}:${y}-${m}`,
       source: "recurring",
@@ -3892,7 +3937,7 @@ function monthlyObligations(y, m) {
       icon: r.icon || "🔁",
       amount: recurringAmountInBase(r),
       due,
-      state: stateFor(linked, due),
+      state: sautee ? "skipped" : stateFor(linked, due),
       linkedTxId: linked ? linked.id : null,
       accountName: (ACCOUNTS.find(a => a.id === recurringAccountId(r)) || {}).name || "",
     };
@@ -3908,12 +3953,12 @@ function monthlyObligations(y, m) {
       icon: "🧾",
       amount: billAmountInBase(b),
       due,
-      state: stateFor(linked, due, b.paidTxId === -1),
+      state: !linked && factureSautee(b) ? "skipped" : stateFor(linked, due, b.paidTxId === -1),
       linkedTxId: linked ? linked.id : null,
       accountName: (ACCOUNTS.find(a => a.id === billAccountId(b)) || {}).name || "",
     };
   });
-  const order = { late: 0, upcoming: 1, scheduled: 2, paid: 3 };
+  const order = { late: 0, upcoming: 1, scheduled: 2, paid: 3, skipped: 4 };
   return [...recurring, ...bills].sort((a, b) =>
     order[a.state] - order[b.state]
       || a.due.d - b.due.d
@@ -4363,7 +4408,9 @@ function renderSimpleHome() {
     });
 
   const obligations = monthlyObligations(y, m);
-  const open = obligations.filter(item => item.state !== "paid");
+  // W5.7 (ADR-066) : une échéance ignorée n'est ni à faire ni payée —
+  // elle sort simplement de la liste (le rituel du mois la compte réglée).
+  const open = obligations.filter(item => !["paid", "skipped"].includes(item.state));
   const status = item => {
     // FE2 : une date atteinte ne comptabilise RIEN — elle rend la ligne
     // « À confirmer ». C'est le bouton qui enregistre, jamais le calendrier.
@@ -9306,6 +9353,16 @@ function openRecSheet(rec) {
   // charge annuelle hors de son mois, ou résiliée, n'a rien à valider.
   const dueThisMonth = rec && recurringDueIn(rec, NOW.y, NOW.m);
   postBtn.style.display = rec && dueThisMonth && !alreadyThisMonth ? "block" : "none";
+  // W5.7 (ADR-066) : les gestes d'agenda accompagnent le règlement — la
+  // même condition exactement (une échéance de CE mois reste ouverte).
+  const agendaGestes = document.getElementById("rAgendaGestes");
+  const gestesVisibles = !!(rec && dueThisMonth && !alreadyThisMonth);
+  agendaGestes.style.display = gestesVisibles ? "block" : "none";
+  if (gestesVisibles) {
+    const dans7 = new Date(Date.now() + 7 * 86400000);
+    document.getElementById("rSnoozeDate").value =
+      `${dans7.getFullYear()}-${String(dans7.getMonth() + 1).padStart(2, "0")}-${String(dans7.getDate()).padStart(2, "0")}`;
+  }
   // Sans jour promis, il n'y a plus de « planifier pour le 25 » : le seul
   // geste est de constater que c'est fait, aujourd'hui.
   if (rec) {
@@ -9786,6 +9843,38 @@ document.getElementById("rPost").addEventListener("click", () => {
   toast(avanceRec || `${rec.title} · ${movementLabel} ce mois`);
   render();
 });
+/* W5.7 (ADR-066) : gestes d'AGENDA de la feuille — reporter et ignorer
+   l'échéance du mois COURANT. Jamais d'argent : la machine à états W2.3
+   fait foi, les garde-fous W2.5 crient si un mouvement bougeait. */
+function echeanceOuverteDuMois(rec) {
+  materialiserOccurrences(NOW.y, NOW.m);
+  return echeanceOuverteSerie(rec.id, NOW.y, NOW.m);
+}
+document.getElementById("rSkipMonth").addEventListener("click", () => {
+  const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
+  if (!rec) return;
+  const occ = echeanceOuverteDuMois(rec);
+  if (!occ) { document.getElementById("rError").textContent = "Aucune échéance ouverte ce mois."; return; }
+  const refus = ignorerOccurrence(occ);
+  if (refus) { document.getElementById("rError").textContent = refus; return; }
+  saveState();
+  closeSheet();
+  render();
+  toast("Échéance ignorée ce mois — aucune opération créée, l'argent redevient disponible.");
+});
+document.getElementById("rSnoozeBtn").addEventListener("click", () => {
+  const rec = editingRecId ? RECURRINGS.find(r => r.id === editingRecId) : null;
+  if (!rec) return;
+  const occ = echeanceOuverteDuMois(rec);
+  if (!occ) { document.getElementById("rError").textContent = "Aucune échéance ouverte ce mois."; return; }
+  const refus = reporterOccurrence(occ, document.getElementById("rSnoozeDate").value);
+  if (refus) { document.getElementById("rError").textContent = refus; return; }
+  saveState();
+  closeSheet();
+  render();
+  const [ry, rm, rd] = occ.dueDate.split("-");
+  toast(`Échéance reportée au ${rd}.${rm}.${ry} — elle reste à faire.`);
+});
 document.getElementById("rDelete").addEventListener("click", () => {
   if (!editingRecId || !confirm("Supprimer cette ligne ? (les opérations déjà saisies restent)")) return;
   pushUndo();
@@ -10199,6 +10288,10 @@ function openBillSheet(bill) {
   document.getElementById("bDelete").style.display = bill ? "block" : "none";
   document.getElementById("bPay").style.display = bill && !billIsCovered(bill) ? "block" : "none";
   document.getElementById("bUnpay").style.display = bill && billIsCovered(bill) ? "block" : "none";
+  // W5.7 (ADR-066) : ignorer n'est offert que tant que la facture n'est
+  // ni couverte ni déjà ignorée.
+  document.getElementById("bAgendaGestes").style.display =
+    bill && !billIsCovered(bill) && !factureSautee(bill) ? "block" : "none";
   const covered = !!(bill && billIsCovered(bill));
   document.getElementById("bAmount").disabled = covered;
   document.getElementById("bDue").disabled = covered;
@@ -10270,6 +10363,24 @@ document.getElementById("bPay").addEventListener("click", () => {
     ? "Facture planifiée — opération prévue créée"
     : "Facture payée — opération créée", true);
   render();
+});
+/* W5.7 (ADR-066) : ignorer une facture = geste d'AGENDA — l'échéance
+   n'attend plus, aucun mouvement n'est créé, le disponible est libéré. */
+document.getElementById("bSkipMonth").addEventListener("click", () => {
+  const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;
+  if (!bill || billIsCovered(bill) || factureSautee(bill)) return;
+  materialiserFactures(bill.dueY, bill.dueM);
+  const occ = (S.occurrences || []).find(o => o.idempotencyKey === `facture:${bill.id}`);
+  if (!occ || !["scheduled", "due", "matchProposed", "snoozed"].includes(occ.state)) {
+    document.getElementById("bError").textContent = "Aucune échéance ouverte pour cette facture.";
+    return;
+  }
+  const refus = ignorerOccurrence(occ);
+  if (refus) { document.getElementById("bError").textContent = refus; return; }
+  saveState();
+  closeSheet();
+  render();
+  toast("Facture ignorée ce mois — aucune opération créée, l'argent redevient disponible.");
 });
 document.getElementById("bUnpay").addEventListener("click", () => {
   const bill = editingBillId ? S.bills.find(b => b.id === editingBillId) : null;

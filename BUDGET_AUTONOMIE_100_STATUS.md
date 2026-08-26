@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.5 fusionnés · W5.6 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.6 fusionnés · W5.7 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -156,6 +156,42 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W5.7 : Inbox — Reporter et Ignorer existent, ignorer libère (ADR-066)
+
+Mesuré : les gestes d'agenda W2.5 (`reporterOccurrence`,
+`ignorerOccurrence`) n'avaient AUCUN appelant à l'écran, et une
+échéance ignorée pesait encore sur le disponible
+(`recurringRemainingCount` = dues − liées, sans lire les échéances) —
+la divergence consignée depuis W5.2/W5.2b. Décision propriétaire du
+26.08.2026 (AskUserQuestion) : **« Oui, ignorer libère »** → ADR-066.
+Livré : (1) la feuille d'une série due porte les gestes « Ignorer ce
+mois-ci » et « Reporter à… » (même condition d'apparition que « Régler
+ce mois ») ; la feuille d'une facture non couverte porte « Ignorer
+cette facture ce mois-ci » (reporter une facture = changer sa date,
+déjà possible) ; (2) trois portes de lecture (`echeancesSauteesSerie`,
+`factureSautee`, `echeanceOuverteSerie`) ; `recurringRemainingCount`
+et `openBillsDue` soustraient les échéances sautées — disponible,
+prévision de fin de mois, liste « à faire » et feuilles lisent la même
+vérité ; le comparateur W2.7a n'a plus d'écart W5.2 à compenser
+(attendu net = attendu) ; l'état `skipped` sort des obligations
+ouvertes. Reporter garde l'échéance OUVERTE (date d'origine intacte,
+argent toujours réservé : reporté ≠ libéré). Preuves : parcours 210 né
+rouge (7 échecs nommés, dont un artefact de fenêtre corrigé —
+matérialiser avant de comparer) → vert ; DEUX sabotages séquentiels :
+le compteur oublie les sautées → 4 contrôles ADR-066 mordent ET la
+gate comparateur W5.2 crie (la parité protège) ; les factures gardent
+leur réserve → factureLiberee mord SEUL ; restauré vert ; verrou de
+langue existant mordu en route (« mouvement » interdit dans un toast →
+« opération », la fondation langue fait son travail) ; captures
+320/390 feuille + mois-après-ignorer inspectées
+(`docs/neon-ultra/budget-prisme/w5-7/`) ; suites complètes vertes (210
+e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
+Consigné : le natif applique déjà « ignorer libère » à sa prévision
+(W5.2b, `persistedOccurrences`) — les GESTES natifs à l'écran
+(feuille iOS) suivront avec les écrans natifs de W5 ; la fenêtre
+multi-mois reste la fenêtre de matérialisation W2 (aucune nouvelle
+décision) ; reste W5.8 (nettoyage prouvé) pour fermer W5.
+
 ### 26.08.2026 — W5.6 : Gérer — les taux datés se voient
 
 Mesure d'abord : W4.2 consigne chaque taux avec sa date et sa
@@ -182,7 +218,8 @@ charte = structure actuelle de Gérer, mesurée conforme (sections Mon
 ménage / Sécurité / Vos données, portes read-row) ; le miroir natif
 (Réglages iOS lisant FxQuote V13) suivra avec les écrans natifs de
 W5 ; prochain lot W5.7 (inbox — gestes Reporter/Ignorer exposés,
-décision produit « sauter libère-t-il le disponible ? »).
+décision produit « sauter libère-t-il le disponible ? »). Fusionné
+(`main` = `86af62d`, PR #166) et publié (run `32933141071`, succès).
 
 ### 26.08.2026 — W5.4 : Budget — le futur parle au conditionnel, le passé au passé
 
