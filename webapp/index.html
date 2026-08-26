@@ -1239,6 +1239,12 @@
         <!-- Multiligne : la valeur complète reste visible à 320 px et à
              200 % de texte (identifiant et valeur inchangés). -->
         <textarea id="fTitle" rows="2" placeholder="Courses de la semaine" autocomplete="off"></textarea>
+        <!-- W7.3 : tags LIBRES (esprit CAT1) — vos mots, pliés et
+             bornés, retrouvables dans l'Historique. Des mots, jamais
+             de l'argent : aucun agrégat ne les lit. -->
+        <label for="fTags">Tags (facultatif)</label>
+        <input id="fTags" placeholder="vacances, remboursable" autocomplete="off" />
+        <p class="caption" style="margin:2px 0 0">Vos mots, séparés par des virgules — pour retrouver l'opération dans l'Historique.</p>
       </details>
       <button type="button" class="btn secondary" id="fDuplicate"
               style="display:none;margin-top:10px">Dupliquer (copie datée d'aujourd'hui)</button>
@@ -4769,7 +4775,7 @@ function renderMovements() {
   return `<h2 class="screen-title">Historique</h2>
     ${monthNav()}
     <input id="moreSearchInput" type="search" class="search-field"
-      placeholder="Rechercher (intitulé, catégorie)…" value="${esc(moreSearch)}"
+      placeholder="Rechercher (intitulé, catégorie, tag)…" value="${esc(moreSearch)}"
       aria-label="Rechercher une opération" autocomplete="off" />
     <div class="filter-row" role="group" aria-label="Filtrer par famille">
       ${[["all", "Tous"], ["income", "Rentrées"], ["expense", "Dépenses"], ["sub", "Abonnements"], ["saving", "Mis de côté"], ["transfer", "Virements"]]
@@ -6837,7 +6843,9 @@ function renderMoreTxList() {
   const monthTx = transactions
     .filter(t => inMonth(t, y, m))
     .filter(t => moreFilter === "all" || txFamille(t) === moreFilter)
-    .filter(t => !needle || fold(t.title).includes(needle) || (t.cat && fold(t.cat).includes(needle)))
+    .filter(t => !needle || fold(t.title).includes(needle) || (t.cat && fold(t.cat).includes(needle))
+      // W7.3 : la recherche trouve aussi par tag — vos mots comptent.
+      || (Array.isArray(t.tags) && t.tags.some(tag => fold(tag).includes(needle))))
     .sort((a, b) => b.d - a.d || b.id - a.id);
   const total = monthTx.reduce((a, t) => {
     if (t.type === "transfer") return a;
@@ -8347,6 +8355,8 @@ function openTxSheet(tx, presetType) {
   typeSelect.querySelectorAll('option[value="adjustment"]').forEach(o => o.remove());
   if (tx) {
     document.getElementById("fTitle").value = tx.title;
+    // W7.3 : les tags reviennent tels quels dans le champ.
+    document.getElementById("fTags").value = Array.isArray(tx.tags) ? tx.tags.join(", ") : "";
     document.getElementById("fAmount").value = tx.amount.toFixed(2);
     if (tx.type === "adjustment") {
       // Un ajustement de réconciliation garde son type et son sens —
@@ -8492,6 +8502,12 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
   const status = isFutureDate(y, m, d) ? "planned"
     : (document.getElementById("fFait").checked ? "posted" : "planned");
   const existing = editingTxId != null ? transactions.find(t => t.id === editingTxId) : null;
+  // W7.3 : tags LIBRES — pliés (dédup insensible à la casse), vides
+  // retirés, bornés (5 tags de 24 caractères). Stockés seulement s'il
+  // y en a : un mouvement sans tags ne porte pas la clé.
+  const tagsSaisis = (document.getElementById("fTags").value || "").split(",")
+    .map(tag => tag.trim().slice(0, 24)).filter(Boolean);
+  const tags = [...new Set(tagsSaisis.map(tag => tag.toLowerCase()))].slice(0, 5);
   try {
     const photoAvant = photoObjectifs();
     if (existing) {
@@ -8502,6 +8518,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
         title, amount: Math.round(amount * 100) / 100,
         y, m, d, status, type, cat: type === "adjustment" ? null : cat, dest, acc: sourceId,
       });
+      if (tags.length) candidate.tags = tags; else delete candidate.tags;
       const index = transactions.indexOf(existing);
       if (index >= 0) transactions[index] = candidate;
       ombreJournalDepot(candidate); // W3.3 : l'écriture suit la modification
@@ -8511,6 +8528,7 @@ document.getElementById("txForm").addEventListener("submit", (e) => {
         id: ++txSeq, y, m, d,
         title, amount: Math.round(amount * 100) / 100,
         type, cat, acc: sourceId, dest, status,
+        ...(tags.length ? { tags } : {}),
       });
       const avance = status === "planned" ? null : progresObjectif(dest, photoAvant);
       toast(avance || (status === "planned" ? "Opération planifiée" : "Opération ajoutée"));
@@ -8711,6 +8729,18 @@ function validatedRestoreState(input, { preserveDeviceLock = false } = {}) {
     if (transaction.importBatch != null
         && (typeof transaction.importBatch !== "string" || !transaction.importBatch)) {
       throw new Error("lot d'import de l'opération invalide");
+    }
+    // W7.3 : tags additifs — assainis (chaînes non vides, 24 car.,
+    // 5 max), la clé disparaît si rien ne survit. Jamais un refus :
+    // des mots ne bloquent pas une restauration.
+    if (transaction.tags !== undefined) {
+      if (!Array.isArray(transaction.tags)) delete transaction.tags;
+      else {
+        transaction.tags = transaction.tags
+          .filter(tag => typeof tag === "string" && tag.trim() && tag.length <= 24)
+          .slice(0, 5);
+        if (!transaction.tags.length) delete transaction.tags;
+      }
     }
     transaction.sourceCurrency = CURRENCIES.includes(transaction.sourceCurrency)
       ? transaction.sourceCurrency : state.accounts.find(a => a.id === transaction.acc).currency;

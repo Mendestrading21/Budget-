@@ -13405,6 +13405,88 @@ currentTest = "W7.2 doublons d'import";
   await ctx218.close();
 }
 
+// ---------- 219. W7.3 : TAGS — vos mots sur un mouvement, retrouvables ----------
+// Budget Autonomie 100, W7.3 : mesuré — un mouvement n'a qu'une
+// catégorie ; aucun moyen d'y poser SES mots (« vacances »,
+// « remboursable ») ni de les retrouver. Livré : tags LIBRES (esprit
+// CAT1), clé additive, pliés et bornés, recherche de l'Historique
+// étendue. Aucun agrégat ne lit les tags — des mots, pas de l'argent.
+currentTest = "W7.3 tags libres";
+{
+  const ctx219 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p219 = await ctx219.newPage();
+  p219.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W7.3] ${msg.text()}`); });
+  await p219.addInitScript(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Tag" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 3000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, title: "Hôtel Lugano", amount: 240, type: "expense", cat: null, acc: "cur",
+          dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 3 },
+        { id: 2, title: "Courses", amount: 55, type: "expense", cat: "Alimentation", acc: "cur",
+          dest: null, status: "posted", y: now.getFullYear(), m: now.getMonth() + 1, d: 4 },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p219.goto(APP_URL);
+  await p219.waitForSelector("#tabbar button");
+  const tag = await p219.evaluate(() => {
+    const resultat = {};
+    // 1. La feuille du mouvement offre le champ tags.
+    openTxSheet(transactions.find(t => t.id === 1));
+    const champ = document.getElementById("fTags");
+    resultat.champVisible = !!champ;
+    // 2. Saisir des tags les stocke PLIÉS et dédupliqués, bornés.
+    if (champ) {
+      champ.value = " Vacances , remboursable, VACANCES ,  ";
+      document.getElementById("txForm").requestSubmit();
+    }
+    const hotel = transactions.find(t => t.id === 1);
+    resultat.tagsNormalises = Array.isArray(hotel.tags)
+      && JSON.stringify(hotel.tags) === JSON.stringify(["vacances", "remboursable"]);
+    // 3. La recherche de l'Historique les trouve.
+    activeTab = "movements"; moreSearch = "vacances"; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    resultat.rechercheTrouve = ecran().includes("Hôtel Lugano") && !ecran().includes("Courses");
+    moreSearch = ""; render();
+    // 4. Rouvrir la feuille préremplit ; re-soumettre sans toucher garde.
+    openTxSheet(transactions.find(t => t.id === 1));
+    resultat.feuillePrereplie = (document.getElementById("fTags") || {}).value === "vacances, remboursable";
+    document.getElementById("txForm").requestSubmit();
+    resultat.reSoumissionGarde = JSON.stringify(transactions.find(t => t.id === 1).tags)
+      === JSON.stringify(["vacances", "remboursable"]);
+    // 5. Un mouvement sans tags n'a pas la clé (sobriété).
+    resultat.sansTagsSobre = transactions.find(t => t.id === 2).tags === undefined;
+    // 6. Restauration : des tags hostiles sont assainis, jamais gardés.
+    const photo = JSON.parse(JSON.stringify(S));
+    photo.transactions.find(t => t.id === 2).tags = [12, "", "x".repeat(200), "ok"];
+    let restauree = null;
+    try { restauree = validatedRestoreState(photo); } catch (e) { restauree = null; }
+    const t2 = restauree && restauree.transactions.find(t => t.id === 2);
+    resultat.restaurationFiltre = !!t2 && JSON.stringify(t2.tags) === JSON.stringify(["ok"]);
+    return resultat;
+  });
+  check(tag.champVisible === true,
+    "la feuille du mouvement offre le champ « Tags (facultatif) »");
+  check(tag.tagsNormalises === true,
+    "les tags sont pliés, dédupliqués, vides retirés : [vacances, remboursable]");
+  check(tag.rechercheTrouve === true,
+    "la recherche de l'Historique trouve un mouvement par son tag");
+  check(tag.feuillePrereplie === true,
+    "rouvrir la feuille prérempli les tags");
+  check(tag.reSoumissionGarde === true,
+    "re-soumettre sans toucher garde les tags");
+  check(tag.sansTagsSobre === true,
+    "un mouvement sans tags ne porte pas la clé");
+  check(tag.restaurationFiltre === true,
+    "restauration : tags hostiles assainis (types, vides, longueurs)");
+  await ctx219.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -13414,4 +13496,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 218 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 219 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
