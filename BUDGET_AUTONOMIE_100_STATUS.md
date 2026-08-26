@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.2b fusionnés · W5.3 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.3 fusionnés · W5.5 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -156,6 +156,31 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W5.5 : Comptes — les dettes ont leur groupe, les archivés leur place, les relevés se voient
+
+Mesure d'abord : les comptes de dette créés en W4.1 (`creditCard`,
+`loan`) étaient INVISIBLES sur l'écran Comptes — aucun groupe ne
+couvrait leur `kind` (divergence consignée en W4.1, fermée ici). Trois
+morceaux, lecture seule : (1) le groupe « Cartes et prêts » liste les
+comptes `dette: true` actifs (solde dû négatif, coral) ; (2) les
+comptes archivés (W4.6) quittent leurs groupes vivants et se rangent
+sous « Archivés » (rangée atténuée, « archivé — l'histoire reste »,
+consultables au détail) ; (3) le détail d'un compte montre « Dernier
+relevé » quand `S.releves` en porte un (« Solde constaté X le
+JJ.MM.AAAA — source. ») ; sans relevé la carte se tait. Preuves :
+parcours 207 né rouge (3 échecs nommés : groupeDettes, archiveRange,
+releveVisible) → vert ; sabotage (« Argent disponible » oublie
+`compteActif` → l'archivé refuit dans son groupe) → le contrôle
+archiveRange mord SEUL ; restauré vert ; captures 320/390 inspectées
+(`docs/neon-ultra/budget-prisme/w5-5/` — groupes « Argent
+disponible » / « Cartes et prêts » (Carte Visa −CHF 250.00) /
+« Archivés » (Ancien compte), zéro débordement) ; suites complètes
+vertes (207 e2e, 9 parités, 13 canon + schéma, design, catalogue,
+audit). Consigné : le formulaire compte natif (typologie + solde dû)
+et la présentation archivés/relevés iOS suivront quand W5 touchera
+les écrans natifs ; prochains lots W5.4 (Budget — projections au
+conditionnel) et W5.6 (Gérer — taux datés visibles).
+
 ### 26.08.2026 — W5.3 : l'Historique lit la chaîne — « corrigé » se voit
 
 La chaîne de correction du journal (W3.5 — l'histoire jamais réécrite)
@@ -175,7 +200,8 @@ captures 320/390 inspectées (`docs/neon-ultra/budget-prisme/w5-3/` —
 ligne marquée, note de feuille lisible) ; suites complètes vertes (206
 e2e, 9 parités, 13 canon + schéma, design, catalogue, audit).
 Consigné : la trace natif (le détail iOS lisant la chaîne V12) suivra
-quand W5 touchera les écrans natifs correspondants.
+quand W5 touchera les écrans natifs correspondants. Fusionné (`main` =
+`a7524ec`, PR #163) et publié (run `32920731017`, succès).
 
 ### 26.08.2026 — W5.2b : l'accueil natif lit les échéances
 

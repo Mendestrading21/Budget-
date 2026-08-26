@@ -12454,6 +12454,87 @@ currentTest = "W5.3 historique lit la chaîne";
   await ctx206.close();
 }
 
+// ---------- 207. W5.5 : COMPTES — les dettes ont leur groupe, les archivés leur place, les relevés se voient ----------
+// Budget Autonomie 100, W5.5 : mesuré — un compte de dette (W4.1)
+// était INVISIBLE sur l'écran Comptes (aucun groupe ne le couvrait).
+// W5.5 : groupe « Cartes et prêts », section « Archivés » à part
+// (toujours consultables), et le détail d'un compte montre son
+// DERNIER RELEVÉ (W4.3) — montant constaté, date, provenance.
+currentTest = "W5.5 comptes rangés";
+{
+  const ctx207 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p207 = await ctx207.newPage();
+  p207.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.5] ${msg.text()}`); });
+  await p207.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cpt" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "visa", name: "Carte Visa", kind: "creditCard", opening: -250, cash: false, currency: "CHF" },
+        { id: "old", name: "Ancien compte", kind: "current", opening: 900, cash: true, currency: "CHF", archived: true },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p207.goto(APP_URL);
+  await p207.waitForSelector("#tabbar button");
+  const cpt = await p207.evaluate(() => {
+    const resultat = {};
+    const onglet = i => [...document.querySelectorAll("#tabbar button")][i];
+    onglet(3).click();
+    const texte = () => document.getElementById("screen").textContent;
+    // 1. La carte a enfin un GROUPE — et son solde dû s'affiche.
+    resultat.groupeDettes = texte().includes("Cartes et prêts")
+      && texte().includes("Carte Visa");
+    // 2. L'archivé a quitté son groupe et vit dans « Archivés ».
+    const html = document.getElementById("screen").innerHTML;
+    const posDispo = html.indexOf("Argent disponible");
+    const posArchives = html.indexOf("Archivés");
+    const posAncien = html.indexOf("Ancien compte");
+    resultat.archiveRange = posArchives > 0 && posAncien > posArchives
+      && html.indexOf("Ancien compte") === posAncien; // une seule apparition
+    // 3. L'archivé reste CONSULTABLE : son détail s'ouvre.
+    const carteAncien = document.querySelector('[data-accid="old"]');
+    if (carteAncien) carteAncien.click();
+    resultat.archiveConsultable = !!carteAncien && accountView === "old"
+      && texte().includes("Ancien compte");
+    if (document.querySelector("[data-accback]")) document.querySelector("[data-accback]").click();
+    // 4. Le détail montre le DERNIER RELEVÉ après une vraie
+    //    réconciliation.
+    editingAccId = "cur";
+    document.getElementById("reconAmount").value = "4900.00";
+    document.getElementById("reconNegative").checked = false;
+    document.getElementById("reconForm").requestSubmit();
+    const carteCur = document.querySelector('[data-accid="cur"]');
+    if (carteCur) carteCur.click();
+    resultat.releveVisible = texte().includes("Dernier relevé")
+      && texte().includes("4'900.00")
+      && texte().includes("réconciliation manuelle");
+    if (document.querySelector("[data-accback]")) document.querySelector("[data-accback]").click();
+    // 5. Sans relevé : la carte du détail n'en parle pas.
+    const carteVisa = document.querySelector('[data-accid="visa"]');
+    if (carteVisa) carteVisa.click();
+    resultat.sansReleveMuet = !texte().includes("Dernier relevé");
+    if (document.querySelector("[data-accback]")) document.querySelector("[data-accback]").click();
+    // Nettoyage.
+    transactions.length = 0; S.releves = []; S.journal = []; saveState(); render();
+    return resultat;
+  });
+  check(cpt.groupeDettes === true,
+    "les cartes et prêts ont enfin leur groupe sur l'écran Comptes (trou W4.1 fermé)");
+  check(cpt.archiveRange === true,
+    "un compte archivé quitte son groupe et vit dans « Archivés » — une seule apparition");
+  check(cpt.archiveConsultable === true,
+    "l'archivé reste consultable — son histoire s'ouvre");
+  check(cpt.releveVisible === true,
+    "le détail montre le DERNIER RELEVÉ : solde constaté, date, provenance (W4.3 enfin visible)");
+  check(cpt.sansReleveMuet === true,
+    "sans relevé, le détail n'invente rien");
+  await ctx207.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12463,4 +12544,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 206 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 207 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
