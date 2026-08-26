@@ -12628,6 +12628,66 @@ currentTest = "W5.4 budget conditionnel";
   await ctx208.close();
 }
 
+// ---------- 209. W5.6 : GÉRER — les taux datés se voient ----------
+// Budget Autonomie 100, W5.6 : mesuré — W4.2 consigne chaque taux avec
+// sa date et sa provenance (append-only), mais Gérer n'en montrait
+// RIEN : la rangée « Taux de change manuels » listait les valeurs
+// sans dire de quand elles datent, la feuille non plus. Un taux sans
+// date est une promesse invérifiable (« devise/taux/date explicites »).
+currentTest = "W5.6 taux datés visibles";
+{
+  const ctx209 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p209 = await ctx209.newPage();
+  p209.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W5.6] ${msg.text()}`); });
+  await p209.addInitScript(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Fx" },
+      baseCurrency: "CHF", transactions: [],
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      fxRates: { EUR: 0.95 },
+      fxQuotes: [{ base: "CHF", quote: "EUR", taux: 0.95, observedAt: "2026-08-20", source: "saisie manuelle" }],
+      recurrings: [], goals: [], assets: [], liabilities: [], pensions: [],
+      insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p209.goto(APP_URL);
+  await p209.waitForSelector("#tabbar button");
+  const fx = await p209.evaluate(() => {
+    const resultat = {};
+    activeTab = "more"; moreView = "settings"; render();
+    const ecran = () => document.getElementById("screen").textContent;
+    // 1. La rangée dit QUAND le dernier taux a été consigné.
+    resultat.rangeeDatee = ecran().includes("consigné le 20.08.2026");
+    // 2. Et reste honnête sur le réseau (verrou d'existant).
+    resultat.horsReseau = ecran().includes("aucune connexion réseau");
+    // 3. La feuille raconte PAR devise : valeur, date, provenance…
+    const porte = document.querySelector("[data-editfx]");
+    if (porte) porte.click();
+    const feuille = () => document.getElementById("fxForm").textContent;
+    resultat.feuilleRaconte = feuille().includes("0.95")
+      && feuille().includes("20.08.2026") && feuille().includes("saisie manuelle");
+    // 4. … et dit « jamais consigné » pour la devise restée au défaut.
+    resultat.defautHonnete = feuille().includes("jamais consigné");
+    document.getElementById("fxCancel").click();
+    // 5. Regarder n'écrit rien : le journal des taux n'a pas bougé.
+    resultat.lectureSeule = (S.fxQuotes || []).length === 1
+      && S.fxQuotes[0].observedAt === "2026-08-20";
+    activeTab = "home"; moreView = null; render();
+    return resultat;
+  });
+  check(fx.rangeeDatee === true,
+    "la rangée de Gérer dit quand le dernier taux a été consigné (W4.2 enfin visible)");
+  check(fx.horsReseau === true,
+    "l'honnêteté réseau reste écrite : « aucune connexion réseau »");
+  check(fx.feuilleRaconte === true,
+    "la feuille des taux raconte par devise : valeur, date, provenance");
+  check(fx.defautHonnete === true,
+    "la devise jamais consignée le dit — un défaut n'est pas une mesure");
+  check(fx.lectureSeule === true,
+    "afficher les taux n'écrit rien — lecture seule, journal intact");
+  await ctx209.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -12637,4 +12697,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 208 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 209 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

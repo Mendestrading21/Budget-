@@ -121,7 +121,7 @@ Livrables attendus :
 | W2 | Occurrences persistées | DONE | W1 (fusionné) |
 | W3 | Journal financier | DONE | W1, W2 (fusionnés) |
 | W4 | Comptes, devises, rapprochement | DONE | W3 (fusionné) |
-| W5 | Pages et inbox | W5.1–W5.3 + W5.5 fusionnés · W5.4 EN PR | W2, W3, W4 (fusionnés) |
+| W5 | Pages et inbox | W5.1–W5.5 fusionnés · W5.6 EN PR | W2, W3, W4 (fusionnés) |
 | W6 | Plan, budgets, objectifs | BLOCKED | W2, W3, W5 |
 | W7 | Import, règles, tags, splits | BLOCKED | W1, W3 |
 | W8 | Investissements et modules régionaux | BLOCKED | W3, W4 |
@@ -156,6 +156,34 @@ Aucune de ces décisions ne bloque W0.
 
 ## Journal
 
+### 26.08.2026 — W5.6 : Gérer — les taux datés se voient
+
+Mesure d'abord : W4.2 consigne chaque taux avec sa date et sa
+provenance (journal `fxQuotes`, append-only), mais Gérer n'en montrait
+RIEN — la rangée « Taux de change manuels » listait les valeurs sans
+dire de quand elles datent, la feuille non plus. Un taux sans date est
+une promesse invérifiable (invariant « devise/taux/date explicites »).
+Deux morceaux, lecture seule : (1) la rangée de Réglages date sa
+lecture (« … — dernier taux consigné le 20.08.2026 · aucune connexion
+réseau » ; sans journal : « taux par défaut, jamais mis à jour ») ;
+(2) la feuille des taux raconte PAR devise (« Dernier taux consigné :
+0.95 le 20.08.2026 — saisie manuelle. » ; devise restée au défaut :
+« Encore jamais consigné — le taux affiché est le défaut de
+départ. »). Helper unique `dernierTauxConsigne(devise)` (lit le
+journal W4.2, date fr-CH, null si jamais consigné). Preuves :
+parcours 209 né rouge (3 échecs nommés : rangeeDatee, feuilleRaconte,
+defautHonnete ; verrous horsReseau et lectureSeule nés verts,
+consignés) → vert ; sabotage chirurgical (la rangée ne date plus) →
+rangeeDatee mord SEUL ; restauré vert ; captures 320/390
+rangée + feuille inspectées (`docs/neon-ultra/budget-prisme/w5-6/`) ;
+suites complètes vertes (209 e2e, 9 parités, 13 canon + schéma,
+design, catalogue, audit). Consigné : « réglages progressifs » de la
+charte = structure actuelle de Gérer, mesurée conforme (sections Mon
+ménage / Sécurité / Vos données, portes read-row) ; le miroir natif
+(Réglages iOS lisant FxQuote V13) suivra avec les écrans natifs de
+W5 ; prochain lot W5.7 (inbox — gestes Reporter/Ignorer exposés,
+décision produit « sauter libère-t-il le disponible ? »).
+
 ### 26.08.2026 — W5.4 : Budget — le futur parle au conditionnel, le passé au passé
 
 ADR-055/056 confirmés sur la destination Budget. Mesure d'abord (sonde
@@ -184,7 +212,8 @@ futur+passé inspectées (`docs/neon-ultra/budget-prisme/w5-4/`) ;
 suites complètes vertes (208 e2e, 9 parités, 13 canon + schéma,
 design, catalogue, audit). Consigné : le miroir natif (BudgetTab au
 conditionnel) suivra avec les écrans iOS de W5 ; prochain lot W5.6
-(Gérer — taux datés visibles).
+(Gérer — taux datés visibles). Fusionné (`main` = `8dc2e2e`, PR #165)
+et publié (run `32924842621`).
 
 ### 26.08.2026 — W5.5 : Comptes — les dettes ont leur groupe, les archivés leur place, les relevés se voient
 
