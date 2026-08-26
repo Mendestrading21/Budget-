@@ -38,7 +38,7 @@ final class GoalDatedManualValueTests: XCTestCase {
 
     // L'existant reste NON daté — le service le dit, il n'invente rien.
     func testLegacyGoalStaysUndated() throws {
-        let goal = FinancialGoal(name: "Fonds", kind: .emergency, targetAmount: 10000,
+        let goal = FinancialGoal(name: "Fonds", kind: .emergencyFund, targetAmount: 10000,
                                  manualCurrentAmount: 1200)
         context.insert(goal)
         XCTAssertNil(goal.manualCurrentDate)
@@ -51,7 +51,7 @@ final class GoalDatedManualValueTests: XCTestCase {
         let account = Account(name: "Épargne", type: .savings, openingBalance: 4000)
         context.insert(account)
         let goal = FinancialGoal(
-            name: "Coussin", kind: .emergency, targetAmount: 10000,
+            name: "Coussin", kind: .emergencyFund, targetAmount: 10000,
             manualCurrentAmount: 999, linkedAccount: account
         )
         context.insert(goal)
