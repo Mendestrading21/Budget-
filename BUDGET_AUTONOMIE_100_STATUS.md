@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.4 fusionnés · W10.5 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.5 fusionnés · W10.6 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,29 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.6 : porte des actions sensibles
+
+Mesuré d'abord : verrou d'arrière-plan et bouclier de snapshot
+existants, mais une app DÉVERROUILLÉE laissait exporter toutes les
+finances, restaurer ou tout supprimer sans rien demander. Livré :
+`AppLockManager.authorizeSensitiveAction(reason:)` — verrou activé →
+authentification PROPRE exigée (seul un succès explicite autorise ;
+annulation = silence, échec = message nommé, indisponible = message) ;
+verrou désactivé → passe sans consulter le service (prouvé par
+compteur d'appels sur le fake) ; la porte n'altère jamais l'état du
+verrou. Réglages : les trois entrées sensibles passent par
+`runSensitive`, pied de section Sécurité honnête. Threat model : la
+parade « appareil sur une table » est livrée. Preuves : tour 1 vert
+(run 33048950384) ; tour SABOTAGE (run 33049610268) : porte INVERSÉE →
+les DEUX contrats mordent nommés (désactivé consulté ; activé toujours
+autorisé) ; revert. Au même run sabotage, le job Web a flaké
+(timeout 30 s sur `#tabbar button` au boot, e2e:14873 — sans rapport
+avec le sabotage Swift ; re-testé vert au tour final). Biométrie
+réelle sur iPhone physique = PENDING HUMAN. UI : textes seulement —
+pas de captures. Fusion W10.5 (`main` = `f143510`, PR #205) ;
+publication W10.5 : **succès** (run 33049360138, après CI push verte
+33048788158).
 
 ### 27.08.2026 — W10.5 : les pièces jointes voyagent dans la sauvegarde
 
