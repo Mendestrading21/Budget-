@@ -2785,6 +2785,34 @@ if (!S) {
 }
 txSeq = transactionSequenceFloor(S.transactions, txSeq);
 
+/* W9.4 : RÉCUPÉRATION depuis la réserve de secours (IndexedDB, W9.3).
+   Si localStorage a été évincé — l'app ressemble à une vraie première
+   ouverture — mais que la réserve porte un état v1 valide, il est
+   réécrit dans localStorage puis la page se recharge UNE fois. Un blob
+   corrompu ou d'une version future ne touche à RIEN. La bascule
+   complète du stockage attend le démarrage asynchrone (W9.8). */
+(async () => {
+  try {
+    if (localStorage.getItem(APP_STATE_KEY)) return;
+    // Le stockage peut ne pas être prêt à la première milliseconde du
+    // démarrage (lecture nulle puis pleine juste après — mesuré) : on
+    // réessaie brièvement avant de conclure « rien à récupérer ».
+    let blob = null;
+    for (let essai = 0; essai < 4 && (typeof blob !== "string" || !blob); essai++) {
+      if (essai > 0) await new Promise(r => setTimeout(r, 300));
+      blob = await idbLireEtat();
+    }
+    if (typeof blob !== "string" || !blob) return;
+    let etat = null;
+    try { etat = JSON.parse(blob); } catch (e) { return; }
+    if (!etat || etat.version !== 1 || !Array.isArray(etat.accounts) || !Array.isArray(etat.transactions)) return;
+    // L'utilisateur a peut-être déjà commencé entre-temps : il prime.
+    if (localStorage.getItem(APP_STATE_KEY)) return;
+    localStorage.setItem(APP_STATE_KEY, blob);
+    location.reload();
+  } catch (e) { /* la récupération n'a pas le droit de casser le démarrage */ }
+})();
+
 /* P0 change historique : tout état chargé (ancien utilisateur, sauvegarde
    JSON restaurée) passe par la normalisation d'estampillage, puis l'état
    migré est immédiatement persisté. */
@@ -2912,6 +2940,19 @@ async function idbEcrireEtat(blob) {
     });
     base.close();
     idbEcritures++;
+    return true;
+  } catch (e) { idbEchecs++; return false; }
+}
+async function idbEffacerEtat() {
+  try {
+    const base = await idbOuvrir();
+    await new Promise((resoudre, rejeter) => {
+      const tx = base.transaction(IDB_MAGASIN, "readwrite");
+      tx.objectStore(IDB_MAGASIN).delete(APP_STATE_KEY);
+      tx.oncomplete = resoudre;
+      tx.onerror = () => rejeter(tx.error);
+    });
+    base.close();
     return true;
   } catch (e) { idbEchecs++; return false; }
 }
@@ -8209,7 +8250,11 @@ document.getElementById("screen").addEventListener("click", (e) => {
       localStorage.removeItem(LEGACY_TX_KEY);
       localStorage.removeItem(RESCUE_KEY);
     } catch (err) {}
-    location.reload();
+    // W9.4 : la réserve de secours (IndexedDB) est vidée elle aussi —
+    // sinon la récupération ressusciterait les données effacées. Borné à
+    // une seconde : l'effacement local a déjà eu lieu, on recharge.
+    Promise.race([idbEffacerEtat(), new Promise(r => setTimeout(r, 1000))])
+      .finally(() => location.reload());
     return;
   }
   if (e.target.closest("[data-resetdemo]")) {
