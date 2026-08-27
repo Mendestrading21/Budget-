@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1 fusionné · W11.2 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.2 : revue WCAG 2.2 — 6 critères AA PASS, authentification aidée livrée
+
+Mesuré d'abord, critère par critère de ce que 2.2 AJOUTE au socle AA
+déjà tenu : focus jamais masqué (tabbar sticky qui RÉSERVE son espace),
+glissements jamais obligatoires (scrub clavier + boutons Annuler réels,
+zéro swipeActions natif), cibles 44 px au-dessus du minimum 24, aide à
+un seul endroit, saisie jamais redemandée (exception sécurité pour la
+phrase de passe) — cinq critères tenus par CONSTRUCTION, preuves
+citées. Le seul manque réel : le champ du code de verrouillage PWA
+n'aidait pas les gestionnaires de mots de passe (3.3.8) — livré :
+`autocomplete="current-password"`, collage jamais bloqué. Revue
+consignée (`docs/autonomie/w11/REVUE_WCAG_2_2.md`, 3 critères AAA hors
+périmètre, AUCUN GAP) et verrouillée par l'audit (9 critères, verdict
+et preuve substantielle obligatoires). Preuves : test e2e 239 né ROUGE
+(« autocomplete null » nommé), qui prouve aussi l'alternative sans
+glissement (Annuler visible ET ferme) et le collage libre ; DEUX
+sabotages du verrou qui mordent seuls (verdict « SANS DOUTE » →
+WCAG-2.5.7 nommé ; preuve « ok » → WCAG-3.3.8 nommé) ; suites
+complètes vertes (e2e 239, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits, schéma figé). UI : un attribut
+invisible — pas de captures. Fusion W11.1 (`main` = `2c2f382`,
+PR #210) ; publication W11.1 : **succès** (run 33057540989, après CI
+push verte 33057015600).
 
 ### 27.08.2026 — W11.1 : langue et thème déclarés et verrouillés (ADR-074)
 

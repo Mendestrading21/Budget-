@@ -14957,6 +14957,58 @@ currentTest = "W11.1 langue-thème";
   await ctx238.close();
 }
 
+// ---------- 239. W11.2 : WCAG 2.2 — AUTHENTIFICATION AIDÉE, GLISSEMENT JAMAIS OBLIGATOIRE ----------
+// Budget Autonomie 100, W11.2 : mesuré — le champ du code de
+// verrouillage n'aidait pas les gestionnaires de mots de passe
+// (autocomplete absent, critère 3.3.8) ; les feuilles se ferment par
+// glissement ET par bouton (2.5.7 : alternative sans glissement) ; le
+// scrub des graphiques a déjà son clavier. Contrat vérifié ici sur le
+// DOM réel.
+currentTest = "W11.2 wcag22";
+{
+  const ctx239 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p239 = await ctx239.newPage();
+  p239.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W11.2] ${msg.text()}`); });
+  await p239.goto(APP_URL);
+  await p239.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Wcag" },
+      baseCurrency: "CHF", faceIDEnabled: true, lockCode: "123456",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p239.reload();
+  await p239.waitForTimeout(900);
+  // 1. 3.3.8 : le champ de code AIDE les gestionnaires (autocomplete),
+  //    et le collage n'est pas bloqué (aucun gestionnaire onpaste).
+  const verrou = await p239.evaluate(() => {
+    const champ = document.getElementById("lockInput");
+    return champ ? { auto: champ.getAttribute("autocomplete"), paste: champ.onpaste === null } : null;
+  });
+  check(verrou !== null && verrou.auto === "current-password",
+    `le champ du code aide les gestionnaires de mots de passe (autocomplete="current-password", obtenu « ${verrou && verrou.auto} »)`);
+  check(verrou !== null && verrou.paste === true, "le collage du code n'est jamais bloqué");
+  // 2. 2.5.7 : la feuille d'ajout se ferme SANS glissement (bouton
+  //    Annuler réel, visible, qui ferme).
+  await p239.evaluate(() => { const s = JSON.parse(localStorage.getItem("budget-app-state-v1")); s.faceIDEnabled = false; localStorage.setItem("budget-app-state-v1", JSON.stringify(s)); });
+  await p239.reload();
+  await p239.waitForSelector("#tabbar button");
+  await p239.evaluate(() => { openSheet("txForm"); });
+  await p239.waitForTimeout(400);
+  const annuler = await p239.evaluate(() => {
+    const b = document.getElementById("fCancel");
+    return b && b.offsetParent !== null;
+  });
+  check(annuler === true, "2.5.7 : la feuille d'ajout offre un bouton Annuler visible — le glissement n'est jamais obligatoire");
+  await p239.evaluate(() => document.getElementById("fCancel").click());
+  await p239.waitForTimeout(400);
+  const fermee = await p239.evaluate(() => !document.getElementById("sheetBackdrop").classList.contains("open"));
+  check(fermee === true, "2.5.7 : le bouton Annuler ferme réellement la feuille");
+  await ctx239.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14966,4 +15018,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 238 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 239 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

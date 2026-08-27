@@ -274,6 +274,35 @@ try {
     !pwa.includes("prefers-color-scheme"));
 }
 
+// W11.2 — revue WCAG 2.2 : présente, complète (6 critères AA + 3 AAA
+// consignés), verdict et preuve substantielle par critère — même
+// discipline que la revue MASVS.
+{
+  const W = "docs/autonomie/w11/REVUE_WCAG_2_2.md";
+  if (!existsSync(join(root, W))) {
+    check(`revue WCAG 2.2 : ${W} présente`, false);
+  } else {
+    const doc = read(W);
+    const criteres = ["WCAG-2.4.11", "WCAG-2.5.7", "WCAG-2.5.8", "WCAG-3.2.6", "WCAG-3.3.7", "WCAG-3.3.8",
+      "WCAG-2.4.12", "WCAG-2.4.13", "WCAG-3.3.9"];
+    const manquants = [];
+    const sansVerdict = [];
+    const sansPreuve = [];
+    for (const c of criteres) {
+      const ligne = doc.split("\n").find(l => l.includes(`| ${c} :`));
+      if (!ligne) { manquants.push(c); continue; }
+      const cellules = ligne.split("|").map(x => x.trim());
+      const verdict = cellules[2] || "";
+      const preuve = cellules[3] || "";
+      if (!/^(PASS|N-A|GAP)$/.test(verdict)) { sansVerdict.push(c); continue; }
+      if (preuve.length < 30) sansPreuve.push(c);
+    }
+    check("revue WCAG 2.2 : les 9 critères sont présents", manquants.length === 0, manquants.join(", "));
+    check("revue WCAG 2.2 : chaque critère porte un verdict PASS/N-A/GAP", sansVerdict.length === 0, sansVerdict.join(", "));
+    check("revue WCAG 2.2 : chaque verdict cite une preuve ou justification substantielle", sansPreuve.length === 0, sansPreuve.join(", "));
+  }
+}
+
 // W10.8 — revue MASVS : présente, COMPLÈTE (les 24 contrôles), chaque
 // contrôle porte un verdict PASS/N-A/GAP, chaque verdict cite une
 // preuve ou une justification substantielle, et chaque GAP nomme le

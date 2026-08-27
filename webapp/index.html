@@ -7831,7 +7831,10 @@ function renderLockScreen() {
     <img src="logo-anneau.png" alt="" aria-hidden="true" width="512" height="492" style="width:78px;height:auto">
     <div style="font-size:19px;font-weight:700">Budget est verrouillé</div>
     <div class="caption" style="max-width:250px">Saisissez votre code pour continuer.</div>
+    <!-- W11.2 (WCAG 3.3.8) : le gestionnaire de mots de passe peut
+         remplir le code — le collage n'est jamais bloqué. -->
     <input id="lockInput" type="password" inputmode="numeric" maxlength="6" aria-label="Code de déverrouillage"
+      autocomplete="current-password"
       style="width:140px;text-align:center;font-size:22px;letter-spacing:6px;background:var(--surface-2);border:1px solid var(--line-strong);color:var(--offwhite);padding:10px;border-radius:12px" />
     ${lockMessage ? `<div class="caption neg" role="alert">${lockMessage}</div>` : ""}
     <button class="btn" data-unlock style="width:auto;padding:12px 26px">Déverrouiller</button>
