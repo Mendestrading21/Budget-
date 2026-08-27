@@ -239,6 +239,15 @@ struct BackupService {
 
     // MARK: JSON backup
 
+    /// W10.4 (ADR-072) : la MÊME sauvegarde, scellée par une phrase de
+    /// passe choisie par l'utilisateur — les octets clairs sont
+    /// exactement ceux de `makeBackup`, la restauration passe par
+    /// `BackupCrypto.decrypt` puis les MÊMES portes (`summary`,
+    /// `restore`) que la sauvegarde en clair.
+    func makeEncryptedBackup(context: ModelContext, now: Date, passphrase: String) throws -> Data {
+        try BackupCrypto.encrypt(makeBackup(context: context, now: now), passphrase: passphrase)
+    }
+
     func makeBackup(context: ModelContext, now: Date) throws -> Data {
         func fetch<T: PersistentModel>(_ type: T.Type) throws -> [T] {
             try context.fetch(FetchDescriptor<T>())

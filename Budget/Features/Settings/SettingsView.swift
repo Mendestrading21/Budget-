@@ -24,6 +24,14 @@ struct SettingsView: View {
     @State private var isShowingMethodology = false
     @State private var isShowingBrands = false
     @State private var didAutoPromptRestore = false
+    // W10.4 (ADR-072) — sauvegarde protégée par phrase de passe.
+    @State private var isChoosingBackupProtection = false
+    @State private var isEnteringExportPassphrase = false
+    @State private var exportPassphrase = ""
+    @State private var exportPassphraseConfirm = ""
+    @State private var pendingEncryptedRestoreData: Data?
+    @State private var isEnteringRestorePassphrase = false
+    @State private var restorePassphrase = ""
 
     private var backupService: BackupService { BackupService() }
     private var lockManager: AppLockManager { appContainer.lockManager }
@@ -56,6 +64,34 @@ struct SettingsView: View {
             allowsMultipleSelection: false
         ) { result in
             prepareRestore(result)
+        }
+        .confirmationDialog(
+            "Comment créer la sauvegarde ?",
+            isPresented: $isChoosingBackupProtection,
+            titleVisibility: .visible
+        ) {
+            Button("Protégée par phrase de passe…") {
+                exportPassphrase = ""
+                exportPassphraseConfirm = ""
+                isEnteringExportPassphrase = true
+            }
+            Button("En clair (JSON lisible)") { generateBackup() }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Protégée : le fichier est illisible sans la phrase de passe — personne ne peut la retrouver si elle est perdue. En clair : lisible par quiconque a le fichier.")
+        }
+        .sheet(isPresented: $isEnteringExportPassphrase) {
+            exportPassphraseSheet
+        }
+        .alert("Sauvegarde protégée", isPresented: $isEnteringRestorePassphrase) {
+            SecureField("Phrase de passe", text: $restorePassphrase)
+            Button("Déverrouiller") { attemptDecryptRestore() }
+            Button("Annuler", role: .cancel) {
+                pendingEncryptedRestoreData = nil
+                restorePassphrase = ""
+            }
+        } message: {
+            Text("Ce fichier est protégé par une phrase de passe. Vos données actuelles ne sont pas touchées tant que vous ne confirmez pas la restauration.")
         }
         .confirmationDialog(
             "Restaurer cette sauvegarde ?",
@@ -160,7 +196,8 @@ struct SettingsView: View {
                 }
             } else {
                 Button {
-                    generateBackup()
+                    errorMessage = nil
+                    isChoosingBackupProtection = true
                 } label: {
                     Label("Créer une sauvegarde complète (JSON)", systemImage: "externaldrive")
                 }
@@ -185,7 +222,7 @@ struct SettingsView: View {
         } header: {
             Text("Vos données")
         } footer: {
-            Text("Export et sauvegarde ne partent nulle part tout seuls : vous choisissez où les envoyer. La sauvegarde contient les données, pas les fichiers de documents.")
+            Text("Export et sauvegarde ne partent nulle part tout seuls : vous choisissez où les envoyer. La sauvegarde contient les données, pas les fichiers de documents. Elle peut être protégée par une phrase de passe : sans la phrase, le fichier est illisible et personne ne peut la retrouver.")
         }
     }
 
@@ -255,6 +292,75 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Sauvegarde protégée (W10.4, ADR-072)
+
+    private var exportPassphraseSheet: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    SecureField("Phrase de passe", text: $exportPassphrase)
+                    SecureField("Répéter la phrase", text: $exportPassphraseConfirm)
+                } footer: {
+                    Text("Choisissez une phrase que vous pouvez retenir. Sans elle, ce fichier est définitivement illisible : personne ne peut la retrouver, ni vous la renvoyer.")
+                }
+                if !exportPassphrase.isEmpty && exportPassphrase != exportPassphraseConfirm {
+                    Section {
+                        Label("Les deux phrases ne sont pas identiques.", systemImage: "exclamationmark.circle")
+                            .foregroundStyle(BudgetColor.negative)
+                    }
+                }
+            }
+            .navigationTitle("Sauvegarde protégée")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Annuler") { isEnteringExportPassphrase = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Créer") { generateProtectedBackup() }
+                        .disabled(exportPassphrase.isEmpty || exportPassphrase != exportPassphraseConfirm)
+                }
+            }
+        }
+    }
+
+    private func generateProtectedBackup() {
+        errorMessage = nil
+        do {
+            let data = try backupService.makeEncryptedBackup(
+                context: modelContext,
+                now: appContainer.dateProvider.now,
+                passphrase: exportPassphrase
+            )
+            backupURL = writeTemporaryFile(data, name: "budget-sauvegarde-protegee-\(fileStamp()).json")
+            isEnteringExportPassphrase = false
+            exportPassphrase = ""
+            exportPassphraseConfirm = ""
+        } catch {
+            errorMessage = "La création de la sauvegarde protégée a échoué. Réessayez."
+        }
+    }
+
+    /// Déchiffre le fichier protégé PUIS rejoint le chemin normal
+    /// (résumé réel → confirmation → restauration) — mêmes portes,
+    /// refus nommés, rien n'est modifié avant la confirmation.
+    private func attemptDecryptRestore() {
+        guard let encrypted = pendingEncryptedRestoreData else { return }
+        let phrase = restorePassphrase
+        restorePassphrase = ""
+        do {
+            let clear = try BackupCrypto.decrypt(encrypted, passphrase: phrase)
+            pendingEncryptedRestoreData = nil
+            pendingRestoreSummary = try backupService.summary(of: clear)
+            pendingRestoreData = clear
+            isConfirmingRestore = true
+        } catch {
+            pendingEncryptedRestoreData = nil
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? "Ce fichier protégé n'a pas pu être ouvert — vos données actuelles sont intactes."
+        }
+    }
+
     /// Message de confirmation construit depuis la VRAIE sauvegarde.
     private var restoreSummaryMessage: String {
         guard let summary = pendingRestoreSummary else {
@@ -275,6 +381,15 @@ struct SettingsView: View {
         }
         guard let data = try? Data(contentsOf: url) else {
             errorMessage = "Le fichier de sauvegarde n'a pas pu être lu."
+            return
+        }
+        // W10.4 : un fichier protégé passe d'abord par la phrase de
+        // passe, puis rejoint EXACTEMENT le même chemin (résumé réel →
+        // confirmation → restauration).
+        if BackupCrypto.isEncryptedEnvelope(data) {
+            pendingEncryptedRestoreData = data
+            restorePassphrase = ""
+            isEnteringRestorePassphrase = true
             return
         }
         // Refus AVANT toute confirmation (illisible / version future) :

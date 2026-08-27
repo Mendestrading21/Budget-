@@ -1,5 +1,38 @@
 # Budget decision log
 
+## ADR-072 — Sauvegarde protégée par phrase de passe (optionnelle) ; pièces jointes incluses
+
+Date: 2026-08-27
+Status: accepted (décisions propriétaire du 27.08.2026)
+
+### Contexte
+
+La sauvegarde exportée (JSON natif) contient toutes les finances en
+clair ; dès qu'elle est partagée (AirDrop, Fichiers, mail), elle sort
+du bac à sable de l'app. Les pièces jointes ne voyagent pas dans la
+sauvegarde. Trois questions posées au propriétaire (W10.4/W10.5).
+
+### Décision (propriétaire)
+
+1. **Chiffrement OPTIONNEL à l'export** : au moment d'exporter,
+   l'utilisateur choisit « protégée par phrase de passe » ou « en
+   clair ». L'export en clair reste possible.
+2. **Clé = phrase de passe** (PBKDF2-SHA256, 210 000 itérations, sel
+   aléatoire par fichier → AES-GCM sur les octets exacts du JSON) : le
+   fichier se restaure sur n'importe quel appareil avec la phrase.
+   Perte de phrase = fichier définitivement illisible — dit en clair à
+   l'export, aucune récupération possible.
+3. **Pièces jointes INCLUSES** dans la sauvegarde (chantier W10.5) :
+   un seul fichier complet, restauration totale, au prix de la taille.
+
+### Conséquences
+
+Enveloppe versionnée auto-descriptive (`BackupCrypto`) ; phrase
+incorrecte et fichier falsifié sont indistinguables (GCM authentifie)
+et refusés par une erreur nommée qui ne touche à rien ; la
+restauration d'un fichier protégé rejoint les MÊMES portes que la
+sauvegarde en clair (résumé réel → confirmation → refus atomique).
+
 ## ADR-071 — Schéma V14 figé par manifeste ; classes figées au premier changement cassant
 
 Date: 2026-08-27
