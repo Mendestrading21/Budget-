@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.4 fusionnés · W9.5 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.5 fusionnés · W9.6 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,33 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.6 : CSP stricte déclarée, service worker non empoisonnable
+
+FLAKE CI consigné (run `33034919240`) : le test hérité P06/P16
+(« banque UBS ») a mordu en CI avec « solde 0 » — le remplissage de
+`#obOpening` se perd si une re-render passe entre le fill et l'envoi ;
+quatre passes locales vertes sur le même code — test DURCI
+(remplissage vérifié, trois essais), pas un défaut de l'app.
+
+Mesuré d'abord : aucune CSP déclarée, et le service worker mettait en
+cache TOUTE requête GET, même cross-origin — surface d'empoisonnement
+du cache hors ligne ; l'app n'a AUCUNE ressource externe (mesuré,
+grep). Livré : CSP stricte en meta (`default-src 'self'`,
+`connect-src 'none'` — l'app ne fait aucune requête réseau —,
+`object-src`/`base-uri 'none'`, `img-src 'self' data:` pour les
+glyphes ; `'unsafe-inline'` ASSUMÉ et consigné tant que le monofichier
+vit — sa levée arrive avec le build servi, W9.8) — l'app ENTIÈRE rend
+et navigue sous cette CSP, zéro erreur console sur les 235 parcours ;
+le SW n'accepte au cache que la MÊME origine et son cache passe en v4
+(invalidation propre à l'activation, inchangée). Preuves : parcours
+235 né rouge (2 échecs nommés ; verrous « app sous CSP » et « cache
+versionné » nés verts) ; deux sabotages qui mordent seuls (CSP
+retirée → 1 ; garde d'origine retirée → 1) ; pas de changement visuel
+(pas de captures, consigné) ; suites complètes vertes (235 e2e, build,
+domaine, 9 parités, 14 canon + schéma, design, catalogue, audits).
+Fusion W9.5 (`main` = `8e9182a`, PR #196) ; publication W9.5 :
+**succès**.
 
 ### 27.08.2026 — W9.5 : routes — le hash reflète l'écran, le retour reste honnête
 

@@ -6,7 +6,7 @@
 // les autres clés à l'activation : c'est le seul moyen de jeter une page
 // héritée qu'une app installée rouvrirait depuis sa mémoire. Aucune donnée
 // utilisateur là-dedans — comptes et mouvements sont dans localStorage.
-const CACHE = "budget-app-v3";
+const CACHE = "budget-app-v4";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) =>
@@ -19,6 +19,9 @@ self.addEventListener("activate", (event) =>
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
+  // W9.6 : seule la MÊME origine entre au cache — une réponse d'un autre
+  // domaine ne peut pas empoisonner l'app hors ligne.
+  if (new URL(request.url).origin !== location.origin) return;
   event.respondWith(
     fetch(request)
       .then((response) => {
