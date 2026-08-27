@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1 fusionné · W9.2 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.2 fusionnés · W9.3 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,25 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.3 : stockage — double écriture IndexedDB, localStorage reste LA vérité
+
+Mesuré d'abord : localStorage est le SEUL stockage (quota ~5 Mo,
+éviction possible par le navigateur). Livré : interface unique
+`idbOuvrir`/`idbEcrireEtat`/`idbLireEtat` (base « budget-app »,
+magasin « etat ») ; chaque `saveState` DOUBLE l'écriture sans jamais
+bloquer ; localStorage reste LA vérité lue au chargement (la bascule
+prouvée arrive en W9.4) ; une panne IndexedDB est INOFFENSIVE et
+COMPTÉE (`idbEchecs`) — ni silencieuse, ni bruyante à chaque frappe ;
+un IndexedDB corrompu n'atteint jamais l'état. Preuves : parcours 232
+né rouge (4 échecs nommés) ; incident de sonde consigné
+(`addInitScript` rejoue à CHAQUE navigation et écrasait l'état muté au
+reload — semis rendu idempotent) ; deux sabotages qui mordent seuls
+(double écriture retirée → 2 échecs ; panne non comptée → 1 échec) ;
+aucune UI touchée (pas de captures, consigné) ; suites complètes
+vertes (232 e2e, build, domaine, 9 parités, 14 canon + schéma, design,
+catalogue, audits). Fusion W9.2 (`main` = `f6e6801`, PR #193) ;
+publications W9.1 et W9.2 : **succès** toutes deux.
 
 ### 26.08.2026 — W9.2 : domaine extrait en miroir vérifié — monnaie et taux datés typés
 

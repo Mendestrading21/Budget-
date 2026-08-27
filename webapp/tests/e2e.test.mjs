@@ -14515,6 +14515,84 @@ currentTest = "W8.7 activation régionale";
   await ctx231.close();
 }
 
+// ---------- 232. W9.3 : STOCKAGE — double écriture IndexedDB, localStorage reste LA vérité ----------
+// Budget Autonomie 100, W9.3 (Work Order W9) : mesuré — localStorage
+// est le SEUL stockage (quota ~5 Mo, éviction possible). Livré : une
+// interface unique vers IndexedDB (idbEcrireEtat/idbLireEtat), chaque
+// saveState DOUBLE l'écriture ; localStorage reste la vérité lue au
+// chargement (la bascule prouvée arrive en W9.4) ; une panne
+// IndexedDB ne casse jamais l'app — elle est COMPTÉE, ni silencieuse
+// ni bruyante.
+currentTest = "W9.3 stockage";
+{
+  const ctx232 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p232 = await ctx232.newPage();
+  p232.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W9.3] ${msg.text()}`); });
+  await p232.addInitScript(() => {
+    // Semis IDEMPOTENT : ce parcours recharge la page, le semis ne doit
+    // pas écraser l'état muté (addInitScript rejoue à chaque navigation).
+    if (localStorage.getItem("budget-app-state-v1")) return;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Stockage" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p232.goto(APP_URL);
+  await p232.waitForSelector("#tabbar button");
+  const stock = await p232.evaluate(async () => {
+    const resultat = {};
+    if (typeof idbEcrireEtat !== "function" || typeof idbLireEtat !== "function") {
+      return { interfaceAbsente: true };
+    }
+    // 1. Chaque saveState DOUBLE l'écriture : IndexedDB rattrape le blob
+    //    de localStorage.
+    S.profile.name = "Stockage double";
+    saveState();
+    let idb = null;
+    for (let i = 0; i < 40 && idb !== localStorage.getItem(APP_STATE_KEY); i++) {
+      await new Promise(r => setTimeout(r, 50));
+      idb = await idbLireEtat();
+    }
+    resultat.doubleEcriture = idb === localStorage.getItem(APP_STATE_KEY)
+      && typeof idb === "string" && idb.includes("Stockage double");
+    // 2. Une panne IndexedDB est INOFFENSIVE et comptée : l'app continue,
+    //    localStorage est écrit, aucun crash.
+    const vraiIDB = window.indexedDB;
+    const echecsAvant = idbEchecs;
+    Object.defineProperty(window, "indexedDB", { value: { open() { throw new Error("panne simulée"); } }, configurable: true });
+    S.profile.name = "Panne IDB";
+    let aSurvecu = true;
+    try { saveState(); } catch (e) { aSurvecu = false; }
+    await new Promise(r => setTimeout(r, 100));
+    resultat.panneInoffensive = aSurvecu
+      && localStorage.getItem(APP_STATE_KEY).includes("Panne IDB")
+      && idbEchecs > echecsAvant;
+    Object.defineProperty(window, "indexedDB", { value: vraiIDB, configurable: true });
+    // 3. IndexedDB corrompu n'atteint JAMAIS l'état : localStorage reste
+    //    la seule vérité lue.
+    await idbEcrireEtat("{pas-du-json");
+    return resultat;
+  });
+  check(stock.interfaceAbsente !== true, "l'interface idbEcrireEtat/idbLireEtat existe");
+  check(stock.doubleEcriture === true,
+    "chaque saveState double l'écriture — IndexedDB porte le même blob que localStorage");
+  check(stock.panneInoffensive === true,
+    "une panne IndexedDB est inoffensive : l'app continue, localStorage écrit, échec compté");
+  if (stock.interfaceAbsente !== true) {
+    await p232.reload();
+    await p232.waitForSelector("#tabbar button");
+    const apres = await p232.evaluate(() => ({ nom: S.profile.name, comptes: ACCOUNTS.length }));
+    check(apres.nom === "Panne IDB" && apres.comptes === 1,
+      "IndexedDB corrompu n'atteint jamais l'état : localStorage reste la seule vérité lue");
+  } else {
+    check(false, "IndexedDB corrompu n'atteint jamais l'état : localStorage reste la seule vérité lue");
+  }
+  await ctx232.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14524,4 +14602,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 231 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 232 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
