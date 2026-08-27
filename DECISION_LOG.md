@@ -1,5 +1,31 @@
 # Budget decision log
 
+## ADR-073 — Android : la PWA est l'offre, pas de Google Play pour l'instant
+
+Date: 2026-08-27
+Status: accepted (décision propriétaire du 27.08.2026)
+
+### Contexte
+
+Budget est natif iPhone (ADR-023) plus une PWA installable, hors-ligne
+et honnête sur n'importe quel appareil — Android compris, via le
+navigateur. La question W11.4 : faut-il une présence Google Play
+(TWA ou natif Android) ?
+
+### Décision (propriétaire)
+
+**La PWA seule est l'offre Android.** Pas d'app Google Play pour
+l'instant : zéro nouveau code à maintenir, pas de compte développeur
+Google, pas de fiche Data safety. Décision RÉVERSIBLE : une TWA
+resterait possible plus tard sans réécrire l'app, la PWA étant déjà
+installable et conforme.
+
+### Conséquences
+
+W11.5 : la fiche Data safety Google Play est N-A ; W11.4 se borne à
+consigner l'installabilité honnête de la PWA ; aucune promesse Android
+dans les textes de l'app ou des fiches.
+
 ## ADR-072 — Sauvegarde protégée par phrase de passe (optionnelle) ; pièces jointes incluses
 
 Date: 2026-08-27
