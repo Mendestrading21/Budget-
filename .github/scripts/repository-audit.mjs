@@ -300,6 +300,39 @@ try {
   }
 }
 
+// W11.6 — fiche App Store : présente, champs dans les LIMITES EXACTES
+// d'App Store Connect (nom ≤ 30, sous-titre ≤ 30, mots-clés ≤ 100,
+// promo ≤ 170, description ≤ 4000), notes de review et storyboard
+// présents, gestes propriétaire nommés HUMAN REQUIRED.
+{
+  const F = "docs/autonomie/w11/FICHE_APP_STORE.md";
+  if (!existsSync(join(root, F))) {
+    check(`fiche App Store : ${F} présente`, false);
+  } else {
+    const doc = read(F);
+    const champ = (nom) => {
+      const m = doc.match(new RegExp(`\\*\\*${nom}\\*\\* : \`([^\`]*)\``));
+      return m ? m[1] : null;
+    };
+    const limites = [["NOM", 30], ["SOUS-TITRE", 30], ["MOTS-CLÉS", 100], ["TEXTE-PROMO", 170]];
+    for (const [nom, max] of limites) {
+      const v = champ(nom);
+      check(`fiche App Store : ${nom} présent et ≤ ${max} caractères`,
+        v !== null && v.length > 0 && v.length <= max,
+        v === null ? "absent" : `${v.length} caractères`);
+    }
+    const desc = (doc.match(/<description>([\s\S]*?)<\/description>/) || [])[1] || "";
+    check("fiche App Store : description présente, ≤ 4000 caractères",
+      desc.trim().length >= 400 && desc.length <= 4000, `${desc.length} caractères`);
+    check("fiche App Store : notes de review présentes (compte, réseau, verrou)",
+      doc.includes("REVIEW-COMPTE") && doc.includes("REVIEW-RESEAU") && doc.includes("REVIEW-VERROU"));
+    check("fiche App Store : storyboard de 5 captures",
+      [...doc.matchAll(/^\| \d \|/gm)].length >= 5);
+    check("fiche App Store : les gestes propriétaire sont nommés HUMAN REQUIRED",
+      (doc.match(/HUMAN REQUIRED/g) || []).length >= 4);
+  }
+}
+
 // W11.2 — revue WCAG 2.2 : présente, complète (6 critères AA + 3 AAA
 // consignés), verdict et preuve substantielle par critère — même
 // discipline que la revue MASVS.

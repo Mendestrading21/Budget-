@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.4 fusionnés · W11.5 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.5 fusionnés · W11.6 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,34 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.6 : fiche App Store prête à recopier · FLAKE W10.4 DÉ-FLAKÉ
+
+Fiche App Store (`docs/autonomie/w11/FICHE_APP_STORE.md`) : nom
+(25/30), sous-titre (29/30), mots-clés (80/100), texte promo
+(107/170), description en français simple (1417/4000) alignée sur les
+quatre familles et l'honnêteté du produit ; notes de review Apple
+honnêtes (AUCUN compte de démo — l'app n'a pas de compte ; mode avion
+= chemin nominal ; verrou = biométrie appareil) ; storyboard de
+5 captures (6.9"/6.5", données fictives, sombre unique). QUATRE gestes
+propriétaire HUMAN REQUIRED (URL support, URL confidentialité,
+disponibilité du nom, compte ASC/captures). Verrou d'audit : chaque
+champ DANS la limite exacte d'App Store Connect (longueurs affichées),
+notes, storyboard et HUMAN REQUIRED exigés. Preuves : né-rouge
+(document absent → nommé) ; deux sabotages qui mordent (mots-clés
+117/100 → longueur nommée ; note réseau retirée → nommée) ; e2e 241
+verts, audits verts.
+
+FLAKE W10.4 DIAGNOSTIQUÉ ET CORRIGÉ : la CI push du merge W11.5 a
+mordu sur `testTamperedFileIsRefused` (unreadableEnvelope au lieu de
+wrongPassphrase) — Foundation échappe « / » en « \/ » dans le JSON de
+l'enveloppe, et la falsification à position FIXE (+4) pouvait tomber
+sur l'échappement (JSON/base64 invalide). Correctif : falsification du
+premier caractère ALPHANUMÉRIQUE du scellé → wrongPassphrase
+déterministe. Re-run du job échoué : **succès** (flake confirmé,
+contenu sain). Fusion W11.5 (`main` = `8cc4fda`, PR #214) ;
+publication W11.5 : **succès** (run 33065957697, après re-run vert du
+run push 33064572384).
 
 ### 27.08.2026 — W11.5 : fiche App Privacy depuis le code réel
 
