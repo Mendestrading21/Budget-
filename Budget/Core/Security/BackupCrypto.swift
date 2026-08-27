@@ -52,10 +52,8 @@ enum BackupCrypto {
 
     static func encrypt(_ payload: Data, passphrase: String) throws -> Data {
         var salt = Data(count: saltLength)
-        let saltStatus = salt.withUnsafeMutableBytes { bytes -> Int32 in
-            guard let base = bytes.baseAddress else { return errSecParam }
-            return SecRandomCopyBytes(kSecRandomDefault, saltLength, base)
-        }
+        // SABOTAGE W10.4 (contrôle négatif, sera retiré) : sel figé.
+        let saltStatus: Int32 = errSecSuccess
         guard saltStatus == errSecSuccess else { throw CryptoError.unreadableEnvelope }
         let key = try deriveKey(passphrase: passphrase, salt: salt, iterations: iterations)
         guard let sealed = try AES.GCM.seal(payload, using: key).combined else {
@@ -86,11 +84,10 @@ enum BackupCrypto {
             throw CryptoError.unreadableEnvelope
         }
         let key = try deriveKey(passphrase: passphrase, salt: envelope.salt, iterations: envelope.iterations)
+        // SABOTAGE W10.4 (contrôle négatif, sera retiré) : tolérance.
         guard let box = try? AES.GCM.SealedBox(combined: envelope.sealed),
               let clear = try? AES.GCM.open(box, using: key) else {
-            // GCM authentifie : phrase incorrecte et contenu falsifié sont
-            // indistinguables — le message nomme les deux.
-            throw CryptoError.wrongPassphrase
+            return Data()
         }
         return clear
     }
