@@ -333,6 +333,34 @@ try {
   }
 }
 
+// W11.7 — gouvernance de release : le CHANGELOG existe, parle français
+// simple, et sa version de tête est ACCORDÉE à la MARKETING_VERSION du
+// projet Xcode ; le document de gouvernance nomme la seule voie de
+// sortie et les gestes propriétaire.
+{
+  const CL = "CHANGELOG.md";
+  const G = "docs/autonomie/w11/GOUVERNANCE_RELEASE.md";
+  if (!existsSync(join(root, CL))) {
+    check(`gouvernance : ${CL} présent`, false);
+  } else {
+    const changelog = read(CL);
+    const pbxproj = read("Budget.xcodeproj/project.pbxproj");
+    const mv = (pbxproj.match(/MARKETING_VERSION = ([0-9.]+);/) || [])[1];
+    const tete = (changelog.match(/^## Version ([0-9.]+)/m) || [])[1];
+    check("gouvernance : la version de tête du CHANGELOG est accordée à MARKETING_VERSION",
+      mv !== undefined && tete === mv, `pbxproj ${mv} vs changelog ${tete}`);
+    check("gouvernance : le CHANGELOG a un contenu substantiel", changelog.length > 800);
+  }
+  if (!existsSync(join(root, G))) {
+    check(`gouvernance : ${G} présent`, false);
+  } else {
+    const gouv = read(G);
+    check("gouvernance : la seule voie de sortie et les rôles sont écrits",
+      gouv.includes("CI push verte") && gouv.includes("HUMAN REQUIRED")
+        && gouv.includes("squash") && gouv.includes("MARKETING_VERSION"));
+  }
+}
+
 // W11.2 — revue WCAG 2.2 : présente, complète (6 critères AA + 3 AAA
 // consignés), verdict et preuve substantielle par critère — même
 // discipline que la revue MASVS.

@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.5 fusionnés · W11.6 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.6 fusionnés · W11.7 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.7 : gouvernance de release écrite et verrouillée
+
+`CHANGELOG.md` créé (racine, français simple) : « Version 1.0 — en
+préparation », tout ce que Budget sait faire, accordé à
+`MARKETING_VERSION` du projet Xcode — VERROU d'audit : toute
+divergence est nommée (« pbxproj 1.0 vs changelog X »). La PWA reste
+en publication continue : le SHA publié fait foi, le statut est le
+registre de release (chaque fusion + chaque run de publication).
+`docs/autonomie/w11/GOUVERNANCE_RELEASE.md` : la SEULE voie de sortie
+(branche courte → batterie → PR → CI verte sur le HEAD exact → squash
+→ CI push verte AVANT publication → dispatch au SHA → verdict
+consigné), les rôles (agent : lots/fusions/publications ;
+propriétaire : décisions ADR, 4 secrets TestFlight, URLs, fiche ASC,
+déclenchement des envois natifs), et les interdits (tags décoratifs,
+canaux parallèles, publication sans CI push verte). Preuves : verrous
+nés verts consignés puis né-rouge d'archive (CHANGELOG absent →
+nommé) ; DEUX sabotages qui mordent (version 2.0 désaccordée → nommée
+avec les deux valeurs ; « CI push verte » amputée → voie de sortie
+nommée) ; e2e 241 verts, audits verts. Documents seuls : pas de
+captures. Fusion W11.6 (`main` = `4fec5ef`, PR #215) ; publication
+W11.6 : **succès** (run 33067157022, après CI push verte 33066619647).
 
 ### 27.08.2026 — W11.6 : fiche App Store prête à recopier · FLAKE W10.4 DÉ-FLAKÉ
 
