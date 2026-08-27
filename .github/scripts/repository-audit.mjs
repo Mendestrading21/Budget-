@@ -202,6 +202,7 @@ try {
     ["migrerHistoriqueJournal", "ADR-064 « préparer sans allumer » — jamais d'appelant UI avant décision propriétaire"],
     ["misDeCoteParDestination", "spécification exécutable C4 (zéro double compte) — vérifiée au centime par les tests"],
     ["pensionDisplayTotal", "spécification exécutable C3 (prévoyance sans double compte) — vérifiée par les tests"],
+    ["tauxAuJour", "délégation W9.8 vers le domaine extrait (domaineTauxAuJour) — contrat des taux datés vérifié par le test 226 ; l'app convertit via toCHFAuMois"],
   ]);
   const app = read("webapp/index.html");
   let tests = "";

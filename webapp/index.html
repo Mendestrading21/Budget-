@@ -2017,16 +2017,61 @@ function dernierTauxConsigne(devise) {
 /* W8.3a : le taux DATÉ se lit enfin — dernière quote consignée le jour
    J ou avant (journal append-only W4.2). null quand aucune quote
    n'existait encore à cette date : un défaut n'est pas une mesure. */
+/* @domaine:debut taux */
+/* GÉNÉRÉ depuis webapp/src — ne pas éditer ici : node webapp/build/build.mjs --generer */
+/* W9.2 — Domaine « taux datés » (ADR-065/ADR-070, FI-16/17/19).
+   SOURCE DE VÉRITÉ typée de la lecture des quotes datées et de la
+   conversion des STOCKS au taux du mois. Ici, l'état est un PARAMÈTRE
+   explicite (quotes, cache, devise de base) — aucun global. Le
+   monofichier garde son exemplaire (lié à S) jusqu'au branchement
+   (W9.8) ; le comparateur prouve l'identité des sorties à chaque CI. */
+const DOMAINE_DATE_ISO = /^\d{4}-\d{2}-\d{2}$/;
+/** Dernière quote consignée le jour J ou avant — null si aucune
+    n'existait encore à cette date : un défaut n'est pas une mesure. */
+function domaineTauxAuJour(quotes, base, devise, dateISO) {
+    if (!devise || devise === base)
+        return 1;
+    if (typeof dateISO !== "string" || !DOMAINE_DATE_ISO.test(dateISO))
+        return null;
+    let derniere = null;
+    for (const q of quotes || []) {
+        if (q.quote !== devise || q.base !== base)
+            continue;
+        if (typeof q.observedAt !== "string" || q.observedAt > dateISO)
+            continue;
+        if (!derniere || q.observedAt >= derniere.observedAt)
+            derniere = q;
+    }
+    return derniere && Number.isFinite(derniere.taux) && derniere.taux > 0 ? derniere.taux : null;
+}
+/** Taux du cache pour une devise — null si absent ou illisible,
+    jamais un 1:1 inventé (FI-17). */
+function domaineTauxDuCache(cache, base, devise) {
+    if (!devise || devise === base)
+        return 1;
+    const taux = Number((cache || {})[devise]);
+    return Number.isFinite(taux) && taux > 0 ? taux : null;
+}
+/** Conversion DATÉE d'un STOCK en fin de mois (ADR-070) : la mesure du
+    moment fait foi ; avant la première mesure, la première mesure ;
+    sans aucune mesure consignée, le cache actuel (comportement
+    historique, consigné). null = non convertible, jamais 0 inventé. */
+function domaineMontantStockEnBase(quotes, cache, base, montant, devise, y, m) {
+    if (!devise || devise === base)
+        return montant;
+    const finDeMois = `${y}-${String(m).padStart(2, "0")}-31`;
+    let taux = domaineTauxAuJour(quotes, base, devise, finDeMois);
+    if (taux == null) {
+        const premiere = (quotes || []).find(q => q.quote === devise && q.base === base && Number.isFinite(q.taux) && q.taux > 0);
+        taux = premiere ? premiere.taux : domaineTauxDuCache(cache, base, devise);
+    }
+    return taux == null ? null : montant * taux;
+}
+/* @domaine:fin taux */
+/* W9.8 : les fonctions LIÉES à l'état ne sont plus que des délégations
+   vers le domaine GÉNÉRÉ ci-dessus (source de vérité : webapp/src). */
 function tauxAuJour(devise, dateISO) {
-  if (!devise || devise === baseCurrency()) return 1;
-  if (typeof dateISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return null;
-  let derniere = null;
-  for (const q of S.fxQuotes || []) {
-    if (q.quote !== devise || q.base !== baseCurrency()) continue;
-    if (typeof q.observedAt !== "string" || q.observedAt > dateISO) continue;
-    if (!derniere || q.observedAt >= derniere.observedAt) derniere = q;
-  }
-  return derniere && Number.isFinite(derniere.taux) && derniere.taux > 0 ? derniere.taux : null;
+  return domaineTauxAuJour(S.fxQuotes, baseCurrency(), devise, dateISO);
 }
 /* W8.3a (ADR-070) : conversion DATÉE des STOCKS en fin de mois — la
    mesure du moment fait foi et l'histoire ne se réécrit plus. Avant la
@@ -2034,15 +2079,7 @@ function tauxAuJour(devise, dateISO) {
    sans aucune mesure consignée, le cache actuel (comportement
    historique, consigné tel quel). */
 function toCHFAuMois(amount, currency, y, m) {
-  if (!currency || currency === baseCurrency()) return amount;
-  const finDeMois = `${y}-${String(m).padStart(2, "0")}-31`;
-  let taux = tauxAuJour(currency, finDeMois);
-  if (taux == null) {
-    const premiere = (S.fxQuotes || []).find(q =>
-      q.quote === currency && q.base === baseCurrency() && Number.isFinite(q.taux) && q.taux > 0);
-    taux = premiere ? premiere.taux : fxRateFor(currency);
-  }
-  return taux == null ? null : amount * taux;
+  return domaineMontantStockEnBase(S.fxQuotes, S.fxRates, baseCurrency(), amount, currency, y, m);
 }
 /* W8.3b : la valeur d'un bien À un mois donné — dernière valorisation
    consignée à la fin de ce mois (historique append-only). Avant la
@@ -3006,12 +3043,25 @@ const OUTFLOWS = new Set(["expense", "saving", "investment", "transfer", "taxPay
    puis reconvertir supprime la dérive des flottants (0.10 + 0.20 = 0.30,
    pas 0.30000000000000004). Étape moteur ; le stockage reste en unités
    décimales tant que la migration G02 n'est pas faite. */
+/* @domaine:debut monnaie */
+/* GÉNÉRÉ depuis webapp/src — ne pas éditer ici : node webapp/build/build.mjs --generer */
+/* W9.2 — Domaine « monnaie » : unités mineures (G01).
+   SOURCE DE VÉRITÉ typée du trio centimes/francs/arrondi. Le
+   monofichier garde son exemplaire jusqu'au branchement (W9.8) ; le
+   comparateur webapp/tests/domaine.test.mjs prouve à chaque CI que les
+   deux produisent EXACTEMENT les mêmes sorties — toute dérive est un
+   échec nommé. Ne modifier l'un sans l'autre est donc impossible en
+   silence. */
+/** Francs (ou valeur composée) → centimes entiers ; illisible → 0. */
 function toCents(x) {
-  const value = Number(x);
-  return x != null && Number.isFinite(value) ? Math.round(value * 100) : 0;
+    const value = Number(x);
+    return x != null && Number.isFinite(value) ? Math.round(value * 100) : 0;
 }
+/** Centimes entiers → francs. */
 function fromCents(c) { return c / 100; }
-function round2(x) { return fromCents(toCents(x)); } // arrondi au centime d'une valeur composée
+/** Arrondi au centime d'une valeur composée. */
+function round2(x) { return fromCents(toCents(x)); }
+/* @domaine:fin monnaie */
 
 /* Parité D04 (ADR-016 natif) : une mensualité de dette décrémente la
    dette et le cash — patrimoine neutre — mais n'est PAS un coût de la
