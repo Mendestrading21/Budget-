@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.3 fusionnés · W10.4 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.4 fusionnés · W10.5 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.5 : les pièces jointes voyagent dans la sauvegarde
+
+Décision propriétaire (ADR-072) : fichiers INCLUS. Mesuré d'abord :
+les fichiers des pièces jointes ne voyageaient pas (métadonnées
+seules) — une restauration sur un autre appareil perdait tous les
+documents. Livré : `DocumentFileStoring` gagne
+`contents(of:)`/`write(_:fileReference:)`/`allReferences()` (écriture
+`.atomic` + `.completeFileProtection`, refus des références qui
+sortent du dossier — « .. », « / », vide) ;
+`makeBackup`/`makeEncryptedBackup` embarquent les octets exacts des
+fichiers (un fichier manquant n'invente rien : métadonnée seule) ;
+`restore` écrit les fichiers AVANT la transaction d'entités (échec →
+store intact) puis, quand la sauvegarde portait des fichiers, balaie
+les orphelines (`sweepOrphanFiles`, nommé, le référencé survit) ; une
+sauvegarde métadonnées seules garde le comportement antérieur (aucun
+fichier touché). Résumé honnête : « N fichiers inclus » / « métadonnées
+seules ». Preuves : tour 1 vert (run 33047216907 — tests iOS dont
+les 5 DocumentBackupTests, e2e 236, suites web) ; tour SABOTAGE
+(run 33047687509) : fichiers non restaurés → échec nommé (octets
+absents), balayage aveugle → DEUX échecs nommés (le référencé
+supprimé) ; revert. UI : textes Réglages seulement — pas de captures.
+Fusion W10.4 (`main` = `1556613`, PR #204) ; publication W10.4 :
+**succès** (run 33047365606, après CI push verte 33046970375).
 
 ### 27.08.2026 — W10.4 : sauvegarde protégée par phrase de passe (ADR-072)
 
