@@ -1183,7 +1183,7 @@
 <div class="phone nu-app" id="phone">
   <div class="notch" aria-hidden="true"></div>
   <div class="demo-banner">✦ Budget — données fictives · vos ajouts restent dans ce navigateur</div>
-  <div class="screen" id="screen"></div>
+  <div class="screen" id="screen" role="main"></div>
 
   <div class="sheet-backdrop" id="sheetBackdrop">
     <form class="sheet nu-pilot-sheet" id="txForm">
@@ -5225,7 +5225,7 @@ function renderBudget() {
   ];
 
   const lineHTML = ([title, lines]) => !lines.length ? "" : `
-    <p class="section-title">${title}</p>` + lines.map(l => {
+    <p class="section-title" role="heading" aria-level="2">${title}</p>` + lines.map(l => {
       const fr = Math.min(1, l.effectif > 0 ? l.actual / l.effectif : 1);
       const cls = l.over ? "over-fill" : fr > 0.85 ? "warn-fill" : "";
       // L3 : le statut est toujours écrit, jamais porté par la couleur seule.
@@ -5244,7 +5244,7 @@ function renderBudget() {
     }).join("");
 
   const outHTML = !report.outOfBudget.length ? "" : `
-    <p class="section-title">Pas encore classé</p>
+    <p class="section-title" role="heading" aria-level="2">Pas encore classé</p>
     <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Dépenses réelles de catégories sans ligne budgétaire — elles comptent dans le coût de la vie du mois, rien n'est perdu.</p>` + report.outOfBudget.map(([cat, v]) => `
     <div class="card row tx"><div class="meta"><div class="t">${esc(cat)}</div></div>
       <span class="amount">${chf(v)}</span></div>`).join("");
@@ -5343,7 +5343,7 @@ function renderBudget() {
     ${groups.map(lineHTML).join("")}
     <button class="btn secondary" data-addline style="margin-top:8px">Ajouter une ligne budgétaire</button>
     ${outHTML}
-    <p class="section-title">Année ${cursor.y}</p>
+    <p class="section-title" role="heading" aria-level="2">Année ${cursor.y}</p>
     ${budgetYearChart()}`;
 }
 
@@ -5416,7 +5416,7 @@ function renderPositionsSection(a, bal) {
   const total = round2(memeDevise.reduce((sum, p) => sum + positionValue(p), 0));
   const cash = round2(bal - total);
   const fmtDate = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
-  return `<p class="section-title">Positions</p>
+  return `<p class="section-title" role="heading" aria-level="2">Positions</p>
     ${list.length === 0 ? `<div class="card row"><span class="caption">Notez ici ce que contient ce compte — actions, fonds, ETF. Les positions expliquent le solde, elles ne s'y ajoutent jamais.</span></div>` : ""}
     ${list.map(p => {
       const pcur = p.priceCurrency || cur;
@@ -5507,7 +5507,7 @@ function renderAccountDetail(a) {
     <button class="btn" data-reconacc="${esc(a.id)}">Mettre le solde à jour…</button>
     <button class="btn secondary" data-editacc="${esc(a.id)}" style="margin-top:8px">Modifier ce compte</button>
     ${a.kind === "brokerage" ? renderPositionsSection(a, bal) : ""}
-    <p class="section-title">Historique</p>
+    <p class="section-title" role="heading" aria-level="2">Historique</p>
     ${history.length ? history.map(txRow).join("") : `<div class="card row"><span class="caption">Aucune opération sur ce compte.</span></div>`}`;
 }
 
@@ -5598,7 +5598,7 @@ function renderAccounts() {
     ${repartition}
     ${groups.length === 0 ? `<div class="card"><span class="caption">Aucun compte. Ajoutez votre premier compte pour commencer.</span></div>` : ""}
     ${groups.map(([title, accs]) => `
-      <p class="section-title">${title}</p>
+      <p class="section-title" role="heading" aria-level="2">${title}</p>
       ${accs.map(a => {
         const kind = ACCOUNT_KINDS[a.kind] || ACCOUNT_KINDS.current;
         // Budget Glyphs (ADR-032) : prévoyance et assurance vie partagent le
@@ -5623,7 +5623,7 @@ function renderAccounts() {
       </div>`;
       }).join("")}`).join("")}
     ${archives.length ? `
-      <p class="section-title">Archivés</p>
+      <p class="section-title" role="heading" aria-level="2">Archivés</p>
       ${archives.map(a => `<div class="card row tx read-row" data-accid="${esc(a.id)}" role="button" tabindex="0" style="cursor:pointer;opacity:.75">
         <div class="ico" aria-hidden="true">${budgetGlyph("accounts")}</div>
         <div class="meta"><div class="t">${esc(a.name)}</div>
@@ -5772,7 +5772,7 @@ function renderGoals() {
       <p>Un fonds d'urgence, des vacances, le 3e pilier… Commencez avec le bouton ci-dessous.</p>
     </div>` : ""}
     ${active.map(goalCard).join("")}
-    ${achieved.length ? `<p class="section-title">C'est fait</p>` + achieved.map(goalCard).join("") : ""}
+    ${achieved.length ? `<p class="section-title" role="heading" aria-level="2">C'est fait</p>` + achieved.map(goalCard).join("") : ""}
     <button class="btn secondary" data-addgoal style="margin-top:8px">Ajouter un objectif</button>
     <p class="caption" style="padding:6px 4px 0">Le montant par mois : ce qu'il reste, divisé par les mois restants.</p>`;
 }
@@ -5880,12 +5880,12 @@ function renderTaxes() {
       </div>
       <p class="caption" style="margin:8px 0 0">Chaque envoi rangé dans « Impôts » compte ici tout seul. Plus rien à retaper.</p>
     </div>
-    ${enRetard.length ? `<p class="section-title">En retard</p>
+    ${enRetard.length ? `<p class="section-title" role="heading" aria-level="2">En retard</p>
     ${enRetard.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer;border-color:var(--negative)">
       <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s neg">En retard — était à payer le ${billDueLabel(b)}</div></div>
       <span class="amount neg">${chf(billAmountInBase(b))}</span></div>`).join("")}` : ""}
-    <p class="section-title">Vos prochains acomptes</p>
+    <p class="section-title" role="heading" aria-level="2">Vos prochains acomptes</p>
     ${aVenir.length ? aVenir.map(b => `<div class="card row tx" data-billid="${esc(b.id)}" role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("calendar")}</div>
       <div class="meta"><div class="t">${esc(b.name)}</div><div class="s">À payer ${billDueLabel(b)}</div></div>
@@ -6030,7 +6030,7 @@ function renderYearReview() {
     </div>`;
 
   const monthList = `
-    <p class="section-title">Les douze mois de ${y}</p>
+    <p class="section-title" role="heading" aria-level="2">Les douze mois de ${y}</p>
     ${rows.map(r => {
       // L'état est toujours ÉCRIT et dit quoi faire : un mois passé qui
       // n'est pas bouclé se distingue du mois en cours, et un mois sans
@@ -6247,7 +6247,7 @@ function renderNetWorth() {
         ${CLASS_LINES.map(l => `<span class="caption" style="display:flex;align-items:center;gap:5px"><svg width="18" height="3" aria-hidden="true" style="flex:none"><line x1="0" y1="1.5" x2="18" y2="1.5" stroke="${l.color}" stroke-width="3" stroke-dasharray="${l.dash}"/></svg>${l.label} ${chf(l.series[l.series.length - 1])}</span>`).join("")}
       </div>
     </div>
-    <p class="section-title">Vos biens</p>
+    <p class="section-title" role="heading" aria-level="2">Vos biens</p>
     ${ASSETS.length === 0 ? `<div class="card empty-state">
       <span class="glyph" aria-hidden="true">${budgetGlyph("asset")}</span>
       <p class="t">Aucun bien pour l'instant</p>
@@ -6257,7 +6257,7 @@ function renderNetWorth() {
       <div class="ico" aria-hidden="true">${budgetGlyph("asset")}</div>
       <div class="meta"><div class="t">${esc(a.name)}</div><div class="s">Votre estimation · ${dateValeurLabel(a)}${a.include === false ? " · pas compté ici" : ""}</div></div>
       <span class="amount ${a.include === false ? "" : "pos"}">${chf(a.value)}</span></div>`).join("")}
-    <p class="section-title">Ce que vous devez</p>
+    <p class="section-title" role="heading" aria-level="2">Ce que vous devez</p>
     ${LIABILITIES.length === 0 ? `<div class="card row"><span class="caption">Vous ne devez rien. Parfait.</span></div>` : ""}
     ${LIABILITIES.map(l => {
       const bal = liabilityBalance(l);
@@ -6319,7 +6319,7 @@ function renderInsurance() {
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span></div>`;
     }).join("")}
     <button class="btn secondary" data-addins style="margin-top:4px">Ajouter une assurance</button>
-    <p class="section-title">Prévoyance</p>
+    <p class="section-title" role="heading" aria-level="2">Prévoyance</p>
     ${(() => {
       // L6 : total constitué + versements de l'année — valeurs existantes.
       // P0 Prisme : une position LIÉE vaut déjà le solde de son compte —
@@ -6453,7 +6453,7 @@ function renderRecurring() {
       <p class="t">Rien ne revient encore</p>
       <p>${vide}</p>
     </div>`)}
-    ${incomes.length ? `${expenses.length ? `<p class="section-title">Revenus réguliers</p>` : ""}${incomes.map(row).join("")}` : ""}
+    ${incomes.length ? `${expenses.length ? `<p class="section-title" role="heading" aria-level="2">Revenus réguliers</p>` : ""}${incomes.map(row).join("")}` : ""}
     <button class="btn secondary" data-addrec style="margin-top:8px">Ajouter ce qui revient</button>
     <p class="caption" style="padding:6px 4px 0">Une facture reste à payer tant qu'aucune dépense ne la couvre. Elle n'est jamais comptée deux fois.</p>`;
 }
@@ -6625,10 +6625,10 @@ function subsBody() {
     </div>`;
 
   return hero + `
-    ${active.length ? `<p class="section-title">Vos abonnements, du plus cher au moins cher</p>
+    ${active.length ? `<p class="section-title" role="heading" aria-level="2">Vos abonnements, du plus cher au moins cher</p>
       ${active.sort(byAmount).map(row).join("")}` : ""}
     ${active.length ? `<button class="btn secondary" data-addrec style="margin-top:8px">Ajouter un abonnement</button>` : ""}
-    ${ended.length ? `<p class="section-title">Résiliés</p>
+    ${ended.length ? `<p class="section-title" role="heading" aria-level="2">Résiliés</p>
       <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Conservés pour l'historique : ils ne pèsent plus sur vos prévisions.</p>
       ${ended.sort(byAmount).map(row).join("")}` : ""}
     ${(() => {
@@ -6964,13 +6964,13 @@ function renderImport() {
       ${batchStillPresent ? `<button type="button" class="btn secondary" data-rollbackimport style="margin-top:12px;color:var(--negative)">Annuler ce lot (${report.imported} opération${report.imported > 1 ? "s" : ""})</button>` : ""}
     </div>
     ${report.invalids.length ? `
-    <p class="section-title">File de réparation</p>
+    <p class="section-title" role="heading" aria-level="2">File de réparation</p>
     ${report.invalids.map(inv => `<div class="card row">
       <div style="font-size:12.5px"><span class="neg">Ligne ${inv.line} — ${esc(inv.reason)}</span><br>
         <code style="font-size:11px;color:var(--coolgray);word-break:break-all">${esc(inv.raw)}</code></div>
     </div>`).join("")}` : ""}` : ""}
     ${(S.imports || []).length ? `
-    <p class="section-title">Journal des imports</p>
+    <p class="section-title" role="heading" aria-level="2">Journal des imports</p>
     <p class="caption" style="margin:-4px 0 8px;padding:0 4px">Chaque lot garde son histoire. Annulez celui que vous voulez — le reste survit.</p>
     ${[...S.imports].reverse().slice(0, 8).map(lot => {
       const encore = transactions.filter(t => t.importBatch === lot.id).length;
@@ -6983,7 +6983,7 @@ function renderImport() {
       ${!lot.rolledBackAt && encore ? `<button type="button" class="btn secondary" data-rollbacklot="${esc(lot.id)}" style="width:auto;min-height:46px;padding:8px 12px;font-size:12px;color:var(--negative)" aria-label="Annuler le lot ${esc(lot.fileName)}">Annuler</button>` : ""}
     </div>`; }).join("")}
     ${S.imports.length > 8 ? `<p class="caption" style="padding:0 4px">… et ${S.imports.length - 8} lot${S.imports.length - 8 > 1 ? "s" : ""} plus ancien${S.imports.length - 8 > 1 ? "s" : ""} conservé${S.imports.length - 8 > 1 ? "s" : ""} dans vos données.</p>` : ""}` : ""}
-    <p class="section-title">Règles de catégorisation</p>
+    <p class="section-title" role="heading" aria-level="2">Règles de catégorisation</p>
     <p class="caption" style="margin:-4px 0 8px;padding:0 4px">« Ce libellé → cette catégorie » — appliquées aux PROCHAINS imports seulement, visibles dans l'aperçu avant toute écriture. Le passé ne bouge jamais tout seul.</p>
     ${(S.regles || []).map(r => `<div class="card row tx">
       <div class="meta"><div class="t">« ${esc(r.motif)} »</div><div class="s">→ ${esc(r.cat)}</div></div>
@@ -7000,7 +7000,7 @@ function renderImport() {
       <div class="error" id="regleError" role="alert"></div>
       <button type="button" class="btn secondary" data-addregle style="margin-top:10px">Ajouter la règle</button>
     </div>
-    <p class="section-title">Documents (juste le nom)</p>
+    <p class="section-title" role="heading" aria-level="2">Documents (juste le nom)</p>
     ${S.documents.length === 0 ? `<div class="card empty-state">
       <span class="glyph" aria-hidden="true">${budgetGlyph("document")}</span>
       <p class="t">Aucun document</p>
@@ -7078,10 +7078,10 @@ function renderBills() {
     </div>` : "";
   return backBar("Factures ponctuelles") + billsHero + billsEmpty + annualCard + `
     ${overdue.length ? `<p class="section-title neg">En retard</p>` + overdue.map(b => row(b, "neg")).join("") : ""}
-    ${bills.length ? `<p class="section-title">À payer</p>` : ""}
+    ${bills.length ? `<p class="section-title" role="heading" aria-level="2">À payer</p>` : ""}
     ${bills.length ? (upcoming.length ? upcoming.map(b => row(b, "warn")).join("") : `<div class="card row"><span class="caption">Aucune facture ouverte.</span></div>`) : ""}
-    ${scheduled.length ? `<p class="section-title">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
-    ${paid.length ? `<p class="section-title">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
+    ${scheduled.length ? `<p class="section-title" role="heading" aria-level="2">Planifiées</p>` + scheduled.map(b => row(b, "warn")).join("") : ""}
+    ${paid.length ? `<p class="section-title" role="heading" aria-level="2">Payées</p>` + paid.map(b => row(b, "pos")).join("") : ""}
     ${bills.length ? `<button class="btn secondary" data-addbill style="margin-top:8px">Ajouter une facture ponctuelle</button>` : ""}
     <p class="caption" style="padding:6px 4px 0">Marquez une facture payée : la dépense est créée pour vous. Les factures en attente sont déjà retirées du disponible.</p>`;
 }
@@ -7137,7 +7137,7 @@ function renderSettings() {
   const salary = salaryRecurring();
   const fx = S.fxRates || {};
   return backBar("Réglages") + `
-    <p class="section-title">Mon ménage</p>
+    <p class="section-title" role="heading" aria-level="2">Mon ménage</p>
     <div class="card row tx read-row" data-editname role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("person")}</div>
       <div class="meta"><div class="t">Mon prénom</div>
@@ -7183,7 +7183,7 @@ function renderSettings() {
         })()} · aucune connexion réseau</div></div>
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
     </div>
-    <p class="section-title">Sécurité</p>
+    <p class="section-title" role="heading" aria-level="2">Sécurité</p>
     <div class="card row" style="display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-size:14px;font-weight:600">Verrouillage par code</div>
         <div class="caption">Cache vos montants sur ce téléphone. Ce n'est pas un coffre-fort : le code est demandé pour activer comme pour désactiver.</div></div>
@@ -7191,7 +7191,7 @@ function renderSettings() {
         ${S.faceIDEnabled ? "Activé" : "Désactivé"}</button>
     </div>
     ${S.faceIDEnabled ? `<button class="btn" data-locknow style="margin-bottom:10px">Passer en arrière-plan (verrouille)</button>` : ""}
-    <p class="section-title">Vos données</p>
+    <p class="section-title" role="heading" aria-level="2">Vos données</p>
     ${(() => {
       // H01 — sauvegarde guidée : état honnête, rappel discret après 30 jours.
       if (!transactions.length) return "";
@@ -7218,7 +7218,7 @@ function renderSettings() {
     <button class="btn secondary" data-fullreset style="margin-top:8px;color:var(--negative)">Réinitialiser complètement l'application…</button>
     <button class="btn secondary" data-resetdemo style="margin-top:8px">Charger la démonstration…</button>
     <button class="btn secondary" data-displaydiag style="margin-top:8px">Diagnostic d'affichage</button>
-    <p class="section-title">Comment ça marche</p>
+    <p class="section-title" role="heading" aria-level="2">Comment ça marche</p>
     ${[["recurring", "Chaque mois : validez, bouclez.", "Salaire, factures, versements — validez-les un à un, et le mois est bouclé."],
        ["saving", "Un envoi n'est pas une dépense.", "L'argent envoyé vers l'épargne ou la bourse reste à vous — il s'additionne."],
        ["investment", "Votre chemin se dessine.", "Cumuls à vie, patrimoine sur 12 mois, projection à 20 ans."]]
@@ -7226,7 +7226,7 @@ function renderSettings() {
       <div class="ico" aria-hidden="true">${budgetGlyph(glyph)}</div>
       <div class="meta"><div class="t">${title}</div><div class="s">${sub}</div></div>
     </div>`).join("")}
-    <p class="section-title">Transparence</p>
+    <p class="section-title" role="heading" aria-level="2">Transparence</p>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Confidentialité</summary>
       ${PRIVACY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Méthodologie des calculs</summary>
@@ -7374,7 +7374,7 @@ function renderMore() {
     </div>`;
   };
   return `<h2 class="screen-title">Gérer</h2>` + MORE_GROUPS.map(([label, items]) =>
-    `<p class="section-title">${label}</p>` + items.map(row).join("")).join("");
+    `<p class="section-title" role="heading" aria-level="2">${label}</p>` + items.map(row).join("")).join("");
 }
 
 function renderMoreTxList() {
@@ -8713,6 +8713,18 @@ function openSheet(id) {
   openSheetSnapshot = serializeSheet(id);
   if (id === "quickMenu") {
     requestAnimationFrame(() => current.querySelector("[data-quick]")?.focus());
+  } else {
+    // W11.3 : VoiceOver suit — le focus ENTRE dans la feuille, sur son
+    // titre (sans ouvrir le clavier) ; à défaut, premier élément utile.
+    requestAnimationFrame(() => {
+      const titre = current.querySelector("h3");
+      if (titre) {
+        if (!titre.hasAttribute("tabindex")) titre.setAttribute("tabindex", "-1");
+        titre.focus({ preventScroll: true });
+      } else {
+        current.querySelector("input, select, textarea, button")?.focus();
+      }
+    });
   }
 }
 function closeSheet() {

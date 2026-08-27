@@ -15009,6 +15009,64 @@ currentTest = "W11.2 wcag22";
   await ctx239.close();
 }
 
+// ---------- 240. W11.3 : VOICEOVER — REPÈRES, TITRES, FOCUS DES FEUILLES ----------
+// Budget Autonomie 100, W11.3 : mesuré — l'écran principal n'était pas
+// un repère (landmark) pour les lecteurs d'écran, les titres de
+// sections étaient de simples <p> (aucune navigation par titres), et
+// le focus n'entrait pas dans les feuilles à l'ouverture (VoiceOver
+// restait derrière le dialogue). Le retour du focus à l'ouvreur
+// existait déjà — verrouillé ici contre les régressions.
+currentTest = "W11.3 voiceover";
+{
+  const ctx240 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p240 = await ctx240.newPage();
+  p240.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W11.3] ${msg.text()}`); });
+  await p240.goto(APP_URL);
+  await p240.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Voix" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p240.reload();
+  await p240.waitForSelector("#tabbar button");
+  // 1. Repère principal : l'écran est un landmark main.
+  const repere = await p240.evaluate(() => document.getElementById("screen").getAttribute("role"));
+  check(repere === "main", `l'écran principal est un repère main pour les lecteurs d'écran (obtenu « ${repere} »)`);
+  // 2. Titres : les titres de sections sont des titres ARIA de niveau 2.
+  await p240.evaluate(() => { activeTab = "more"; render(); });
+  await p240.waitForTimeout(300);
+  const titres = await p240.evaluate(() => {
+    const t = [...document.querySelectorAll("#screen .section-title")];
+    return { total: t.length, aria: t.filter(x => x.getAttribute("role") === "heading" && x.getAttribute("aria-level") === "2").length };
+  });
+  check(titres.total > 0 && titres.aria === titres.total,
+    `les titres de sections sont navigables par VoiceOver (role=heading niveau 2 : ${titres.aria}/${titres.total})`);
+  // 3. Focus : par le VRAI geste (bouton d'ajout des Mouvements) — à
+  //    l'ouverture le focus ENTRE dans la feuille, à la fermeture il
+  //    REVIENT à l'ouvreur (verrou de régression).
+  await p240.evaluate(() => { activeTab = "movements"; render(); });
+  await p240.waitForSelector("#screen [data-addtx]", { state: "visible" });
+  await p240.click("#screen [data-addtx]");
+  await p240.waitForSelector("[data-quick]", { state: "visible" });
+  await p240.click('[data-quick="expense"]');
+  await p240.waitForTimeout(600);
+  const dedans = await p240.evaluate(() => {
+    const feuille = document.getElementById("txForm");
+    return feuille.contains(document.activeElement);
+  });
+  check(dedans === true, "à l'ouverture d'une feuille, le focus entre DANS la feuille (VoiceOver suit)");
+  await p240.click("#fCancel");
+  await p240.waitForTimeout(500);
+  const revenu = await p240.evaluate(() => document.activeElement !== document.body
+    && document.activeElement.closest("#screen, #tabbar") !== null);
+  check(revenu === true, "à la fermeture, le focus revient à un élément réel de l'écran (jamais perdu sur body)");
+  await ctx240.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15018,4 +15076,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 239 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 240 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
