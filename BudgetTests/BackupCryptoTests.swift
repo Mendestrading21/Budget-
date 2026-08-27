@@ -54,11 +54,20 @@ final class BackupCryptoTests: XCTestCase {
     func testTamperedFileIsRefused() throws {
         let enveloppe = try BackupCrypto.encrypt(Data("secret".utf8), passphrase: "phrase")
         var texte = String(decoding: enveloppe, as: UTF8.self)
-        // Falsifier UN caractère base64 du scellé (en évitant le padding).
+        // Falsifier UN caractère base64 du scellé. DURCI après un flake
+        // CI (run 33064572384) : Foundation échappe « / » en « \/ » dans
+        // le JSON — une position FIXE pouvait tomber sur l'échappement et
+        // rendre le JSON/base64 illisible (unreadableEnvelope au lieu de
+        // wrongPassphrase). On falsifie donc le premier caractère
+        // ALPHANUMÉRIQUE du scellé : toujours un vrai octet chiffré,
+        // jamais un échappement ni un signe de ponctuation base64.
         guard let plage = texte.range(of: "\"sealed\":\"") else {
             return XCTFail("enveloppe sans champ scellé")
         }
-        let position = texte.index(plage.upperBound, offsetBy: 4)
+        var position = texte.index(plage.upperBound, offsetBy: 1)
+        while !(texte[position].isLetter || texte[position].isNumber) {
+            position = texte.index(after: position)
+        }
         let original = texte[position]
         texte.replaceSubrange(position...position, with: original == "A" ? "B" : "A")
         XCTAssertThrowsError(try BackupCrypto.decrypt(Data(texte.utf8), passphrase: "phrase")) { error in
