@@ -12,12 +12,14 @@ import SwiftData
 ///    dans `BudgetSchema.swift` (SIGABRT du plan étagé) n'apparaît
 ///    JAMAIS in-memory.
 ///
-/// 2. Rétrogradation dite : un store V14 (avec `Statement`) rouvert
-///    par un schéma antérieur (V13) — le comportement observé est
-///    CONSIGNÉ par le test : soit un refus (erreur), soit une
-///    ouverture tolérée par CoreData (tables inconnues ignorées) ;
-///    dans les deux cas le store DOIT rester intact et se rouvrir à
-///    V14 avec le relevé retrouvé (refus/rétrogradation SANS PERTE).
+/// 2. Rétrogradation REFUSÉE : un store V14 (avec `Statement`) rouvert
+///    par un schéma antérieur (V13) doit être refusé ATOMIQUEMENT par
+///    la garde de version (`StoreVersionGuard`) — le tour 1 de cette
+///    PR (run CI 33042403589) a PROUVÉ que sans garde, CoreData ouvre
+///    et DÉTRUIT la table inconnue (« Persistent History has to be
+///    truncated due to the following entities being removed:
+///    (Statement) ») : le relevé disparaissait. Après le refus, le
+///    store rouvre à V14 avec le relevé intact.
 ///
 /// Limite honnête (ADR-071) : les enums de version référencent les
 /// classes VIVANTES — un store « créé à V1 » porte les colonnes
@@ -66,10 +68,13 @@ final class SchemaMigrationMatrixTests: XCTestCase {
 
             // Écriture au schéma ANCIEN (Vn), sur disque, données
             // communes à toutes les versions (compte + mouvement, V1).
+            // Par le chemin UNIQUE de production : la garde de version
+            // ne doit JAMAIS refuser une création ni une mise à jour
+            // légitime — la matrice entière le prouve.
             try autoreleasepool {
-                let ancien = try ModelContainer(
-                    for: Schema(versionedSchema: version),
-                    configurations: [ModelConfiguration(url: storeURL)]
+                let ancien = try PersistenceFactory.makeContainer(
+                    configuration: ModelConfiguration(url: storeURL),
+                    versionedSchema: version
                 )
                 let contexte = ModelContext(ancien)
                 let compte = Account(
@@ -140,21 +145,22 @@ final class SchemaMigrationMatrixTests: XCTestCase {
             try contexte.save()
         }
 
-        // 2. Réouverture avec le schéma ANTÉRIEUR (V13). Les deux
-        // issues honnêtes sont tolérées et CONSIGNÉES : un refus
-        // (erreur à la construction/lecture) ou une ouverture où
-        // l'entité inconnue est simplement invisible. Aucune des deux
-        // ne doit TOUCHER le store.
+        // 2. Réouverture avec le schéma ANTÉRIEUR (V13) par le chemin
+        // de production : la garde DOIT refuser, en nommant l'entité
+        // inconnue, SANS toucher au fichier. (Sans garde, CoreData
+        // ouvre et détruit la table Statement — prouvé au tour 1,
+        // run CI 33042403589 : c'est le contrôle négatif de ce lot.)
         autoreleasepool {
             do {
-                let v13 = try ModelContainer(
-                    for: Schema(versionedSchema: BudgetSchemaV13.self),
-                    configurations: [ModelConfiguration(url: storeURL)]
+                _ = try PersistenceFactory.makeContainer(
+                    configuration: ModelConfiguration(url: storeURL),
+                    versionedSchema: BudgetSchemaV13.self
                 )
-                _ = ModelContext(v13)
-                print("MATRICE W10.3 : rétrogradation V14→V13 TOLÉRÉE par CoreData (tables inconnues ignorées) — consigné.")
+                XCTFail("la rétrogradation V14→V13 doit être REFUSÉE : l'ouverture tolérée détruit la table Statement")
+            } catch let erreur as StoreVersionGuard.StoreNewerThanAppError {
+                XCTAssertEqual(erreur.unknownEntities, ["Statement"], "le refus doit NOMMER l'entité inconnue")
             } catch {
-                print("MATRICE W10.3 : rétrogradation V14→V13 REFUSÉE (\(error)) — consigné.")
+                XCTFail("le refus doit venir de la garde de version, pas de : \(error)")
             }
         }
 
