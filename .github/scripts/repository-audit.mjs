@@ -254,6 +254,46 @@ try {
     privacy.includes("NSPrivacyAccessedAPICategoryUserDefaults") && privacy.includes("CA92.1"));
 }
 
+// W10.8 — revue MASVS : présente, COMPLÈTE (les 24 contrôles), chaque
+// contrôle porte un verdict PASS/N-A/GAP, chaque verdict cite une
+// preuve ou une justification substantielle, et chaque GAP nomme le
+// lot qui le porte ou le refus assumé. Un PASS d'intention est
+// impossible : l'audit mord.
+{
+  const M = "docs/autonomie/w10/REVUE_MASVS.md";
+  if (!existsSync(join(root, M))) {
+    check(`revue MASVS : ${M} présente`, false);
+  } else {
+    const doc = read(M);
+    const controles = [
+      "STORAGE-1", "STORAGE-2", "CRYPTO-1", "CRYPTO-2",
+      "AUTH-1", "AUTH-2", "AUTH-3", "NETWORK-1", "NETWORK-2",
+      "PLATFORM-1", "PLATFORM-2", "PLATFORM-3",
+      "CODE-1", "CODE-2", "CODE-3", "CODE-4",
+      "RESILIENCE-1", "RESILIENCE-2", "RESILIENCE-3", "RESILIENCE-4",
+      "PRIVACY-1", "PRIVACY-2", "PRIVACY-3", "PRIVACY-4",
+    ];
+    const manquants = [];
+    const sansVerdict = [];
+    const sansPreuve = [];
+    const gapsFlous = [];
+    for (const c of controles) {
+      const ligne = doc.split("\n").find(l => l.includes(`| ${c} :`));
+      if (!ligne) { manquants.push(c); continue; }
+      const cellules = ligne.split("|").map(x => x.trim());
+      const verdict = cellules[2] || "";
+      const preuve = cellules[3] || "";
+      if (!/^(PASS|N-A|GAP)$/.test(verdict)) { sansVerdict.push(c); continue; }
+      if (preuve.length < 30) sansPreuve.push(c);
+      if (verdict === "GAP" && !/W\d+|refus assumé/i.test(preuve)) gapsFlous.push(c);
+    }
+    check("revue MASVS : les 24 contrôles sont présents", manquants.length === 0, manquants.join(", "));
+    check("revue MASVS : chaque contrôle porte un verdict PASS/N-A/GAP", sansVerdict.length === 0, sansVerdict.join(", "));
+    check("revue MASVS : chaque verdict cite une preuve ou justification substantielle", sansPreuve.length === 0, sansPreuve.join(", "));
+    check("revue MASVS : chaque GAP nomme son lot ou son refus assumé", gapsFlous.length === 0, gapsFlous.join(", "));
+  }
+}
+
 // W10.1 — threat model : le document existe et couvre CHAQUE surface de
 // stockage réellement présente dans le code. La liste ci-dessous est
 // vérifiée des deux côtés : si le motif disparaît du code, l'entrée est
