@@ -274,6 +274,32 @@ try {
     !pwa.includes("prefers-color-scheme"));
 }
 
+// W11.5 — fiche App Privacy : présente, complète, chaque réponse
+// adossée à une preuve, les gestes propriétaire nommés HUMAN REQUIRED
+// — même discipline que MASVS et WCAG.
+{
+  const P = "docs/autonomie/w11/APP_PRIVACY.md";
+  if (!existsSync(join(root, P))) {
+    check(`fiche App Privacy : ${P} présente`, false);
+  } else {
+    const doc = read(P);
+    const reponses = ["PRIVACY-COLLECTE", "PRIVACY-TIERS", "PRIVACY-TYPES", "PRIVACY-TRACKING",
+      "PRIVACY-ATT", "PRIVACY-API", "PRIVACY-PLAY"];
+    const manquants = [];
+    const sansPreuve = [];
+    for (const c of reponses) {
+      const ligne = doc.split("\n").find(l => l.includes(`| ${c} :`));
+      if (!ligne) { manquants.push(c); continue; }
+      const cellules = ligne.split("|").map(x => x.trim());
+      if ((cellules[3] || "").length < 30) sansPreuve.push(c);
+    }
+    check("fiche App Privacy : les 7 réponses sont présentes", manquants.length === 0, manquants.join(", "));
+    check("fiche App Privacy : chaque réponse cite une preuve substantielle", sansPreuve.length === 0, sansPreuve.join(", "));
+    check("fiche App Privacy : les gestes propriétaire sont nommés HUMAN REQUIRED",
+      (doc.match(/HUMAN REQUIRED/g) || []).length >= 2);
+  }
+}
+
 // W11.2 — revue WCAG 2.2 : présente, complète (6 critères AA + 3 AAA
 // consignés), verdict et preuve substantielle par critère — même
 // discipline que la revue MASVS.
