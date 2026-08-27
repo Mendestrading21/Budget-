@@ -2884,9 +2884,57 @@ const INSURANCES = S.insurances;
    fortune, aucun total, aucun agrégat ne les lit. */
 const POSITIONS = S.positions;
 
+/* W9.3 (Work Order W9) : couche de stockage — interface UNIQUE vers
+   IndexedDB, en DOUBLE ÉCRITURE derrière localStorage qui reste LA
+   vérité lue au chargement (la bascule prouvée arrive en W9.4). Une
+   panne IndexedDB ne casse jamais l'app : elle est COMPTÉE
+   (idbEchecs), ni silencieuse ni bruyante à chaque frappe. */
+const IDB_NOM = "budget-app";
+const IDB_MAGASIN = "etat";
+let idbEchecs = 0;
+let idbEcritures = 0;
+function idbOuvrir() {
+  return new Promise((resoudre, rejeter) => {
+    const demande = indexedDB.open(IDB_NOM, 1);
+    demande.onupgradeneeded = () => demande.result.createObjectStore(IDB_MAGASIN);
+    demande.onsuccess = () => resoudre(demande.result);
+    demande.onerror = () => rejeter(demande.error);
+  });
+}
+async function idbEcrireEtat(blob) {
+  try {
+    const base = await idbOuvrir();
+    await new Promise((resoudre, rejeter) => {
+      const tx = base.transaction(IDB_MAGASIN, "readwrite");
+      tx.objectStore(IDB_MAGASIN).put(blob, APP_STATE_KEY);
+      tx.oncomplete = resoudre;
+      tx.onerror = () => rejeter(tx.error);
+    });
+    base.close();
+    idbEcritures++;
+    return true;
+  } catch (e) { idbEchecs++; return false; }
+}
+async function idbLireEtat() {
+  try {
+    const base = await idbOuvrir();
+    const blob = await new Promise((resoudre, rejeter) => {
+      const demande = base.transaction(IDB_MAGASIN, "readonly").objectStore(IDB_MAGASIN).get(APP_STATE_KEY);
+      demande.onsuccess = () => resoudre(demande.result ?? null);
+      demande.onerror = () => rejeter(demande.error);
+    });
+    base.close();
+    return blob;
+  } catch (e) { idbEchecs++; return null; }
+}
 function saveState() {
-  try { localStorage.setItem(APP_STATE_KEY, JSON.stringify(S)); }
+  let blob = null;
+  try { blob = JSON.stringify(S); localStorage.setItem(APP_STATE_KEY, blob); }
   catch (e) { toast("Votre navigateur refuse d'enregistrer. Ce changement disparaîtra si vous rechargez la page."); }
+  // Double écriture, jamais bloquante : une panne est comptée, pas jetée.
+  if (blob != null) {
+    try { void idbEcrireEtat(blob); } catch (e) { idbEchecs++; }
+  }
 }
 
 /* Obsidian Glass (ADR-020, L2) : UNE seule identité sombre. L'ancien champ
