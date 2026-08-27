@@ -125,8 +125,8 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.7 fusionnés · W9.8 EN PR | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
+| W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
+| W10 | Sécurité, backup, migrations | Work Order écrit · W10.1 READY | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,26 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9 FERMÉ · Work Order W10 (mode plan, aucun code)
+
+Fusion W9.8 (`main` = `51c0b90`, PR #199, CI verte sur le HEAD exact
+`5a710e7` puis CI push verte run 33039157466) ; publication W9.8 :
+**succès** (run 33039615189, dispatché au SHA de fusion). **W9 est
+fermé** : 8 sous-lots fusionnés et publiés, la PWA a un build TypeScript
+vérifié, un domaine extrait source de vérité, IndexedDB en réserve
+prouvée, des routes restaurables, une CSP stricte, un hors-ligne qui
+parle (quota, multi-onglets) et plus aucune duplication miroir.
+
+Work Order W10 écrit en mode plan
+(`docs/autonomie/w10/WORK_ORDER_W10.md`) après mesure du réel :
+14 schémas versionnés sur classes vivantes (plan étagé impossible sans
+snapshots figés — consigné dans `BudgetSchema.swift`), backup JSON
+validé mais non chiffré, verrou LAContext sans contrat de
+ré-authentification, `DocumentFileStore` à auditer, purge post-W9 à
+étendre à IndexedDB/caches. Décisions propriétaire identifiées :
+chiffrement du backup (W10.4) et pièces jointes dans le backup
+(W10.5). `execute W10` prendra W10.1 (threat model).
 
 ### 27.08.2026 — W9.8 : assemblage — la duplication miroir disparaît
 
