@@ -7058,7 +7058,26 @@ function salaryRecurring() {
     || RECURRINGS.find(r => r.type === "income" && fold(r.title).includes("salaire"));
 }
 
+/* W9.7 : le QUOTA se mesure et se DIT — « non mesurable » en toutes
+   lettres quand le navigateur ne répond pas, jamais un chiffre
+   inventé. Averti en clair au-delà de 80 %. */
+async function mesurerStockage() {
+  const cible = document.getElementById("stockageInfo");
+  if (!cible) return;
+  try {
+    const e = await navigator.storage.estimate();
+    if (!Number.isFinite(e.usage) || !Number.isFinite(e.quota) || e.quota <= 0) throw new Error("estimation vide");
+    const usageMo = e.usage / 1048576;
+    const quotaMo = e.quota / 1048576;
+    const part = Math.round((e.usage / e.quota) * 100);
+    cible.textContent = `${usageMo < 1 ? usageMo.toFixed(2) : usageMo.toFixed(1)} Mo utilisés sur ${quotaMo >= 1024 ? (quotaMo / 1024).toFixed(1) + " Go" : Math.round(quotaMo) + " Mo"} (${part} %).`
+      + (part >= 80 ? " Presque plein : exportez une sauvegarde." : "");
+  } catch (err) {
+    cible.textContent = "Espace non mesurable sur ce navigateur — vos données restent locales.";
+  }
+}
 function renderSettings() {
+  setTimeout(mesurerStockage, 0);
   const salary = salaryRecurring();
   const fx = S.fxRates || {};
   return backBar("Réglages") + `
@@ -7086,6 +7105,11 @@ function renderSettings() {
       <div class="meta"><div class="t">Votre monnaie</div>
         <div class="s">${baseCurrency()} — ${CURRENCY_NAMES[baseCurrency()]}</div></div>
       <span style="color:var(--coolgray)" aria-hidden="true">${budgetGlyph("chevronRight")}</span>
+    </div>
+    <div class="card">
+      <p class="card-label">Stockage de l'appareil</p>
+      <p class="caption" style="margin:4px 0 0" id="stockageInfo">Mesure en cours…</p>
+      <p class="caption" style="margin:4px 0 0">Vos données vivent sur cet appareil (localStorage, avec une réserve de secours). Rien ne part sur un serveur.</p>
     </div>
     <div class="card row tx read-row" data-editfx role="button" tabindex="0" style="cursor:pointer">
       <div class="ico" aria-hidden="true">${budgetGlyph("transfer")}</div>
@@ -10033,6 +10057,15 @@ function pushNav() {
 /* L'amorce n'écrit PAS d'URL : le hash entrant doit survivre jusqu'au
    démarrage qui le lit (W9.5) — le premier render la rafraîchira. */
 try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
+/* W9.7 : deux onglets ne s'écrasent plus en silence — quand un AUTRE
+   onglet enregistre, celui-ci le dit et se met à jour (le rechargement
+   garde l'écran grâce aux routes W9.5). */
+window.addEventListener("storage", (e) => {
+  if (e.key !== APP_STATE_KEY || e.newValue == null) return;
+  if (e.newValue === JSON.stringify(S)) return;
+  try { sessionStorage.setItem("budget-onglet-suivi", "1"); } catch (err) {}
+  location.reload();
+});
 window.addEventListener("popstate", (e) => {
   // Une feuille ouverte ? Le « retour » la ferme d'abord, sans changer
   // d'écran — et protège une saisie en cours comme un abandon accidentel.
@@ -11563,5 +11596,11 @@ if (S.onboarded && !locked) {
   try { history.replaceState({ tab: activeTab, more: moreView, acc: accountView }, "", routeActuelle()); } catch (e) {}
 }
 render();
+try {
+  if (sessionStorage.getItem("budget-onglet-suivi")) {
+    sessionStorage.removeItem("budget-onglet-suivi");
+    toast("Mis à jour depuis un autre onglet.");
+  }
+} catch (e) {}
 rescueNoticeAtBoot();
 </script>
