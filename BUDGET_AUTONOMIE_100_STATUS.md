@@ -126,8 +126,8 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.7 fusionnés · W10.8 EN PR | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
+| W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
+| W11 | Accessibilité, stores, Android, release | Work Order écrit · W11.1 READY | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,27 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10 FERMÉ · Work Order W11 (mode plan) · ADR-073
+
+Fusion W10.8 (`main` = `04c3ce8`, PR #208) ; publication W10.8 :
+**succès** (run 33054573798, après CI push verte 33053952100). **W10
+est fermé** : threat model vérifié par l'audit, schéma V14 figé par
+manifeste (ADR-071), matrice de migrations sur disque + garde de
+version (rétrogradation destructive interceptée), sauvegarde protégée
+par phrase de passe (ADR-072), pièces jointes dans la sauvegarde +
+orphelines balayées, porte des actions sensibles, confidentialité
+outillée (purge complète, zéro log), revue MASVS (15 PASS / 8 N-A /
+1 GAP assumé — CODE-1 TestFlight propriétaire).
+
+Décision propriétaire W11.4 posée et consignée (**ADR-073**) : la PWA
+seule est l'offre Android — pas de Google Play pour l'instant,
+réversible, Data safety N-A. Work Order W11 écrit en mode plan
+(`docs/autonomie/w11/WORK_ORDER_W11.md`) : thème/langue à consigner,
+revue nommée WCAG 2.2, audit VoiceOver écran par écran, App
+Privacy depuis le code réel, listing avec HUMAN REQUIRED nommés,
+gouvernance release, candidate + QA honnête. `execute W11` prendra
+W11.1.
 
 ### 27.08.2026 — W10.8 : revue MASVS — 15 PASS prouvés, 8 N-A justifiés, 1 GAP assumé
 
