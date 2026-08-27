@@ -7232,7 +7232,10 @@ function renderSettings() {
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Méthodologie des calculs</summary>
       ${METHODOLOGY.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
     <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Marques et logos</summary>
-      ${BRANDS_NOTICE.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>`;
+      ${BRANDS_NOTICE.map(p => `<p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">${p}</p>`).join("")}</details></div>
+    <div class="card"><details><summary style="margin:0;font-size:14px;color:var(--offwhite);font-weight:600">Installer l'app</summary>
+      <p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">Sur iPhone : ouvrez Budget dans Safari, touchez Partager puis « Sur l'écran d'accueil ». L'app s'ouvre alors en plein écran, hors ligne aussi.</p>
+      <p style="font-size:12.5px;color:var(--coolgray);line-height:1.55">Sur Android : ouvrez Budget dans votre navigateur, menu puis « Ajouter à l'écran d'accueil » (ou « Installer l'application »). Il n'y a pas d'app Google Play : c'est voulu — cette version installable EST l'app Android, hors ligne, avec vos données sur votre appareil.</p></details></div>`;
 }
 
 // Menu « Gérer » regroupé par intention (blueprint B07). Le sous-titre
@@ -10140,6 +10143,11 @@ try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) 
    garde l'écran grâce aux routes W9.5). */
 window.addEventListener("storage", (e) => {
   if (e.key !== APP_STATE_KEY || e.newValue == null) return;
+  // W11.4 (durci après flake CI 33049610268 reproduit en local) : un
+  // onglet ENCORE EN BOOT lit déjà l'état frais — recharger ici créait
+  // une tempête de rechargements croisés entre onglets (chaque boot
+  // réécrit l'état, ce qui déclenchait le reload de l'autre).
+  if (!window.bootTermine) return;
   if (e.newValue === JSON.stringify(S)) return;
   try { sessionStorage.setItem("budget-onglet-suivi", "1"); } catch (err) {}
   location.reload();
@@ -11681,4 +11689,7 @@ try {
   }
 } catch (e) {}
 rescueNoticeAtBoot();
+// W11.4 : le suivi inter-onglets ne s'arme qu'une fois le boot fini —
+// voir le listener « storage » (anti-tempête de rechargements).
+window.bootTermine = true;
 </script>
