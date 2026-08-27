@@ -14831,6 +14831,55 @@ currentTest = "W9.6 csp-sw";
     "le cache du SW reste versionné avec invalidation propre");
 }
 
+// ---------- 236. W9.7 : QUOTA DIT, MULTI-ONGLETS SUIVI ----------
+// Budget Autonomie 100, W9.7 : mesuré — aucun regard sur le quota de
+// stockage (éviction silencieuse possible), et deux onglets ouverts
+// s'écrasaient mutuellement sans un mot (dernier écrivain gagne, en
+// silence). Livré : Réglages DIT le stockage de l'appareil (mesuré
+// quand le navigateur le permet, « non mesurable » sinon — jamais un
+// chiffre inventé) ; quand un AUTRE onglet enregistre, celui-ci le
+// dit et se met à jour (l'écran survit grâce aux routes W9.5).
+currentTest = "W9.7 quota-onglets";
+{
+  const ctx236 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pA = await ctx236.newPage();
+  pA.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W9.7] ${msg.text()}`); });
+  await pA.addInitScript(() => {
+    if (localStorage.getItem("budget-app-state-v1")) return;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Onglet A" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await pA.goto(APP_URL);
+  await pA.waitForSelector("#tabbar button");
+  // 1. Réglages DIT le stockage — mesuré ou « non mesurable », jamais
+  //    un chiffre inventé.
+  await pA.evaluate(() => { activeTab = "more"; moreView = "settings"; render(); });
+  await pA.waitForTimeout(600);
+  const stockageDit = await pA.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return texte.includes("Stockage de l'appareil")
+      && (/[\d,.]+\s*(Mo|ko|Go|%)/.test(texte) || texte.includes("non mesurable"));
+  });
+  check(stockageDit === true,
+    "Réglages dit le stockage de l'appareil — mesuré, ou « non mesurable » en toutes lettres");
+  // 2. Un AUTRE onglet enregistre → celui-ci le dit et se met à jour.
+  const pB = await ctx236.newPage();
+  await pB.goto(APP_URL);
+  await pB.waitForSelector("#tabbar button");
+  await pB.evaluate(() => { S.profile.name = "Onglet B a écrit"; saveState(); });
+  await pA.waitForFunction(() => typeof S !== "undefined" && S.profile && S.profile.name === "Onglet B a écrit",
+    null, { timeout: 8000 }).catch(() => {});
+  const suivi = await pA.evaluate(() => S.profile.name).catch(() => "?");
+  check(suivi === "Onglet B a écrit",
+    `l'onglet suit l'écriture de l'autre onglet (obtenu « ${suivi} »)`);
+  await ctx236.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14840,4 +14889,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 235 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 236 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

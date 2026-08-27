@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.5 fusionnés · W9.6 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.6 fusionnés · W9.7 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,27 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.7 : le quota se dit, les onglets se suivent
+
+Mesuré d'abord : aucun regard sur le quota de stockage (éviction
+silencieuse possible) et deux onglets ouverts s'écrasaient
+mutuellement sans un mot (dernier écrivain gagne, en silence). Livré :
+Réglages porte « Stockage de l'appareil » — mesuré via
+`navigator.storage.estimate` quand le navigateur répond (la capture le
+montre même en file://), « non mesurable » en toutes lettres sinon —
+jamais un chiffre inventé — avec avertissement en clair au-delà de
+80 % ; quand un AUTRE onglet enregistre, celui-ci se met à jour et le
+DIT (toast après rechargement — l'écran survit grâce aux routes W9.5,
+la réserve IndexedDB suit via la double écriture W9.3). Preuves :
+parcours 236 né rouge (2 échecs nommés) ; deux sabotages qui mordent
+seuls (mesure débranchée → 1 ; suivi inter-onglets retiré → 1) ;
+captures 320/390 du Réglages inspectées
+(`docs/neon-ultra/budget-prisme/w9-7/`) ; suites complètes vertes
+(236 e2e, build, domaine, 9 parités, 14 canon + schéma, design,
+catalogue, audits). Fusion W9.6 (`main` = `88d45b5`, PR #197 — après
+un flake CI consigné et un test hérité durci) ; publication W9.6 :
+**succès**.
 
 ### 27.08.2026 — W9.6 : CSP stricte déclarée, service worker non empoisonnable
 
