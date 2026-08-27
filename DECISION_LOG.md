@@ -1,5 +1,36 @@
 # Budget decision log
 
+## ADR-074 — Identité sombre unique et français fr-CH : des choix verrouillés
+
+Date: 2026-08-27
+Status: accepted
+
+### Contexte
+
+L'identité sombre unique existe depuis ADR-020/024 et le formatage
+fr-CH depuis le début — mais rien ne les VERROUILLAIT, et la PWA ne
+déclarait ni sa langue (`lang` absent : les lecteurs d'écran prononcent
+le français avec une voix anglaise) ni son schéma de couleurs (les
+contrôles natifs du navigateur pouvaient rendre clair sur sombre).
+
+### Décision
+
+1. L'identité sombre unique et le français fr-CH sont des CHOIX
+   produit définitifs du programme — pas des défauts en attente d'un
+   thème clair ou d'une i18n. Aucune bascule claire adaptative, aucune
+   internationalisation spéculative.
+2. La PWA les DÉCLARE : `document.documentElement.lang = "fr"` au boot
+   et `<meta name="color-scheme" content="dark">`.
+3. L'audit racine verrouille les deux plateformes :
+   `.preferredColorScheme(.dark)` (racine native), `fr_CH`
+   (FinanceFormatting), `lang="fr"` + `color-scheme dark` +
+   absence de `prefers-color-scheme` (PWA).
+
+### Conséquences
+
+Un thème clair ou une autre langue redeviendraient une DÉCISION (ADR +
+retrait des verrous), jamais une dérive silencieuse.
+
 ## ADR-073 — Android : la PWA est l'offre, pas de Google Play pour l'instant
 
 Date: 2026-08-27
