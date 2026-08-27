@@ -9319,7 +9319,14 @@ check(p06.promesses === false,
     "le sélecteur de l'onboarding filtre par le pays choisi et ne montre jamais un service");
   check(ob.feuilleFermee === true && ob.champRempli === "UBS" && ob.comptesAvant === 0,
     `choisir remplit le champ et ne crée RIEN avant la fin (obtenu « ${ob.champRempli} », ${ob.comptesAvant} compte)`);
-  await p165.fill("#obOpening", "2000");
+  // Durci (flake CI, run 33034919240 : « solde 0 ») : une re-render
+  // entre le remplissage et l'envoi peut vider le champ — remplissage
+  // VÉRIFIÉ avant de soumettre.
+  for (let essai = 0; essai < 3; essai++) {
+    await p165.fill("#obOpening", "2000");
+    await p165.waitForTimeout(120);
+    if (await p165.evaluate(() => document.getElementById("obOpening").value) === "2000") break;
+  }
   await p165.click('#obForm3 button[type="submit"]');
   await p165.waitForSelector("#obFormCharges", { state: "visible" });
   await p165.click("[data-obskipcharges]");
@@ -14772,6 +14779,58 @@ currentTest = "W9.5 routes";
   await ctxBoot.close();
 }
 
+// ---------- 235. W9.6 : CSP + SERVICE WORKER — rien d'externe, rien d'empoisonnable ----------
+// Budget Autonomie 100, W9.6 : mesuré — aucune CSP déclarée, et le
+// service worker mettait en cache TOUTE requête GET, même
+// cross-origin (surface d'empoisonnement du cache). L'app n'a AUCUNE
+// ressource externe (mesuré). Livré : CSP stricte déclarée
+// (default-src 'self', object-src 'none', connect-src 'none' —
+// 'unsafe-inline' assumé et consigné tant que le monofichier vit,
+// levée prévue en W9.8) ; le SW ne met en cache que la MÊME origine.
+currentTest = "W9.6 csp-sw";
+{
+  const { readFileSync: lireSW } = await import("node:fs");
+  const ctx235 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p235 = await ctx235.newPage();
+  p235.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W9.6] ${msg.text()}`); });
+  await p235.addInitScript(() => {
+    if (localStorage.getItem("budget-app-state-v1")) return;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Csp" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p235.goto(APP_URL);
+  await p235.waitForSelector("#tabbar button");
+  // 1. La CSP est DÉCLARÉE, stricte, et l'app tourne avec (la page
+  //    vient de se rendre sans erreur console — le vrai test).
+  const csp = await p235.evaluate(() => {
+    const meta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+    return meta ? meta.content : null;
+  });
+  check(typeof csp === "string"
+    && csp.includes("default-src 'self'")
+    && csp.includes("object-src 'none'")
+    && csp.includes("connect-src 'none'")
+    && csp.includes("base-uri 'none'"),
+    `la CSP est déclarée et stricte (obtenu : ${String(csp).slice(0, 90)})`);
+  // 2. L'app entière fonctionne SOUS cette CSP (rendu + navigation).
+  await p235.click('#tabbar button[aria-label="Budget"]');
+  const sousCSP = await p235.evaluate(() => document.getElementById("screen").textContent.length > 50);
+  check(sousCSP === true, "l'app rend et navigue sous la CSP déclarée");
+  await ctx235.close();
+  // 3. Le service worker ne met en cache que la MÊME origine, et son
+  //    cache reste VERSIONNÉ (invalidation propre à l'activation).
+  const sw = lireSW(path.join(HERE, "..", "sw.js"), "utf8");
+  check(/origin/.test(sw) && sw.includes("location.origin"),
+    "le SW écarte les requêtes d'une autre origine (cache non empoisonnable)");
+  check(/const CACHE = "budget-app-v\d+"/.test(sw) && sw.includes("caches.delete"),
+    "le cache du SW reste versionné avec invalidation propre");
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14781,4 +14840,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 234 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 235 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
