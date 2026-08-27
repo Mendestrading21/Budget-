@@ -171,7 +171,7 @@ struct SettingsView: View {
             Text("Sécurité")
         } footer: {
             Text(lockManager.authService.canAuthenticate
-                 ? "L'app se verrouille à chaque passage en arrière-plan. L'activation et la désactivation demandent une authentification."
+                 ? "L'app se verrouille à chaque passage en arrière-plan. L'activation et la désactivation demandent une authentification. Quand le verrou est activé, exporter, restaurer ou tout supprimer redemandent aussi une authentification."
                  : "Aucune méthode d'authentification n'est configurée sur cet appareil (Face ID, Touch ID ou code).")
         }
     }
@@ -196,25 +196,28 @@ struct SettingsView: View {
                 }
             } else {
                 Button {
-                    errorMessage = nil
-                    isChoosingBackupProtection = true
+                    runSensitive(reason: "Exporter la sauvegarde de vos finances") {
+                        isChoosingBackupProtection = true
+                    }
                 } label: {
                     Label("Créer une sauvegarde complète (JSON)", systemImage: "externaldrive")
                 }
             }
 
             Button {
-                errorMessage = nil
                 statusMessage = nil
-                isRestoring = true
+                runSensitive(reason: "Restaurer une sauvegarde (remplace vos données)") {
+                    isRestoring = true
+                }
             } label: {
                 Label("Restaurer une sauvegarde…", systemImage: "arrow.counterclockwise")
             }
 
             Button(role: .destructive) {
-                errorMessage = nil
                 statusMessage = nil
-                isConfirmingDeleteAll = true
+                runSensitive(reason: "Supprimer toutes les données de Budget") {
+                    isConfirmingDeleteAll = true
+                }
             } label: {
                 Label("Supprimer toutes les données", systemImage: "trash")
                     .foregroundStyle(BudgetColor.negative)
@@ -247,6 +250,26 @@ struct SettingsView: View {
     }
 
     // MARK: - Actions
+
+    /// W10.6 — chaque action sensible passe par la porte du verrou :
+    /// verrou activé → authentification PROPRE exigée (annulation =
+    /// silence, échec = message, indisponible = message) ; verrou
+    /// désactivé → passe sans rien demander.
+    private func runSensitive(reason: String, _ action: @escaping () -> Void) {
+        errorMessage = nil
+        Task {
+            switch await lockManager.authorizeSensitiveAction(reason: reason) {
+            case .success:
+                action()
+            case .cancelled:
+                break
+            case .failed(let message):
+                errorMessage = message
+            case .unavailable:
+                errorMessage = "Aucune méthode d'authentification n'est configurée sur cet appareil."
+            }
+        }
+    }
 
     private func toggleLock(_ enabled: Bool) async {
         errorMessage = nil

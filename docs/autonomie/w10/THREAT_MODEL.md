@@ -45,9 +45,10 @@ pourrait passer :
   elle sort du bac à sable — chiffrement = décision propriétaire
   W10.4.
 - **Verrou biométrique** (`AuthenticationService`, LAContext) :
-  présent (succès/annulation/échec) ; la ré-authentification au retour
-  d'arrière-plan et avant les actions sensibles (export, restauration,
-  réinitialisation) sera contractualisée en W10.6.
+  présent (succès/annulation/échec), re-verrouillage à l'arrière-plan
+  et bouclier de snapshot existants ; depuis W10.6, les actions
+  sensibles (export, restauration, suppression totale) exigent leur
+  PROPRE authentification quand le verrou est activé.
 
 ### PWA (navigateur)
 
@@ -72,7 +73,7 @@ planifiée) :
 
 | Menace | Parade |
 |---|---|
-| Appareil volé/déverrouillé posé sur une table : quelqu'un ouvre l'app | Verrou biométrique existant ; re-verrouillage arrière-plan + actions sensibles → **W10.6** |
+| Appareil volé/déverrouillé posé sur une table : quelqu'un ouvre l'app | Verrou biométrique existant ; re-verrouillage arrière-plan (existant) + porte des actions sensibles — export, restauration, suppression totale exigent leur PROPRE authentification (`authorizeSensitiveAction`) — livrée en **W10.6** |
 | Fichier de sauvegarde exportée intercepté (mail, cloud, AirDrop) : finances lisibles en clair | Chiffrement de la sauvegarde → **décision propriétaire W10.4** ; en attendant, l'app est honnête : rien ne prétend que le fichier est protégé |
 | Restauration d'un fichier corrompu ou forgé : écrasement ou corruption des données | Validation existante (`validate` : unicité, références) + refus ATOMIQUE (rien n'est modifié) ; matrice de preuve sur store disque → **W10.3** |
 | Changement de schéma cassant : perte de données à la mise à jour | Schémas additifs (ADR-015) aujourd'hui ; snapshots figés **W10.2** puis matrice de migrations **W10.3** avant tout changement cassant |
