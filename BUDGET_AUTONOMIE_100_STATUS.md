@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.6 fusionnés · W10.7 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.7 fusionnés · W10.8 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.8 : revue MASVS — 15 PASS prouvés, 8 N-A justifiés, 1 GAP assumé
+
+Grille OWASP MASVS v2 passée sur l'app RÉELLE
+(`docs/autonomie/w10/REVUE_MASVS.md`) : 24 contrôles. 15 PASS, chacun
+citant du code, un test, un run CI ou un verrou d'audit (stockage
+protégé, zéro fuite, AES-GCM/PBKDF2, clés jamais stockées,
+verrou + porte des actions sensibles, release vérifié, zéro dépendance
+tierce — 0 XCRemoteSwiftPackageReference —, pipeline de mise à jour
+prouvé, zéro collecte, transparence) ; 8 N-A justifiés (zéro réseau,
+zéro WebView, zéro IPC, résilience refusée au threat model) ; 1 GAP
+assumé : CODE-1 signature/distribution officielle, bloqué sur les
+4 secrets TestFlight propriétaire, porté par W11. VERROU d'audit :
+24 contrôles présents, verdict obligatoire, preuve substantielle
+exigée pour chaque verdict, GAP contraint de nommer son lot ou son
+refus. Preuves : né-rouge (document absent → échec nommé) ; TROIS
+sabotages qui mordent seuls (verdict « PEUT-ÊTRE » → AUTH-3 nommé ;
+preuve vidée → CRYPTO-1 nommé ; GAP évasif → CODE-1 nommé). Suites
+complètes vertes (e2e 237, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits, schéma figé). Document seul : pas
+de captures. Fusion W10.7 (`main` = `7deefba`, PR #207) ; publication
+W10.7 : **succès** (run 33053214188, après CI push verte 33052668277).
 
 ### 27.08.2026 — W10.7 : confidentialité outillée — purge complète, zéro log
 
