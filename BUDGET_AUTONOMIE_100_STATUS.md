@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1 fusionné · W10.2 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.2 fusionnés · W10.3 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,36 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.3 : matrice de migrations + garde de version — TROUVAILLE MAJEURE
+
+Mesuré d'abord, sur store DISQUE (la classe de crash documentée
+n'apparaît jamais in-memory). Tour 1 (run CI 33042403589, né-rouge
+réel) : la matrice V1…V13→V14 est verte (données intactes — UUID,
+Decimal exact, relation — à travers les 13 chemins de mise à jour),
+mais la rétrogradation a mordu sur du VRAI : ouvrir un store V14 avec
+un schéma antérieur ne produit AUCUNE erreur — CoreData SUPPRIME les
+tables des entités inconnues (« Persistent History has to be truncated
+due to the following entities being removed: (Statement) ») et le
+relevé disparaît en silence. Une vieille build (réinstallation,
+TestFlight) détruirait donc les données récentes. Livré :
+`StoreVersionGuard` — lecture des métadonnées CoreData AVANT toute
+ouverture, refus ATOMIQUE par erreur nommée (entités inconnues
+listées, message en clair « Mettez l'app à jour — rien n'a été
+modifié ») ; `PersistenceFactory` passe par un chemin unique
+(configuration + schéma versionné). La matrice entière passe par la
+garde (zéro faux refus sur les mises à jour légitimes) ; le test de
+rétrogradation exige le refus nommant « Statement » puis la
+réouverture V14 avec le relevé intact. Tour 2 vert : run 33042916689
+(Web + iOS, 460 tests, e2e complet sur le HEAD exact). Contrôle
+négatif du lot = le tour 1 lui-même (garde absente → destruction
+observée, run consigné). Menace ajoutée au threat model. Limite
+honnête consignée (ADR-071) : les enums référencent les classes
+vivantes — la matrice prouve les migrations par ajout d'entités ; la
+forme historique propriété par propriété relève des classes figées du
+premier changement cassant (dérive gardée par le manifeste W10.2).
+Fusion W10.2 (`main` = `1a27a1e`, PR #202) ; publication W10.2 :
+**succès** (run 33042583013, après CI push verte 33042285285).
 
 ### 27.08.2026 — W10.2 : schéma V14 figé par manifeste (ADR-071)
 
