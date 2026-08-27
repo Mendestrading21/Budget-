@@ -9,6 +9,14 @@ protocol DocumentFileStoring {
     /// Absolute URL of a stored file, nil when the reference is unknown.
     func url(for fileReference: String) -> URL?
     func delete(_ fileReference: String) throws
+    // W10.5 (ADR-072) — les pièces jointes voyagent dans la sauvegarde.
+    /// Octets d'un fichier stocké, nil si la référence est inconnue.
+    func contents(of fileReference: String) -> Data?
+    /// Écrit un fichier restauré SOUS SA référence d'origine (protégé,
+    /// atomique) — utilisé uniquement par la restauration de sauvegarde.
+    func write(_ data: Data, fileReference: String) throws
+    /// Toutes les références réellement présentes dans le store.
+    func allReferences() -> [String]
 }
 
 enum DocumentFileStoreError: LocalizedError {
@@ -63,6 +71,29 @@ struct LocalDocumentFileStore: DocumentFileStoring {
         guard let url = url(for: fileReference) else { return }
         try FileManager.default.removeItem(at: url)
     }
+
+    func contents(of fileReference: String) -> Data? {
+        guard let url = url(for: fileReference) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    func write(_ data: Data, fileReference: String) throws {
+        // Référence toujours produite par l'app (UUID.ext) — refuser
+        // toute forme qui sortirait du dossier protégé.
+        guard !fileReference.isEmpty, !fileReference.contains("/"), !fileReference.contains("..") else {
+            throw DocumentFileStoreError.copyFailed
+        }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try data.write(to: directory.appendingPathComponent(fileReference), options: [.atomic, .completeFileProtection])
+        } catch {
+            throw DocumentFileStoreError.copyFailed
+        }
+    }
+
+    func allReferences() -> [String] {
+        (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+    }
 }
 
 /// In-memory fake for tests and previews — no disk access at all.
@@ -89,5 +120,17 @@ final class InMemoryDocumentFileStore: DocumentFileStoring {
 
     func delete(_ fileReference: String) throws {
         files.removeValue(forKey: fileReference)
+    }
+
+    func contents(of fileReference: String) -> Data? {
+        files[fileReference]
+    }
+
+    func write(_ data: Data, fileReference: String) throws {
+        files[fileReference] = data
+    }
+
+    func allReferences() -> [String] {
+        Array(files.keys)
     }
 }
