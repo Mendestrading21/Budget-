@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.7 fusionnés · W11.8 EN PR (dernier lot du programme) | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | FERMÉ (W11.1–W11.8 fusionnés et publiés) | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,25 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — CLÔTURE : le programme Budget Autonomie 100 (W0–W11) est COMPLET
+
+Fusion W11.8 (`main` = `83df7f5`, PR #217, CI verte sur le HEAD exact
+puis CI push verte run 33072026471) ; **publication finale du
+programme : succès** (run 33072800115, au SHA `83df7f5`). Les douze
+lots W0–W11 sont fermés : chaque sous-lot mesuré d'abord, né rouge (ou
+verrou consigné, sabotage faisant foi), prouvé par des sabotages qui
+mordent, couvert par la batterie complète, fusionné sur CI verte au
+HEAD exact, publié au SHA après CI push verte, consigné ici avec ses
+run ids. La PWA en ligne EST la candidate ; le natif est prêt à
+soumettre SAUF les gestes propriétaire nommés dans
+`docs/autonomie/w11/CANDIDATE_QA.md` (4 secrets TestFlight — seul vrai
+bloquant —, URLs support/confidentialité, fiche App Store Connect +
+nom + captures, clic github-pages, contrôles physiques
+haptique/biométrie/VoiceOver, protocoles écrits). Cette consignation
+de clôture est documentaire : elle ne déclenche PAS de nouvelle
+publication — la publication finale du programme reste le run
+33072800115 au SHA `83df7f5`.
 
 ### 27.08.2026 — W11.8 : candidate et QA — le programme se ferme honnêtement
 
