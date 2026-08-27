@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.6 fusionnés · W9.7 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.7 fusionnés · W9.8 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,32 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.8 : assemblage — la duplication miroir disparaît
+
+Mesuré d'abord : depuis W9.2, monnaie et taux vivaient EN DOUBLE
+(webapp/src en TypeScript + copies dans le monofichier), tenus égaux
+seulement par le comparateur — une correction faite d'un seul côté
+restait possible. Livré : motif « catalogue généré » (le même que le
+catalogue d'identités natif) — webapp/src est LA source de vérité, le
+monofichier porte des blocs balisés `/* @domaine:debut … */` régénérés
+par `node webapp/build/build.mjs --generer` (entête « GÉNÉRÉ depuis
+webapp/src — ne pas éditer ici ») et vérifiés par `--check` qui NOMME
+le bloc en dérive ; `tauxAuJour` et `toCHFAuMois` ne sont plus que des
+délégations passant l'état (`S.fxQuotes`, `S.fxRates`, base) aux
+fonctions pures `domaineTauxAuJour` / `domaineMontantStockEnBase`.
+Preuves : contrôles nés rouges (3 échecs nommés : balises absentes,
+marqueur GÉNÉRÉ absent, `--check` qui ne mord pas) ; deux sabotages
+qui mordent seuls (édition manuelle du bloc monnaie → « dérive du bloc
+généré « monnaie » » ; paire de balises taux supprimée → dérive du
+bloc « taux », le bloc devenant introuvable) ; audit racine « code
+vivant » a mordu sur `tauxAuJour` devenu contrat-testé-seulement →
+exception nommée et justifiée (l'app convertit via `toCHFAuMois`) ;
+suites complètes vertes (236 e2e, build avec tamper-test interne,
+domaine, 9 parités, 14 canon + schéma, design, catalogue, audits).
+Pas de changement visuel : pas de captures (artefact au octet près,
+682310 octets identiques). Fusion W9.7 (`main` = `9067c18`, PR #198) ;
+publication W9.7 : **succès** (run 33038528969, après CI push verte).
 
 ### 27.08.2026 — W9.7 : le quota se dit, les onglets se suivent
 

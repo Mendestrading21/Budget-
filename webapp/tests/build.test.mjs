@@ -58,6 +58,34 @@ if (!existsSync(BUILD)) {
   }
 }
 
+// W9.8 — ASSEMBLAGE : le monofichier porte des blocs GÉNÉRÉS depuis
+// webapp/src (source de vérité unique, même motif que le catalogue
+// natif généré) ; --check mord sur toute dérive.
+{
+  const indexPath = path.join(WEBAPP, "index.html");
+  const source = readFileSync(indexPath, "utf8");
+  const balises = [...source.matchAll(/\/\* @domaine:debut (\w+) \*\//g)].map(m => m[1]);
+  check(balises.includes("monnaie") && balises.includes("taux"),
+    `blocs générés absents du monofichier (trouvés : ${balises.join(", ") || "aucun"})`);
+  check(source.includes("GÉNÉRÉ depuis webapp/src"),
+    "les blocs ne se déclarent pas comme générés — un humain pourrait les éditer sans savoir");
+  if (balises.includes("monnaie")) {
+    // La porte --check mord quand un bloc généré dérive.
+    const sauvegarde = readFileSync(indexPath);
+    try {
+      writeFileSync(indexPath, source.replace("/* @domaine:debut monnaie */", "/* @domaine:debut monnaie */\nconst dériveVolontaire = 1;"));
+      let aMordu = false;
+      try { execFileSync("node", [BUILD, "--check"], { encoding: "utf8" }); }
+      catch (e) { aMordu = String(e.stdout || "").includes("dérive") || String(e.stderr || "").includes("dérive"); }
+      check(aMordu, "--check ne mord pas quand un bloc généré dérive de webapp/src");
+    } finally {
+      writeFileSync(indexPath, sauvegarde);
+    }
+  } else {
+    check(false, "--check ne mord pas quand un bloc généré dérive de webapp/src");
+  }
+}
+
 if (failures.length) {
   console.error("ÉCHECS BUILD (" + failures.length + ") :");
   for (const f of failures) console.error("  ✗ " + f);
