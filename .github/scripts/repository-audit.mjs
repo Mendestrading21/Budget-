@@ -361,6 +361,27 @@ try {
   }
 }
 
+// W11.8 — dossier de candidate : présent, verdict HONNÊTE (jamais
+// « prêt » sans les réserves humaines), PENDING HUMAN et manques
+// propriétaire nommés, preuves datées (SHA + runs).
+{
+  const C = "docs/autonomie/w11/CANDIDATE_QA.md";
+  if (!existsSync(join(root, C))) {
+    check(`candidate : ${C} présent`, false);
+  } else {
+    const doc = read(C);
+    check("candidate : les sections du dossier sont présentes",
+      doc.includes("## Candidate") && doc.includes("## QA automatique")
+        && doc.includes("## Tour Demo") && doc.includes("## iPhone réel") && doc.includes("## Verdict"));
+    check("candidate : les contrôles humains restent PENDING HUMAN",
+      (doc.match(/PENDING HUMAN/g) || []).length >= 2);
+    check("candidate : le verdict nomme les manques propriétaire (secrets, URLs, fiche)",
+      /sauf/i.test(doc) && doc.includes("secrets") && doc.includes("URL"));
+    check("candidate : le SHA de la candidate et les runs sont consignés",
+      /[0-9a-f]{7,}/.test(doc) && /run\s+\d{9,}/.test(doc));
+  }
+}
+
 // W11.2 — revue WCAG 2.2 : présente, complète (6 critères AA + 3 AAA
 // consignés), verdict et preuve substantielle par critère — même
 // discipline que la revue MASVS.
