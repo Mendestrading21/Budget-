@@ -282,9 +282,13 @@ final class DemoTourUITests: XCTestCase {
         )
         snap(app, "ios-l7-securite")
         app.swipeUp()
-        XCTAssertTrue(app.staticTexts.matching(contains("pas les fichiers de documents")).firstMatch
+        // W10.5 a SUPPRIMÉ la limite historique : la sauvegarde contient
+        // désormais les fichiers des documents — le tour vérifie la
+        // nouvelle vérité (le test périmé a été attrapé par la QA de
+        // candidate W11.8, run Demo 33068075414).
+        XCTAssertTrue(app.staticTexts.matching(contains("ET les fichiers de vos documents")).firstMatch
             .waitForExistence(timeout: 5),
-            "la limite des fichiers de documents doit être écrite")
+            "la sauvegarde doit DIRE qu'elle contient les fichiers des documents (W10.5)")
         snap(app, "ios-l7-sauvegarde")
 
         app.buttons["Confidentialité"].tap()
