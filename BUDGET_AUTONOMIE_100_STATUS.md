@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.2 fusionnés · W10.3 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.3 fusionnés · W10.4 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,32 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.4 : sauvegarde protégée par phrase de passe (ADR-072)
+
+Décisions PROPRIÉTAIRE posées et consignées (ADR-072) : chiffrement
+OPTIONNEL au moment de l'export (l'export en clair reste possible) ;
+clé = PHRASE DE PASSE (PBKDF2-SHA256 210 000 itérations, sel aléatoire
+par fichier, AES-GCM sur les octets exacts du JSON — restaurable
+partout avec la phrase ; perte de phrase = fichier illisible, dit en
+clair avant l'export) ; pièces jointes INCLUSES → chantier W10.5.
+Livré : `BackupCrypto` (enveloppe versionnée, erreurs nommées « vos
+données actuelles sont intactes », phrase incorrecte et fichier
+falsifié indistinguables — GCM authentifie),
+`BackupService.makeEncryptedBackup`, Réglages (choix en
+clair/protégée, feuille de phrase à double saisie et avertissement
+honnête, invite de phrase à la restauration, MÊMES portes ensuite :
+résumé réel → confirmation → refus atomique). Preuves : tour 1 vert
+(run 33044943001 — tests iOS dont les 7 BackupCryptoTests, e2e 236,
+suites web) ; tour SABOTAGE (run 33045628526) : tolérance de phrase
+incorrecte → TROIS tests nommés mordent (« did not throw ») ; sel figé
+→ INERTE (le nonce GCM différencie les fichiers même à sel figé) →
+contrôle durci : comparaison des SELS décodés + refus du sel nul,
+consigné ; sabotage retiré par revert. UI additive derrière le bouton
+existant (dialogue + feuille) : l'écran Réglages statique est
+inchangé, captures du tour Demo inchangées — consigné. Fusion W10.3
+(`main` = `2ee7a4b`, PR #203) ; publication W10.3 : **succès**
+(run 33044678226, après CI push verte 33043745689).
 
 ### 27.08.2026 — W10.3 : matrice de migrations + garde de version — TROUVAILLE MAJEURE
 

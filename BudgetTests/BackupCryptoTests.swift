@@ -76,10 +76,16 @@ final class BackupCryptoTests: XCTestCase {
     }
 
     func testSaltIsUniquePerFile() throws {
+        // Durci après un sabotage INERTE (sel figé non détecté) : le
+        // nonce GCM rend les fichiers différents même à sel figé — il
+        // faut donc comparer les SELS décodés, pas les fichiers.
         let clair = Data("même contenu".utf8)
-        let a = try BackupCrypto.encrypt(clair, passphrase: "phrase")
-        let b = try BackupCrypto.encrypt(clair, passphrase: "phrase")
-        XCTAssertNotEqual(a, b, "deux exports du même contenu ne produisent jamais le même fichier (sel aléatoire)")
+        let a = try JSONDecoder().decode(BackupCrypto.Envelope.self,
+                                         from: BackupCrypto.encrypt(clair, passphrase: "phrase"))
+        let b = try JSONDecoder().decode(BackupCrypto.Envelope.self,
+                                         from: BackupCrypto.encrypt(clair, passphrase: "phrase"))
+        XCTAssertNotEqual(a.salt, b.salt, "chaque fichier protégé doit porter son PROPRE sel aléatoire")
+        XCTAssertFalse(a.salt.allSatisfy { $0 == 0 }, "le sel ne doit jamais être laissé à zéro")
     }
 
     func testFullPathEncryptedBackupRestoresTheStore() throws {
