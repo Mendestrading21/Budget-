@@ -31,6 +31,10 @@ struct BackupFile: Codable {
     /// INV1 (ADR-047) : optionnelles — les sauvegardes d'avant les
     /// positions n'ont pas ce champ et se restaurent à l'identique.
     var positions: [PositionDTO]?
+    /// W10.5 (ADR-072) : les FICHIERS des pièces jointes, optionnels —
+    /// les sauvegardes antérieures (métadonnées seules) se restaurent
+    /// à l'identique.
+    var documentFiles: [DocumentFileDTO]?
 
     struct HouseholdDTO: Codable {
         var id: UUID; var name: String; var currency: String; var canton: String
@@ -123,6 +127,12 @@ struct BackupFile: Codable {
         var provider: String?; var note: String?; var fileReference: String
         var fileSizeBytes: Int?; var memberID: UUID?
         var addedAt: Date?; var updatedAt: Date?
+    }
+    /// W10.5 : un fichier de pièce jointe, adressé par sa référence —
+    /// les octets voyagent en base64 dans le JSON.
+    struct DocumentFileDTO: Codable {
+        var fileReference: String
+        var contents: Data
     }
     struct ImportBatchDTO: Codable {
         var id: UUID; var fileName: String; var importedAt: Date
@@ -244,11 +254,24 @@ struct BackupService {
     /// exactement ceux de `makeBackup`, la restauration passe par
     /// `BackupCrypto.decrypt` puis les MÊMES portes (`summary`,
     /// `restore`) que la sauvegarde en clair.
-    func makeEncryptedBackup(context: ModelContext, now: Date, passphrase: String) throws -> Data {
-        try BackupCrypto.encrypt(makeBackup(context: context, now: now), passphrase: passphrase)
+    func makeEncryptedBackup(
+        context: ModelContext,
+        now: Date,
+        passphrase: String,
+        documentFileStore: DocumentFileStoring? = nil
+    ) throws -> Data {
+        try BackupCrypto.encrypt(
+            makeBackup(context: context, now: now, documentFileStore: documentFileStore),
+            passphrase: passphrase
+        )
     }
 
-    func makeBackup(context: ModelContext, now: Date) throws -> Data {
+    /// W10.5 (ADR-072, décision propriétaire) : quand un store de
+    /// fichiers est fourni, la sauvegarde emporte AUSSI les fichiers
+    /// des pièces jointes (octets exacts, adressés par leur référence).
+    /// Un fichier manquant sur le disque n'invente rien : la métadonnée
+    /// voyage seule, comme avant.
+    func makeBackup(context: ModelContext, now: Date, documentFileStore: DocumentFileStoring? = nil) throws -> Data {
         func fetch<T: PersistentModel>(_ type: T.Type) throws -> [T] {
             try context.fetch(FetchDescriptor<T>())
         }
@@ -378,6 +401,17 @@ struct BackupService {
                       valuationDate: $0.valuationDate,
                       costBasis: $0.costBasis.map(decimalString),
                       accountID: $0.account?.id)
+            },
+            documentFiles: try documentFileStore.map { store in
+                try fetch(FinancialDocument.self)
+                    .map(\.fileReference)
+                    .filter { !$0.isEmpty }
+                    .sorted()
+                    .compactMap { reference in
+                        store.contents(of: reference).map {
+                            BackupFile.DocumentFileDTO(fileReference: reference, contents: $0)
+                        }
+                    }
             }
         )
         let encoder = JSONEncoder()
@@ -388,8 +422,6 @@ struct BackupService {
 
     // MARK: Restore (REPLACES everything)
 
-    /// Replaces every entity with the backup's content. Stored document
-    /// FILES are deliberately never touched: they do not travel in the
     /// L7 : résumé HONNÊTE d'une sauvegarde AVANT restauration — la
     /// confirmation affiche la date, la version et le contenu réels.
     /// Lève les mêmes refus que `restore` (illisible, version future)
@@ -402,6 +434,9 @@ struct BackupService {
         let goals: Int
         let recurrings: Int
         let documents: Int
+        /// W10.5 : fichiers de pièces jointes EMBARQUÉS (0 pour une
+        /// sauvegarde métadonnées seules ou antérieure).
+        let documentFiles: Int
     }
 
     func summary(of data: Data) throws -> Summary {
@@ -421,7 +456,8 @@ struct BackupService {
             transactions: file.transactions.count,
             goals: file.goals.count,
             recurrings: file.recurrings.count,
-            documents: file.documents.count
+            documents: file.documents.count,
+            documentFiles: file.documentFiles?.count ?? 0
         )
     }
 
@@ -576,10 +612,13 @@ struct BackupService {
         }
     }
 
-    /// JSON, so a still-present file stays reachable via its restored
-    /// `fileReference`.
+    /// W10.5 : remplace toutes les entités ET, quand la sauvegarde les
+    /// porte, restaure les FICHIERS des pièces jointes ; après une
+    /// restauration réussie, les fichiers que plus rien ne référence
+    /// sont balayés. Sans store fourni ou sans fichiers embarqués, les
+    /// fichiers présents ne sont jamais touchés (comportement
+    /// antérieur).
     func restore(data: Data, context: ModelContext, documentFileStore: DocumentFileStoring?) throws {
-        _ = documentFileStore // kept for call-site stability; files are never deleted here
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         guard let file = try? decoder.decode(BackupFile.self, from: data) else {
@@ -598,10 +637,20 @@ struct BackupService {
         }
         try validate(file)
 
-        // Entities only — document files never travel in the JSON backup,
-        // so deleting them here would irreversibly orphan every restored
-        // fileReference. Wipe, rebuild and save form ONE transaction: a
-        // failure at ANY step rolls back and leaves the store as it was.
+        // W10.5 : les FICHIERS de la sauvegarde s'écrivent AVANT la
+        // transaction d'entités — un échec d'écriture interrompt la
+        // restauration alors que le store n'a pas bougé ; les fichiers
+        // déjà écrits deviennent au pire des orphelins, balayés plus
+        // bas. Une sauvegarde sans fichiers (antérieure ou métadonnées
+        // seules) ne touche à rien.
+        if let store = documentFileStore, let fichiers = file.documentFiles {
+            for dto in fichiers {
+                try store.write(dto.contents, fileReference: dto.fileReference)
+            }
+        }
+
+        // Wipe, rebuild and save form ONE transaction: a failure at ANY
+        // step rolls back and leaves the store as it was.
         do {
             try wipeEntities(context: context)
             try rebuild(from: file, context: context)
@@ -610,6 +659,31 @@ struct BackupService {
             context.rollback()
             throw error
         }
+
+        // W10.5 : balayage des ORPHELINES — seulement quand la
+        // sauvegarde PORTAIT des fichiers (une restauration complète
+        // remplace tout : ce que plus rien ne référence est supprimé,
+        // anciens fichiers d'avant la restauration compris). Une
+        // sauvegarde métadonnées seules garde le comportement
+        // antérieur : les fichiers présents ne sont jamais touchés.
+        // Best effort assumé : un échec de suppression ne casse pas
+        // une restauration déjà commise.
+        if let store = documentFileStore, file.documentFiles != nil {
+            sweepOrphanFiles(context: context, documentFileStore: store)
+        }
+    }
+
+    /// W10.5 : supprime les fichiers que plus aucun `FinancialDocument`
+    /// ne référence. Retourne les références supprimées (preuve).
+    @discardableResult
+    func sweepOrphanFiles(context: ModelContext, documentFileStore: DocumentFileStoring) -> [String] {
+        let referenced = Set((try? context.fetch(FetchDescriptor<FinancialDocument>()))?
+            .map(\.fileReference) ?? [])
+        let orphans = documentFileStore.allReferences().filter { !referenced.contains($0) }.sorted()
+        for reference in orphans {
+            try? documentFileStore.delete(reference)
+        }
+        return orphans
     }
 
     /// Recreates every entity in dependency order, resolving relationships

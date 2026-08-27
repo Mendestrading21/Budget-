@@ -222,7 +222,7 @@ struct SettingsView: View {
         } header: {
             Text("Vos données")
         } footer: {
-            Text("Export et sauvegarde ne partent nulle part tout seuls : vous choisissez où les envoyer. La sauvegarde contient les données, pas les fichiers de documents. Elle peut être protégée par une phrase de passe : sans la phrase, le fichier est illisible et personne ne peut la retrouver.")
+            Text("Export et sauvegarde ne partent nulle part tout seuls : vous choisissez où les envoyer. La sauvegarde contient les données ET les fichiers de vos documents. Elle peut être protégée par une phrase de passe : sans la phrase, le fichier est illisible et personne ne peut la retrouver.")
         }
     }
 
@@ -285,7 +285,11 @@ struct SettingsView: View {
     private func generateBackup() {
         errorMessage = nil
         do {
-            let data = try backupService.makeBackup(context: modelContext, now: appContainer.dateProvider.now)
+            let data = try backupService.makeBackup(
+                context: modelContext,
+                now: appContainer.dateProvider.now,
+                documentFileStore: appContainer.documentFileStore
+            )
             backupURL = writeTemporaryFile(data, name: "budget-sauvegarde-\(fileStamp()).json")
         } catch {
             errorMessage = "La création de la sauvegarde a échoué. Réessayez."
@@ -330,7 +334,8 @@ struct SettingsView: View {
             let data = try backupService.makeEncryptedBackup(
                 context: modelContext,
                 now: appContainer.dateProvider.now,
-                passphrase: exportPassphrase
+                passphrase: exportPassphrase,
+                documentFileStore: appContainer.documentFileStore
             )
             backupURL = writeTemporaryFile(data, name: "budget-sauvegarde-protegee-\(fileStamp()).json")
             isEnteringExportPassphrase = false
@@ -366,11 +371,14 @@ struct SettingsView: View {
         guard let summary = pendingRestoreSummary else {
             return "Toutes les données actuelles seront remplacées par le contenu de la sauvegarde. Cette action est irréversible."
         }
+        let filesPart = summary.documentFiles > 0
+            ? "\(summary.documents) documents (\(summary.documentFiles) fichiers inclus). "
+            : "\(summary.documents) documents (métadonnées seules — sauvegarde sans fichiers). "
         return "Sauvegarde du \(FinanceFormatting.swissDate(summary.exportedAt)) (schéma \(summary.schemaVersion)). "
             + "Contenu : \(summary.transactions) opérations, \(summary.accounts) comptes, \(summary.goals) objectifs, "
-            + "\(summary.recurrings) récurrents, \(summary.documents) documents (métadonnées). "
+            + "\(summary.recurrings) récurrents, " + filesPart
             + "La restauration REMPLACE toutes les données actuelles de cet appareil — irréversible. "
-            + "Non contenu : les fichiers des documents et le réglage de verrouillage."
+            + "Non contenu : le réglage de verrouillage."
     }
 
     private func prepareRestore(_ result: Result<[URL], Error>) {
