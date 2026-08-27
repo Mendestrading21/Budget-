@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.6 fusionnés · W11.7 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.7 fusionnés · W11.8 EN PR (dernier lot du programme) | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,39 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.8 : candidate et QA — le programme se ferme honnêtement
+
+Candidate = `cee5eb4` (W0–W11.7) ; sa PWA est EN LIGNE (publication
+run 33068603986, après CI push verte 33068057252). QA automatique
+toute verte sur la candidate : e2e 241 parcours zéro erreur console,
+build/domaine/9 parités/14 canon + schéma/design/catalogue, audit
+racine complet (threat model, MASVS, WCAG 2.2, App Privacy, fiche App
+Store, gouvernance, confidentialité outillée, schéma V14 figé,
+thème/langue). TOUR DEMO (vraie app native en simulateur) : premier
+run 33068075414 en ÉCHEC INSTRUCTIF — le tour exigeait encore « pas
+les fichiers de documents », la limite que W10.5 a supprimée ; les
+tests UI ne tournent que dans Demo, le test périmé dormait — exactement
+ce que la QA de candidate doit attraper ; une seule chaîne périmée au
+crible, corrigée ; tour réparé run 33069617664 : SUCCÈS complet
+(captures, vidéo, ipa), deux captures natives extraites des logs et
+INSPECTÉES (Mois, Budget — `docs/neon-ultra/budget-prisme/w11-8/`).
+Dossier `docs/autonomie/w11/CANDIDATE_QA.md` VERROUILLÉ par l'audit
+(sections, PENDING HUMAN, verdict nommant les manques, SHA + runs) ;
+sabotages : verdict sans réserves → mord, PENDING HUMAN effacés →
+mord ; incident re-consigné (sabotage avant commit d'un fichier NON
+SUIVI → checkout impossible, réécrit — la leçon vaut aussi pour
+l'untracked). VERDICT : prêt à soumettre SAUF les gestes propriétaire
+(4 secrets TestFlight, URLs support/confidentialité, fiche ASC + nom +
+captures, clic github-pages, contrôles physiques haptique/biométrie/
+VoiceOver — protocoles écrits). Fusion W11.7 (`main` = `cee5eb4`,
+PR #216) ; publication W11.7 : **succès** (run 33068603986).
+
+À la fusion de ce lot : **W11 FERMÉ — le programme Budget Autonomie
+100 (W0–W11) est COMPLET**. Consignés en attente (hors programme) :
+miroirs natifs des écrans W5–W8, GoalAllocation après allumage du
+journal (ADR-064, décision propriétaire), et les gestes owner-only du
+verdict.
 
 ### 27.08.2026 — W11.7 : gouvernance de release écrite et verrouillée
 
