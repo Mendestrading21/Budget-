@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1 fusionné · W10.2 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,35 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.2 : schéma V14 figé par manifeste (ADR-071)
+
+Mesuré d'abord : les 14 schémas versionnés référencent les MÊMES
+classes @Model vivantes (plan étagé impossible, SIGABRT documenté dans
+`BudgetSchema.swift`) et rien n'empêchait de modifier un modèle en
+place ; l'app n'ayant jamais été livrée (TestFlight en attente des
+secrets propriétaire), aucun store réel antérieur à V14 n'existe.
+Décision **ADR-071** : re-figer rétroactivement 13 versions jamais
+livrées est REFUSÉ (code mort massif portant le risque SIGABRT) ; la
+forme V14 est figée par un manifeste source
+(`Budget/Core/Persistence/schema-v14-fige.json` : 24 classes @Model,
+264 propriétés stockées avec annotations, composition des
+14 versions), vérifié par `.github/scripts/schema-fige.mjs --check` —
+nouvelle étape CI et batterie locale ; toute modification de modèle
+exige une nouvelle version ; le premier changement CASSANT exigera les
+classes figées réelles + plan étagé prouvés sur disque (W10.3).
+Preuves : né-rouge (« manifeste absent » nommé) ; TROIS sabotages qui
+mordent seuls (propriété renommée dans Account → « modèle Account » ;
+manifeste altéré → « modèle Statement » ; Statement retiré de V14 →
+« classes @Model hors de BudgetSchemaV14 ») ; correction en cours de
+route : une computed monoligne (`var money: Money { … }`) était
+capturée à tort — règle durcie (type contenant `{` exclu) ; contrôles
+croisés orphelins/classes inconnues. Suites complètes vertes (236 e2e,
+build, domaine, 9 parités, 14 canon + schéma, design, catalogue,
+audit racine, catalogue natif, schéma figé). Script + manifeste +
+commentaire : pas de captures. Fusion W10.1 (`main` = `81f4de8`,
+PR #201) ; publication W10.1 : **succès** (run 33041657005, après CI
+push verte 33041095883).
 
 ### 27.08.2026 — W10.1 : threat model vérifié par l'audit
 

@@ -38,6 +38,9 @@ jobs:
       - name: Catalogue natif généré (aucune dérive vs la fixture)
         run: node .github/scripts/generate-identity-catalog.mjs --check
 
+      - name: Schéma V14 figé (W10.2 — aucune dérive des modèles vs le manifeste, ADR-071)
+        run: node .github/scripts/schema-fige.mjs --check
+
       # Le navigateur ne se retélécharge plus à chaque run — c'était la
       # source des pendaisons. Clé figée sur la version épinglée.
       - name: Cache du navigateur Playwright
