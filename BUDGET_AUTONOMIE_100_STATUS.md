@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | Work Order écrit · W11.1 READY | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.1 : langue et thème déclarés et verrouillés (ADR-074)
+
+Mesuré d'abord : la PWA ne déclarait NI sa langue (`lang` absent — les
+lecteurs d'écran prononcent le français avec une voix ANGLAISE) NI son
+schéma de couleurs (contrôles natifs du navigateur rendus clairs sur
+fond sombre) ; rien ne verrouillait l'identité sombre unique ni le
+fr-CH. Livré : `document.documentElement.lang = "fr"` au boot, `meta
+color-scheme dark`, **ADR-074** (sombre unique et français = CHOIX
+produit — un thème clair ou une autre langue redeviennent une
+décision, jamais une dérive) et CINQ verrous d'audit
+(`.preferredColorScheme(.dark)` natif, `fr_CH` FinanceFormatting,
+`lang="fr"` PWA, meta color-scheme, absence de
+`prefers-color-scheme`). Preuves : test e2e 238 né ROUGE (deux échecs
+nommés : lang «  », scheme « null ») ; TROIS sabotages qui mordent
+seuls (préférence sombre native retirée, locale passée en de_CH,
+bascule claire adaptative introduite) ; capture 390 px inspectée
+(bienvenue intacte, `docs/neon-ultra/budget-prisme/w11-1/`) ; suites
+complètes vertes (e2e 238, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits, schéma figé). Fusion du plan W11
+(`main` = `d564c8f`, PR #209) ; publication du plan : **succès**
+(run 33055980066, après CI push verte 33055400906).
 
 ### 27.08.2026 — W10 FERMÉ · Work Order W11 (mode plan) · ADR-073
 

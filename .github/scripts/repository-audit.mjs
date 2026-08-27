@@ -254,6 +254,26 @@ try {
     privacy.includes("NSPrivacyAccessedAPICategoryUserDefaults") && privacy.includes("CA92.1"));
 }
 
+// W11.1 (ADR-074) — thème et langue VERROUILLÉS : l'identité sombre
+// unique et le français fr-CH sont des choix produit, pas des défauts.
+// Toute dérive (thème clair adaptatif, locale changée, déclarations
+// retirées) fait échouer l'audit.
+{
+  const appNatif = read("Budget/App/BudgetApp.swift");
+  check("thème : identité sombre unique déclarée au niveau racine natif (.preferredColorScheme(.dark))",
+    appNatif.includes(".preferredColorScheme(.dark)"));
+  const formatting = read("Budget/Core/Formatting/FinanceFormatting.swift");
+  check("langue : le natif formate en fr_CH (FinanceFormatting)",
+    formatting.includes('Locale(identifier: "fr_CH")'));
+  const pwa = read("webapp/index.html");
+  check("langue : la PWA déclare lang=\"fr\" aux lecteurs d'écran",
+    pwa.includes('document.documentElement.lang = "fr"'));
+  check("thème : la PWA déclare son identité sombre (meta color-scheme dark)",
+    pwa.includes('<meta name="color-scheme" content="dark">'));
+  check("thème : aucune bascule claire adaptative dans la PWA (prefers-color-scheme absent)",
+    !pwa.includes("prefers-color-scheme"));
+}
+
 // W10.8 — revue MASVS : présente, COMPLÈTE (les 24 contrôles), chaque
 // contrôle porte un verdict PASS/N-A/GAP, chaque verdict cite une
 // preuve ou une justification substantielle, et chaque GAP nomme le

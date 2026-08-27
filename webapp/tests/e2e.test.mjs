@@ -14932,6 +14932,31 @@ currentTest = "W10.7 purge complète";
   await ctx237.close();
 }
 
+// ---------- 238. W11.1 : LANGUE ET THÈME DÉCLARÉS ----------
+// Budget Autonomie 100, W11.1 (ADR-074) : mesuré — la PWA ne déclarait
+// NI sa langue (les lecteurs d'écran ne savaient pas qu'elle est en
+// français) NI son schéma de couleurs (contrôles natifs du navigateur
+// rendus clairs sur fond sombre). Contrat : lang="fr" posé au boot,
+// meta color-scheme dark présent, et AUCUNE bascule claire adaptative
+// (l'identité sombre unique est un choix, pas un défaut).
+currentTest = "W11.1 langue-thème";
+{
+  const ctx238 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p238 = await ctx238.newPage();
+  p238.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W11.1] ${msg.text()}`); });
+  await p238.goto(APP_URL);
+  await p238.waitForTimeout(800);
+  const declare = await p238.evaluate(() => ({
+    lang: document.documentElement.lang,
+    scheme: document.querySelector('meta[name="color-scheme"]')?.content ?? null,
+  }));
+  check(declare.lang === "fr",
+    `la PWA déclare sa langue aux lecteurs d'écran (lang="fr", obtenu « ${declare.lang} »)`);
+  check(declare.scheme === "dark",
+    `la PWA déclare son identité sombre au navigateur (meta color-scheme dark, obtenu « ${declare.scheme} »)`);
+  await ctx238.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14941,4 +14966,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 237 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 238 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

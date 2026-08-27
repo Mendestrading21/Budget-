@@ -21,7 +21,13 @@
      Chargée UNE seule fois ; aucune valeur brute n'est recopiée ici, et
      aucune règle ne s'applique hors des conteneurs `.nu-pilot-*`. -->
 <link rel="stylesheet" href="design-system/neon-ultra.css">
+<!-- W11.1 (ADR-074) : identité sombre UNIQUE déclarée au navigateur —
+     les contrôles natifs (dialogues, champs) suivent le sombre. -->
+<meta name="color-scheme" content="dark">
 <script>
+  // W11.1 (ADR-074) : la langue est déclarée aux lecteurs d'écran —
+  // sans elle, VoiceOver prononce le français avec une voix anglaise.
+  document.documentElement.lang = "fr";
   // Hors ligne : réseau d'abord, cache en secours (voir sw.js).
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
