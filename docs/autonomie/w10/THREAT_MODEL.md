@@ -76,6 +76,7 @@ planifiée) :
 | Fichier de sauvegarde exportée intercepté (mail, cloud, AirDrop) : finances lisibles en clair | Chiffrement de la sauvegarde → **décision propriétaire W10.4** ; en attendant, l'app est honnête : rien ne prétend que le fichier est protégé |
 | Restauration d'un fichier corrompu ou forgé : écrasement ou corruption des données | Validation existante (`validate` : unicité, références) + refus ATOMIQUE (rien n'est modifié) ; matrice de preuve sur store disque → **W10.3** |
 | Changement de schéma cassant : perte de données à la mise à jour | Schémas additifs (ADR-015) aujourd'hui ; snapshots figés **W10.2** puis matrice de migrations **W10.3** avant tout changement cassant |
+| Retour à une build ANTÉRIEURE (réinstallation, TestFlight) : CoreData ouvre le store récent en DÉTRUISANT les tables inconnues — prouvé par le run CI 33042403589 (« Persistent History has to be truncated… (Statement) ») | Garde de version du store (`StoreVersionGuard`) : refus atomique NOMMÉ avant ouverture — livrée en **W10.3** |
 | Pièce jointe qui survit à la suppression de son mouvement (orpheline) ou reste lisible hors verrou | Audit `FileProtection` + cycle de vie → **W10.5** |
 | « Tout supprimer » qui laisse des restes (IndexedDB, caches, secours) | Purge PWA déjà étendue à IndexedDB (W9.4) ; revue complète toutes surfaces (les trois clés localStorage, caches SW, fichiers natifs) → **W10.7** |
 | Fuite par les logs (montants, noms de comptes dans la console ou os_log) | Revue outillée des logs → **W10.7** |

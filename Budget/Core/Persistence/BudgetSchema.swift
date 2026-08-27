@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 import SwiftData
 
@@ -260,6 +261,39 @@ enum BudgetSchemaV14: VersionedSchema {
 // `node .github/scripts/schema-fige.mjs --check`. Modifier un @Model ou
 // une liste `models` ci-dessus sans créer BudgetSchemaV15 + instantané
 // figé + migration fait échouer la porte — c'est voulu.
+/// W10.3 — garde de version du store. MESURÉ (run CI 33042403589) :
+/// ouvrir un store V14 avec un schéma antérieur n'échoue PAS — CoreData
+/// SUPPRIME les tables des entités inconnues (« Persistent History has
+/// to be truncated due to the following entities being removed ») et
+/// les données récentes disparaissent en silence. La garde lit les
+/// métadonnées CoreData du store AVANT ouverture et REFUSE, par une
+/// erreur nommée et sans rien modifier, tout store contenant des
+/// entités que le schéma demandé ne connaît pas (store écrit par une
+/// version plus récente de l'app).
+enum StoreVersionGuard {
+    struct StoreNewerThanAppError: LocalizedError {
+        let unknownEntities: [String]
+        var errorDescription: String? {
+            "Ce fichier de données vient d'une version plus récente de Budget "
+                + "(entités inconnues : \(unknownEntities.joined(separator: ", "))). "
+                + "Mettez l'app à jour — rien n'a été modifié."
+        }
+    }
+
+    static func verify(configuration: ModelConfiguration, models: [any PersistentModel.Type]) throws {
+        guard !configuration.isStoredInMemoryOnly else { return }
+        let url = configuration.url
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: url)
+        guard let hashes = metadata[NSStoreModelVersionHashesKey] as? [String: Any] else { return }
+        let known = Set(models.map { String(describing: $0) })
+        let unknown = hashes.keys.filter { !known.contains($0) }.sorted()
+        if !unknown.isEmpty {
+            throw StoreNewerThanAppError(unknownEntities: unknown)
+        }
+    }
+}
+
 enum PersistenceFactory {
     /// On-disk store for real user data. Demo and preview data never use it.
     static func makeProductionContainer() throws -> ModelContainer {
@@ -277,8 +311,19 @@ enum PersistenceFactory {
     /// ci-dessus et par `DiskStoreLifecycleTests` (URL disque
     /// temporaire). Aucun modèle ni plan de migration modifié.
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
-        try ModelContainer(
-            for: Schema(versionedSchema: BudgetSchemaV14.self),
+        try makeContainer(configuration: configuration, versionedSchema: BudgetSchemaV14.self)
+    }
+
+    /// Chemin UNIQUE de construction (W10.3) : la garde de version du
+    /// store passe AVANT toute ouverture, pour le schéma actuel comme
+    /// pour un schéma historique (matrice de migrations).
+    static func makeContainer(
+        configuration: ModelConfiguration,
+        versionedSchema: any VersionedSchema.Type
+    ) throws -> ModelContainer {
+        try StoreVersionGuard.verify(configuration: configuration, models: versionedSchema.models)
+        return try ModelContainer(
+            for: Schema(versionedSchema: versionedSchema),
             configurations: [configuration]
         )
     }
