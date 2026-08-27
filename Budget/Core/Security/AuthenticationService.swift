@@ -129,9 +129,8 @@ final class AppLockManager {
     /// demander. Annulation et échec gardent la sémantique du
     /// déverrouillage : seul un succès explicite autorise.
     func authorizeSensitiveAction(reason: String) async -> AuthenticationOutcome {
-        // SABOTAGE W10.6 (contrôle négatif, sera retiré) : porte inversée.
-        guard isLockEnabled else { return await authService.authenticate(reason: reason) }
-        return .success
+        guard isLockEnabled else { return .success }
+        return await authService.authenticate(reason: reason)
     }
 
     @discardableResult
