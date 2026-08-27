@@ -1181,7 +1181,13 @@ const small320 = await page.evaluate(() => {
 });
 check(small320.length === 0, `cibles < 44 px à 320 : ${small320.map(x => `${x.t} (${x.h.toFixed(0)})`).join(", ")}`);
 // État vide guidé : un nouvel utilisateur sans mouvement voit des cartes-guides.
-await page.evaluate(() => localStorage.clear());
+await page.evaluate(async () => {
+  localStorage.clear();
+  // W9.4 : un « utilisateur neuf » simulé vide AUSSI la réserve de
+  // secours — sinon la récupération ressuscite l'état (comportement
+  // voulu pour l'éviction, pas pour cette simulation).
+  await new Promise(r => { const d = indexedDB.deleteDatabase("budget-app"); d.onsuccess = d.onerror = d.onblocked = r; });
+});
 await page.goto(APP_URL);
 await page.waitForSelector('[data-obcountry="CH"]');
 await page.click('[data-obcountry="CH"]');
@@ -14593,6 +14599,104 @@ currentTest = "W9.3 stockage";
   await ctx232.close();
 }
 
+// ---------- 233. W9.4 : RÉCUPÉRATION — l'éviction de localStorage ne perd plus rien ----------
+// Budget Autonomie 100, W9.4 : mesuré — si le navigateur évince
+// localStorage, tout était perdu alors que la réserve de secours
+// (IndexedDB, W9.3) porte le même état. Livré : au démarrage sur un
+// localStorage VIDE, la réserve valide est restaurée puis la page se
+// recharge UNE fois ; un blob corrompu ou d'une version future ne
+// touche à rien. La bascule complète du stockage attend le démarrage
+// asynchrone (W9.8) — divergence Work Order consignée.
+currentTest = "W9.4 récupération";
+{
+  // Semis DÉTERMINISTE : première ouverture vierge → on ÉCRIT la réserve
+  // (attendue), puis reload — la récupération lit une réserve déjà là
+  // (un init script asynchrone ferait la course avec le boot).
+  const semerReserve = async (page, blob) => {
+    await page.evaluate(async payload => {
+      await new Promise((fin, rate) => {
+        const demande = indexedDB.open("budget-app", 1);
+        demande.onupgradeneeded = () => demande.result.createObjectStore("etat");
+        demande.onsuccess = () => {
+          const tx = demande.result.transaction("etat", "readwrite");
+          tx.objectStore("etat").put(payload, "budget-app-state-v1");
+          tx.oncomplete = () => { demande.result.close(); fin(); };
+          tx.onerror = () => rate(tx.error);
+        };
+        demande.onerror = () => rate(demande.error);
+      });
+      localStorage.removeItem("budget-app-state-v1");
+    }, blob);
+  };
+  const etatValide = JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Récupéré" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 4321, cash: true, currency: "CHF" }],
+    transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+  });
+  // 1. Éviction simulée : IndexedDB seul porte l'état → il revient.
+  const ctx233 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p233 = await ctx233.newPage();
+  p233.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W9.4] ${msg.text()}`); });
+  await p233.goto(APP_URL);
+  await semerReserve(p233, etatValide);
+  await p233.reload();
+  const recupere = await p233.waitForFunction(
+    () => typeof S !== "undefined" && S.profile && S.profile.name === "Récupéré" && S.onboarded === true,
+    null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check(recupere === true,
+    "localStorage évincé → l'état revient de la réserve IndexedDB (rechargement unique)");
+  if (recupere) {
+    const apres = await p233.evaluate(() => ({
+      ls: !!localStorage.getItem("budget-app-state-v1"),
+      solde: Math.round(balance("cur") * 100),
+    }));
+    check(apres.ls === true && apres.solde === 432100,
+      "l'état récupéré est réécrit dans localStorage, au centime près");
+    // Idempotence : un nouveau rechargement ne boucle pas et garde tout.
+    await p233.reload();
+    await p233.waitForSelector("#tabbar button");
+    const encore = await p233.evaluate(() => S.profile.name);
+    check(encore === "Récupéré", "un rechargement de plus ne boucle pas et garde l'état");
+    // Réinitialisation COMPLÈTE : la réserve est vidée elle aussi — les
+    // données effacées ne ressuscitent JAMAIS.
+    p233.on("dialog", d => d.accept());
+    await p233.evaluate(() => { activeTab = "more"; moreView = "settings"; render(); });
+    // Clic direct (sans attente d'actionnabilité) : le reset recharge la
+    // page pendant l'appel — la destruction de contexte est normale.
+    await p233.evaluate(() => { const b = document.querySelector("[data-fullreset]"); if (b) b.click(); })
+      .catch(() => {});
+    await p233.waitForTimeout(2500);
+    await p233.reload();
+    await p233.waitForTimeout(2000);
+    const ressuscite = await p233.evaluate(() => typeof S !== "undefined" && S.onboarded === true)
+      .catch(() => null);
+    check(ressuscite === false,
+      "après « réinitialiser complètement », rien ne ressuscite — la réserve est vidée aussi");
+  } else {
+    check(false, "l'état récupéré est réécrit dans localStorage, au centime près");
+    check(false, "un rechargement de plus ne boucle pas et garde l'état");
+    check(false, "après « réinitialiser complètement », rien ne ressuscite — la réserve est vidée aussi");
+  }
+  await ctx233.close();
+  // 2. Réserve CORROMPUE ou d'une version FUTURE : rien n'est touché,
+  //    l'app reste une vraie première ouverture.
+  for (const [nom, blob] of [["corrompu", "{pas-du-json"], ["version future", JSON.stringify({ version: 9, accounts: [] })]]) {
+    const ctxH = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const pH = await ctxH.newPage();
+    await pH.goto(APP_URL);
+    await semerReserve(pH, blob);
+    await pH.reload();
+    await pH.waitForTimeout(1800);
+    const intact = await pH.evaluate(() => localStorage.getItem("budget-app-state-v1") === null
+      && typeof S !== "undefined" && S.onboarded === false);
+    check(intact === true,
+      `réserve ${nom} → rien n'est touché, l'app reste une vraie première ouverture`);
+    await ctxH.close();
+  }
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14602,4 +14706,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 232 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 233 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

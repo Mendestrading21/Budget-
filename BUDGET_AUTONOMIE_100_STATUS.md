@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.2 fusionnés · W9.3 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.3 fusionnés · W9.4 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,35 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.4 : récupération — l'éviction de localStorage ne perd plus rien
+
+Mesuré d'abord : si le navigateur évince localStorage, tout était
+perdu alors que la réserve de secours (IndexedDB, W9.3) porte le même
+état. Livré : au démarrage sur un localStorage VIDE, la réserve v1
+VALIDE est restaurée puis la page se recharge UNE fois — avec un bref
+réessai, MESURÉ : la première lecture IndexedDB du boot peut rendre
+null puis la même lecture réussit 300 ms après (bizarrerie de
+démarrage du stockage) ; un blob corrompu ou d'une version future ne
+touche à RIEN ; « Réinitialiser complètement » vide AUSSI la réserve
+(`idbEffacerEtat`, borné à 1 s) — les données effacées ne ressuscitent
+JAMAIS ; les simulations « utilisateur neuf » des tests vident les
+deux stockages. Divergence Work Order consignée : la bascule COMPLÈTE
+du stockage attend le démarrage asynchrone (W9.8) — ce lot livre la
+moitié qui protège l'utilisateur (récupération après éviction).
+INTERACTION RÉELLE découverte par la suite : la récupération
+ressuscitait l'état après le reset complet — corrigée et verrouillée.
+Preuves : parcours 233 né rouge (3 échecs nommés ; verrous
+corrompu/version-future nés verts) ; incident de sonde consigné (course
+entre le semis IndexedDB asynchrone du test et le boot → semis rendu
+DÉTERMINISTE : semer puis recharger) ; deux sabotages qui mordent
+(version future acceptée → 1 échec nommé ; réserve oubliée au reset →
+la résurrection INTERROMPT l'onboarding des tests 12/13, échec dur de
+la suite — consigné : morsure par crash, le contrôle nommé du 233
+couvre le chemin direct) ; aucune UI touchée (pas de captures) ;
+suites complètes vertes (233 e2e, build, domaine, 9 parités, 14
+canon + schéma, design, catalogue, audits). Fusion W9.3 (`main` =
+`b8c29ca`, PR #194) ; publication W9.3 : **succès**.
 
 ### 27.08.2026 — W9.3 : stockage — double écriture IndexedDB, localStorage reste LA vérité
 
