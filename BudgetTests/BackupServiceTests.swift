@@ -517,4 +517,35 @@ final class AppLockManagerTests: XCTestCase {
         XCTAssertTrue(relaunched.isLockEnabled)
         XCTAssertTrue(relaunched.isLocked, "Verrouillé dès le lancement quand activé")
     }
+
+    // W10.6 — porte des actions sensibles (export, restauration,
+    // suppression totale) : contrat succès/annulation/échec.
+
+    func testSensitiveActionPassesSilentlyWhenLockDisabled() async {
+        let before = auth.authenticateCallCount
+        let outcome = await manager.authorizeSensitiveAction(reason: "Exporter")
+        XCTAssertEqual(outcome, .success, "verrou désactivé : l'utilisateur a choisi de ne pas protéger")
+        XCTAssertEqual(auth.authenticateCallCount, before, "aucune authentification demandée quand le verrou est désactivé")
+    }
+
+    func testSensitiveActionRequiresItsOwnSuccessWhenLockEnabled() async {
+        auth.nextOutcome = .success
+        await manager.setEnabled(true)
+
+        // App DÉVERROUILLÉE : la porte exige quand même sa propre
+        // authentification — succès, annulation et échec distincts.
+        auth.nextOutcome = .success
+        let ok = await manager.authorizeSensitiveAction(reason: "Exporter")
+        XCTAssertEqual(ok, .success)
+
+        auth.nextOutcome = .cancelled
+        let annule = await manager.authorizeSensitiveAction(reason: "Exporter")
+        XCTAssertEqual(annule, .cancelled, "annuler n'autorise PAS l'action")
+
+        auth.nextOutcome = .failed("Visage non reconnu.")
+        let echec = await manager.authorizeSensitiveAction(reason: "Exporter")
+        XCTAssertEqual(echec, .failed("Visage non reconnu."), "un échec n'autorise PAS l'action")
+
+        XCTAssertFalse(manager.isLocked, "la porte n'altère jamais l'état du verrou lui-même")
+    }
 }

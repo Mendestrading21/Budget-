@@ -66,8 +66,11 @@ final class FakeAuthenticationService: AuthenticationProviding {
     var biometryLabel = "Face ID"
     var nextOutcome: AuthenticationOutcome = .success
 
+    private(set) var authenticateCallCount = 0
+
     func authenticate(reason: String) async -> AuthenticationOutcome {
-        nextOutcome
+        authenticateCallCount += 1
+        return nextOutcome
     }
 }
 
@@ -116,6 +119,18 @@ final class AppLockManager {
             isLocked = true
             lastErrorMessage = nil
         }
+    }
+
+    /// W10.6 — porte des actions SENSIBLES (export, restauration,
+    /// suppression totale) : quand le verrou est activé, l'action exige
+    /// sa PROPRE authentification réussie — l'app déverrouillée posée
+    /// sur une table ne suffit pas. Verrou désactivé : l'utilisateur a
+    /// choisi de ne pas protéger, la porte laisse passer sans rien
+    /// demander. Annulation et échec gardent la sémantique du
+    /// déverrouillage : seul un succès explicite autorise.
+    func authorizeSensitiveAction(reason: String) async -> AuthenticationOutcome {
+        guard isLockEnabled else { return .success }
+        return await authService.authenticate(reason: reason)
     }
 
     @discardableResult
