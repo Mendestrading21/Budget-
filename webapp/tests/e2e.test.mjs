@@ -14880,6 +14880,58 @@ currentTest = "W9.7 quota-onglets";
   await ctx236.close();
 }
 
+// ---------- 237. W10.7 : RÉINITIALISER NE LAISSE RIEN ----------
+// Budget Autonomie 100, W10.7 : mesuré — le fullreset vidait
+// localStorage et la réserve IndexedDB (W9.4) mais laissait
+// sessionStorage (et ne touchait pas aux caches du service worker —
+// intestables en file://, purge best effort vérifiée par le code).
+// Contrat : après « réinitialiser complètement », AUCUNE trace de
+// Budget ne reste dans ce navigateur.
+currentTest = "W10.7 purge complète";
+{
+  const ctx237 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p237 = await ctx237.newPage();
+  p237.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W10.7] ${msg.text()}`); });
+  // Semis UNE SEULE FOIS (pas d'addInitScript : il rejouerait après le
+  // reset et ressusciterait l'état — leçon W9.4).
+  await p237.goto(APP_URL);
+  await p237.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Purge" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p237.reload();
+  await p237.waitForSelector("#tabbar button");
+  // Semis des traces annexes RÉELLES : copie de secours, héritage
+  // prototype, drapeau de session — tout doit partir.
+  await p237.evaluate(() => {
+    localStorage.setItem("budget-app-state-rescue", "{\"reste\":1}");
+    localStorage.setItem("budget-proto-mouvements", "[]");
+    sessionStorage.setItem("budget-trace-de-session", "1");
+  });
+  p237.on("dialog", d => d.accept());
+  await p237.evaluate(() => { activeTab = "more"; moreView = "settings"; render(); });
+  await p237.waitForTimeout(300);
+  await p237.evaluate(() => { const b = document.querySelector("[data-fullreset]"); if (b) b.click(); })
+    .catch(() => {});
+  await p237.waitForTimeout(2500);
+  const traces = await p237.evaluate(() => ({
+    etat: localStorage.getItem("budget-app-state-v1"),
+    secours: localStorage.getItem("budget-app-state-rescue"),
+    heritage: localStorage.getItem("budget-proto-mouvements"),
+    session: sessionStorage.length,
+  })).catch(() => null);
+  check(traces !== null && traces.etat === null && traces.secours === null && traces.heritage === null,
+    "réinitialiser complètement vide les TROIS clés localStorage (état, secours, héritage)");
+  check(traces !== null && traces.session === 0,
+    "réinitialiser complètement vide AUSSI sessionStorage — aucune trace de Budget ne reste");
+  await ctx237.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14889,4 +14941,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 236 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 237 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

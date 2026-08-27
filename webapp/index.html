@@ -8350,10 +8350,17 @@ document.getElementById("screen").addEventListener("click", (e) => {
       localStorage.removeItem(LEGACY_TX_KEY);
       localStorage.removeItem(RESCUE_KEY);
     } catch (err) {}
+    // W10.7 : AUCUNE trace ne reste — le drapeau de session part aussi,
+    // et le cache du service worker (le code de l'app) est effacé quand
+    // le navigateur en a un (file:// n'a pas de CacheStorage).
+    try { sessionStorage.clear(); } catch (err) {}
+    const cachesVides = (typeof caches !== "undefined" && caches.keys)
+      ? caches.keys().then(cles => Promise.all(cles.map(c => caches.delete(c)))).catch(() => {})
+      : Promise.resolve();
     // W9.4 : la réserve de secours (IndexedDB) est vidée elle aussi —
     // sinon la récupération ressusciterait les données effacées. Borné à
     // une seconde : l'effacement local a déjà eu lieu, on recharge.
-    Promise.race([idbEffacerEtat(), new Promise(r => setTimeout(r, 1000))])
+    Promise.race([Promise.all([idbEffacerEtat(), cachesVides]), new Promise(r => setTimeout(r, 1000))])
       .finally(() => location.reload());
     return;
   }

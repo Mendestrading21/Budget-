@@ -227,6 +227,33 @@ try {
   check("code vivant : la liste d'exceptions ne contient rien de périmé", perimees.length === 0, perimees.join(", "));
 }
 
+// W10.7 — confidentialité OUTILLÉE (preuve par inspection, pas par
+// affirmation) : aucun log dans le code natif livré (print/NSLog/os_log
+// — « fingerprint » n'est pas un log), aucun console.* émis par la PWA
+// livrée, écritures de fichiers PROTÉGÉES (.completeFileProtection), et
+// PrivacyInfo déclare l'accès UserDefaults (CA92.1). Nés verts (état
+// déjà propre) : le verrou est consigné, les sabotages font foi.
+{
+  const fautifs = [];
+  for (const rel of walk("Budget", [".swift"])) {
+    const sans = read(rel).replace(/\w*[Ff]ingerprint\w*\(/g, "(");
+    if (/\bprint\(|\bNSLog\(|\bos_log\(|Logger\(subsystem/.test(sans)) fautifs.push(rel);
+  }
+  check("confidentialité : aucun log dans le code natif livré", fautifs.length === 0, fautifs.join(", "));
+  const pwa = read("webapp/index.html") + read("webapp/sw.js");
+  const consoles = pwa.match(/console\.(log|info|warn|error|debug)/g) || [];
+  check("confidentialité : la PWA livrée n'émet aucun console.*", consoles.length === 0,
+    [...new Set(consoles)].join(", "));
+  const fichiers = read("Budget/Core/Security/DocumentFileStore.swift");
+  const reglages = read("Budget/Features/Settings/SettingsView.swift");
+  check("confidentialité : écritures de fichiers protégées (.completeFileProtection)",
+    (fichiers.match(/completeFileProtection/g) || []).length >= 2
+      && reglages.includes("completeFileProtection"));
+  const privacy = read("Budget/PrivacyInfo.xcprivacy");
+  check("PrivacyInfo : accès UserDefaults déclaré avec la raison CA92.1",
+    privacy.includes("NSPrivacyAccessedAPICategoryUserDefaults") && privacy.includes("CA92.1"));
+}
+
 // W10.1 — threat model : le document existe et couvre CHAQUE surface de
 // stockage réellement présente dans le code. La liste ci-dessous est
 // vérifiée des deux côtés : si le motif disparaît du code, l'entrée est

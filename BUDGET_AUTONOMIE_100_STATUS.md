@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | W10.1–W10.5 fusionnés · W10.6 EN PR | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1–W10.6 fusionnés · W10.7 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,32 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.7 : confidentialité outillée — purge complète, zéro log
+
+Mesuré d'abord : zéro log natif réel (les cinq « print( » sont des
+`fingerprint(`), zéro console.* dans la PWA, PrivacyInfo déjà juste
+(UserDefaults CA92.1) — mais le fullreset PWA laissait sessionStorage
+et ne touchait pas aux caches du service worker, et « tout supprimer »
+natif laissait les fichiers orphelins. Livré : fullreset PWA purge
+DÉSORMAIS les trois clés localStorage + sessionStorage + IndexedDB +
+caches SW (best effort borné, file:// sans CacheStorage toléré) ;
+deleteAll natif balaie les orphelines après les référencés (le dossier
+protégé finit VIDE — `testDeleteAllLeavesNoFileBehind`) ; QUATRE
+verrous d'audit outillés : aucun log natif (print/NSLog/os_log —
+fingerprint exclu), aucun console.* émis par la PWA,
+`.completeFileProtection` présent, CA92.1 déclaré — nés verts
+consignés (état déjà propre), les QUATRE sabotages mordent seuls
+(print ajouté → fichier nommé ; console.log → nommé ; protection
+retirée → mord ; CA92.1 retiré → mord). Test e2e 237 né ROUGE (échec
+nommé sessionStorage ; premier semis addInitScript ressuscitait l'état
+— leçon W9.4 réappliquée : semis unique). Threat model : « restes
+après suppression » et « fuite par les logs » passent en LIVRÉ. Suites
+complètes vertes (e2e 237, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits, schéma figé). Pas de changement
+visuel : pas de captures. Fusion W10.6 (`main` = `41736c3`, PR #206) ;
+publication W10.6 : **succès** (run 33051473588, après CI push verte
+33050648271).
 
 ### 27.08.2026 — W10.6 : porte des actions sensibles
 

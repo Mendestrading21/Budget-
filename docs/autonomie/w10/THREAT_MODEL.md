@@ -79,8 +79,8 @@ planifiée) :
 | Changement de schéma cassant : perte de données à la mise à jour | Schémas additifs (ADR-015) aujourd'hui ; snapshots figés **W10.2** puis matrice de migrations **W10.3** avant tout changement cassant |
 | Retour à une build ANTÉRIEURE (réinstallation, TestFlight) : CoreData ouvre le store récent en DÉTRUISANT les tables inconnues — prouvé par le run CI 33042403589 (« Persistent History has to be truncated… (Statement) ») | Garde de version du store (`StoreVersionGuard`) : refus atomique NOMMÉ avant ouverture — livrée en **W10.3** |
 | Pièce jointe qui survit à la suppression de son mouvement (orpheline) ou reste lisible hors verrou | Audit `FileProtection` + cycle de vie → **W10.5** |
-| « Tout supprimer » qui laisse des restes (IndexedDB, caches, secours) | Purge PWA déjà étendue à IndexedDB (W9.4) ; revue complète toutes surfaces (les trois clés localStorage, caches SW, fichiers natifs) → **W10.7** |
-| Fuite par les logs (montants, noms de comptes dans la console ou os_log) | Revue outillée des logs → **W10.7** |
+| « Tout supprimer » qui laisse des restes (IndexedDB, caches, secours) | Livré **W10.7** : la PWA purge les trois clés localStorage + sessionStorage + IndexedDB + caches SW (best effort borné) ; le natif supprime entités, fichiers référencés ET orphelines (`sweepOrphanFiles`) |
+| Fuite par les logs (montants, noms de comptes dans la console ou os_log) | Livré **W10.7** : audit outillé — aucun log natif (print/NSLog/os_log), aucun console.* émis par la PWA, vérifié à chaque batterie |
 | Code tiers injecté dans la PWA (script externe, cache empoisonné) | CSP stricte `connect-src 'none'` + garde d'origine du service worker (livrées W9.6), vérifiées par tests |
 
 ## Menaces écartées

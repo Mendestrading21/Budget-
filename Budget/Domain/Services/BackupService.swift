@@ -946,6 +946,9 @@ struct BackupService {
             for reference in fileReferences {
                 try? store.delete(reference)
             }
+            // W10.7 : les orphelines partent aussi — « tout supprimer »
+            // ne laisse AUCUN fichier dans le dossier protégé.
+            sweepOrphanFiles(context: context, documentFileStore: store)
         }
     }
 
