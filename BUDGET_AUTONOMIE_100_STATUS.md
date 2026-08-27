@@ -126,7 +126,7 @@ Livrables attendus :
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
-| W10 | Sécurité, backup, migrations | Work Order écrit · W10.1 READY | W3 (fusionné), W9 (fermé) |
+| W10 | Sécurité, backup, migrations | W10.1 EN PR | W3 (fusionné), W9 (fermé) |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
 ## Invariants déjà décidés
@@ -155,6 +155,30 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W10.1 : threat model vérifié par l'audit
+
+Mesuré d'abord : neuf surfaces de stockage réelles (localStorage
+`budget-app-state-v1` / `-rescue` / `budget-proto-mouvements`,
+IndexedDB `budget-app`, sessionStorage `budget-onglet-suivi`, cache SW
+`budget-app-v4`, store SwiftData disque, `DocumentFileStore`,
+sauvegarde exportée) sans document qui les nomme. Livré :
+`docs/autonomie/w10/THREAT_MODEL.md` — actifs, surfaces d'attaque,
+menaces retenues avec parade datée (W10.2–W10.8), menaces écartées
+justifiées (pas de serveur ; appareil déverrouillé hors de portée ;
+honnêteté sur localStorage) — VÉRIFIÉ par l'audit racine des deux
+côtés : surface disparue du code → « entrée périmée » nommée, mention
+absente du doc → « surface oubliée » nommée, sections obligatoires
+exigées. Preuves : né-rouge (« THREAT_MODEL.md présent » en échec,
+puis « cache service worker » oublié nommé) ; sabotage A (mention
+DocumentFileStore retirée → « pièces jointes » nommée) ; sabotage B
+(clé sessionStorage renommée dans le code → « entrée périmée »
+nommée ; premier essai `-v2` inerte car sous-chaîne — sabotage refait
+en vrai renommage, consigné) ; suites complètes vertes (236 e2e,
+build, domaine, 9 parités, 14 canon + schéma, design, catalogue,
+audits). Document seul : pas de captures. Fusion du plan W10
+(`main` = `02197e8`, PR #200) ; publication du plan : **succès**
+(run 33040657198, après CI push verte 33040157469).
 
 ### 27.08.2026 — W9 FERMÉ · Work Order W10 (mode plan, aucun code)
 

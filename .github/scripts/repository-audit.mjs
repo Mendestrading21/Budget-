@@ -227,6 +227,42 @@ try {
   check("code vivant : la liste d'exceptions ne contient rien de périmé", perimees.length === 0, perimees.join(", "));
 }
 
+// W10.1 — threat model : le document existe et couvre CHAQUE surface de
+// stockage réellement présente dans le code. La liste ci-dessous est
+// vérifiée des deux côtés : si le motif disparaît du code, l'entrée est
+// périmée et l'audit le dit ; si la mention manque au document, l'audit
+// nomme la surface oubliée. Un nouveau stockage ajouté sans passer par
+// le threat model ne peut donc pas rester invisible.
+{
+  const TM = "docs/autonomie/w10/THREAT_MODEL.md";
+  if (!existsSync(join(root, TM))) {
+    check(`threat model : ${TM} présent`, false);
+  } else {
+    const tm = read(TM);
+    const surfaces = [
+      // [surface, fichier porteur, motif dans le code, mention exigée dans le doc]
+      ["localStorage état", "webapp/index.html", "budget-app-state-v1", "budget-app-state-v1"],
+      ["localStorage secours", "webapp/index.html", "budget-app-state-rescue", "budget-app-state-rescue"],
+      ["localStorage héritage", "webapp/index.html", "budget-proto-mouvements", "budget-proto-mouvements"],
+      ["IndexedDB réserve", "webapp/index.html", 'IDB_NOM = "budget-app"', "IndexedDB"],
+      ["sessionStorage multi-onglets", "webapp/index.html", "budget-onglet-suivi", "budget-onglet-suivi"],
+      ["cache service worker", "webapp/sw.js", "budget-app-v", "cache du service worker"],
+      ["store SwiftData disque", "Budget/Core/Persistence/BudgetSchema.swift", "makeProductionContainer", "SwiftData"],
+      ["pièces jointes", "Budget/Core/Security/DocumentFileStore.swift", "DocumentFileStore", "DocumentFileStore"],
+      ["sauvegarde exportée", "Budget/Domain/Services/BackupService.swift", "makeBackup", "sauvegarde exportée"],
+    ];
+    const perimees = surfaces.filter(([, fichier, motif]) => !read(fichier).includes(motif));
+    check("threat model : la liste des surfaces ne contient rien de périmé",
+      perimees.length === 0, perimees.map(s => s[0]).join(", "));
+    const oubliees = surfaces.filter(([, , , mention]) => !tm.includes(mention));
+    check("threat model : chaque surface de stockage du code est couverte",
+      oubliees.length === 0, oubliees.map(s => s[0]).join(", "));
+    for (const section of ["## Actifs", "## Surfaces d'attaque", "## Menaces retenues", "## Menaces écartées"]) {
+      check(`threat model : section « ${section.replace("## ", "")} » présente`, tm.includes(section));
+    }
+  }
+}
+
 console.log("");
 if (failures > 0) {
   console.error(`AUDIT : ${failures} contrôle(s) en échec.`);
