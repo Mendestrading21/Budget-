@@ -643,9 +643,10 @@ struct BackupService {
         // déjà écrits deviennent au pire des orphelins, balayés plus
         // bas. Une sauvegarde sans fichiers (antérieure ou métadonnées
         // seules) ne touche à rien.
-        // SABOTAGE W10.5 (contrôle négatif, sera retiré) : fichiers non écrits.
         if let store = documentFileStore, let fichiers = file.documentFiles {
-            _ = store; _ = fichiers
+            for dto in fichiers {
+                try store.write(dto.contents, fileReference: dto.fileReference)
+            }
         }
 
         // Wipe, rebuild and save form ONE transaction: a failure at ANY
@@ -676,8 +677,8 @@ struct BackupService {
     /// ne référence. Retourne les références supprimées (preuve).
     @discardableResult
     func sweepOrphanFiles(context: ModelContext, documentFileStore: DocumentFileStoring) -> [String] {
-        // SABOTAGE W10.5 (contrôle négatif, sera retiré) : références ignorées.
-        let referenced = Set<String>()
+        let referenced = Set((try? context.fetch(FetchDescriptor<FinancialDocument>()))?
+            .map(\.fileReference) ?? [])
         let orphans = documentFileStore.allReferences().filter { !referenced.contains($0) }.sorted()
         for reference in orphans {
             try? documentFileStore.delete(reference)
