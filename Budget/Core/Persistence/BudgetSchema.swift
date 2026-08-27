@@ -254,6 +254,12 @@ enum BudgetSchemaV14: VersionedSchema {
 // stores never enter that code path, which is why unit tests stayed
 // green). A real staged plan requires frozen per-version model
 // snapshots — planned for the first post-release breaking change.
+//
+// W10.2 (ADR-071) : la forme V14 est FIGÉE par le manifeste
+// `schema-v14-fige.json` (même dossier), vérifié en CI par
+// `node .github/scripts/schema-fige.mjs --check`. Modifier un @Model ou
+// une liste `models` ci-dessus sans créer BudgetSchemaV15 + instantané
+// figé + migration fait échouer la porte — c'est voulu.
 enum PersistenceFactory {
     /// On-disk store for real user data. Demo and preview data never use it.
     static func makeProductionContainer() throws -> ModelContainer {

@@ -1,5 +1,46 @@
 # Budget decision log
 
+## ADR-071 — Schéma V14 figé par manifeste ; classes figées au premier changement cassant
+
+Date: 2026-08-27
+Status: accepted
+
+### Contexte
+
+Les 14 schémas versionnés de `BudgetSchema.swift` référencent les MÊMES
+classes `@Model` vivantes : un `SchemaMigrationPlan` étagé est
+impossible en l'état (checksums identiques → SIGABRT documenté dans le
+fichier), et rien n'empêchait de modifier un modèle vivant en place.
+L'app n'a JAMAIS été livrée (TestFlight bloqué sur des secrets
+propriétaire) : aucun store réel antérieur à V14 n'existe hors des
+appareils de développement.
+
+### Décision
+
+1. Re-figer rétroactivement V1–V13 en classes-instantanés est REFUSÉ :
+   treize versions jamais livrées deviendraient du code mort massif
+   portant le risque SIGABRT documenté, sans aucun store réel à servir.
+   V1–V13 restent des enums historiques documentés.
+2. La forme de V14 est FIGÉE par un manifeste source
+   (`Budget/Core/Persistence/schema-v14-fige.json`) : les 24 classes
+   `@Model`, leurs 264 propriétés stockées (annotations
+   `@Attribute`/`@Relationship` comprises) et la composition des
+   14 versions. `node .github/scripts/schema-fige.mjs --check` (CI et
+   batterie locale) recompute l'extraction et NOMME toute dérive ;
+   `--generer` ne se lance que lors d'un changement de version assumé.
+3. Tout changement de modèle passe désormais par : nouvelle version
+   `BudgetSchemaVn+1` + régénération du manifeste ; le PREMIER
+   changement CASSANT exige en plus l'instantané figé réel (classes
+   par version) et le `SchemaMigrationPlan` étagé, prouvés sur store
+   disque (matrice W10.3).
+
+### Conséquences
+
+Un modèle vivant ne peut plus dériver en silence ; la migration
+automatique légère reste le chemin des changements additifs ; le
+travail lourd (classes figées) est réservé au moment où il protège de
+vraies données.
+
 ## ADR-070 — Conversion datée des stocks et devise par défaut des biens
 
 Date: 2026-08-26
