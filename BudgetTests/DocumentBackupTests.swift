@@ -112,6 +112,21 @@ final class DocumentBackupTests: XCTestCase {
         XCTAssertNil(store.contents(of: "poubelle.tmp"))
     }
 
+    func testDeleteAllLeavesNoFileBehind() throws {
+        // W10.7 : « tout supprimer » supprime les fichiers référencés ET
+        // les orphelines — le dossier protégé finit VIDE.
+        let store = InMemoryDocumentFileStore()
+        store.store(Data("référencé".utf8), reference: "doc.pdf")
+        store.store(Data("orpheline".utf8), reference: "reste.tmp")
+        _ = insertDocument(reference: "doc.pdf")
+        try context.save()
+
+        try service.deleteAll(context: context, documentFileStore: store)
+        XCTAssertTrue(store.allReferences().isEmpty,
+                      "aucun fichier ne survit à « tout supprimer » (référencés ET orphelines)")
+        XCTAssertTrue(try context.fetch(FetchDescriptor<FinancialDocument>()).isEmpty)
+    }
+
     func testLocalStoreWriteRefusesPathEscapes() {
         let store = LocalDocumentFileStore()
         XCTAssertThrowsError(try store.write(Data("x".utf8), fileReference: "../evasion.pdf"),
