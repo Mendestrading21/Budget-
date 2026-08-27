@@ -14697,6 +14697,81 @@ currentTest = "W9.4 récupération";
   }
 }
 
+// ---------- 234. W9.5 : ROUTES — le hash reflète l'écran, le retour est honnête ----------
+// Budget Autonomie 100, W9.5 (ADR-026 inchangé — mêmes 5 destinations) :
+// mesuré — aucun usage de location.hash : recharger perdait l'écran,
+// le bouton retour quittait l'app. Livré : le hash suit la navigation
+// (#/mois, #/budget, #/gerer/taxes…), le démarrage restaure l'écran du
+// hash, le retour arrière revient à l'écran précédent, un hash inconnu
+// retombe sur Mois sans casser.
+currentTest = "W9.5 routes";
+{
+  const etatRoutes = JSON.stringify({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Routes" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+    transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+  });
+  const ctx234 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p234 = await ctx234.newPage();
+  p234.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W9.5] ${msg.text()}`); });
+  await p234.addInitScript(etat => {
+    if (!localStorage.getItem("budget-app-state-v1")) localStorage.setItem("budget-app-state-v1", etat);
+  }, etatRoutes);
+  await p234.goto(APP_URL);
+  await p234.waitForSelector("#tabbar button");
+  // 1. Le hash SUIT la navigation — par les VRAIS gestes (les entrées
+  //    d'historique naissent dans pushNav, pas dans render).
+  const releves = [];
+  await p234.click('#tabbar button[aria-label="Budget"]');
+  releves.push(await p234.evaluate(() => location.hash));
+  await p234.click('#tabbar button[aria-label="Gérer"]');
+  await p234.click('#screen [data-more="taxes"]');
+  await p234.waitForTimeout(150);
+  releves.push(await p234.evaluate(() => location.hash));
+  await p234.click('#tabbar button[aria-label="Mois"]');
+  releves.push(await p234.evaluate(() => location.hash));
+  const suivi = releves;
+  check(suivi[0] === "#/budget" && suivi[1] === "#/gerer/taxes" && suivi[2] === "#/mois",
+    `le hash suit la navigation (obtenu : ${suivi.join(" · ")})`);
+  // 2. Le retour arrière est HONNÊTE : il revient à l'écran précédent.
+  await p234.goBack();
+  await p234.waitForTimeout(300);
+  const apresRetour = await p234.evaluate(() => (typeof activeTab !== "undefined" ? { tab: activeTab, vue: moreView } : { tab: "page-quittée", vue: null })).catch(() => ({ tab: "page-quittée", vue: null }));
+  check(apresRetour.tab === "more" && apresRetour.vue === "taxes",
+    `le retour arrière revient à l'écran précédent (obtenu : ${apresRetour.tab}/${apresRetour.vue})`);
+  await p234.goBack().catch(() => {});
+  await p234.waitForTimeout(300);
+  const racineGerer = await p234.evaluate(() => (typeof activeTab !== "undefined" ? { tab: activeTab, vue: moreView } : { tab: "page-quittée" })).catch(() => ({ tab: "page-quittée" }));
+  check(racineGerer.tab === "more" && racineGerer.vue === null,
+    `un retour de plus : la racine Gérer (obtenu : ${racineGerer.tab}/${racineGerer.vue})`);
+  await p234.goBack().catch(() => {});
+  await p234.waitForTimeout(300);
+  const encoreAvant = await p234.evaluate(() => (typeof activeTab !== "undefined" ? activeTab : "page-quittée")).catch(() => "page-quittée");
+  check(encoreAvant === "budget", `un retour de plus : Budget (obtenu : ${encoreAvant})`);
+  await ctx234.close();
+  // 3. Le démarrage RESTAURE l'écran du hash.
+  const ctxBoot = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const pBoot = await ctxBoot.newPage();
+  await pBoot.addInitScript(etat => {
+    if (!localStorage.getItem("budget-app-state-v1")) localStorage.setItem("budget-app-state-v1", etat);
+  }, etatRoutes);
+  await pBoot.goto(APP_URL + "#/gerer/taxes");
+  await pBoot.waitForSelector("#tabbar button");
+  const boot = await pBoot.evaluate(() => ({ tab: activeTab, vue: moreView, texte: document.getElementById("screen").textContent.slice(0, 400) }));
+  check(boot.tab === "more" && boot.vue === "taxes" && boot.texte.includes("Impôts"),
+    "le démarrage restaure l'écran du hash (#/gerer/taxes → Impôts)");
+  // 4. Un hash INCONNU retombe sur Mois, sans casser.
+  await pBoot.goto(APP_URL + "#/nimporte-quoi");
+  await pBoot.reload();
+  await pBoot.waitForSelector("#tabbar button");
+  const inconnu = await pBoot.evaluate(() => ({ tab: activeTab, boutons: document.querySelectorAll("#tabbar button").length }));
+  check(inconnu.tab === "home" && inconnu.boutons === 5,
+    "un hash inconnu retombe sur Mois — et les 5 destinations restent (ADR-026)");
+  await ctxBoot.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -14706,4 +14781,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 233 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 234 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

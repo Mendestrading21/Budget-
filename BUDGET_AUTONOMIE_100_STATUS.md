@@ -125,7 +125,7 @@ Livrables attendus :
 | W6 | Plan, budgets, objectifs | DONE | W2, W3, W5 (fusionnés) |
 | W7 | Import, règles, tags, splits | DONE (7 sous-lots fusionnés) | W1, W3, W6 (fusionnés) |
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
-| W9 | PWA modulaire et IndexedDB | W9.1–W9.3 fusionnés · W9.4 EN PR | W1, W2, W3 (fusionnés) |
+| W9 | PWA modulaire et IndexedDB | W9.1–W9.4 fusionnés · W9.5 EN PR | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | BLOCKED | W3, W9 |
 | W11 | Accessibilité, stores, Android, release | BLOCKED | W0–W10 |
 
@@ -155,6 +155,34 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W9.5 : routes — le hash reflète l'écran, le retour reste honnête
+
+Mesuré, puis RE-mesuré en cours de lot : aucun usage de
+`location.hash` (recharger perdait l'écran) — MAIS l'app avait déjà SA
+navigation retour (`pushNav`/`popstate` : une feuille ouverte se ferme
+d'abord, la saisie en cours est protégée, l'écran se restaure). Le
+hash s'y INTÈGRE, sans système parallèle : l'URL s'écrit en DEUX
+points seulement — `pushNav` (chaque vrai geste porte l'URL en plus de
+son état) et la normalisation du démarrage ; `popstate` restaure
+depuis le hash quand l'entrée n'a pas d'état (hash édité à la main —
+un hash inconnu retombe sur Mois) ; le démarrage restaure l'écran du
+hash ; l'amorce ne touche pas à l'URL (le hash entrant doit survivre
+jusqu'à sa lecture) ; le hash ne porte JAMAIS de donnée personnelle.
+ADR-026 intact (5 destinations, verrou né vert). INCIDENTS de
+conception consignés : (1) une première version posait
+`location.hash` — qui déclenche AUSSI `popstate` (état null) → retour
+silencieux sur Mois à chaque navigation ; (2) `pushState` doublait
+les entrées ; (3) un rafraîchissement d'URL à chaque `render` s'est
+révélé CODE MORT (sabotage inerte) → retiré, le dessin final est plus
+simple. Preuves : parcours 234 né rouge (4 échecs nommés), navigation
+par les VRAIS gestes (les entrées naissent dans `pushNav`) ; deux
+sabotages sur le code FINAL qui mordent seuls (boot sans lecture du
+hash → 1 ; pushNav sans URL → « #/mois · #/mois · #/mois ») ; suites
+complètes vertes (234 e2e, build, domaine, 9 parités, 14 canon +
+schéma, design, catalogue, audits) ; pas de changement visuel (pas de
+captures, consigné). Fusion W9.4 (`main` = `0ef279b`, PR #195) ;
+publication W9.4 : **succès**.
 
 ### 27.08.2026 — W9.4 : récupération — l'éviction de localStorage ne perd plus rien
 

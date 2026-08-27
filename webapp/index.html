@@ -7761,6 +7761,27 @@ const RENDERERS = {
   more: renderMore,
 };
 
+/* W9.5 : ROUTES restaurables (ADR-026 inchangé — mêmes 5 destinations).
+   Le hash reflète l'écran (#/mois, #/gerer/taxes…) : recharger garde
+   l'écran, le bouton retour revient à l'écran précédent, un hash
+   inconnu retombe sur Mois. Le hash ne porte JAMAIS de donnée
+   personnelle — seulement le nom d'écran. */
+const ROUTE_PAR_TAB = { home: "mois", movements: "historique", budget: "budget", accounts: "comptes", more: "gerer" };
+const TAB_PAR_ROUTE = Object.fromEntries(Object.entries(ROUTE_PAR_TAB).map(([t, r]) => [r, t]));
+function routeActuelle() {
+  return "#/" + ROUTE_PAR_TAB[activeTab] + (activeTab === "more" && moreView ? "/" + moreView : "");
+}
+function appliquerRoute(hash) {
+  const morceaux = String(hash || "").replace(/^#\/?/, "").split("/").filter(Boolean);
+  const tab = TAB_PAR_ROUTE[morceaux[0]] || "home";
+  activeTab = tab;
+  moreView = tab === "more" && morceaux[1] && MORE_RENDERERS[morceaux[1]] ? morceaux[1] : null;
+}
+/* L'app a DÉJÀ sa navigation retour (pushNav/popstate — mesuré) : le
+   hash s'y INTÈGRE, sans système parallèle. L'URL s'écrit en DEUX
+   points seulement : pushNav (chaque vrai geste de navigation) et la
+   normalisation du démarrage ci-dessous — un rafraîchissement à chaque
+   render était du code mort, prouvé par sabotage et retiré. */
 function render() {
   // FE2 : plus de promotion automatique au rendu non plus — le calendrier
   // n'encaisse ni ne paie à votre place.
@@ -10001,8 +10022,11 @@ document.getElementById("lDelete").addEventListener("click", () => {
 
 /* ---------- Retour naturel du navigateur (History API) ---------- */
 function pushNav() {
-  try { history.pushState({ tab: activeTab, more: moreView, acc: accountView, cur: { y: cursor.y, m: cursor.m } }, ""); } catch (e) {}
+  // W9.5 : l'entrée porte l'URL de route en plus de son état.
+  try { history.pushState({ tab: activeTab, more: moreView, acc: accountView, cur: { y: cursor.y, m: cursor.m } }, "", routeActuelle()); } catch (e) {}
 }
+/* L'amorce n'écrit PAS d'URL : le hash entrant doit survivre jusqu'au
+   démarrage qui le lit (W9.5) — le premier render la rafraîchira. */
 try { history.replaceState({ tab: activeTab, more: moreView }, ""); } catch (e) {}
 window.addEventListener("popstate", (e) => {
   // Une feuille ouverte ? Le « retour » la ferme d'abord, sans changer
@@ -10018,7 +10042,16 @@ window.addEventListener("popstate", (e) => {
     try { history.pushState({ tab: activeTab, more: moreView, acc: accountView }, ""); } catch (err) {}
     return;
   }
-  const state = e.state || { tab: "home", more: null };
+  const state = e.state;
+  if (!state) {
+    // W9.5 : entrée sans état (hash édité à la main, entrée d'amorce) —
+    // le hash fait foi, un hash inconnu retombe sur Mois.
+    appliquerRoute(location.hash);
+    accountView = null;
+    render();
+    scrollTop();
+    return;
+  }
   activeTab = state.tab || "home";
   moreView = state.more || null;
   accountView = state.acc || null;
@@ -11518,6 +11551,12 @@ document.getElementById("wRestore").addEventListener("click", () => {
 });
 
 hydrateBudgetGlyphs(document);
+// W9.5 : le démarrage RESTAURE l'écran du hash (un hash inconnu retombe
+// sur Mois — appliqué seulement hors onboarding et hors verrouillage).
+if (location.hash && S.onboarded && !locked) appliquerRoute(location.hash);
+if (S.onboarded && !locked) {
+  try { history.replaceState({ tab: activeTab, more: moreView, acc: accountView }, "", routeActuelle()); } catch (e) {}
+}
 render();
 rescueNoticeAtBoot();
 </script>
