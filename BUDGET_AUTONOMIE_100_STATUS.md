@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.2 fusionnés · W11.3 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.3 fusionnés · W11.4 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,32 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.4 : Android = la PWA, dit honnêtement · TEMPÊTE INTER-ONGLETS CORRIGÉE
+
+ADR-073 appliqué : icônes du manifest en « any maskable » (zone de
+sécurité inspectée — l'anneau reste entier découpé en cercle) ; carte
+« Installer l'app » dans la Transparence de Gérer — iPhone (Safari →
+« Sur l'écran d'accueil ») et Android (navigateur → « Ajouter à
+l'écran d'accueil » ; PAS de Google Play, c'est VOULU : la version
+installable EST l'app Android, hors ligne, données sur l'appareil).
+Test 241 : manifest complet (fr-CH, standalone, maskable) + carte
+présente avec le choix dit.
+
+TROUVAILLE en chemin : le flake CI 33049610268 (timeout `#tabbar`,
+e2e:14873) s'est reproduit EN LOCAL — tempête de rechargements croisés
+entre onglets : chaque boot réécrit l'état, ce qui déclenchait le
+listener `storage` (W9.7) de l'autre onglet (drapeau + reload) pendant
+son propre boot, reloads en ping-pong. Correctif : le suivi
+inter-onglets ne s'arme qu'une fois le boot FINI (`window.bootTermine`)
+— un onglet en boot lit déjà l'état frais, recharger était inutile et
+dangereux. Le né-rouge du test 241 a été AVALÉ par ce crash (couru
+avant l'implémentation, la tempête a tué le run au test 236) — le
+sabotage de substitution (carte retirée + maskable retiré → échecs
+nommés) fait foi, consigné avec ce run. Suites : e2e 241 verts (236
+compris, tempête éteinte), audit racine. Fusion W11.3
+(`main` = `001f2ab`, PR #212) ; publication W11.3 : **succès**
+(run 33062170051, après CI push verte 33061467715).
 
 ### 27.08.2026 — W11.3 : VoiceOver — repères, titres navigables, focus des feuilles
 

@@ -15067,6 +15067,52 @@ currentTest = "W11.3 voiceover";
   await ctx240.close();
 }
 
+// ---------- 241. W11.4 : ANDROID = LA PWA, DIT HONNÊTEMENT (ADR-073) ----------
+// Budget Autonomie 100, W11.4 : décision propriétaire — pas de Google
+// Play, la PWA installable EST l'offre Android. Contrat : le manifest
+// est complet (langue, standalone, icônes maskable — l'icône a sa zone
+// de sécurité, inspectée) et l'app DIT le choix à l'utilisateur
+// (carte « Installer l'app » dans la Transparence de Gérer, avec
+// l'installation iPhone/Android et l'absence VOULUE de Google Play).
+currentTest = "W11.4 pwa-android";
+{
+  const manifeste = JSON.parse(fs.readFileSync(path.resolve(HERE, "..", "manifest.webmanifest"), "utf8"));
+  check(manifeste.lang === "fr-CH" && manifeste.display === "standalone",
+    "le manifest déclare fr-CH et standalone");
+  check(Array.isArray(manifeste.icons) && manifeste.icons.length >= 2
+    && manifeste.icons.every(i => (i.purpose || "").includes("maskable")),
+    "les icônes du manifest sont maskable (Android les découpe sans les casser)");
+  const ctx241 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p241 = await ctx241.newPage();
+  p241.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[W11.4] ${msg.text()}`); });
+  await p241.goto(APP_URL);
+  await p241.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Insta" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 1000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p241.reload();
+  await p241.waitForSelector("#tabbar button");
+  await p241.evaluate(() => { activeTab = "more"; moreView = "settings"; render(); });
+  await p241.waitForTimeout(400);
+  const carte = await p241.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      titre: texte.includes("Installer l'app"),
+      android: texte.includes("Android") && texte.includes("Google Play"),
+      iphone: texte.includes("écran d'accueil"),
+    };
+  });
+  check(carte.titre === true, "Réglages porte une carte « Installer l'app »");
+  check(carte.android === true, "la carte dit le choix Android : pas de Google Play, la version installable est l'app");
+  check(carte.iphone === true, "la carte explique l'ajout à l'écran d'accueil");
+  await ctx241.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15076,4 +15122,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 240 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 241 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
