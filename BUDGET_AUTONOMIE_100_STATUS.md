@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1–W11.3 fusionnés · W11.4 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.4 fusionnés · W11.5 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,28 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.5 : fiche App Privacy depuis le code réel
+
+« Data Not Collected » PROUVÉ, réponse par réponse
+(`docs/autonomie/w11/APP_PRIVACY.md`) : aucune collecte (zéro réseau —
+CSP `connect-src 'none'`, zéro URLSession,
+`NSPrivacyCollectedDataTypes` vide vérifié en CI), aucun tiers (zéro
+SDK, revue MASVS CODE-3), aucun traçage (`NSPrivacyTracking = false`,
+pas de boîte ATT), un seul accès API déclaré (UserDefaults CA92.1,
+verrou d'audit) ; les données financières SAISIES restent sur
+l'appareil — la fiche Apple ne considère « collecté » que ce qui est
+transmis, et rien ne l'est. Gestes propriétaire nommés HUMAN
+REQUIRED : URL publique de la politique de confidentialité (le texte
+existe déjà dans Réglages) et saisie dans App Store Connect. Data
+safety Google Play : N-A (ADR-073). VERROU d'audit : 7 réponses
+présentes, preuve substantielle par réponse, HUMAN REQUIRED nommés.
+Preuves : né-rouge (document absent → échec nommé) ; DEUX sabotages
+qui mordent seuls (réponse retirée → PRIVACY-TRACKING nommé ; preuve
+« non » → PRIVACY-COLLECTE nommé) ; suites vertes (e2e 241, audits).
+Document seul : pas de captures. Fusion W11.4 (`main` = `5218b6c`,
+PR #213) ; publication W11.4 : **succès** (run 33064009096, après CI
+push verte 33063407860).
 
 ### 27.08.2026 — W11.4 : Android = la PWA, dit honnêtement · TEMPÊTE INTER-ONGLETS CORRIGÉE
 
