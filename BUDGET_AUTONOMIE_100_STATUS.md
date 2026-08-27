@@ -127,7 +127,7 @@ Livrables attendus :
 | W8 | Investissements et modules régionaux | DONE (7 sous-lots, 9 PR, tous publiés) | W3, W4 (fusionnés) |
 | W9 | PWA modulaire et IndexedDB | FERMÉ (W9.1–W9.8 fusionnés et publiés) | W1, W2, W3 (fusionnés) |
 | W10 | Sécurité, backup, migrations | FERMÉ (W10.1–W10.8 fusionnés et publiés) | W3 (fusionné), W9 (fermé) |
-| W11 | Accessibilité, stores, Android, release | W11.1 fusionné · W11.2 EN PR | W0–W10 (fermés) |
+| W11 | Accessibilité, stores, Android, release | W11.1–W11.2 fusionnés · W11.3 EN PR | W0–W10 (fermés) |
 
 ## Invariants déjà décidés
 
@@ -155,6 +155,31 @@ Livrables attendus :
 Aucune de ces décisions ne bloque W0.
 
 ## Journal
+
+### 27.08.2026 — W11.3 : VoiceOver — repères, titres navigables, focus des feuilles
+
+Mesuré d'abord (DOM réel) : l'écran principal n'était pas un repère
+`main`, les 30 titres de sections étaient de simples `<p>` (aucune
+navigation par titres), et le focus n'entrait pas dans les feuilles à
+l'ouverture (VoiceOver restait derrière le dialogue) — le retour du
+focus à l'ouvreur, lui, existait déjà. Livré : `role="main"` sur
+l'écran, `role="heading" aria-level="2"` sur les 30 titres (attributs
+seuls, zéro changement visuel), focus entrant dans la feuille (titre
+h3 focusé sans ouvrir le clavier, premier élément utile sinon) ; audit
+consigné (`docs/autonomie/w11/AUDIT_VOICEOVER.md` : PWA écran par
+écran, inventaire natif 62 labels, geste réel PENDING HUMAN). Preuves :
+test e2e 240 né ROUGE (4 échecs nommés — le 4e corrigé dans le TEST
+par de vrais gestes, leçon réappliquée) ; premier sabotage (ouvreur
+null) INERTE — la chaîne de replis de `closeSheet` rattrape le focus,
+consigné comme défense en profondeur ; sabotage DURCI (restauration
+entière coupée) → « jamais perdu sur body » mord nommé. INCIDENT
+consigné : un `git checkout` pendant le sabotage a effacé les
+correctifs non commités (leçon « commit avant sabotage » réapprise) —
+réappliqués à l'identique et re-prouvés. Capture 390 inspectée
+(feuille, titre focusé sans anneau parasite). Suites : e2e 240, build,
+audits, schéma figé, catalogue verts. Fusion W11.2
+(`main` = `92a3a12`, PR #211) ; publication W11.2 : **succès**
+(run 33059679148, après CI push verte 33058830459).
 
 ### 27.08.2026 — W11.2 : revue WCAG 2.2 — 6 critères AA PASS, authentification aidée livrée
 
