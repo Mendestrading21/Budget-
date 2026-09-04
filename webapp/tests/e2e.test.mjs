@@ -15189,6 +15189,87 @@ currentTest = "PFOS-P1 enseigne";
   await ctx242.close();
 }
 
+// ---------- 243. PFOS-P2 : CALENDRIER FINANCIER MENSUEL ----------
+// Personal Finance OS, P2 : mesuré — l'Historique ne se lit qu'en
+// liste ; aucune vue « quel jour l'argent bouge ». Contrat : un
+// basculeur Liste/Calendrier dans l'Historique ; une grille du mois
+// (lundi premier) où chaque jour porte des points sémantiques par
+// famille ; le lecteur d'écran entend les MONTANTS entiers ; taper un
+// jour ouvre sa journée (reçu, dépensé, net, opérations) ; un jour
+// vide le dit.
+currentTest = "PFOS-P2 calendrier";
+{
+  const ctx243 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p243 = await ctx243.newPage();
+  p243.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P2] ${msg.text()}`); });
+  await p243.goto(APP_URL);
+  await p243.evaluate(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cal" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, y: now.getFullYear(), m: now.getMonth() + 1, d: 5, type: "income", amount: 3500, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, y: now.getFullYear(), m: now.getMonth() + 1, d: 5, type: "expense", amount: 1250, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        { id: 3, y: now.getFullYear(), m: now.getMonth() + 1, d: 12, type: "expense", amount: 40, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p243.reload();
+  await p243.waitForSelector("#tabbar button");
+  await p243.evaluate(() => { activeTab = "movements"; render(); });
+  await p243.waitForTimeout(300);
+  // 1. Le basculeur existe et ouvre la grille du mois complet.
+  const basculeur = await p243.evaluate(() => !!document.querySelector('[data-morevue="calendrier"]'));
+  check(basculeur === true, "l'Historique porte un basculeur Liste/Calendrier");
+  if (basculeur) {
+    await p243.click('[data-morevue="calendrier"]');
+    await p243.waitForTimeout(400);
+    const grille = await p243.evaluate(() => {
+      const jours = [...document.querySelectorAll("[data-caljour]")];
+      const now = new Date();
+      const attendu = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const j5 = jours.find(x => +x.dataset.caljour === 5);
+      return {
+        n: jours.length, attendu,
+        pointsJ5: j5 ? j5.querySelectorAll(".cal-dot").length : 0,
+        ariaJ5: j5 ? (j5.getAttribute("aria-label") || "") : "",
+      };
+    });
+    check(grille.n === grille.attendu, `la grille porte un bouton par jour du mois (${grille.n}/${grille.attendu})`);
+    check(grille.pointsJ5 >= 2, `le jour 5 porte les points de ses familles (obtenu ${grille.pointsJ5})`);
+    check(grille.ariaJ5.includes("3'500.00") && grille.ariaJ5.includes("1'250.00"),
+      `le lecteur d'écran entend les montants ENTIERS du jour (obtenu « ${grille.ariaJ5} »)`);
+    // 2. Taper le jour 5 ouvre sa journée : reçu, dépensé, net, opérations.
+    await p243.click('[data-caljour="5"]');
+    await p243.waitForTimeout(400);
+    const journee = await p243.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        net: texte.includes("2'250.00"),
+        recu: texte.includes("3'500.00"), depense: texte.includes("1'250.00"),
+        lignes: [...document.querySelectorAll("#screen .tx")].length,
+      };
+    });
+    check(journee.recu && journee.depense && journee.net,
+      "la journée dit reçu CHF 3'500.00, dépensé CHF 1'250.00, net CHF 2'250.00");
+    check(journee.lignes === 2, `la journée liste ses 2 opérations (obtenu ${journee.lignes})`);
+    // 3. Un jour vide le dit — jamais un silence.
+    await p243.click('[data-caljour="20"]');
+    await p243.waitForTimeout(300);
+    const vide = await p243.evaluate(() => document.getElementById("screen").textContent.includes("Aucune opération ce jour"));
+    check(vide === true, "un jour vide dit « Aucune opération ce jour-là »");
+  } else {
+    for (const msg of ["la grille porte un bouton par jour du mois", "le jour 5 porte les points de ses familles",
+      "le lecteur d'écran entend les montants ENTIERS du jour", "la journée dit reçu CHF 3'500.00, dépensé CHF 1'250.00, net CHF 2'250.00",
+      "la journée liste ses 2 opérations", "un jour vide dit « Aucune opération ce jour-là »"]) check(false, msg);
+  }
+  await ctx243.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15198,4 +15279,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 242 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 243 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
