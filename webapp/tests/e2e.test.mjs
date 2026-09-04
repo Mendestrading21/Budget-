@@ -7510,8 +7510,9 @@ const p07 = await page.evaluate(() => {
 check(p07.emojis.length === 0,
   `zéro emoji fonctionnel sur le hub Gérer (restants : ${p07.emojis.join(" ") || "aucun"})`);
 // SUB1 (ADR-052) : le hub gagne « Mes abonnements » — onze lignes.
-check(p07.lignes === 11 && p07.glyphes === 11,
-  `les onze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+// PFOS-P3 : le hub gagne « Cash-flow » — douze lignes.
+check(p07.lignes === 12 && p07.glyphes === 12,
+  `les douze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
 check(p07.chevronsPeints === p07.lignes,
   `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
 check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
@@ -15270,6 +15271,79 @@ currentTest = "PFOS-P2 calendrier";
   await ctx243.close();
 }
 
+// ---------- 244. PFOS-P3 : CASH-FLOW — ENTRÉES, SORTIES, NET, SUR 7J À 1 AN ----------
+// Personal Finance OS, P3 : mesuré — aucune vue transversale du flux
+// (le Mois est mensuel, le patrimoine est un stock). Contrat : Gérer
+// porte une entrée Cash-flow ; l'écran calcule entrées/sorties/net sur
+// la période choisie (7J/1M/3M/6M/1A) depuis les opérations PASSÉES
+// seulement ; changer de période change les totaux ; la courbe du net
+// cumulé est là avec un aria-label écrit ; régulières et ponctuelles
+// sont distinguées honnêtement (liées ou non à une récurrence).
+currentTest = "PFOS-P3 cashflow";
+{
+  const ctx244 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p244 = await ctx244.newPage();
+  p244.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P3] ${msg.text()}`); });
+  await p244.goto(APP_URL);
+  await p244.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() - offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const a = j(3), b = j(20), c = j(100);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Flux" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...a, type: "income", amount: 3500, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...a, type: "expense", amount: 1250, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        { id: 3, ...b, type: "expense", amount: 200, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...c, type: "expense", amount: 999, cat: "Loisirs", title: "Vieux mois", acc: "cur", dest: null, status: "posted" },
+        { id: 5, ...a, type: "expense", amount: 50, cat: "Loisirs", title: "Prévu", acc: "cur", dest: null, status: "planned" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p244.reload();
+  await p244.waitForSelector("#tabbar button");
+  await p244.evaluate(() => { activeTab = "more"; render(); });
+  await p244.waitForTimeout(300);
+  const entree = await p244.evaluate(() => !!document.querySelector('[data-more="cashflow"]'));
+  check(entree === true, "Gérer porte une entrée Cash-flow");
+  if (entree) {
+    await p244.click('[data-more="cashflow"]');
+    await p244.waitForTimeout(400);
+    const m1 = await p244.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        entrees: texte.includes("3'500.00"),
+        sorties: texte.includes("1'450.00"),   // 1250 + 200 (le planned 50 exclu, le 999 hors 30 j)
+        net: texte.includes("2'050.00"),
+        courbe: !!document.querySelector("#screen [data-cfcourbe]"),
+        aria: (document.querySelector("#screen [data-cfcourbe]") || {}).getAttribute
+          ? (document.querySelector("#screen [data-cfcourbe]").getAttribute("aria-label") || "") : "",
+        regulieres: texte.includes("ponctuelles"),
+      };
+    });
+    check(m1.entrees && m1.sorties && m1.net,
+      "sur 1 mois : entrées CHF 3'500.00, sorties CHF 1'450.00 (payées seulement), net CHF 2'050.00");
+    check(m1.courbe && m1.aria.length > 20, "la courbe du net cumulé est là, décrite au lecteur d'écran");
+    check(m1.regulieres === true, "régulières et ponctuelles sont distinguées");
+    await p244.click('[data-cfperiode="7J"]');
+    await p244.waitForTimeout(300);
+    const j7 = await p244.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return { sorties: texte.includes("1'250.00") && !texte.includes("1'450.00") };
+    });
+    check(j7.sorties === true, "sur 7 jours les courses d'il y a 20 jours sortent du total");
+  } else {
+    for (const msg of ["sur 1 mois : entrées CHF 3'500.00, sorties CHF 1'450.00 (payées seulement), net CHF 2'050.00",
+      "la courbe du net cumulé est là, décrite au lecteur d'écran",
+      "régulières et ponctuelles sont distinguées",
+      "sur 7 jours les courses d'il y a 20 jours sortent du total"]) check(false, msg);
+  }
+  await ctx244.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15279,4 +15353,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 243 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 244 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

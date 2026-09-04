@@ -4506,6 +4506,8 @@ let moreFilter = "all"; // all | expense | income | saving | transfer
    du mois montre quel jour l'argent bouge ; calJour = journée ouverte. */
 let moreVue = "liste"; // liste | calendrier
 let calJour = null;
+/* PFOS-P3 : période du Cash-flow (7J | 1M | 3M | 6M | 1A). */
+let cfPeriode = "1M";
 /* UN SEUL ÉCRAN POUR CE QUI REVIENT CHAQUE MOIS (audit du 10.08.2026).
    « Abonnements » était une DESTINATION séparée alors que ce n'est qu'une
    nature de ligne mensuelle : mesure faite, les deux écrans partageaient
@@ -5263,6 +5265,103 @@ function renderCalendrierMois() {
   return grille + `<p class="section-title" role="heading" aria-level="2">Journée du ${dateTxt}</p>
     <div class="card"><p class="caption" style="margin:0">Reçu ${chf(g.recu)} · dépensé ${chf(g.depense)} · net <strong class="${net < 0 ? "neg" : "pos"}">${chf(net, true)}</strong>${g.familles.has("transfer") ? " · virements neutres, comptés à part" : ""}</p></div>
     ${g.items.sort((a, b) => b.id - a.id).map(t => txRow(t, { hideDate: true })).join("")}`;
+}
+
+/* PFOS-P3 : CASH-FLOW — la vue transversale du flux, de 7 jours à 1 an.
+   Le Mois est mensuel, le patrimoine est un stock : ici, on lit le FLUX.
+   Opérations réellement passées (payé/reçu) SEULEMENT — jamais le
+   planifié, jamais une projection. Entrées = rentrées d'argent ;
+   sorties = dépenses et abonnements ; le mis de côté reste à part
+   (c'est toujours votre argent) ; les virements internes sont neutres.
+   Les sorties sont dites en deux mots honnêtes : régulières (liées à
+   une charge qui revient) et ponctuelles. */
+const CF_PERIODES = [["7J", 7, "7 jours"], ["1M", 30, "1 mois"], ["3M", 91, "3 mois"], ["6M", 182, "6 mois"], ["1A", 365, "1 an"]];
+
+// Numéro de jour absolu (UTC) : comparer deux dates civiles sans fuseau.
+function cfSerial(y, m, d) { return Math.floor(Date.UTC(y, m - 1, d) / 86400000); }
+
+function renderCashflow() {
+  const periode = CF_PERIODES.find(x => x[0] === cfPeriode) || CF_PERIODES[1];
+  const [, nbJours, libelle] = periode;
+  const fin = cfSerial(NOW.y, NOW.m, NOW.d);
+  const debut = fin - nbJours + 1;
+  let entrees = 0, sorties = 0, misDeCote = 0, nbVirements = 0, nbOps = 0;
+  let sortiesRegulieres = 0, sortiesPonctuelles = 0;
+  const netParJour = new Map();
+  for (const t of transactions) {
+    if (t.status !== "posted") continue;
+    const s = cfSerial(t.y, t.m, t.d);
+    if (s < debut || s > fin) continue;
+    const fam = txFamille(t);
+    const v = txCHF(t);
+    if (fam === "income") {
+      entrees = round2(entrees + v);
+      netParJour.set(s, round2((netParJour.get(s) || 0) + v));
+    } else if (fam === "expense" || fam === "sub") {
+      sorties = round2(sorties + v);
+      netParJour.set(s, round2((netParJour.get(s) || 0) - v));
+      if (t.recurringId) sortiesRegulieres = round2(sortiesRegulieres + v);
+      else sortiesPonctuelles = round2(sortiesPonctuelles + v);
+    } else if (fam === "saving") {
+      misDeCote = round2(misDeCote + v);
+    } else {
+      nbVirements += 1;
+      continue;
+    }
+    nbOps += 1;
+  }
+  const net = round2(entrees - sorties);
+  const chips = `<div class="filter-row" role="group" aria-label="Période du cash-flow">
+      ${CF_PERIODES.map(([id, , lbl]) => `<button type="button" class="filter-chip" data-cfperiode="${id}"
+        aria-pressed="${cfPeriode === id}">${lbl}</button>`).join("")}
+    </div>`;
+  const honnetete = `<p class="caption" style="margin:2px 0 10px;padding:0 4px">Opérations réellement passées (payé ou reçu) sur ${libelle} — le planifié et les prévisions vivent dans le Mois et le Budget.</p>`;
+  if (nbOps === 0 && nbVirements === 0) {
+    return backBar("Cash-flow") + chips + honnetete
+      + `<div class="card empty-state"><p class="t">Aucune opération passée sur ${libelle}.</p>
+         <p class="caption">Sorties régulières et ponctuelles apparaîtront ici dès la première opération payée.</p></div>`;
+  }
+  // Courbe du net cumulé, jour par jour, du premier au dernier jour de
+  // la fenêtre. Décorative pour un lecteur d'écran ? Non : l'aria-label
+  // dit le point de départ, l'arrivée et les extrêmes, en francs.
+  let cumul = 0, min = 0, max = 0;
+  const serie = [];
+  for (let s = debut; s <= fin; s += 1) {
+    cumul = round2(cumul + (netParJour.get(s) || 0));
+    serie.push(cumul);
+    if (cumul < min) min = cumul;
+    if (cumul > max) max = cumul;
+  }
+  const L = 320, H = 96, PAD = 6;
+  const plage = (max - min) || 1;
+  const px = i => (serie.length > 1 ? (i / (serie.length - 1)) * L : L / 2).toFixed(1);
+  const py = v => (H - PAD - ((v - min) / plage) * (H - 2 * PAD)).toFixed(1);
+  const points = serie.map((v, i) => `${px(i)},${py(v)}`).join(" ");
+  const ariaCourbe = `Net cumulé sur ${libelle} : part de zéro, finit à ${chf(net, true)} ; au plus bas ${chf(min, true)}, au plus haut ${chf(max, true)}.`;
+  const courbe = `<div class="card" style="padding:12px 10px 8px">
+      <svg data-cfcourbe role="img" aria-label="${esc(ariaCourbe)}" viewBox="0 0 ${L} ${H}"
+        preserveAspectRatio="none" style="display:block;width:100%;height:96px">
+        <line x1="0" y1="${py(0)}" x2="${L}" y2="${py(0)}" stroke="var(--stroke)" stroke-width="1" stroke-dasharray="4 4" />
+        <polyline points="${points}" fill="none" stroke="${net < 0 ? "var(--negative)" : "var(--positive)"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      </svg>
+      <span class="caption" style="display:block;margin-top:6px">${esc(ariaCourbe)}</span>
+    </div>`;
+  const ligne = (mot, val, classe, signe) => `<div class="row" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:4px 0">
+      <span class="caption" style="margin:0">${mot}</span>
+      <strong class="${classe}" style="white-space:nowrap">${chf(val, signe)}</strong>
+    </div>`;
+  const totaux = `<div class="card">
+      ${ligne("Entrées", entrees, "pos")}
+      ${ligne("Sorties (payées seulement)", sorties, "neg")}
+      ${ligne("Net", net, net < 0 ? "neg" : "pos", true)}
+    </div>`;
+  const detailSorties = `<div class="card">
+      <p class="caption" style="margin:0 0 4px">Sorties : les régulières (elles reviennent toutes seules) face aux ponctuelles.</p>
+      ${ligne("Régulières", sortiesRegulieres, "neg")}
+      ${ligne("Ponctuelles", sortiesPonctuelles, "neg")}
+    </div>`;
+  const aPart = `<p class="caption" style="margin:8px 0 10px;padding:0 4px">À part du net : mis de côté ${chf(misDeCote)} (toujours votre argent)${nbVirements ? ` · ${nbVirements} virement${nbVirements > 1 ? "s" : ""} interne${nbVirements > 1 ? "s" : ""}, neutre${nbVirements > 1 ? "s" : ""} par principe` : ""}.</p>`;
+  return backBar("Cash-flow") + chips + honnetete + totaux + courbe + detailSorties + aPart;
 }
 
 /* Graphique annuel du budget : douze barres, une par mois, hauteur =
@@ -7499,6 +7598,7 @@ const MORE_GROUPS = [
     ["insurance", "shield", "Assurances & prévoyance", "Primes, LPP et 3e pilier"],
   ]],
   ["À construire", [
+    ["cashflow", "movements", "Cash-flow", "Entrées, sorties et net — de 7 jours à 1 an"],
     ["networth", "asset", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "goal", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
     ["year", "calendar", "Année", () => {
@@ -7514,7 +7614,7 @@ const MORE_GROUPS = [
     ["settings", "gear", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
-const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance,
+const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance, cashflow: renderCashflow,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
                          year: renderYearReview,
                          subs: () => { recFilter = "abonnement"; return renderRecurring(); },
@@ -8175,6 +8275,9 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (vueBtn) { moreVue = vueBtn.dataset.morevue; calJour = null; render(); return; }
   const jourBtn = e.target.closest("[data-caljour]");
   if (jourBtn) { calJour = +jourBtn.dataset.caljour; render(); return; }
+  // PFOS-P3 : période du Cash-flow.
+  const cfBtn = e.target.closest("[data-cfperiode]");
+  if (cfBtn) { cfPeriode = cfBtn.dataset.cfperiode; render(); return; }
   const goalEl = e.target.closest("[data-goalid]");
   if (goalEl) { const g = GOALS.find(x => x.id === goalEl.dataset.goalid); if (g) openGoalSheet(g); return; }
   if (e.target.closest("[data-addgoal]")) { openGoalSheet(null); return; }
