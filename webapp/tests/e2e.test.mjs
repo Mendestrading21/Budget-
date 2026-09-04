@@ -15113,6 +15113,82 @@ currentTest = "W11.4 pwa-android";
   await ctx241.close();
 }
 
+// ---------- 242. PFOS-P1 : L'ENSEIGNE DEVIENT UNE DONNÉE À PART ENTIÈRE ----------
+// Personal Finance OS, P1 : mesuré — le « marchand » n'existait que
+// noyé dans l'intitulé libre : impossible de regrouper les dépenses
+// par enseigne. Contrat (vrais gestes) : le formulaire porte un champ
+// Enseigne facultatif, la valeur est STOCKÉE (assainie), la recherche
+// de l'Historique trouve par enseigne, et le Budget affiche « Top
+// enseignes du mois » avec les montants regroupés.
+currentTest = "PFOS-P1 enseigne";
+{
+  const ctx242 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p242 = await ctx242.newPage();
+  p242.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P1] ${msg.text()}`); });
+  await p242.goto(APP_URL);
+  await p242.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Enseigne" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p242.reload();
+  await p242.waitForSelector("#tabbar button");
+  // 1. Saisie RÉELLE : dépense 45.50 avec l'enseigne « Migros ».
+  const saisirDepense = async (montant, enseigne) => {
+    // Par l'ACCUEIL : son bouton « Ajouter » est permanent (celui de
+    // l'état vide des Mouvements disparaît après la première opération).
+    await p242.evaluate(() => { activeTab = "home"; render(); });
+    await p242.waitForSelector("#screen [data-addtx]", { state: "visible" });
+    await p242.click("#screen [data-addtx]");
+    await p242.waitForSelector("[data-quick]", { state: "visible" });
+    await p242.click('[data-quick="expense"]');
+    await p242.waitForSelector("#fAmount", { state: "visible" });
+    await p242.fill("#fAmount", montant);
+    await p242.click("#fMore summary");
+    await p242.waitForSelector("#fEnseigne", { state: "visible", timeout: 4000 });
+    await p242.fill("#fEnseigne", enseigne);
+    await p242.click('#txForm button[type="submit"]');
+    await p242.waitForTimeout(400);
+  };
+  let champPresent = true;
+  try { await saisirDepense("45.50", "Migros"); } catch (e) { champPresent = false; }
+  check(champPresent, "le formulaire porte un champ Enseigne (fEnseigne) dans « Plus d'options »");
+  if (champPresent) {
+    await saisirDepense("30.00", "  migros "); // assaini et regroupé (pli)
+    await saisirDepense("20.00", "SBB");
+    const stocke = await p242.evaluate(() => transactions.map(t => t.merchant || null));
+    check(stocke.filter(Boolean).length === 3 && stocke.includes("Migros") && stocke.includes("SBB"),
+      `l'enseigne est STOCKÉE sur le mouvement, espaces retirés (obtenu ${JSON.stringify(stocke)})`);
+    // 2. La recherche de l'Historique trouve par enseigne.
+    await p242.evaluate(() => { activeTab = "movements"; render(); });
+    await p242.waitForSelector("#moreSearchInput", { state: "visible" });
+    await p242.fill("#moreSearchInput", "migros");
+    await p242.waitForTimeout(400);
+    const trouves = await p242.evaluate(() =>
+      [...document.querySelectorAll("#screen .tx")].length);
+    check(trouves === 2, `la recherche par enseigne trouve les 2 Migros (obtenu ${trouves})`);
+    // 3. Le Budget affiche « Top enseignes du mois », regroupé au pli.
+    await p242.evaluate(() => { activeTab = "budget"; render(); });
+    await p242.waitForTimeout(400);
+    const top = await p242.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return { titre: texte.includes("Top enseignes"), migros: /Migros/.test(texte) && texte.includes("75.50") };
+    });
+    check(top.titre === true, "le Budget porte une section « Top enseignes du mois »");
+    check(top.migros === true, "Migros y est regroupée au pli : 45.50 + 30.00 = CHF 75.50");
+  } else {
+    check(false, "l'enseigne est STOCKÉE sur le mouvement, espaces retirés");
+    check(false, "la recherche par enseigne trouve les 2 Migros");
+    check(false, "le Budget porte une section « Top enseignes du mois »");
+    check(false, "Migros y est regroupée au pli : 45.50 + 30.00 = CHF 75.50");
+  }
+  await ctx242.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15122,4 +15198,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 241 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 242 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
