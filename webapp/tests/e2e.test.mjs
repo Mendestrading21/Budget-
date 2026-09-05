@@ -15995,6 +15995,9 @@ currentTest = "PFOS-P15 calendrier honnête";
         { id: 1, y, m, d: 10, type: "income", amount: 1000, cat: "Salaire", title: "Acompte", acc: "cur", dest: null, status: "posted" },
         { id: 2, y, m, d: 12, type: "expense", amount: 200, cat: "Santé", title: "Facture prévue", acc: "cur", dest: null, status: "planned" },
         { id: 3, y, m, d: 15, type: "expense", amount: 300, cat: "Divers", title: "Achat payé", acc: "cur", dest: null, status: "posted" },
+        // Jour MIXTE (payé + prévu) : la mention « hors totaux » doit y vivre.
+        { id: 4, y, m, d: 16, type: "expense", amount: 200, cat: "Santé", title: "Facture prévue", acc: "cur", dest: null, status: "planned" },
+        { id: 5, y, m, d: 16, type: "expense", amount: 80, cat: "Divers", title: "Petit achat", acc: "cur", dest: null, status: "posted" },
       ],
       recurrings: [], goals: [], assets: [], liabilities: [],
       pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
@@ -16026,6 +16029,20 @@ currentTest = "PFOS-P15 calendrier honnête";
   });
   check(jour.badge && jour.horsTotaux && jour.pasCompte,
     "la journée ouverte montre le prévu (badge) mais le dit HORS TOTAUX — jamais compté en dépensé");
+  // Durci après un sabotage INERTE : le jour MIXTE (payé + prévu) a SA
+  // propre phrase — « hors totaux » doit y être écrite, et le prévu ne
+  // doit jamais gonfler le dépensé (80.00, jamais 280.00).
+  await p255.click('[data-caljour="16"]');
+  await p255.waitForTimeout(300);
+  const mixte = await p255.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      horsTotaux: texte.includes("hors totaux"),
+      payeSeul: texte.includes("80.00") && !texte.includes("280.00"),
+    };
+  });
+  check(mixte.horsTotaux && mixte.payeSeul,
+    "le jour mixte écrit « hors totaux » et ne gonfle jamais le dépensé (80.00, pas 280.00)");
   await ctx255.close();
 }
 
