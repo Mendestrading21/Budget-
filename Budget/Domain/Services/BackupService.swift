@@ -950,6 +950,9 @@ struct BackupService {
             // ne laisse AUCUN fichier dans le dossier protégé.
             sweepOrphanFiles(context: context, documentFileStore: store)
         }
+        // PFOS-P7 : le miroir du widget part aussi — aucune donnée
+        // financière ne survit dans le conteneur du groupe d'apps.
+        WidgetSnapshotStore.clear()
     }
 
     /// Deletes every entity one by one WITHOUT saving — callers commit or

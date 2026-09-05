@@ -7510,8 +7510,11 @@ const p07 = await page.evaluate(() => {
 check(p07.emojis.length === 0,
   `zéro emoji fonctionnel sur le hub Gérer (restants : ${p07.emojis.join(" ") || "aucun"})`);
 // SUB1 (ADR-052) : le hub gagne « Mes abonnements » — onze lignes.
-check(p07.lignes === 11 && p07.glyphes === 11,
-  `les onze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+// PFOS-P3 : le hub gagne « Cash-flow » — douze lignes.
+// PFOS-P4 : le hub gagne « Recherche » — treize lignes.
+// PFOS-P5 : le hub gagne « Rappels » — quatorze lignes.
+check(p07.lignes === 14 && p07.glyphes === 14,
+  `les quatorze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
 check(p07.chevronsPeints === p07.lignes,
   `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
 check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
@@ -15113,6 +15116,468 @@ currentTest = "W11.4 pwa-android";
   await ctx241.close();
 }
 
+// ---------- 242. PFOS-P1 : L'ENSEIGNE DEVIENT UNE DONNÉE À PART ENTIÈRE ----------
+// Personal Finance OS, P1 : mesuré — le « marchand » n'existait que
+// noyé dans l'intitulé libre : impossible de regrouper les dépenses
+// par enseigne. Contrat (vrais gestes) : le formulaire porte un champ
+// Enseigne facultatif, la valeur est STOCKÉE (assainie), la recherche
+// de l'Historique trouve par enseigne, et le Budget affiche « Top
+// enseignes du mois » avec les montants regroupés.
+currentTest = "PFOS-P1 enseigne";
+{
+  const ctx242 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p242 = await ctx242.newPage();
+  p242.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P1] ${msg.text()}`); });
+  await p242.goto(APP_URL);
+  await p242.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Enseigne" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p242.reload();
+  await p242.waitForSelector("#tabbar button");
+  // 1. Saisie RÉELLE : dépense 45.50 avec l'enseigne « Migros ».
+  const saisirDepense = async (montant, enseigne) => {
+    // Par l'ACCUEIL : son bouton « Ajouter » est permanent (celui de
+    // l'état vide des Mouvements disparaît après la première opération).
+    await p242.evaluate(() => { activeTab = "home"; render(); });
+    await p242.waitForSelector("#screen [data-addtx]", { state: "visible" });
+    await p242.click("#screen [data-addtx]");
+    await p242.waitForSelector("[data-quick]", { state: "visible" });
+    await p242.click('[data-quick="expense"]');
+    await p242.waitForSelector("#fAmount", { state: "visible" });
+    await p242.fill("#fAmount", montant);
+    await p242.click("#fMore summary");
+    await p242.waitForSelector("#fEnseigne", { state: "visible", timeout: 4000 });
+    await p242.fill("#fEnseigne", enseigne);
+    await p242.click('#txForm button[type="submit"]');
+    await p242.waitForTimeout(400);
+  };
+  let champPresent = true;
+  try { await saisirDepense("45.50", "Migros"); } catch (e) { champPresent = false; }
+  check(champPresent, "le formulaire porte un champ Enseigne (fEnseigne) dans « Plus d'options »");
+  if (champPresent) {
+    await saisirDepense("30.00", "  migros "); // assaini et regroupé (pli)
+    await saisirDepense("20.00", "SBB");
+    const stocke = await p242.evaluate(() => transactions.map(t => t.merchant || null));
+    check(stocke.filter(Boolean).length === 3 && stocke.includes("Migros") && stocke.includes("SBB"),
+      `l'enseigne est STOCKÉE sur le mouvement, espaces retirés (obtenu ${JSON.stringify(stocke)})`);
+    // 2. La recherche de l'Historique trouve par enseigne.
+    await p242.evaluate(() => { activeTab = "movements"; render(); });
+    await p242.waitForSelector("#moreSearchInput", { state: "visible" });
+    await p242.fill("#moreSearchInput", "migros");
+    await p242.waitForTimeout(400);
+    const trouves = await p242.evaluate(() =>
+      [...document.querySelectorAll("#screen .tx")].length);
+    check(trouves === 2, `la recherche par enseigne trouve les 2 Migros (obtenu ${trouves})`);
+    // 3. Le Budget affiche « Top enseignes du mois », regroupé au pli.
+    await p242.evaluate(() => { activeTab = "budget"; render(); });
+    await p242.waitForTimeout(400);
+    const top = await p242.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return { titre: texte.includes("Top enseignes"), migros: /Migros/.test(texte) && texte.includes("75.50") };
+    });
+    check(top.titre === true, "le Budget porte une section « Top enseignes du mois »");
+    check(top.migros === true, "Migros y est regroupée au pli : 45.50 + 30.00 = CHF 75.50");
+  } else {
+    check(false, "l'enseigne est STOCKÉE sur le mouvement, espaces retirés");
+    check(false, "la recherche par enseigne trouve les 2 Migros");
+    check(false, "le Budget porte une section « Top enseignes du mois »");
+    check(false, "Migros y est regroupée au pli : 45.50 + 30.00 = CHF 75.50");
+  }
+  await ctx242.close();
+}
+
+// ---------- 243. PFOS-P2 : CALENDRIER FINANCIER MENSUEL ----------
+// Personal Finance OS, P2 : mesuré — l'Historique ne se lit qu'en
+// liste ; aucune vue « quel jour l'argent bouge ». Contrat : un
+// basculeur Liste/Calendrier dans l'Historique ; une grille du mois
+// (lundi premier) où chaque jour porte des points sémantiques par
+// famille ; le lecteur d'écran entend les MONTANTS entiers ; taper un
+// jour ouvre sa journée (reçu, dépensé, net, opérations) ; un jour
+// vide le dit.
+currentTest = "PFOS-P2 calendrier";
+{
+  const ctx243 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p243 = await ctx243.newPage();
+  p243.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P2] ${msg.text()}`); });
+  await p243.goto(APP_URL);
+  await p243.evaluate(() => {
+    const now = new Date();
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cal" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, y: now.getFullYear(), m: now.getMonth() + 1, d: 5, type: "income", amount: 3500, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, y: now.getFullYear(), m: now.getMonth() + 1, d: 5, type: "expense", amount: 1250, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        { id: 3, y: now.getFullYear(), m: now.getMonth() + 1, d: 12, type: "expense", amount: 40, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p243.reload();
+  await p243.waitForSelector("#tabbar button");
+  await p243.evaluate(() => { activeTab = "movements"; render(); });
+  await p243.waitForTimeout(300);
+  // 1. Le basculeur existe et ouvre la grille du mois complet.
+  const basculeur = await p243.evaluate(() => !!document.querySelector('[data-morevue="calendrier"]'));
+  check(basculeur === true, "l'Historique porte un basculeur Liste/Calendrier");
+  if (basculeur) {
+    await p243.click('[data-morevue="calendrier"]');
+    await p243.waitForTimeout(400);
+    const grille = await p243.evaluate(() => {
+      const jours = [...document.querySelectorAll("[data-caljour]")];
+      const now = new Date();
+      const attendu = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const j5 = jours.find(x => +x.dataset.caljour === 5);
+      return {
+        n: jours.length, attendu,
+        pointsJ5: j5 ? j5.querySelectorAll(".cal-dot").length : 0,
+        ariaJ5: j5 ? (j5.getAttribute("aria-label") || "") : "",
+      };
+    });
+    check(grille.n === grille.attendu, `la grille porte un bouton par jour du mois (${grille.n}/${grille.attendu})`);
+    check(grille.pointsJ5 >= 2, `le jour 5 porte les points de ses familles (obtenu ${grille.pointsJ5})`);
+    check(grille.ariaJ5.includes("3'500.00") && grille.ariaJ5.includes("1'250.00"),
+      `le lecteur d'écran entend les montants ENTIERS du jour (obtenu « ${grille.ariaJ5} »)`);
+    // 2. Taper le jour 5 ouvre sa journée : reçu, dépensé, net, opérations.
+    await p243.click('[data-caljour="5"]');
+    await p243.waitForTimeout(400);
+    const journee = await p243.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        net: texte.includes("2'250.00"),
+        recu: texte.includes("3'500.00"), depense: texte.includes("1'250.00"),
+        lignes: [...document.querySelectorAll("#screen .tx")].length,
+      };
+    });
+    check(journee.recu && journee.depense && journee.net,
+      "la journée dit reçu CHF 3'500.00, dépensé CHF 1'250.00, net CHF 2'250.00");
+    check(journee.lignes === 2, `la journée liste ses 2 opérations (obtenu ${journee.lignes})`);
+    // 3. Un jour vide le dit — jamais un silence.
+    await p243.click('[data-caljour="20"]');
+    await p243.waitForTimeout(300);
+    const vide = await p243.evaluate(() => document.getElementById("screen").textContent.includes("Aucune opération ce jour"));
+    check(vide === true, "un jour vide dit « Aucune opération ce jour-là »");
+  } else {
+    for (const msg of ["la grille porte un bouton par jour du mois", "le jour 5 porte les points de ses familles",
+      "le lecteur d'écran entend les montants ENTIERS du jour", "la journée dit reçu CHF 3'500.00, dépensé CHF 1'250.00, net CHF 2'250.00",
+      "la journée liste ses 2 opérations", "un jour vide dit « Aucune opération ce jour-là »"]) check(false, msg);
+  }
+  await ctx243.close();
+}
+
+// ---------- 244. PFOS-P3 : CASH-FLOW — ENTRÉES, SORTIES, NET, SUR 7J À 1 AN ----------
+// Personal Finance OS, P3 : mesuré — aucune vue transversale du flux
+// (le Mois est mensuel, le patrimoine est un stock). Contrat : Gérer
+// porte une entrée Cash-flow ; l'écran calcule entrées/sorties/net sur
+// la période choisie (7J/1M/3M/6M/1A) depuis les opérations PASSÉES
+// seulement ; changer de période change les totaux ; la courbe du net
+// cumulé est là avec un aria-label écrit ; régulières et ponctuelles
+// sont distinguées honnêtement (liées ou non à une récurrence).
+currentTest = "PFOS-P3 cashflow";
+{
+  const ctx244 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p244 = await ctx244.newPage();
+  p244.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P3] ${msg.text()}`); });
+  await p244.goto(APP_URL);
+  await p244.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() - offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const a = j(3), b = j(20), c = j(100);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Flux" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...a, type: "income", amount: 3500, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...a, type: "expense", amount: 1250, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        { id: 3, ...b, type: "expense", amount: 200, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...c, type: "expense", amount: 999, cat: "Loisirs", title: "Vieux mois", acc: "cur", dest: null, status: "posted" },
+        { id: 5, ...a, type: "expense", amount: 50, cat: "Loisirs", title: "Prévu", acc: "cur", dest: null, status: "planned" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p244.reload();
+  await p244.waitForSelector("#tabbar button");
+  await p244.evaluate(() => { activeTab = "more"; render(); });
+  await p244.waitForTimeout(300);
+  const entree = await p244.evaluate(() => !!document.querySelector('[data-more="cashflow"]'));
+  check(entree === true, "Gérer porte une entrée Cash-flow");
+  if (entree) {
+    await p244.click('[data-more="cashflow"]');
+    await p244.waitForTimeout(400);
+    const m1 = await p244.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        entrees: texte.includes("3'500.00"),
+        sorties: texte.includes("1'450.00"),   // 1250 + 200 (le planned 50 exclu, le 999 hors 30 j)
+        net: texte.includes("2'050.00"),
+        courbe: !!document.querySelector("#screen [data-cfcourbe]"),
+        aria: (document.querySelector("#screen [data-cfcourbe]") || {}).getAttribute
+          ? (document.querySelector("#screen [data-cfcourbe]").getAttribute("aria-label") || "") : "",
+        regulieres: texte.includes("ponctuelles"),
+      };
+    });
+    check(m1.entrees && m1.sorties && m1.net,
+      "sur 1 mois : entrées CHF 3'500.00, sorties CHF 1'450.00 (payées seulement), net CHF 2'050.00");
+    check(m1.courbe && m1.aria.length > 20, "la courbe du net cumulé est là, décrite au lecteur d'écran");
+    check(m1.regulieres === true, "régulières et ponctuelles sont distinguées");
+    await p244.click('[data-cfperiode="7J"]');
+    await p244.waitForTimeout(300);
+    const j7 = await p244.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return { sorties: texte.includes("1'250.00") && !texte.includes("1'450.00") };
+    });
+    check(j7.sorties === true, "sur 7 jours les courses d'il y a 20 jours sortent du total");
+  } else {
+    for (const msg of ["sur 1 mois : entrées CHF 3'500.00, sorties CHF 1'450.00 (payées seulement), net CHF 2'050.00",
+      "la courbe du net cumulé est là, décrite au lecteur d'écran",
+      "régulières et ponctuelles sont distinguées",
+      "sur 7 jours les courses d'il y a 20 jours sortent du total"]) check(false, msg);
+  }
+  await ctx244.close();
+}
+
+// ---------- 245. PFOS-P4 : RECHERCHE GLOBALE — TOUT RETROUVER, PARTOUT ----------
+// Personal Finance OS, P4 : mesuré — la seule recherche existante vit
+// dans l'Historique et ne fouille QUE le mois affiché. Contrat : Gérer
+// porte une entrée Recherche ; elle fouille TOUTES les opérations (tous
+// les mois, au pli accents/casse), les comptes, les objectifs et ce qui
+// revient ; chaque résultat est une vraie ligne tapable (data-txid,
+// data-accid, data-goalid, data-recid) ; rien trouvé = dit honnêtement.
+currentTest = "PFOS-P4 recherche";
+{
+  const ctx245 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p245 = await ctx245.newPage();
+  p245.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P4] ${msg.text()}`); });
+  await p245.goto(APP_URL);
+  await p245.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() - offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const vieux = j(100);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cherche" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne Vacances", kind: "savings", opening: 1000, cash: false, currency: "CHF" },
+      ],
+      transactions: [
+        { id: 1, ...vieux, type: "expense", amount: 18.50, cat: "Restaurants et sorties", title: "Café Malakoff", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [{ id: "r1", title: "Streaming vidéo", amount: 21.90, type: "expense", cat: "Loisirs", day: 22 }],
+      goals: [{ id: "g1", name: "Voyage vacances", target: 3000, manualCurrent: 0, linked: null, monthly: 100, dueY: 2027, dueM: 6, priority: false, achieved: false }],
+      assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p245.reload();
+  await p245.waitForSelector("#tabbar button");
+  await p245.evaluate(() => { activeTab = "more"; render(); });
+  await p245.waitForTimeout(300);
+  const entree245 = await p245.evaluate(() => !!document.querySelector('[data-more="recherche"]'));
+  check(entree245 === true, "Gérer porte une entrée Recherche");
+  if (entree245) {
+    await p245.click('[data-more="recherche"]');
+    await p245.waitForTimeout(300);
+    // « cafe » sans accent : le pli trouve « Café Malakoff », un mouvement
+    // d'il y a 100 jours — la recherche traverse les MOIS, pas juste l'affiché.
+    await p245.fill("#rgSearchInput", "cafe");
+    await p245.waitForTimeout(300);
+    const rCafe = await p245.evaluate(() => ({
+      txt: document.getElementById("screen").textContent.includes("Café Malakoff"),
+      ligne: !!document.querySelector("#screen #rgResults [data-txid]"),
+    }));
+    check(rCafe.txt && rCafe.ligne,
+      "« cafe » (au pli) retrouve « Café Malakoff », vieux de 100 jours, en ligne tapable");
+    await p245.fill("#rgSearchInput", "vacances");
+    await p245.waitForTimeout(300);
+    const rVac = await p245.evaluate(() => ({
+      compte: !!document.querySelector('#screen #rgResults [data-accid="sav"]'),
+      objectif: !!document.querySelector('#screen #rgResults [data-goalid="g1"]'),
+    }));
+    check(rVac.compte && rVac.objectif,
+      "« vacances » retrouve le compte ET l'objectif, chacun tapable");
+    await p245.fill("#rgSearchInput", "streaming");
+    await p245.waitForTimeout(300);
+    const rRec = await p245.evaluate(() => !!document.querySelector('#screen #rgResults [data-recid="r1"]'));
+    check(rRec === true, "« streaming » retrouve la charge qui revient, tapable");
+    await p245.fill("#rgSearchInput", "zzzzz");
+    await p245.waitForTimeout(300);
+    const rRien = await p245.evaluate(() => document.getElementById("screen").textContent.includes("Rien trouvé"));
+    check(rRien === true, "une recherche sans résultat le dit honnêtement (« Rien trouvé »)");
+  } else {
+    for (const msg of ["« cafe » (au pli) retrouve « Café Malakoff », vieux de 100 jours, en ligne tapable",
+      "« vacances » retrouve le compte ET l'objectif, chacun tapable",
+      "« streaming » retrouve la charge qui revient, tapable",
+      "une recherche sans résultat le dit honnêtement (« Rien trouvé »)"]) check(false, msg);
+  }
+  await ctx245.close();
+}
+
+// ---------- 246. PFOS-P5 : RAPPELS — CE QUI ARRIVE, CE QUI EST EN RETARD ----------
+// Personal Finance OS, P5 : mesuré — les échéances vivent éparpillées
+// (Mois : obligations du mois affiché ; factures : leur écran). Contrat :
+// Gérer porte une entrée Rappels ; l'écran rassemble ce qui est EN
+// RETARD (avant ce qui vient), les mouvements prévus des 30 prochains
+// jours et les charges/factures à payer ; chaque ligne est tapable ;
+// les notifications d'appareil sont honnêtes (« quand l'app est
+// ouverte » — pas de fausse promesse de push serveur).
+currentTest = "PFOS-P5 rappels";
+{
+  const ctx246 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p246 = await ctx246.newPage();
+  p246.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P5] ${msg.text()}`); });
+  await p246.goto(APP_URL);
+  await p246.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() + offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const retard = j(-2), bientot = j(5);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rappel" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...retard, type: "expense", amount: 120, cat: "Divers", title: "Amende oubliée", acc: "cur", dest: null, status: "planned" },
+        { id: 2, ...bientot, type: "expense", amount: 180, cat: "Santé", title: "Facture dentiste", acc: "cur", dest: null, status: "planned" },
+      ],
+      recurrings: [{ id: "r1", title: "Salle de sport", amount: 89, type: "expense", cat: "Loisirs", day: 15 }],
+      goals: [], assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p246.reload();
+  await p246.waitForSelector("#tabbar button");
+  await p246.evaluate(() => { activeTab = "more"; render(); });
+  await p246.waitForTimeout(300);
+  const entree246 = await p246.evaluate(() => !!document.querySelector('[data-more="rappels"]'));
+  check(entree246 === true, "Gérer porte une entrée Rappels");
+  if (entree246) {
+    await p246.click('[data-more="rappels"]');
+    await p246.waitForTimeout(400);
+    const r = await p246.evaluate(() => {
+      const s = document.getElementById("screen");
+      const texte = s.textContent;
+      return {
+        retard: texte.includes("Amende oubliée") && texte.includes("En retard"),
+        prevu: texte.includes("Facture dentiste"),
+        prevuTapable: [...s.querySelectorAll("[data-txid]")].some(el => el.textContent.includes("Facture dentiste")),
+        charge: texte.includes("Salle de sport"),
+        ordre: texte.indexOf("Amende oubliée") !== -1 && texte.indexOf("Facture dentiste") !== -1
+          && texte.indexOf("Amende oubliée") < texte.indexOf("Facture dentiste"),
+        honnete: texte.includes("quand l'app est ouverte"),
+      };
+    });
+    check(r.retard, "le mouvement prévu dépassé est là, marqué « En retard »");
+    check(r.prevu && r.prevuTapable, "le mouvement prévu dans 5 jours est là, tapable");
+    check(r.charge, "la charge qui revient (échéance du mois) est là");
+    check(r.ordre, "le retard s'affiche AVANT ce qui vient");
+    check(r.honnete, "les notifications d'appareil sont décrites honnêtement (« quand l'app est ouverte »)");
+  } else {
+    for (const msg of ["le mouvement prévu dépassé est là, marqué « En retard »",
+      "le mouvement prévu dans 5 jours est là, tapable",
+      "la charge qui revient (échéance du mois) est là",
+      "le retard s'affiche AVANT ce qui vient",
+      "les notifications d'appareil sont décrites honnêtement (« quand l'app est ouverte »)"]) check(false, msg);
+  }
+  await ctx246.close();
+}
+
+// ---------- 247. PFOS-P6 : CONSTATS CHIFFRÉS DE L'ASSISTANT ----------
+// Personal Finance OS, P6 : mesuré — l'Assistant répond à quatre
+// questions mais aucune ne COMPARE dans le temps. Contrat : deux
+// nouveaux constats, arithmétique sur les données réelles, période
+// écrite, jamais une prévision. (1) « Quelle catégorie bouge ce
+// mois-ci ? » : dépenses payées du mois vs moyenne des mois précédents
+// où la catégorie a bougé — chiffres des deux côtés. (2) « Combien
+// pèsent mes abonnements ? » : coût mensuel des abonnements actifs
+// rapporté aux rentrées payées récentes, en francs ET en pour cent.
+currentTest = "PFOS-P6 constats";
+{
+  const ctx247 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p247 = await ctx247.newPage();
+  p247.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P6] ${msg.text()}`); });
+  await p247.goto(APP_URL);
+  await p247.evaluate(() => {
+    // mois(k) : le mois courant reculé de k mois, au jour 10 (toujours valide).
+    const mois = (k) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return { y: d.getFullYear(), m: d.getMonth() + 1, d: k === 0 ? 1 : 10 }; };
+    const m0 = mois(0), m1 = mois(1), m2 = mois(2), m3 = mois(3);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Constat" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      transactions: [
+        // Alimentation : 800 ce mois contre 400 en moyenne avant — ça bouge.
+        { id: 1, ...m0, type: "expense", amount: 800, cat: "Alimentation", title: "Courses du mois", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...m1, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 3, ...m2, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...m3, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        // Transports : stable — ne doit PAS être le constat.
+        { id: 5, ...m0, type: "expense", amount: 100, cat: "Transports", title: "Abo bus", acc: "cur", dest: null, status: "posted" },
+        { id: 6, ...m1, type: "expense", amount: 100, cat: "Transports", title: "Abo bus", acc: "cur", dest: null, status: "posted" },
+        // Rentrées payées des 3 derniers mois révolus : 3'000 par mois.
+        { id: 7, ...m1, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 8, ...m2, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 9, ...m3, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+      ],
+      // Deux abonnements actifs : 20 + 10 = 30 par mois = 1 % de 3'000.
+      recurrings: [
+        { id: "r1", title: "Streaming vidéo", amount: 20, type: "expense", cat: "Restaurants et sorties", day: 22 },
+        { id: "r2", title: "Musique", amount: 10, type: "expense", cat: "Restaurants et sorties", day: 5 },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p247.reload();
+  await p247.waitForSelector("#tabbar button");
+  await p247.evaluate(() => { activeTab = "more"; moreView = "assistant"; render(); });
+  await p247.waitForTimeout(300);
+  const qMoves = await p247.evaluate(() => !!document.querySelector('[data-assistq="moves"]'));
+  const qSubs = await p247.evaluate(() => !!document.querySelector('[data-assistq="subs"]'));
+  check(qMoves && qSubs, "l'Assistant porte les deux nouveaux constats chiffrés");
+  if (qMoves) {
+    await p247.click('[data-assistq="moves"]');
+    await p247.waitForTimeout(300);
+    const mv = await p247.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        cat: texte.includes("Alimentation"),
+        chiffres: texte.includes("800.00") && texte.includes("400.00"),
+        constat: texte.includes("pas une prévision"),
+        decoy: /Transports\s*:/.test(texte),
+      };
+    });
+    check(mv.cat && mv.chiffres, "le constat nomme Alimentation avec les deux chiffres (800 ce mois, 400 en moyenne)");
+    check(mv.constat, "le constat est marqué « un constat, pas une prévision »");
+    check(mv.decoy === false, "la catégorie stable (Transports) n'est pas désignée");
+  } else {
+    for (const msg of ["le constat nomme Alimentation avec les deux chiffres (800 ce mois, 400 en moyenne)",
+      "le constat est marqué « un constat, pas une prévision »",
+      "la catégorie stable (Transports) n'est pas désignée"]) check(false, msg);
+  }
+  if (qSubs) {
+    await p247.click('[data-assistq="subs"]');
+    await p247.waitForTimeout(300);
+    const ab = await p247.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        francs: texte.includes("30.00"),
+        pct: texte.includes("1 %"),
+        base: texte.includes("3'000.00"),
+      };
+    });
+    check(ab.francs && ab.pct && ab.base,
+      "les abonnements pèsent CHF 30.00 par mois, soit 1 % des rentrées moyennes (CHF 3'000.00)");
+  } else {
+    check(false, "les abonnements pèsent CHF 30.00 par mois, soit 1 % des rentrées moyennes (CHF 3'000.00)");
+  }
+  await ctx247.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15122,4 +15587,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 241 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 247 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

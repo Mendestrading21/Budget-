@@ -415,7 +415,42 @@ struct HomeTab: View {
             .sheet(isPresented: $isPresentingQuickEntry) {
                 QuickEntrySheet(prefilledDate: currentAnchor)
             }
+            // PFOS-P7 : le widget reçoit l'instantané du MOIS COURANT
+            // (jamais le mois feuilleté) à l'arrivée sur l'accueil et à
+            // chaque changement du nombre de mouvements. Le mode
+            // démonstration n'écrit JAMAIS dans le miroir partagé.
+            .onAppear { publishWidgetSummary() }
+            .onChange(of: transactions.count) { _, _ in publishWidgetSummary() }
         }
+    }
+
+    /// PFOS-P7 : écrit le résumé du mois courant pour le widget — mêmes
+    /// chiffres que l'accueil (MonthlySnapshotService), convertis en
+    /// centimes entiers. Sans groupe d'apps provisionné, le store ne
+    /// fait rien : aucun échec possible ici.
+    private func publishWidgetSummary() {
+        guard !appContainer.isDemoMode else { return }
+        let now = appContainer.dateProvider.now
+        let snap = snapshotService.snapshot(
+            monthOf: now,
+            now: now,
+            household: households.first,
+            accounts: accounts,
+            transactions: transactions,
+            recurrings: recurrings
+        )
+        WidgetSnapshotStore.save(WidgetMonthSummary(
+            schemaVersion: WidgetMonthSummary.currentSchemaVersion,
+            monthLabel: FinanceFormatting
+                .monthTitle(now, calendar: appContainer.calendar)
+                .capitalized,
+            generatedAt: now,
+            currencyCode: households.first?.baseCurrencyCode ?? "CHF",
+            availableCents: WidgetMonthSummary.cents(snap.available.total),
+            incomeCents: WidgetMonthSummary.cents(snap.totalIncome),
+            livingExpensesCents: WidgetMonthSummary.cents(snap.totalLivingExpenses),
+            setAsideCents: WidgetMonthSummary.cents(snap.totalSavings + snap.totalInvestments)
+        ))
     }
 
     // MARK: - Month
