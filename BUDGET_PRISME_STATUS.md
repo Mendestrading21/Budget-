@@ -1,7 +1,29 @@
 # Budget Prisme — statut vivant
 
-Mis à jour le 20.08.2026. Ce fichier décrit l'état observable; il ne remplace ni
+Mis à jour le 05.09.2026. Ce fichier décrit l'état observable; il ne remplace ni
 la CI, ni les ADR, ni le code. Ne pas y recopier un journal de commits.
+
+## Programme Personal Finance OS — FUSIONNÉ ET PUBLIÉ (05.09.2026)
+
+Sept lots (P1 enseigne, P2 calendrier, P3 cash-flow, P4 recherche
+globale, P5 rappels, P6 constats de l'Assistant, P7 widget iOS
+WidgetKit) + correctif d'isolation design + `PFOS_RAPPORT.md`.
+Registre de la fusion, sur ordre explicite du propriétaire
+(« fusionne et publie tout ») :
+
+- CI verte sur le HEAD exact de la branche (`74bd9c0`) :
+  run `33951600107` (web + iOS — la cible widget compile, 6 tests
+  XCTest neufs, Release, UIDeviceFamily [1]).
+- Fusion squash PR #219 → `main` = `3f7b85433ec87e6bb22f91683ffdeeda076db8ca`.
+- CI push verte sur `main` : run `33952125049`.
+- Publication Pages par dispatch au SHA exact : run `33953012334`,
+  **succès** — https://mendestrading21.github.io/Budget-/ sert la
+  version PFOS depuis le 05.09.2026.
+- Suite e2e : **247 parcours verts** au moment de la fusion (248 sur la
+  branche de suite avec PFOS-P8).
+- Restent au propriétaire (voir `PFOS_RAPPORT.md` §8) : capacité App
+  Groups sur l'App ID à la signature TestFlight ; widget et
+  notifications locales à constater sur iPhone réel.
 
 ## Source vérifiée
 
