@@ -15578,6 +15578,175 @@ currentTest = "PFOS-P6 constats";
   await ctx247.close();
 }
 
+// ---------- 248. PFOS-P8 : LA LIGNE RAPPELS DU HUB DIT L'URGENCE ----------
+// Suite du Personal Finance OS : mesuré — la ligne « Rappels » de Gérer
+// portait un sous-titre FIGE, alors que Factures et Abonnements disent
+// leur état réel. Contrat : avec un retard, le sous-titre dit « N en
+// retard » ; sans retard mais avec des échéances, il compte ce qui
+// vient sous 30 jours ; sans rien, il le dit — jamais un texte générique
+// qui cache un retard.
+currentTest = "PFOS-P8 hub rappels";
+{
+  const ctx248 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p248 = await ctx248.newPage();
+  p248.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P8] ${msg.text()}`); });
+  await p248.goto(APP_URL);
+  const seed248 = (transactions) => ({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Hub" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+    transactions,
+    recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+  });
+  // Scénario 1 : un mouvement prévu dépassé → « 1 en retard ».
+  await p248.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() + o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(-2), type: "expense", amount: 120, cat: "Divers", title: "Amende oubliée", acc: "cur", dest: null, status: "planned" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed248([]));
+  await p248.reload();
+  await p248.waitForSelector("#tabbar button");
+  await p248.evaluate(() => { activeTab = "more"; render(); });
+  await p248.waitForTimeout(300);
+  const sousTitreRetard = await p248.evaluate(() =>
+    (document.querySelector('[data-more="rappels"] .s') || {}).textContent || "");
+  check(sousTitreRetard.includes("1 en retard"),
+    `avec un retard, la ligne Rappels du hub dit « 1 en retard » (lu : « ${sousTitreRetard} »)`);
+  // Scénario 2 : rien de prévu, rien d'à payer → le sous-titre le dit.
+  await p248.evaluate((etat) => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed248([]));
+  await p248.reload();
+  await p248.waitForSelector("#tabbar button");
+  await p248.evaluate(() => { activeTab = "more"; render(); });
+  await p248.waitForTimeout(300);
+  const sousTitreCalme = await p248.evaluate(() =>
+    (document.querySelector('[data-more="rappels"] .s') || {}).textContent || "");
+  check(!sousTitreCalme.includes("en retard") && sousTitreCalme.trim().length > 0,
+    `sans retard, la ligne Rappels n'alarme pas (lu : « ${sousTitreCalme} »)`);
+  await ctx248.close();
+}
+
+// ---------- 249. PFOS-P9 : LA RECHERCHE GLOBALE TROUVE PAR MONTANT ----------
+// Suite du Personal Finance OS : mesuré — la recherche globale (P4)
+// fouille les mots mais pas les montants ; or « je cherche la dépense
+// de 75.50 » est un vrai geste. Contrat : un montant tapé (point OU
+// virgule) trouve les opérations de ce montant EXACT — jamais un
+// rapprochement flou ; un montant partiel (5.50) ne ramène pas 75.50.
+currentTest = "PFOS-P9 recherche montant";
+{
+  const ctx249 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p249 = await ctx249.newPage();
+  p249.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P9] ${msg.text()}`); });
+  await p249.goto(APP_URL);
+  await p249.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Montant" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...j(40), type: "expense", amount: 75.50, cat: "Alimentation", title: "Boulangerie", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...j(10), type: "expense", amount: 5.50, cat: "Alimentation", title: "Cafeteria", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p249.reload();
+  await p249.waitForSelector("#tabbar button");
+  await p249.evaluate(() => { activeTab = "more"; moreView = "recherche"; render(); });
+  await p249.waitForTimeout(300);
+  await p249.fill("#rgSearchInput", "75.50");
+  await p249.waitForTimeout(300);
+  const point = await p249.evaluate(() => ({
+    trouve: document.getElementById("screen").textContent.includes("Boulangerie"),
+    partiel: document.getElementById("screen").textContent.includes("Cafeteria"),
+  }));
+  check(point.trouve === true, "« 75.50 » trouve l'opération de CHF 75.50 (Boulangerie)");
+  check(point.partiel === false, "« 75.50 » ne ramène pas l'opération de CHF 5.50 — égalité exacte, jamais floue");
+  await p249.fill("#rgSearchInput", "75,50");
+  await p249.waitForTimeout(300);
+  const virgule = await p249.evaluate(() =>
+    document.getElementById("screen").textContent.includes("Boulangerie"));
+  check(virgule === true, "« 75,50 » (virgule) trouve aussi CHF 75.50");
+  // Durci après un sabotage INERTE (flou par sous-chaîne resté invisible) :
+  // l'exactitude se contrôle DANS LES DEUX SENS — « 5.50 » trouve la
+  // Cafeteria et ne ramène jamais la Boulangerie (75.50 contient « 5.5 »
+  // en texte : un rapprochement par sous-chaîne mordrait ici).
+  await p249.fill("#rgSearchInput", "5.50");
+  await p249.waitForTimeout(300);
+  const exact = await p249.evaluate(() => ({
+    cafeteria: document.getElementById("screen").textContent.includes("Cafeteria"),
+    boulangerie: document.getElementById("screen").textContent.includes("Boulangerie"),
+  }));
+  check(exact.cafeteria === true && exact.boulangerie === false,
+    "« 5.50 » trouve CHF 5.50 et ne ramène jamais CHF 75.50 (aucun flou par sous-chaîne)");
+  await ctx249.close();
+}
+
+// ---------- 250. PFOS-P10 : CASH-FLOW FACE À LA PÉRIODE D'AVANT ----------
+// Suite du Personal Finance OS : mesuré — le Cash-flow (P3) dit la
+// fenêtre choisie mais jamais « est-ce mieux qu'avant ? ». Contrat :
+// l'écran compare à la fenêtre PRÉCÉDENTE de même durée (payé
+// seulement) : sorties d'avant et écart du net, chiffres écrits ;
+// une fenêtre d'avant vide le dit au lieu d'inventer un zéro comparé.
+currentTest = "PFOS-P10 cashflow comparaison";
+{
+  const ctx250 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p250 = await ctx250.newPage();
+  p250.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P10] ${msg.text()}`); });
+  await p250.goto(APP_URL);
+  await p250.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Compare" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      transactions: [
+        // Fenêtre courante (30 j) : net 3000 − 1000 = 2000.
+        { id: 1, ...j(3), type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...j(5), type: "expense", amount: 1000, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        // Fenêtre d'avant (30-60 j) : net 3000 − 1500 = 1500 → écart +500.
+        { id: 3, ...j(45), type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...j(40), type: "expense", amount: 1500, cat: "Logement", title: "Loyer + charges", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p250.reload();
+  await p250.waitForSelector("#tabbar button");
+  await p250.evaluate(() => { activeTab = "more"; moreView = "cashflow"; cfPeriode = "1M"; render(); });
+  await p250.waitForTimeout(400);
+  const cmp = await p250.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      avant: texte.includes("1'500.00"),
+      // NBSP après « CHF » : les montants sont des mots insécables.
+      ecart: texte.includes("+CHF 500.00") && texte.includes("gagné"),
+      periode: texte.includes("d'avant") || texte.includes("précédente"),
+    };
+  });
+  check(cmp.avant && cmp.periode,
+    "sur 1 mois, la fenêtre d'avant est là avec ses chiffres (sorties CHF 1'500.00)");
+  check(cmp.ecart, "l'écart du net est écrit (+CHF 500.00 face à la période d'avant)");
+  // Fenêtre d'avant VIDE (7 j : rien entre J-7 et J-14) → dit, pas inventé.
+  await p250.click('[data-cfperiode="7J"]');
+  await p250.waitForTimeout(300);
+  const vide = await p250.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return { honnete: texte.includes("aucune opération") || texte.includes("Aucune opération"),
+      pasDeFauxEcart: !texte.includes("+CHF 2'000.00 de plus") };
+  });
+  check(vide.honnete && vide.pasDeFauxEcart,
+    "une fenêtre d'avant vide est dite telle quelle — aucun écart inventé face à zéro");
+  await ctx250.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15587,4 +15756,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 247 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 250 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
