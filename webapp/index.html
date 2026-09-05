@@ -4508,6 +4508,8 @@ let moreVue = "liste"; // liste | calendrier
 let calJour = null;
 /* PFOS-P3 : période du Cash-flow (7J | 1M | 3M | 6M | 1A). */
 let cfPeriode = "1M";
+/* PFOS-P4 : requête de la Recherche globale. */
+let rgQuery = "";
 /* UN SEUL ÉCRAN POUR CE QUI REVIENT CHAQUE MOIS (audit du 10.08.2026).
    « Abonnements » était une DESTINATION séparée alors que ce n'est qu'une
    nature de ligne mensuelle : mesure faite, les deux écrans partageaient
@@ -5362,6 +5364,81 @@ function renderCashflow() {
     </div>`;
   const aPart = `<p class="caption" style="margin:8px 0 10px;padding:0 4px">À part du net : mis de côté ${chf(misDeCote)} (toujours votre argent)${nbVirements ? ` · ${nbVirements} virement${nbVirements > 1 ? "s" : ""} interne${nbVirements > 1 ? "s" : ""}, neutre${nbVirements > 1 ? "s" : ""} par principe` : ""}.</p>`;
   return backBar("Cash-flow") + chips + honnetete + totaux + courbe + detailSorties + aPart;
+}
+
+/* PFOS-P4 : RECHERCHE GLOBALE — tout retrouver, partout. La recherche de
+   l'Historique ne fouille que le mois affiché ; ici, on fouille TOUT :
+   toutes les opérations (tous les mois — intitulé, catégorie, tags,
+   enseigne), les comptes, les objectifs, ce qui revient et les factures
+   ponctuelles. Toujours au PLI (accents et casse ignorés). Chaque
+   résultat est une VRAIE ligne : les gestes existants (ouvrir, éditer)
+   s'appliquent tels quels. Les opérations sont bornées aux 30 plus
+   récentes et le total réel est ÉCRIT — rien de masqué en silence. */
+function rgLigne(attr, glyphe, titre, soustitre) {
+  return `<div class="card row tx" ${attr} role="button" tabindex="0" style="cursor:pointer">
+    <div class="ico" aria-hidden="true">${budgetGlyph(glyphe)}</div>
+    <div class="meta"><div class="t">${esc(titre)}</div><div class="s">${esc(soustitre)}</div></div>
+  </div>`;
+}
+
+function rgResultats() {
+  const needle = fold(rgQuery.trim());
+  if (needle.length < 2) {
+    return `<div class="card empty-state"><p class="t">Tapez au moins deux lettres.</p>
+      <p class="caption">La recherche fouille toutes vos opérations (tous les mois), vos comptes, vos objectifs, ce qui revient et vos factures — accents et majuscules ignorés.</p></div>`;
+  }
+  const touche = v => typeof v === "string" && v && fold(v).includes(needle);
+  const sections = [];
+  const comptes = ACCOUNTS.filter(a => !a.archived && (touche(a.name) || touche(a.inst)));
+  if (comptes.length) {
+    sections.push(`<p class="section-title" role="heading" aria-level="2">Comptes</p>`
+      + comptes.map(a => rgLigne(`data-accid="${esc(a.id)}"`, "accounts", a.name,
+        (ACCOUNT_KINDS[a.kind] || {}).label || "Compte")).join(""));
+  }
+  const objectifs = GOALS.filter(g => touche(g.name));
+  if (objectifs.length) {
+    sections.push(`<p class="section-title" role="heading" aria-level="2">Objectifs</p>`
+      + objectifs.map(g => rgLigne(`data-goalid="${esc(g.id)}"`, "goal", g.name,
+        `Cible ${chf(g.target)}`)).join(""));
+  }
+  const reviennent = RECURRINGS.filter(r => touche(r.title) || touche(r.cat));
+  if (reviennent.length) {
+    sections.push(`<p class="section-title" role="heading" aria-level="2">Ce qui revient</p>`
+      + reviennent.map(r => rgLigne(`data-recid="${esc(r.id)}"`,
+        r.type === "income" ? "income" : recurringNature(r) === "abonnement" ? "recurring" : "bill",
+        r.title, `${chf(r.amount)} · ${r.type === "income" ? "revenu qui revient" : recurringNature(r)}`)).join(""));
+  }
+  const factures = (S.bills || []).filter(b => touche(b.title) || touche(b.name));
+  if (factures.length) {
+    sections.push(`<p class="section-title" role="heading" aria-level="2">Factures ponctuelles</p>`
+      + factures.map(b => rgLigne(`data-billid="${esc(b.id)}"`, "bill",
+        b.title || b.name, "Facture ponctuelle")).join(""));
+  }
+  const operations = transactions
+    .filter(t => touche(t.title) || touche(t.cat) || touche(t.merchant)
+      || (Array.isArray(t.tags) && t.tags.some(tag => touche(tag))))
+    .sort((a, b) => (b.y - a.y) || (b.m - a.m) || (b.d - a.d) || (b.id > a.id ? 1 : -1));
+  if (operations.length) {
+    const RG_MAX = 30;
+    const visibles = operations.slice(0, RG_MAX);
+    const borne = operations.length > RG_MAX
+      ? `<p class="caption" style="margin:4px 0 8px;padding:0 4px">${operations.length} opérations trouvées — les ${RG_MAX} plus récentes sont affichées. Précisez la recherche pour resserrer.</p>` : "";
+    sections.push(`<p class="section-title" role="heading" aria-level="2">Opérations (${operations.length})</p>`
+      + borne + visibles.map(t => txRow(t)).join(""));
+  }
+  if (!sections.length) {
+    return `<div class="card empty-state"><p class="t">Rien trouvé pour « ${esc(rgQuery.trim())} ».</p>
+      <p class="caption">Essayez un autre mot : intitulé, catégorie, tag, enseigne, compte, objectif ou charge qui revient.</p></div>`;
+  }
+  return sections.join("");
+}
+
+function renderRechercheGlobale() {
+  return backBar("Recherche")
+    + `<input id="rgSearchInput" type="search" class="search-field"
+        placeholder="Tout retrouver (opérations, comptes, objectifs…)"
+        value="${esc(rgQuery)}" aria-label="Recherche globale" autocomplete="off" />
+      <div id="rgResults">${rgResultats()}</div>`;
 }
 
 /* Graphique annuel du budget : douze barres, une par mois, hauteur =
@@ -7598,6 +7675,7 @@ const MORE_GROUPS = [
     ["insurance", "shield", "Assurances & prévoyance", "Primes, LPP et 3e pilier"],
   ]],
   ["À construire", [
+    ["recherche", "search", "Recherche", "Tout retrouver — opérations, comptes, objectifs, ce qui revient"],
     ["cashflow", "movements", "Cash-flow", "Entrées, sorties et net — de 7 jours à 1 an"],
     ["networth", "asset", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "goal", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
@@ -7614,7 +7692,7 @@ const MORE_GROUPS = [
     ["settings", "gear", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
-const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance, cashflow: renderCashflow,
+const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance, cashflow: renderCashflow, recherche: renderRechercheGlobale,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
                          year: renderYearReview,
                          subs: () => { recFilter = "abonnement"; return renderRecurring(); },
@@ -8674,6 +8752,12 @@ document.getElementById("screen").addEventListener("input", (e) => {
     moreTxPage = 0; // nouvelle recherche : première page
     const list = document.getElementById("moreTxList");
     if (list) list.innerHTML = renderMoreTxList();
+  }
+  // PFOS-P4 : recherche globale — mise à jour ciblée, le champ garde le focus.
+  if (e.target && e.target.id === "rgSearchInput") {
+    rgQuery = e.target.value;
+    const res = document.getElementById("rgResults");
+    if (res) res.innerHTML = rgResultats();
   }
 });
 

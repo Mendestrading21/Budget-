@@ -7511,8 +7511,9 @@ check(p07.emojis.length === 0,
   `zéro emoji fonctionnel sur le hub Gérer (restants : ${p07.emojis.join(" ") || "aucun"})`);
 // SUB1 (ADR-052) : le hub gagne « Mes abonnements » — onze lignes.
 // PFOS-P3 : le hub gagne « Cash-flow » — douze lignes.
-check(p07.lignes === 12 && p07.glyphes === 12,
-  `les douze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+// PFOS-P4 : le hub gagne « Recherche » — treize lignes.
+check(p07.lignes === 13 && p07.glyphes === 13,
+  `les treize lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
 check(p07.chevronsPeints === p07.lignes,
   `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
 check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
@@ -15344,6 +15345,81 @@ currentTest = "PFOS-P3 cashflow";
   await ctx244.close();
 }
 
+// ---------- 245. PFOS-P4 : RECHERCHE GLOBALE — TOUT RETROUVER, PARTOUT ----------
+// Personal Finance OS, P4 : mesuré — la seule recherche existante vit
+// dans l'Historique et ne fouille QUE le mois affiché. Contrat : Gérer
+// porte une entrée Recherche ; elle fouille TOUTES les opérations (tous
+// les mois, au pli accents/casse), les comptes, les objectifs et ce qui
+// revient ; chaque résultat est une vraie ligne tapable (data-txid,
+// data-accid, data-goalid, data-recid) ; rien trouvé = dit honnêtement.
+currentTest = "PFOS-P4 recherche";
+{
+  const ctx245 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p245 = await ctx245.newPage();
+  p245.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P4] ${msg.text()}`); });
+  await p245.goto(APP_URL);
+  await p245.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() - offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const vieux = j(100);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Cherche" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne Vacances", kind: "savings", opening: 1000, cash: false, currency: "CHF" },
+      ],
+      transactions: [
+        { id: 1, ...vieux, type: "expense", amount: 18.50, cat: "Restaurants et sorties", title: "Café Malakoff", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [{ id: "r1", title: "Streaming vidéo", amount: 21.90, type: "expense", cat: "Loisirs", day: 22 }],
+      goals: [{ id: "g1", name: "Voyage vacances", target: 3000, manualCurrent: 0, linked: null, monthly: 100, dueY: 2027, dueM: 6, priority: false, achieved: false }],
+      assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p245.reload();
+  await p245.waitForSelector("#tabbar button");
+  await p245.evaluate(() => { activeTab = "more"; render(); });
+  await p245.waitForTimeout(300);
+  const entree245 = await p245.evaluate(() => !!document.querySelector('[data-more="recherche"]'));
+  check(entree245 === true, "Gérer porte une entrée Recherche");
+  if (entree245) {
+    await p245.click('[data-more="recherche"]');
+    await p245.waitForTimeout(300);
+    // « cafe » sans accent : le pli trouve « Café Malakoff », un mouvement
+    // d'il y a 100 jours — la recherche traverse les MOIS, pas juste l'affiché.
+    await p245.fill("#rgSearchInput", "cafe");
+    await p245.waitForTimeout(300);
+    const rCafe = await p245.evaluate(() => ({
+      txt: document.getElementById("screen").textContent.includes("Café Malakoff"),
+      ligne: !!document.querySelector("#screen #rgResults [data-txid]"),
+    }));
+    check(rCafe.txt && rCafe.ligne,
+      "« cafe » (au pli) retrouve « Café Malakoff », vieux de 100 jours, en ligne tapable");
+    await p245.fill("#rgSearchInput", "vacances");
+    await p245.waitForTimeout(300);
+    const rVac = await p245.evaluate(() => ({
+      compte: !!document.querySelector('#screen #rgResults [data-accid="sav"]'),
+      objectif: !!document.querySelector('#screen #rgResults [data-goalid="g1"]'),
+    }));
+    check(rVac.compte && rVac.objectif,
+      "« vacances » retrouve le compte ET l'objectif, chacun tapable");
+    await p245.fill("#rgSearchInput", "streaming");
+    await p245.waitForTimeout(300);
+    const rRec = await p245.evaluate(() => !!document.querySelector('#screen #rgResults [data-recid="r1"]'));
+    check(rRec === true, "« streaming » retrouve la charge qui revient, tapable");
+    await p245.fill("#rgSearchInput", "zzzzz");
+    await p245.waitForTimeout(300);
+    const rRien = await p245.evaluate(() => document.getElementById("screen").textContent.includes("Rien trouvé"));
+    check(rRien === true, "une recherche sans résultat le dit honnêtement (« Rien trouvé »)");
+  } else {
+    for (const msg of ["« cafe » (au pli) retrouve « Café Malakoff », vieux de 100 jours, en ligne tapable",
+      "« vacances » retrouve le compte ET l'objectif, chacun tapable",
+      "« streaming » retrouve la charge qui revient, tapable",
+      "une recherche sans résultat le dit honnêtement (« Rien trouvé »)"]) check(false, msg);
+  }
+  await ctx245.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15353,4 +15429,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 244 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 245 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
