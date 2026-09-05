@@ -15630,6 +15630,52 @@ currentTest = "PFOS-P8 hub rappels";
   await ctx248.close();
 }
 
+// ---------- 249. PFOS-P9 : LA RECHERCHE GLOBALE TROUVE PAR MONTANT ----------
+// Suite du Personal Finance OS : mesuré — la recherche globale (P4)
+// fouille les mots mais pas les montants ; or « je cherche la dépense
+// de 75.50 » est un vrai geste. Contrat : un montant tapé (point OU
+// virgule) trouve les opérations de ce montant EXACT — jamais un
+// rapprochement flou ; un montant partiel (5.50) ne ramène pas 75.50.
+currentTest = "PFOS-P9 recherche montant";
+{
+  const ctx249 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p249 = await ctx249.newPage();
+  p249.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P9] ${msg.text()}`); });
+  await p249.goto(APP_URL);
+  await p249.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Montant" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...j(40), type: "expense", amount: 75.50, cat: "Alimentation", title: "Boulangerie", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...j(10), type: "expense", amount: 5.50, cat: "Alimentation", title: "Cafeteria", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p249.reload();
+  await p249.waitForSelector("#tabbar button");
+  await p249.evaluate(() => { activeTab = "more"; moreView = "recherche"; render(); });
+  await p249.waitForTimeout(300);
+  await p249.fill("#rgSearchInput", "75.50");
+  await p249.waitForTimeout(300);
+  const point = await p249.evaluate(() => ({
+    trouve: document.getElementById("screen").textContent.includes("Boulangerie"),
+    partiel: document.getElementById("screen").textContent.includes("Cafeteria"),
+  }));
+  check(point.trouve === true, "« 75.50 » trouve l'opération de CHF 75.50 (Boulangerie)");
+  check(point.partiel === false, "« 75.50 » ne ramène pas l'opération de CHF 5.50 — égalité exacte, jamais floue");
+  await p249.fill("#rgSearchInput", "75,50");
+  await p249.waitForTimeout(300);
+  const virgule = await p249.evaluate(() =>
+    document.getElementById("screen").textContent.includes("Boulangerie"));
+  check(virgule === true, "« 75,50 » (virgule) trouve aussi CHF 75.50");
+  await ctx249.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15639,4 +15685,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 248 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 249 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

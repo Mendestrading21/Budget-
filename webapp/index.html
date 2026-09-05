@@ -5390,6 +5390,10 @@ function rgResultats() {
       <p class="caption">La recherche fouille toutes vos opérations (tous les mois), vos comptes, vos objectifs, ce qui revient et vos factures — accents et majuscules ignorés.</p></div>`;
   }
   const touche = v => typeof v === "string" && v && fold(v).includes(needle);
+  // PFOS-P9 : un montant tapé (point OU virgule) trouve les opérations de
+  // ce montant EXACT, tel que saisi — jamais un rapprochement flou.
+  const brut = rgQuery.trim().replace(",", ".");
+  const montantCherche = /^\d+(?:\.\d{1,2})?$/.test(brut) ? round2(Number(brut)) : null;
   const sections = [];
   const comptes = ACCOUNTS.filter(a => !a.archived && (touche(a.name) || touche(a.inst)));
   if (comptes.length) {
@@ -5418,7 +5422,8 @@ function rgResultats() {
   }
   const operations = transactions
     .filter(t => touche(t.title) || touche(t.cat) || touche(t.merchant)
-      || (Array.isArray(t.tags) && t.tags.some(tag => touche(tag))))
+      || (Array.isArray(t.tags) && t.tags.some(tag => touche(tag)))
+      || (montantCherche != null && round2(t.amount) === montantCherche))
     .sort((a, b) => (b.y - a.y) || (b.m - a.m) || (b.d - a.d) || (b.id > a.id ? 1 : -1));
   if (operations.length) {
     const RG_MAX = 30;
@@ -5430,7 +5435,7 @@ function rgResultats() {
   }
   if (!sections.length) {
     return `<div class="card empty-state"><p class="t">Rien trouvé pour « ${esc(rgQuery.trim())} ».</p>
-      <p class="caption">Essayez un autre mot : intitulé, catégorie, tag, enseigne, compte, objectif ou charge qui revient.</p></div>`;
+      <p class="caption">Essayez un autre mot (intitulé, catégorie, tag, enseigne, compte, objectif, charge qui revient) ou un montant exact, comme 75.50.</p></div>`;
   }
   return sections.join("");
 }
