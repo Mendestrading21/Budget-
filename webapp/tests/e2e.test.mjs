@@ -15487,6 +15487,97 @@ currentTest = "PFOS-P5 rappels";
   await ctx246.close();
 }
 
+// ---------- 247. PFOS-P6 : CONSTATS CHIFFRÉS DE L'ASSISTANT ----------
+// Personal Finance OS, P6 : mesuré — l'Assistant répond à quatre
+// questions mais aucune ne COMPARE dans le temps. Contrat : deux
+// nouveaux constats, arithmétique sur les données réelles, période
+// écrite, jamais une prévision. (1) « Quelle catégorie bouge ce
+// mois-ci ? » : dépenses payées du mois vs moyenne des mois précédents
+// où la catégorie a bougé — chiffres des deux côtés. (2) « Combien
+// pèsent mes abonnements ? » : coût mensuel des abonnements actifs
+// rapporté aux rentrées payées récentes, en francs ET en pour cent.
+currentTest = "PFOS-P6 constats";
+{
+  const ctx247 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p247 = await ctx247.newPage();
+  p247.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P6] ${msg.text()}`); });
+  await p247.goto(APP_URL);
+  await p247.evaluate(() => {
+    // mois(k) : le mois courant reculé de k mois, au jour 10 (toujours valide).
+    const mois = (k) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return { y: d.getFullYear(), m: d.getMonth() + 1, d: k === 0 ? 1 : 10 }; };
+    const m0 = mois(0), m1 = mois(1), m2 = mois(2), m3 = mois(3);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Constat" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      transactions: [
+        // Alimentation : 800 ce mois contre 400 en moyenne avant — ça bouge.
+        { id: 1, ...m0, type: "expense", amount: 800, cat: "Alimentation", title: "Courses du mois", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...m1, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 3, ...m2, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...m3, type: "expense", amount: 400, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted" },
+        // Transports : stable — ne doit PAS être le constat.
+        { id: 5, ...m0, type: "expense", amount: 100, cat: "Transports", title: "Abo bus", acc: "cur", dest: null, status: "posted" },
+        { id: 6, ...m1, type: "expense", amount: 100, cat: "Transports", title: "Abo bus", acc: "cur", dest: null, status: "posted" },
+        // Rentrées payées des 3 derniers mois révolus : 3'000 par mois.
+        { id: 7, ...m1, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 8, ...m2, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 9, ...m3, type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+      ],
+      // Deux abonnements actifs : 20 + 10 = 30 par mois = 1 % de 3'000.
+      recurrings: [
+        { id: "r1", title: "Streaming vidéo", amount: 20, type: "expense", cat: "Restaurants et sorties", day: 22 },
+        { id: "r2", title: "Musique", amount: 10, type: "expense", cat: "Restaurants et sorties", day: 5 },
+      ],
+      goals: [], assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p247.reload();
+  await p247.waitForSelector("#tabbar button");
+  await p247.evaluate(() => { activeTab = "more"; moreView = "assistant"; render(); });
+  await p247.waitForTimeout(300);
+  const qMoves = await p247.evaluate(() => !!document.querySelector('[data-assistq="moves"]'));
+  const qSubs = await p247.evaluate(() => !!document.querySelector('[data-assistq="subs"]'));
+  check(qMoves && qSubs, "l'Assistant porte les deux nouveaux constats chiffrés");
+  if (qMoves) {
+    await p247.click('[data-assistq="moves"]');
+    await p247.waitForTimeout(300);
+    const mv = await p247.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        cat: texte.includes("Alimentation"),
+        chiffres: texte.includes("800.00") && texte.includes("400.00"),
+        constat: texte.includes("pas une prévision"),
+        decoy: /Transports\s*:/.test(texte),
+      };
+    });
+    check(mv.cat && mv.chiffres, "le constat nomme Alimentation avec les deux chiffres (800 ce mois, 400 en moyenne)");
+    check(mv.constat, "le constat est marqué « un constat, pas une prévision »");
+    check(mv.decoy === false, "la catégorie stable (Transports) n'est pas désignée");
+  } else {
+    for (const msg of ["le constat nomme Alimentation avec les deux chiffres (800 ce mois, 400 en moyenne)",
+      "le constat est marqué « un constat, pas une prévision »",
+      "la catégorie stable (Transports) n'est pas désignée"]) check(false, msg);
+  }
+  if (qSubs) {
+    await p247.click('[data-assistq="subs"]');
+    await p247.waitForTimeout(300);
+    const ab = await p247.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return {
+        francs: texte.includes("30.00"),
+        pct: texte.includes("1 %"),
+        base: texte.includes("3'000.00"),
+      };
+    });
+    check(ab.francs && ab.pct && ab.base,
+      "les abonnements pèsent CHF 30.00 par mois, soit 1 % des rentrées moyennes (CHF 3'000.00)");
+  } else {
+    check(false, "les abonnements pèsent CHF 30.00 par mois, soit 1 % des rentrées moyennes (CHF 3'000.00)");
+  }
+  await ctx247.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15496,4 +15587,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 246 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 247 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

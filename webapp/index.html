@@ -7650,6 +7650,64 @@ function renderSettings() {
    Réponses DÉTERMINISTES calculées depuis les données locales : résultat,
    raison, hypothèses, action. Jamais d'invention, jamais de réseau. */
 let assistantQ = null;
+
+/* PFOS-P6 : constats chiffrés — arithmétique sur les données réelles,
+   période écrite, jamais une prévision. (1) La catégorie qui bouge :
+   dépenses payées du mois courant comparées, catégorie par catégorie,
+   à la moyenne des mois (parmi les six précédents) où la catégorie a
+   réellement bougé ; il faut au moins deux mois d'histoire pour
+   comparer honnêtement. (2) Le poids des abonnements : coût mensuel
+   des abonnements actifs (annuels comptés au douzième — même formule
+   que le hub) rapporté aux rentrées réellement payées des trois
+   derniers mois révolus ; sans rentrée, pas de pourcentage inventé. */
+function insightCategorieEnMouvement() {
+  const depensesParCat = (y, m) => {
+    const map = new Map();
+    for (const t of transactions) {
+      if (t.status !== "posted" || !inMonth(t, y, m) || !t.cat) continue;
+      const fam = txFamille(t);
+      if (fam !== "expense" && fam !== "sub") continue;
+      map.set(t.cat, round2((map.get(t.cat) || 0) + txCHF(t)));
+    }
+    return map;
+  };
+  const actuel = depensesParCat(NOW.y, NOW.m);
+  if (!actuel.size) return null;
+  const historiques = [];
+  for (let k = 1; k <= 6; k += 1) {
+    const mm = shiftMonth(NOW, -k);
+    historiques.push(depensesParCat(mm.y, mm.m));
+  }
+  let meilleur = null;
+  for (const [cat, montant] of actuel) {
+    const valeurs = historiques.map(h => h.get(cat)).filter(v => v > 0);
+    if (valeurs.length < 2) continue;
+    const moyenne = round2(valeurs.reduce((a, v) => a + v, 0) / valeurs.length);
+    const ecart = round2(montant - moyenne);
+    if (ecart <= 0) continue;
+    if (!meilleur || ecart > meilleur.ecart) meilleur = { cat, actuel: montant, moyenne, ecart, nbMois: valeurs.length };
+  }
+  return meilleur;
+}
+
+function insightPoidsAbonnements() {
+  const abonnements = RECURRINGS.filter(recurringIsActive)
+    .filter(r => r.type !== "income" && recurringNature(r) === "abonnement");
+  if (!abonnements.length) return null;
+  const parMois = fromCents(Math.round(
+    abonnements.reduce((a, r) => a + toCents(recurringYearlyCost(r)), 0) / 12));
+  const moisRevenus = [];
+  for (let k = 1; k <= 3; k += 1) {
+    const mm = shiftMonth(NOW, -k);
+    const total = transactions.reduce((a, t) => (t.status === "posted"
+      && inMonth(t, mm.y, mm.m) && txFamille(t) === "income") ? round2(a + txCHF(t)) : a, 0);
+    if (total > 0) moisRevenus.push(total);
+  }
+  if (!moisRevenus.length) return { parMois, nb: abonnements.length, revenus: null, pct: null, nbMois: 0 };
+  const revenus = round2(moisRevenus.reduce((a, v) => a + v, 0) / moisRevenus.length);
+  return { parMois, nb: abonnements.length, revenus, pct: Math.round(parMois / revenus * 100), nbMois: moisRevenus.length };
+}
+
 function renderAssistant() {
   const s = snapshot(NOW.y, NOW.m);
   const report = budgetReport(NOW.y, NOW.m);
@@ -7690,6 +7748,33 @@ function renderAssistant() {
       hyp: "Une seule priorité à la fois : rattrapage > factures en retard > dépassement > objectif.",
       action: prio ? ["Y aller", prio.nav] : ["Voir mes objectifs", 'data-more="goals"'],
     },
+  };
+  // PFOS-P6 : deux constats chiffrés de plus — voir les helpers dédiés.
+  const mv = insightCategorieEnMouvement();
+  QA.moves = {
+    q: "Quelle catégorie bouge ce mois-ci ?",
+    icon: "tag",
+    result: mv ? `${mv.cat} : ${chf(mv.actuel)} ce mois, contre ${chf(mv.moyenne)} en moyenne`
+      : "Rien ne sort de l'ordinaire ce mois-ci.",
+    why: mv
+      ? `Vos dépenses payées en ${mv.cat} font ${chf(mv.actuel)} ce mois-ci, contre ${chf(mv.moyenne)} par mois en moyenne sur ${mv.nbMois} mois récents — ${chf(mv.ecart, true)} d'écart.`
+      : "Chaque catégorie du mois reste au niveau de sa moyenne des six derniers mois, ou n'a pas encore assez d'histoire pour comparer (deux mois au moins).",
+    hyp: "Opérations payées seulement ; moyenne des mois (parmi les six précédents) où la catégorie a réellement bougé. Un constat, pas une prévision.",
+    action: ["Voir l'Historique", 'data-gototab="movements"'],
+  };
+  const pa = insightPoidsAbonnements();
+  QA.subs = {
+    q: "Combien pèsent mes abonnements ?",
+    icon: "recurring",
+    result: !pa ? "Aucun abonnement actif."
+      : pa.pct == null ? `${chf(pa.parMois)} par mois (${pa.nb} abonnement${pa.nb > 1 ? "s" : ""})`
+        : `${chf(pa.parMois)} par mois ≈ ${pa.pct < 1 ? "moins de 1" : pa.pct} % de vos rentrées`,
+    why: !pa ? "Rien ne revient tout seul dans la famille Abonnements."
+      : pa.pct == null
+        ? `Vos ${pa.nb} abonnement${pa.nb > 1 ? "s" : ""} actif${pa.nb > 1 ? "s" : ""} coûtent ${chf(pa.parMois)} par mois (les annuels comptés au douzième). Aucune rentrée payée sur les trois derniers mois révolus — pas de pourcentage inventé.`
+        : `Vos ${pa.nb} abonnement${pa.nb > 1 ? "s" : ""} actif${pa.nb > 1 ? "s" : ""} coûtent ${chf(pa.parMois)} par mois (les annuels comptés au douzième), face à ${chf(pa.revenus)} de rentrées payées par mois en moyenne (${pa.nbMois} mois récents).`,
+    hyp: "Abonnements actifs seulement ; rentrées réellement payées. Un constat, pas une prévision.",
+    action: ["Voir mes abonnements", 'data-more="subs"'],
   };
   const card = (key, qa) => assistantQ === key ? `
     <div class="card">
