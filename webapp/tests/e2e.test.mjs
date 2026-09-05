@@ -7512,8 +7512,9 @@ check(p07.emojis.length === 0,
 // SUB1 (ADR-052) : le hub gagne « Mes abonnements » — onze lignes.
 // PFOS-P3 : le hub gagne « Cash-flow » — douze lignes.
 // PFOS-P4 : le hub gagne « Recherche » — treize lignes.
-check(p07.lignes === 13 && p07.glyphes === 13,
-  `les treize lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
+// PFOS-P5 : le hub gagne « Rappels » — quatorze lignes.
+check(p07.lignes === 14 && p07.glyphes === 14,
+  `les quatorze lignes du hub portent leur Budget Glyph (${p07.glyphes}/${p07.lignes})`);
 check(p07.chevronsPeints === p07.lignes,
   `chaque ligne porte un chevron réellement peint (${p07.chevronsPeints}/${p07.lignes})`);
 check(p07.sousTitresVides === 0, "aucun sous-titre vide sur le hub");
@@ -15420,6 +15421,72 @@ currentTest = "PFOS-P4 recherche";
   await ctx245.close();
 }
 
+// ---------- 246. PFOS-P5 : RAPPELS — CE QUI ARRIVE, CE QUI EST EN RETARD ----------
+// Personal Finance OS, P5 : mesuré — les échéances vivent éparpillées
+// (Mois : obligations du mois affiché ; factures : leur écran). Contrat :
+// Gérer porte une entrée Rappels ; l'écran rassemble ce qui est EN
+// RETARD (avant ce qui vient), les mouvements prévus des 30 prochains
+// jours et les charges/factures à payer ; chaque ligne est tapable ;
+// les notifications d'appareil sont honnêtes (« quand l'app est
+// ouverte » — pas de fausse promesse de push serveur).
+currentTest = "PFOS-P5 rappels";
+{
+  const ctx246 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p246 = await ctx246.newPage();
+  p246.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P5] ${msg.text()}`); });
+  await p246.goto(APP_URL);
+  await p246.evaluate(() => {
+    const j = (offset) => { const d = new Date(Date.now() + offset * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    const retard = j(-2), bientot = j(5);
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Rappel" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...retard, type: "expense", amount: 120, cat: "Divers", title: "Amende oubliée", acc: "cur", dest: null, status: "planned" },
+        { id: 2, ...bientot, type: "expense", amount: 180, cat: "Santé", title: "Facture dentiste", acc: "cur", dest: null, status: "planned" },
+      ],
+      recurrings: [{ id: "r1", title: "Salle de sport", amount: 89, type: "expense", cat: "Loisirs", day: 15 }],
+      goals: [], assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p246.reload();
+  await p246.waitForSelector("#tabbar button");
+  await p246.evaluate(() => { activeTab = "more"; render(); });
+  await p246.waitForTimeout(300);
+  const entree246 = await p246.evaluate(() => !!document.querySelector('[data-more="rappels"]'));
+  check(entree246 === true, "Gérer porte une entrée Rappels");
+  if (entree246) {
+    await p246.click('[data-more="rappels"]');
+    await p246.waitForTimeout(400);
+    const r = await p246.evaluate(() => {
+      const s = document.getElementById("screen");
+      const texte = s.textContent;
+      return {
+        retard: texte.includes("Amende oubliée") && texte.includes("En retard"),
+        prevu: texte.includes("Facture dentiste"),
+        prevuTapable: [...s.querySelectorAll("[data-txid]")].some(el => el.textContent.includes("Facture dentiste")),
+        charge: texte.includes("Salle de sport"),
+        ordre: texte.indexOf("Amende oubliée") !== -1 && texte.indexOf("Facture dentiste") !== -1
+          && texte.indexOf("Amende oubliée") < texte.indexOf("Facture dentiste"),
+        honnete: texte.includes("quand l'app est ouverte"),
+      };
+    });
+    check(r.retard, "le mouvement prévu dépassé est là, marqué « En retard »");
+    check(r.prevu && r.prevuTapable, "le mouvement prévu dans 5 jours est là, tapable");
+    check(r.charge, "la charge qui revient (échéance du mois) est là");
+    check(r.ordre, "le retard s'affiche AVANT ce qui vient");
+    check(r.honnete, "les notifications d'appareil sont décrites honnêtement (« quand l'app est ouverte »)");
+  } else {
+    for (const msg of ["le mouvement prévu dépassé est là, marqué « En retard »",
+      "le mouvement prévu dans 5 jours est là, tapable",
+      "la charge qui revient (échéance du mois) est là",
+      "le retard s'affiche AVANT ce qui vient",
+      "les notifications d'appareil sont décrites honnêtement (« quand l'app est ouverte »)"]) check(false, msg);
+  }
+  await ctx246.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15429,4 +15496,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 245 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 246 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

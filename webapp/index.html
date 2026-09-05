@@ -5441,6 +5441,82 @@ function renderRechercheGlobale() {
       <div id="rgResults">${rgResultats()}</div>`;
 }
 
+/* PFOS-P5 : RAPPELS — ce qui est en retard, ce qui arrive sous 30 jours,
+   rassemblé en un seul endroit (le Mois ne montre que son mois, les
+   factures leur écran). Trois sources, jamais comptées deux fois :
+   les mouvements PRÉVUS (tout retard + 30 jours devant), et les
+   obligations du mois courant et du suivant (charges qui reviennent,
+   factures ponctuelles) — une obligation déjà planifiée est ignorée
+   ici car son mouvement prévu est déjà listé. Chaque ligne est tapable
+   avec les gestes existants. Les notifications d'appareil sont
+   HONNÊTES : locales, vérifiées quand l'app est ouverte — aucune
+   fausse promesse de push serveur, rien ne quitte l'appareil. */
+function rappelsItems() {
+  const ajd = cfSerial(NOW.y, NOW.m, NOW.d);
+  const horizon = ajd + 30;
+  const items = [];
+  for (const t of transactions) {
+    if (t.status !== "planned") continue;
+    const s = cfSerial(t.y, t.m, t.d);
+    if (s > horizon) continue;
+    items.push({ serial: s, retard: s < ajd, html: txRow(t) });
+  }
+  const prochain = shiftMonth(NOW, 1);
+  for (const { y, m } of [{ y: NOW.y, m: NOW.m }, prochain]) {
+    for (const item of monthlyObligations(y, m)) {
+      if (["paid", "skipped", "scheduled"].includes(item.state)) continue;
+      const s = cfSerial(item.due.y, item.due.m, item.due.d);
+      if (s > horizon) continue;
+      // À 320 px, l'année poussait la date dans l'ellipse (« 30.09.2… ») :
+      // elle ne s'écrit que si elle diffère de l'année en cours.
+      const dateTxt = `${String(item.due.d).padStart(2, "0")}.${String(item.due.m).padStart(2, "0")}${item.due.y !== NOW.y ? `.${item.due.y}` : ""}`;
+      const retard = item.state === "late";
+      items.push({
+        serial: s, retard,
+        html: rgLigne(item.source === "bill" ? `data-billid="${esc(item.id)}"` : `data-recid="${esc(item.id)}"`,
+          item.source === "bill" ? "bill" : "recurring", item.title,
+          `${chf(item.amount)} · ${retard ? `était à payer le ${dateTxt}` : `à payer avant le ${dateTxt}`}`),
+      });
+    }
+  }
+  items.sort((a, b) => a.serial - b.serial);
+  return { retards: items.filter(i => i.retard), avenir: items.filter(i => !i.retard) };
+}
+
+function renderRappels() {
+  const { retards, avenir } = rappelsItems();
+  const etat = !("Notification" in window) ? "indisponible" : Notification.permission;
+  const carteNotif = `<div class="card">
+      <p class="caption" style="margin:0 0 6px">Rappels sur cet appareil : sans serveur, la vérification se fait quand l'app est ouverte — ce qui est en retard ou dû aujourd'hui s'affiche alors en notification. Rien ne quitte votre appareil.</p>
+      ${etat === "indisponible" ? `<p class="caption" style="margin:0">Ce navigateur ne propose pas de notifications.</p>`
+    : etat === "granted" ? `<p class="caption" style="margin:0">Notifications activées — vérifiées à chaque ouverture de l'app.</p>`
+      : etat === "denied" ? `<p class="caption" style="margin:0">Notifications bloquées dans les réglages du navigateur — c'est là qu'elles se réactivent.</p>`
+        : `<button type="button" class="btn secondary" data-rappelsnotif>Activer les notifications sur cet appareil</button>`}
+    </div>`;
+  const corps = (retards.length || avenir.length)
+    ? `${retards.length ? `<p class="section-title" role="heading" aria-level="2">En retard (${retards.length})</p>${retards.map(i => i.html).join("")}` : ""}
+       ${avenir.length ? `<p class="section-title" role="heading" aria-level="2">Les 30 prochains jours (${avenir.length})</p>${avenir.map(i => i.html).join("")}` : ""}`
+    : `<div class="card empty-state"><p class="t">Rien à rappeler.</p>
+       <p class="caption">Aucun retard, et rien de prévu ni d'à payer sous 30 jours.</p></div>`;
+  return backBar("Rappels") + corps + carteNotif;
+}
+
+/* Au lancement : si la personne a activé les notifications, dire ce qui
+   est en retard ou dû aujourd'hui. Localement, jamais bloquant. */
+function rappelsNotifierAuLancement() {
+  try {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const ajd = cfSerial(NOW.y, NOW.m, NOW.d);
+    const { retards, avenir } = rappelsItems();
+    const dus = retards.length + avenir.filter(i => i.serial === ajd).length;
+    if (!dus) return;
+    new Notification("Budget — rappels", {
+      tag: "budget-rappels",
+      body: dus > 1 ? `${dus} échéances en retard ou dues aujourd'hui.` : "1 échéance en retard ou due aujourd'hui.",
+    });
+  } catch { /* un échec de notification ne casse jamais l'app */ }
+}
+
 /* Graphique annuel du budget : douze barres, une par mois, hauteur =
    part du budget de dépenses consommée. Remplace la grille de texte, qui
    n'était qu'un tableau : on ne comparait pas deux mois d'un coup d'œil.
@@ -7676,6 +7752,7 @@ const MORE_GROUPS = [
   ]],
   ["À construire", [
     ["recherche", "search", "Recherche", "Tout retrouver — opérations, comptes, objectifs, ce qui revient"],
+    ["rappels", "calendar", "Rappels", "Ce qui est en retard, ce qui arrive sous 30 jours"],
     ["cashflow", "movements", "Cash-flow", "Entrées, sorties et net — de 7 jours à 1 an"],
     ["networth", "asset", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "goal", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
@@ -7692,7 +7769,7 @@ const MORE_GROUPS = [
     ["settings", "gear", "Réglages", "Apparence, code, export, sauvegarde"],
   ]],
 ];
-const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance, cashflow: renderCashflow, recherche: renderRechercheGlobale,
+const MORE_RENDERERS = { goals: () => backBar("Objectifs") + renderGoals().replace('<h2 class="screen-title">Objectifs</h2>', ""), bills: renderBills, taxes: renderTaxes, networth: renderNetWorth, insurance: renderInsurance, cashflow: renderCashflow, recherche: renderRechercheGlobale, rappels: renderRappels,
                          recurring: renderRecurring, importcsv: renderImport, settings: renderSettings, assistant: renderAssistant,
                          year: renderYearReview,
                          subs: () => { recFilter = "abonnement"; return renderRecurring(); },
@@ -8356,6 +8433,13 @@ document.getElementById("screen").addEventListener("click", (e) => {
   // PFOS-P3 : période du Cash-flow.
   const cfBtn = e.target.closest("[data-cfperiode]");
   if (cfBtn) { cfPeriode = cfBtn.dataset.cfperiode; render(); return; }
+  // PFOS-P5 : opt-in des notifications locales, puis état re-rendu.
+  if (e.target.closest("[data-rappelsnotif]")) {
+    if ("Notification" in window) {
+      Notification.requestPermission().then(() => { render(); rappelsNotifierAuLancement(); });
+    }
+    return;
+  }
   const goalEl = e.target.closest("[data-goalid]");
   if (goalEl) { const g = GOALS.find(x => x.id === goalEl.dataset.goalid); if (g) openGoalSheet(g); return; }
   if (e.target.closest("[data-addgoal]")) { openGoalSheet(null); return; }
@@ -12054,6 +12138,8 @@ try {
   }
 } catch (e) {}
 rescueNoticeAtBoot();
+// PFOS-P5 : rappels locaux au lancement (uniquement si déjà autorisés).
+rappelsNotifierAuLancement();
 // W11.4 : le suivi inter-onglets ne s'arme qu'une fois le boot fini —
 // voir le listener « storage » (anti-tempête de rechargements).
 window.bootTermine = true;
