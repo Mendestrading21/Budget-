@@ -25,6 +25,27 @@ Registre de la fusion, sur ordre explicite du propriétaire
   Groups sur l'App ID à la signature TestFlight ; widget et
   notifications locales à constater sur iPhone réel.
 
+### Vague P15 — FUSIONNÉE ET PUBLIÉE (05.09.2026)
+
+Correctif d'honnêteté : le calendrier ne compte JAMAIS le prévu dans
+reçu/dépensé/net (défaut hérité de P2, repéré à l'audit ; le prévu
+reste visible, badge + « hors totaux » + point gris ; un sabotage
+inerte consigné, test durci « jour mixte », remordu). CI verte sur le
+HEAD exact `c8c0902` (run `33972883916`), fusion squash PR #223 →
+`main` = `504cd4a`, CI push `main` verte (run `33973604696`),
+publication Pages par dispatch au SHA exact (run `33974569755`,
+**succès**). Suite e2e à la fusion : 255 parcours verts.
+
+### Lot de suite P13–P14 — FUSIONNÉ ET PUBLIÉ (05.09.2026)
+
+P13 (« Ajouter à ce jour » depuis la journée ouverte du calendrier,
+date du jour ouvert préremplie) et P14 (les enseignes déjà saisies se
+proposent en datalist, regroupées au pli). CI verte sur le HEAD exact
+`1435fbb` (run `33970365906`), fusion squash PR #222 → `main` =
+`db0fe75`, CI push `main` verte (run `33971029247`), publication Pages
+par dispatch au SHA exact (run `33971910214`, **succès**). Suite e2e à
+la fusion : 254 parcours verts.
+
 ### Lot de suite P11–P12 — FUSIONNÉ ET PUBLIÉ (05.09.2026)
 
 P11 (l'accueil signale les retards des anciens mois — sabotage inerte
