@@ -995,7 +995,9 @@
     width: 5px; height: 5px;
     border-radius: 50%;
   }
-  .cal-aujourdhui { border-color: var(--nu-cyan, #38BDF8); }
+  /* Aujourd'hui = accent électrique (jeton Obsidian) ; la sélection reste
+     --stroke-active. Jamais un jeton NU ni un hexa en dur hors pilotes. */
+  .cal-aujourdhui { border-color: var(--electric); }
   .cal-actif {
     border-color: var(--stroke-active);
     background: var(--surface-2);
@@ -5235,7 +5237,7 @@ function renderCalendrierMois() {
   const premier = new Date(y, m - 1, 1).getDay();
   const decalage = (premier + 6) % 7;
   const DOT = { income: "var(--positive)", expense: "var(--negative)", sub: "var(--negative)",
-    saving: "var(--nu-violet)", transfer: "var(--coolgray)", adjustment: "var(--coolgray)" };
+    saving: "var(--violet)", transfer: "var(--coolgray)", adjustment: "var(--coolgray)" };
   const cellules = [];
   for (let i = 0; i < decalage; i += 1) cellules.push('<span class="cal-cell cal-vide" aria-hidden="true"></span>');
   for (let d = 1; d <= nbJours; d += 1) {
@@ -5255,7 +5257,7 @@ function renderCalendrierMois() {
       ${jours.map(j => `<span class="cal-tete" aria-hidden="true">${j}</span>`).join("")}
       ${cellules.join("")}
     </div>
-    <p class="caption" style="margin:6px 0 10px;padding:0 4px">Un point par famille : <span class="cal-dot" style="background:var(--positive)"></span> rentrées · <span class="cal-dot" style="background:var(--negative)"></span> dépenses · <span class="cal-dot" style="background:var(--nu-violet)"></span> mis de côté. Touchez un jour pour l'ouvrir.</p>`;
+    <p class="caption" style="margin:6px 0 10px;padding:0 4px">Un point par famille : <span class="cal-dot" style="background:var(--positive)"></span> rentrées · <span class="cal-dot" style="background:var(--negative)"></span> dépenses · <span class="cal-dot" style="background:var(--violet)"></span> mis de côté. Touchez un jour pour l'ouvrir.</p>`;
   if (calJour == null) return grille;
   const g = parJour.get(calJour);
   const dateTxt = `${String(calJour).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
