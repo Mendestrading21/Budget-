@@ -5166,12 +5166,29 @@ function renderSimpleHome() {
     ` : ""}
   </section>`;
 
+  // PFOS-P11 : l'agenda ne montre que SON mois — un mouvement prévu
+  // resté en retard dans un mois passé ne se voyait nulle part. Une
+  // ligne tapable le signale et ouvre les Rappels. Le mois courant
+  // garde ses propres lignes « En retard » : ici, UNIQUEMENT les
+  // anciens mois, et uniquement du PRÉVU (jamais une opération payée).
+  const retardsAnciens = s.isCurrent ? transactions.filter(t =>
+    t.status === "planned" && !inMonth(t, NOW.y, NOW.m)
+    && cfSerial(t.y, t.m, t.d) < cfSerial(NOW.y, NOW.m, NOW.d)).length : 0;
+  // À 320 px, « en retard » doit rester VISIBLE : l'urgence porte le
+  // titre court, le détail vit en sous-titre.
+  const alerteRetards = retardsAnciens
+    ? rgLigne('data-more="rappels"', "calendar",
+      `${retardsAnciens} échéance${retardsAnciens > 1 ? "s" : ""} en retard`,
+      "D'anciens mois — toucher pour ouvrir les Rappels")
+    : "";
+
   return `<div class="home-simple">
     <h2 class="screen-title" style="margin-bottom:8px">${S.profile.name
       ? "Bonjour " + esc(S.profile.name) + (S.profile.partner ? " & " + esc(S.profile.partner) : "")
       : "Bonjour"}</h2>
     ${monthNav()}
     ${fxWarningHTML()}
+    ${alerteRetards}
     ${hero}
     ${metrics}
     ${tasks}
@@ -5424,15 +5441,18 @@ function rgResultats() {
   const sections = [];
   const comptes = ACCOUNTS.filter(a => !a.archived && (touche(a.name) || touche(a.inst)));
   if (comptes.length) {
+    // PFOS-P12 : le compte dit son SOLDE RÉEL — la formule de l'écran
+    // Comptes (ouverture + mouvements), dans SA devise, jamais l'ouverture seule.
     sections.push(`<p class="section-title" role="heading" aria-level="2">Comptes</p>`
       + comptes.map(a => rgLigne(`data-accid="${esc(a.id)}"`, "accounts", a.name,
-        (ACCOUNT_KINDS[a.kind] || {}).label || "Compte")).join(""));
+        `${(ACCOUNT_KINDS[a.kind] || {}).label || "Compte"} · ${money(balance(a.id), accountCurrency(a.id))}`)).join(""));
   }
   const objectifs = GOALS.filter(g => touche(g.name));
   if (objectifs.length) {
     sections.push(`<p class="section-title" role="heading" aria-level="2">Objectifs</p>`
+      // PFOS-P12 : la progression réelle (goalCurrent), pas la cible seule.
       + objectifs.map(g => rgLigne(`data-goalid="${esc(g.id)}"`, "goal", g.name,
-        `Cible ${chf(g.target)}`)).join(""));
+        `${chf(goalCurrent(g))} sur ${chf(g.target)}`)).join(""));
   }
   const reviennent = RECURRINGS.filter(r => touche(r.title) || touche(r.cat));
   if (reviennent.length) {

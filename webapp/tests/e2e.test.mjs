@@ -15747,6 +15747,124 @@ currentTest = "PFOS-P10 cashflow comparaison";
   await ctx250.close();
 }
 
+// ---------- 251. PFOS-P11 : L'ACCUEIL SIGNALE LES RETARDS DES ANCIENS MOIS ----------
+// Suite du Personal Finance OS : mesuré — l'agenda du Mois ne montre que
+// SON mois ; un mouvement prévu resté en retard dans un mois passé ne se
+// voyait nulle part sur l'accueil. Contrat : une ligne tapable le
+// signale (« N échéance(s) d'anciens mois en retard ») et ouvre les
+// Rappels ; sans retard ancien (même avec de vieilles opérations
+// PAYÉES), aucune fausse alerte.
+currentTest = "PFOS-P11 accueil retards";
+{
+  const ctx251 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p251 = await ctx251.newPage();
+  p251.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P11] ${msg.text()}`); });
+  await p251.goto(APP_URL);
+  const seed251 = { version: 1, onboarded: true, isDemo: false, profile: { name: "Alerte" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+    recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [] };
+  await p251.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(35), type: "expense", amount: 90, cat: "Divers", title: "Vieille amende", acc: "cur", dest: null, status: "planned" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed251);
+  await p251.reload();
+  await p251.waitForSelector("#tabbar button");
+  await p251.waitForTimeout(300);
+  const alerte = await p251.evaluate(() => {
+    const el = document.querySelector('#screen [data-more="rappels"]');
+    return { la: !!el, texte: el ? el.textContent : "" };
+  });
+  check(alerte.la && alerte.texte.includes("1 échéance") && alerte.texte.includes("en retard"),
+    `l'accueil signale « 1 échéance d'anciens mois en retard » (lu : « ${alerte.texte.trim().slice(0, 60)} »)`);
+  if (alerte.la) {
+    await p251.click('#screen [data-more="rappels"]');
+    await p251.waitForTimeout(400);
+    const ouvert = await p251.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return texte.includes("Rappels") && texte.includes("Vieille amende");
+    });
+    check(ouvert === true, "toucher l'alerte ouvre les Rappels, la vieille échéance en tête");
+  } else {
+    check(false, "toucher l'alerte ouvre les Rappels, la vieille échéance en tête");
+  }
+  // Sans retard ancien : une vieille opération PAYÉE ne déclenche rien.
+  await p251.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(35), type: "expense", amount: 90, cat: "Divers", title: "Vieille payée", acc: "cur", dest: null, status: "posted" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed251);
+  await p251.reload();
+  await p251.waitForSelector("#tabbar button");
+  // Durci après un sabotage INERTE : le rechargement restaurait l'onglet
+  // Gérer (navigation), et ce contrôle ne regardait pas l'accueil — il
+  // passait même sabotée. On force l'ACCUEIL avant de vérifier.
+  await p251.evaluate(() => { activeTab = "home"; render(); });
+  await p251.waitForTimeout(300);
+  const calme = await p251.evaluate(() => ({
+    surAccueil: activeTab === "home",
+    alerte: !!document.querySelector('#screen [data-more="rappels"]'),
+  }));
+  check(calme.surAccueil === true && calme.alerte === false,
+    "une vieille opération PAYÉE ne déclenche aucune fausse alerte sur l'accueil");
+  await ctx251.close();
+}
+
+// ---------- 252. PFOS-P12 : LA RECHERCHE DIT LES MONTANTS VRAIS ----------
+// Suite du Personal Finance OS : mesuré — un compte trouvé ne disait
+// que sa nature, un objectif que sa cible. Contrat : le compte dit son
+// SOLDE RÉEL (la formule de l'écran Comptes — ouverture + mouvements,
+// dans sa devise), l'objectif dit sa progression (« CHF X sur CHF Y »,
+// la formule goalCurrent). Aucune nouvelle formule.
+currentTest = "PFOS-P12 recherche montants";
+{
+  const ctx252 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p252 = await ctx252.newPage();
+  p252.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P12] ${msg.text()}`); });
+  await p252.goto(APP_URL);
+  await p252.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Montants" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne Vacances", kind: "savings", opening: 1000, cash: false, currency: "CHF" },
+      ],
+      // +250 sur l'épargne : le solde VIT (1'250.00) — l'ouverture seule (1'000.00) serait un mensonge.
+      transactions: [
+        { id: 1, ...j(10), type: "income", amount: 250, cat: "Salaire", title: "Prime vers épargne", acc: "sav", dest: null, status: "posted" },
+      ],
+      recurrings: [],
+      goals: [{ id: "g1", name: "Voyage vacances", target: 3000, manualCurrent: 500, linked: null, monthly: 100, dueY: 2027, dueM: 6, priority: false, achieved: false }],
+      assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p252.reload();
+  await p252.waitForSelector("#tabbar button");
+  await p252.evaluate(() => { activeTab = "more"; moreView = "recherche"; render(); });
+  await p252.waitForTimeout(300);
+  await p252.fill("#rgSearchInput", "vacances");
+  await p252.waitForTimeout(300);
+  const r252 = await p252.evaluate(() => {
+    const compte = document.querySelector('#screen #rgResults [data-accid="sav"]');
+    const objectif = document.querySelector('#screen #rgResults [data-goalid="g1"]');
+    return {
+      solde: compte ? compte.textContent.includes("1'250.00") : false,
+      progression: objectif ? objectif.textContent.includes("500.00") && objectif.textContent.includes("3'000.00") : false,
+    };
+  });
+  check(r252.solde === true, "le compte trouvé dit son solde réel (CHF 1'250.00 — ouverture + mouvement, pas l'ouverture seule)");
+  check(r252.progression === true, "l'objectif trouvé dit sa progression (CHF 500.00 sur CHF 3'000.00)");
+  await ctx252.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15756,4 +15874,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 250 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 252 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
