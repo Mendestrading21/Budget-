@@ -15802,9 +15802,17 @@ currentTest = "PFOS-P11 accueil retards";
   }, seed251);
   await p251.reload();
   await p251.waitForSelector("#tabbar button");
+  // Durci après un sabotage INERTE : le rechargement restaurait l'onglet
+  // Gérer (navigation), et ce contrôle ne regardait pas l'accueil — il
+  // passait même sabotée. On force l'ACCUEIL avant de vérifier.
+  await p251.evaluate(() => { activeTab = "home"; render(); });
   await p251.waitForTimeout(300);
-  const calme = await p251.evaluate(() => !!document.querySelector('#screen [data-more="rappels"]'));
-  check(calme === false, "une vieille opération PAYÉE ne déclenche aucune fausse alerte sur l'accueil");
+  const calme = await p251.evaluate(() => ({
+    surAccueil: activeTab === "home",
+    alerte: !!document.querySelector('#screen [data-more="rappels"]'),
+  }));
+  check(calme.surAccueil === true && calme.alerte === false,
+    "une vieille opération PAYÉE ne déclenche aucune fausse alerte sur l'accueil");
   await ctx251.close();
 }
 
