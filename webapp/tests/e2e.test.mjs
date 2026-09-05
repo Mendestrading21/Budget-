@@ -15747,6 +15747,67 @@ currentTest = "PFOS-P10 cashflow comparaison";
   await ctx250.close();
 }
 
+// ---------- 251. PFOS-P11 : L'ACCUEIL SIGNALE LES RETARDS DES ANCIENS MOIS ----------
+// Suite du Personal Finance OS : mesuré — l'agenda du Mois ne montre que
+// SON mois ; un mouvement prévu resté en retard dans un mois passé ne se
+// voyait nulle part sur l'accueil. Contrat : une ligne tapable le
+// signale (« N échéance(s) d'anciens mois en retard ») et ouvre les
+// Rappels ; sans retard ancien (même avec de vieilles opérations
+// PAYÉES), aucune fausse alerte.
+currentTest = "PFOS-P11 accueil retards";
+{
+  const ctx251 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p251 = await ctx251.newPage();
+  p251.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P11] ${msg.text()}`); });
+  await p251.goto(APP_URL);
+  const seed251 = { version: 1, onboarded: true, isDemo: false, profile: { name: "Alerte" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+    recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [] };
+  await p251.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(35), type: "expense", amount: 90, cat: "Divers", title: "Vieille amende", acc: "cur", dest: null, status: "planned" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed251);
+  await p251.reload();
+  await p251.waitForSelector("#tabbar button");
+  await p251.waitForTimeout(300);
+  const alerte = await p251.evaluate(() => {
+    const el = document.querySelector('#screen [data-more="rappels"]');
+    return { la: !!el, texte: el ? el.textContent : "" };
+  });
+  check(alerte.la && alerte.texte.includes("1 échéance") && alerte.texte.includes("en retard"),
+    `l'accueil signale « 1 échéance d'anciens mois en retard » (lu : « ${alerte.texte.trim().slice(0, 60)} »)`);
+  if (alerte.la) {
+    await p251.click('#screen [data-more="rappels"]');
+    await p251.waitForTimeout(400);
+    const ouvert = await p251.evaluate(() => {
+      const texte = document.getElementById("screen").textContent;
+      return texte.includes("Rappels") && texte.includes("Vieille amende");
+    });
+    check(ouvert === true, "toucher l'alerte ouvre les Rappels, la vieille échéance en tête");
+  } else {
+    check(false, "toucher l'alerte ouvre les Rappels, la vieille échéance en tête");
+  }
+  // Sans retard ancien : une vieille opération PAYÉE ne déclenche rien.
+  await p251.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(35), type: "expense", amount: 90, cat: "Divers", title: "Vieille payée", acc: "cur", dest: null, status: "posted" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed251);
+  await p251.reload();
+  await p251.waitForSelector("#tabbar button");
+  await p251.waitForTimeout(300);
+  const calme = await p251.evaluate(() => !!document.querySelector('#screen [data-more="rappels"]'));
+  check(calme === false, "une vieille opération PAYÉE ne déclenche aucune fausse alerte sur l'accueil");
+  await ctx251.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15756,4 +15817,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 250 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 251 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
