@@ -15865,6 +15865,111 @@ currentTest = "PFOS-P12 recherche montants";
   await ctx252.close();
 }
 
+// ---------- 253. PFOS-P13 : AJOUTER DIRECTEMENT AU JOUR OUVERT DU CALENDRIER ----------
+// Suite du Personal Finance OS : mesuré — depuis la journée ouverte du
+// calendrier (P2), ajouter une opération obligeait à repasser par
+// l'accueil PUIS à corriger la date à la main. Contrat : la journée
+// ouverte porte « Ajouter à ce jour » ; le formulaire s'ouvre avec la
+// DATE DU JOUR OUVERT préremplie (jamais celle d'aujourd'hui) — le
+// reste du formulaire ne change pas (la date seule ne comptabilise
+// jamais rien, FE2).
+currentTest = "PFOS-P13 calendrier ajout";
+{
+  const ctx253 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p253 = await ctx253.newPage();
+  p253.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P13] ${msg.text()}`); });
+  await p253.goto(APP_URL);
+  await p253.evaluate(() => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "CalAjout" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [], recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p253.reload();
+  await p253.waitForSelector("#tabbar button");
+  await p253.evaluate(() => { activeTab = "movements"; moreVue = "calendrier"; render(); });
+  await p253.waitForTimeout(300);
+  await p253.click('[data-caljour="10"]');
+  await p253.waitForTimeout(300);
+  const bouton = await p253.evaluate(() => !!document.querySelector("#screen [data-caladd]"));
+  check(bouton === true, "la journée ouverte du calendrier porte « Ajouter à ce jour »");
+  if (bouton) {
+    await p253.click("#screen [data-caladd]");
+    await p253.waitForTimeout(300);
+    const feuille = await p253.evaluate(() => ({
+      ouverte: document.getElementById("txForm").style.display !== "none",
+      date: document.getElementById("fDate").value,
+      attendu: `${cursor.y}-${String(cursor.m).padStart(2, "0")}-10`,
+      // Le titre vivant suit le type (« Nouvelle dépense ») — le contrat
+      // est : une CRÉATION (titre « Nouvelle … », pas de bouton Supprimer).
+      titre: document.getElementById("sheetTitle").textContent,
+      suppression: document.getElementById("fDelete").style.display,
+    }));
+    check(feuille.ouverte && feuille.titre.startsWith("Nouvelle") && feuille.suppression === "none",
+      "« Ajouter à ce jour » ouvre la feuille en CRÉATION");
+    check(feuille.date === feuille.attendu,
+      `la date préremplie est celle du JOUR OUVERT (lu : ${feuille.date}, attendu : ${feuille.attendu})`);
+  } else {
+    check(false, "« Ajouter à ce jour » ouvre la feuille de nouvelle opération");
+    check(false, "la date préremplie est celle du JOUR OUVERT");
+  }
+  await ctx253.close();
+}
+
+// ---------- 254. PFOS-P14 : L'ENSEIGNE SE SUGGÈRE TOUTE SEULE ----------
+// Suite du Personal Finance OS : mesuré — le champ Enseigne (P1) est
+// libre : la même enseigne se retape à chaque fois, avec le risque de
+// variantes (« migros » / « Migros ») qui cassent le regroupement.
+// Contrat : le champ propose les enseignes DÉJÀ saisies (datalist),
+// regroupées au pli — une seule « Migros » même après des variantes —
+// sans jamais rien imposer (le champ reste libre).
+currentTest = "PFOS-P14 enseignes suggérées";
+{
+  const ctx254 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p254 = await ctx254.newPage();
+  p254.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P14] ${msg.text()}`); });
+  await p254.goto(APP_URL);
+  await p254.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Suggère" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...j(20), type: "expense", amount: 30, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted", merchant: "migros" },
+        { id: 2, ...j(5), type: "expense", amount: 45, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted", merchant: "Migros" },
+        { id: 3, ...j(10), type: "expense", amount: 12, cat: "Alimentation", title: "Pain", acc: "cur", dest: null, status: "posted", merchant: "Coop" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p254.reload();
+  await p254.waitForSelector("#tabbar button");
+  await p254.evaluate(() => { openTxSheet(null); });
+  await p254.waitForTimeout(300);
+  const sugg = await p254.evaluate(() => {
+    const champ = document.getElementById("fEnseigne");
+    const dl = document.getElementById("enseignesConnues");
+    const options = dl ? [...dl.querySelectorAll("option")].map(o => o.value) : [];
+    return {
+      branche: champ.getAttribute("list") === "enseignesConnues" && !!dl,
+      options,
+      migros: options.filter(v => v.toLowerCase() === "migros").length,
+      coop: options.includes("Coop"),
+    };
+  });
+  check(sugg.branche === true, "le champ Enseigne propose les enseignes déjà saisies (datalist branchée)");
+  check(sugg.coop && sugg.migros >= 1,
+    `Migros et Coop sont proposées (options : ${sugg.options.join(", ") || "aucune"})`);
+  check(sugg.migros === 1,
+    "les variantes de casse se regroupent au pli — une seule « Migros » proposée");
+  await ctx254.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15874,4 +15979,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 252 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 254 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

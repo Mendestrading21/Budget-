@@ -1305,7 +1305,10 @@
              donnée à part entière — facultative, bornée, lue par la
              recherche et par « Top enseignes du mois ». -->
         <label for="fEnseigne">Enseigne (facultatif)</label>
-        <input id="fEnseigne" placeholder="Migros, SBB, Netflix…" autocomplete="off" maxlength="40" />
+        <!-- PFOS-P14 : les enseignes déjà saisies se proposent (datalist),
+             regroupées au pli — le champ reste entièrement libre. -->
+        <input id="fEnseigne" placeholder="Migros, SBB, Netflix…" autocomplete="off" maxlength="40" list="enseignesConnues" />
+        <datalist id="enseignesConnues"></datalist>
         <p class="caption" style="margin:2px 0 0">Le commerce ou le service — pour regrouper vos dépenses par enseigne.</p>
         <!-- W7.5 (ADR-069) : scission en DEUX parts — le mouvement reste
              UN flux bancaire, seuls les rapports par catégorie ventilent. -->
@@ -5278,14 +5281,18 @@ function renderCalendrierMois() {
   if (calJour == null) return grille;
   const g = parJour.get(calJour);
   const dateTxt = `${String(calJour).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
+  // PFOS-P13 : ajouter directement AU jour ouvert — la date suivra le
+  // doigt dans la feuille (la date seule ne comptabilise jamais rien).
+  const boutonAjout = `<button type="button" class="btn secondary" data-caladd
+      aria-label="Ajouter une opération au ${esc(dateTxt)}" style="margin:8px 0 4px">Ajouter à ce jour</button>`;
   if (!g) {
     return grille + `<p class="section-title" role="heading" aria-level="2">Journée du ${dateTxt}</p>
-      <div class="card empty-state"><p class="t">Aucune opération ce jour-là.</p></div>`;
+      <div class="card empty-state"><p class="t">Aucune opération ce jour-là.</p></div>${boutonAjout}`;
   }
   const net = round2(g.recu - g.depense);
   return grille + `<p class="section-title" role="heading" aria-level="2">Journée du ${dateTxt}</p>
     <div class="card"><p class="caption" style="margin:0">Reçu ${chf(g.recu)} · dépensé ${chf(g.depense)} · net <strong class="${net < 0 ? "neg" : "pos"}">${chf(net, true)}</strong>${g.familles.has("transfer") ? " · virements neutres, comptés à part" : ""}</p></div>
-    ${g.items.sort((a, b) => b.id - a.id).map(t => txRow(t, { hideDate: true })).join("")}`;
+    ${g.items.sort((a, b) => b.id - a.id).map(t => txRow(t, { hideDate: true })).join("")}${boutonAjout}`;
 }
 
 /* PFOS-P3 : CASH-FLOW — la vue transversale du flux, de 7 jours à 1 an.
@@ -8576,6 +8583,14 @@ document.getElementById("screen").addEventListener("click", (e) => {
   if (vueBtn) { moreVue = vueBtn.dataset.morevue; calJour = null; render(); return; }
   const jourBtn = e.target.closest("[data-caljour]");
   if (jourBtn) { calJour = +jourBtn.dataset.caljour; render(); return; }
+  // PFOS-P13 : nouvelle opération datée du JOUR OUVERT du calendrier.
+  const calAddBtn = e.target.closest("[data-caladd]");
+  if (calAddBtn && calJour != null) {
+    openTxSheet(null);
+    document.getElementById("fDate").value =
+      `${cursor.y}-${String(cursor.m).padStart(2, "0")}-${String(calJour).padStart(2, "0")}`;
+    return;
+  }
   // PFOS-P3 : période du Cash-flow.
   const cfBtn = e.target.closest("[data-cfperiode]");
   if (cfBtn) { cfPeriode = cfBtn.dataset.cfperiode; render(); return; }
@@ -9636,6 +9651,23 @@ function openTxSheet(tx, presetType) {
       partsNote.textContent = "Scindé : " + tx.parts.map(p =>
         `${p.cat} ${chf(fromCents(p.montantMineur))}`).join(" + ") + ".";
     }
+  }
+  // PFOS-P14 : les enseignes déjà saisies se proposent — regroupées au
+  // PLI (une seule « Migros », la graphie la plus récente fait foi),
+  // les plus récentes d'abord, vingt au plus. Jamais rien d'imposé.
+  const listeEnseignes = document.getElementById("enseignesConnues");
+  if (listeEnseignes) {
+    const vues = new Map();
+    const parDate = [...transactions]
+      .sort((a, b) => (b.y - a.y) || (b.m - a.m) || (b.d - a.d) || (b.id > a.id ? 1 : -1));
+    for (const t of parDate) {
+      if (!t.merchant) continue;
+      const cle = fold(t.merchant);
+      if (!vues.has(cle)) vues.set(cle, t.merchant);
+      if (vues.size >= 20) break;
+    }
+    listeEnseignes.innerHTML = [...vues.values()]
+      .map(v => `<option value="${esc(v)}"></option>`).join("");
   }
   clearFieldErrors();
   // Chips synchronisées sur le select ; un ajustement fige le type.
