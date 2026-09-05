@@ -16046,6 +16046,54 @@ currentTest = "PFOS-P15 calendrier honnête";
   await ctx255.close();
 }
 
+// ---------- 256. PFOS-P16 : TOP ENSEIGNES NE COMPTE JAMAIS LE PRÉVU ----------
+// CORRECTIF D'HONNÊTETÉ (même classe que P15, défaut hérité de P1,
+// repéré au même audit) : « Top enseignes du mois » additionnait
+// TOUTES les dépenses portant une enseigne, prévues comprises — une
+// facture prévue gonflait « vos dépenses ». Contrat : le payé
+// seulement (Migros : 50.00 payé + 200.00 prévu → CHF 50.00 affiché,
+// jamais 250.00) ; une enseigne UNIQUEMENT prévue n'apparaît pas.
+currentTest = "PFOS-P16 enseignes honnêtes";
+{
+  const ctx256 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p256 = await ctx256.newPage();
+  p256.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P16] ${msg.text()}`); });
+  await p256.goto(APP_URL);
+  await p256.evaluate(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "TopNet" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, y, m, d: 2, type: "expense", amount: 50, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted", merchant: "Migros" },
+        { id: 2, y, m, d: 20, type: "expense", amount: 200, cat: "Alimentation", title: "Grosse course prévue", acc: "cur", dest: null, status: "planned", merchant: "Migros" },
+        { id: 3, y, m, d: 25, type: "expense", amount: 99, cat: "Loisirs", title: "Abo prévu", acc: "cur", dest: null, status: "planned", merchant: "FitnessPark" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p256.reload();
+  await p256.waitForSelector("#tabbar button");
+  await p256.evaluate(() => { activeTab = "budget"; render(); });
+  await p256.waitForTimeout(300);
+  const top = await p256.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      migrosPaye: texte.includes("Migros") && texte.includes("50.00"),
+      pasGonfle: !texte.includes("250.00"),
+      prevuAbsent: !texte.includes("FitnessPark"),
+    };
+  });
+  check(top.migrosPaye && top.pasGonfle,
+    "Top enseignes compte le payé seulement (Migros CHF 50.00, jamais 250.00)");
+  check(top.prevuAbsent,
+    "une enseigne UNIQUEMENT prévue (FitnessPark) n'apparaît pas dans les dépenses");
+  await ctx256.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -16055,4 +16103,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 255 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 256 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

@@ -5662,7 +5662,9 @@ function budgetYearChart() {
 function topEnseignesHTML(y, m) {
   const groupes = new Map();
   for (const t of transactions) {
-    if (!inMonth(t, y, m) || t.type !== "expense" || !t.merchant) continue;
+    // PFOS-P16 (correctif d'honnêteté, même classe que P15) : le PAYÉ
+    // seulement — une dépense prévue ne gonfle jamais « vos dépenses ».
+    if (t.status !== "posted" || !inMonth(t, y, m) || t.type !== "expense" || !t.merchant) continue;
     const cle = fold(t.merchant);
     const g = groupes.get(cle) || { nom: t.merchant, total: 0, n: 0 };
     g.total = round2(g.total + txCHF(t));
