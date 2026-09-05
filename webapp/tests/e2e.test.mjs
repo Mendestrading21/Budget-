@@ -15578,6 +15578,58 @@ currentTest = "PFOS-P6 constats";
   await ctx247.close();
 }
 
+// ---------- 248. PFOS-P8 : LA LIGNE RAPPELS DU HUB DIT L'URGENCE ----------
+// Suite du Personal Finance OS : mesuré — la ligne « Rappels » de Gérer
+// portait un sous-titre FIGE, alors que Factures et Abonnements disent
+// leur état réel. Contrat : avec un retard, le sous-titre dit « N en
+// retard » ; sans retard mais avec des échéances, il compte ce qui
+// vient sous 30 jours ; sans rien, il le dit — jamais un texte générique
+// qui cache un retard.
+currentTest = "PFOS-P8 hub rappels";
+{
+  const ctx248 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p248 = await ctx248.newPage();
+  p248.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P8] ${msg.text()}`); });
+  await p248.goto(APP_URL);
+  const seed248 = (transactions) => ({
+    version: 1, onboarded: true, isDemo: false, profile: { name: "Hub" },
+    baseCurrency: "CHF",
+    accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+    transactions,
+    recurrings: [], goals: [], assets: [], liabilities: [],
+    pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+  });
+  // Scénario 1 : un mouvement prévu dépassé → « 1 en retard ».
+  await p248.evaluate((etat) => {
+    const j = (o) => { const d = new Date(Date.now() + o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    etat.transactions = [
+      { id: 1, ...j(-2), type: "expense", amount: 120, cat: "Divers", title: "Amende oubliée", acc: "cur", dest: null, status: "planned" },
+    ];
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed248([]));
+  await p248.reload();
+  await p248.waitForSelector("#tabbar button");
+  await p248.evaluate(() => { activeTab = "more"; render(); });
+  await p248.waitForTimeout(300);
+  const sousTitreRetard = await p248.evaluate(() =>
+    (document.querySelector('[data-more="rappels"] .s') || {}).textContent || "");
+  check(sousTitreRetard.includes("1 en retard"),
+    `avec un retard, la ligne Rappels du hub dit « 1 en retard » (lu : « ${sousTitreRetard} »)`);
+  // Scénario 2 : rien de prévu, rien d'à payer → le sous-titre le dit.
+  await p248.evaluate((etat) => {
+    localStorage.setItem("budget-app-state-v1", JSON.stringify(etat));
+  }, seed248([]));
+  await p248.reload();
+  await p248.waitForSelector("#tabbar button");
+  await p248.evaluate(() => { activeTab = "more"; render(); });
+  await p248.waitForTimeout(300);
+  const sousTitreCalme = await p248.evaluate(() =>
+    (document.querySelector('[data-more="rappels"] .s') || {}).textContent || "");
+  check(!sousTitreCalme.includes("en retard") && sousTitreCalme.trim().length > 0,
+    `sans retard, la ligne Rappels n'alarme pas (lu : « ${sousTitreCalme} »)`);
+  await ctx248.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15587,4 +15639,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 247 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 248 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

@@ -7839,7 +7839,14 @@ const MORE_GROUPS = [
   ]],
   ["À construire", [
     ["recherche", "search", "Recherche", "Tout retrouver — opérations, comptes, objectifs, ce qui revient"],
-    ["rappels", "calendar", "Rappels", "Ce qui est en retard, ce qui arrive sous 30 jours"],
+    // PFOS-P8 : le sous-titre dit l'état RÉEL, comme Factures — un texte
+    // générique cacherait un retard.
+    ["rappels", "calendar", "Rappels", () => {
+      const { retards, avenir } = rappelsItems();
+      if (retards.length) return `${retards.length} en retard — à regarder d'abord`;
+      if (avenir.length) return `${avenir.length} échéance${avenir.length > 1 ? "s" : ""} sous 30 jours`;
+      return "Rien à rappeler sous 30 jours";
+    }],
     ["cashflow", "movements", "Cash-flow", "Entrées, sorties et net — de 7 jours à 1 an"],
     ["networth", "asset", "Patrimoine", "Tout ce qui est à vous, et son évolution"],
     ["goals", "goal", "Objectifs", "Vos projets : voyage, permis, fonds d’urgence"],
