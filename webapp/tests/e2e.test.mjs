@@ -15673,6 +15673,18 @@ currentTest = "PFOS-P9 recherche montant";
   const virgule = await p249.evaluate(() =>
     document.getElementById("screen").textContent.includes("Boulangerie"));
   check(virgule === true, "« 75,50 » (virgule) trouve aussi CHF 75.50");
+  // Durci après un sabotage INERTE (flou par sous-chaîne resté invisible) :
+  // l'exactitude se contrôle DANS LES DEUX SENS — « 5.50 » trouve la
+  // Cafeteria et ne ramène jamais la Boulangerie (75.50 contient « 5.5 »
+  // en texte : un rapprochement par sous-chaîne mordrait ici).
+  await p249.fill("#rgSearchInput", "5.50");
+  await p249.waitForTimeout(300);
+  const exact = await p249.evaluate(() => ({
+    cafeteria: document.getElementById("screen").textContent.includes("Cafeteria"),
+    boulangerie: document.getElementById("screen").textContent.includes("Boulangerie"),
+  }));
+  check(exact.cafeteria === true && exact.boulangerie === false,
+    "« 5.50 » trouve CHF 5.50 et ne ramène jamais CHF 75.50 (aucun flou par sous-chaîne)");
   await ctx249.close();
 }
 
