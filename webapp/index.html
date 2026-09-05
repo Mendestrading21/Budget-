@@ -1305,7 +1305,10 @@
              donnée à part entière — facultative, bornée, lue par la
              recherche et par « Top enseignes du mois ». -->
         <label for="fEnseigne">Enseigne (facultatif)</label>
-        <input id="fEnseigne" placeholder="Migros, SBB, Netflix…" autocomplete="off" maxlength="40" />
+        <!-- PFOS-P14 : les enseignes déjà saisies se proposent (datalist),
+             regroupées au pli — le champ reste entièrement libre. -->
+        <input id="fEnseigne" placeholder="Migros, SBB, Netflix…" autocomplete="off" maxlength="40" list="enseignesConnues" />
+        <datalist id="enseignesConnues"></datalist>
         <p class="caption" style="margin:2px 0 0">Le commerce ou le service — pour regrouper vos dépenses par enseigne.</p>
         <!-- W7.5 (ADR-069) : scission en DEUX parts — le mouvement reste
              UN flux bancaire, seuls les rapports par catégorie ventilent. -->
@@ -9648,6 +9651,23 @@ function openTxSheet(tx, presetType) {
       partsNote.textContent = "Scindé : " + tx.parts.map(p =>
         `${p.cat} ${chf(fromCents(p.montantMineur))}`).join(" + ") + ".";
     }
+  }
+  // PFOS-P14 : les enseignes déjà saisies se proposent — regroupées au
+  // PLI (une seule « Migros », la graphie la plus récente fait foi),
+  // les plus récentes d'abord, vingt au plus. Jamais rien d'imposé.
+  const listeEnseignes = document.getElementById("enseignesConnues");
+  if (listeEnseignes) {
+    const vues = new Map();
+    const parDate = [...transactions]
+      .sort((a, b) => (b.y - a.y) || (b.m - a.m) || (b.d - a.d) || (b.id > a.id ? 1 : -1));
+    for (const t of parDate) {
+      if (!t.merchant) continue;
+      const cle = fold(t.merchant);
+      if (!vues.has(cle)) vues.set(cle, t.merchant);
+      if (vues.size >= 20) break;
+    }
+    listeEnseignes.innerHTML = [...vues.values()]
+      .map(v => `<option value="${esc(v)}"></option>`).join("");
   }
   clearFieldErrors();
   // Chips synchronisées sur le select ; un ajustement fige le type.

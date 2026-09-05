@@ -15919,6 +15919,57 @@ currentTest = "PFOS-P13 calendrier ajout";
   await ctx253.close();
 }
 
+// ---------- 254. PFOS-P14 : L'ENSEIGNE SE SUGGÈRE TOUTE SEULE ----------
+// Suite du Personal Finance OS : mesuré — le champ Enseigne (P1) est
+// libre : la même enseigne se retape à chaque fois, avec le risque de
+// variantes (« migros » / « Migros ») qui cassent le regroupement.
+// Contrat : le champ propose les enseignes DÉJÀ saisies (datalist),
+// regroupées au pli — une seule « Migros » même après des variantes —
+// sans jamais rien imposer (le champ reste libre).
+currentTest = "PFOS-P14 enseignes suggérées";
+{
+  const ctx254 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p254 = await ctx254.newPage();
+  p254.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P14] ${msg.text()}`); });
+  await p254.goto(APP_URL);
+  await p254.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Suggère" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, ...j(20), type: "expense", amount: 30, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted", merchant: "migros" },
+        { id: 2, ...j(5), type: "expense", amount: 45, cat: "Alimentation", title: "Courses", acc: "cur", dest: null, status: "posted", merchant: "Migros" },
+        { id: 3, ...j(10), type: "expense", amount: 12, cat: "Alimentation", title: "Pain", acc: "cur", dest: null, status: "posted", merchant: "Coop" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p254.reload();
+  await p254.waitForSelector("#tabbar button");
+  await p254.evaluate(() => { openTxSheet(null); });
+  await p254.waitForTimeout(300);
+  const sugg = await p254.evaluate(() => {
+    const champ = document.getElementById("fEnseigne");
+    const dl = document.getElementById("enseignesConnues");
+    const options = dl ? [...dl.querySelectorAll("option")].map(o => o.value) : [];
+    return {
+      branche: champ.getAttribute("list") === "enseignesConnues" && !!dl,
+      options,
+      migros: options.filter(v => v.toLowerCase() === "migros").length,
+      coop: options.includes("Coop"),
+    };
+  });
+  check(sugg.branche === true, "le champ Enseigne propose les enseignes déjà saisies (datalist branchée)");
+  check(sugg.coop && sugg.migros >= 1,
+    `Migros et Coop sont proposées (options : ${sugg.options.join(", ") || "aucune"})`);
+  check(sugg.migros === 1,
+    "les variantes de casse se regroupent au pli — une seule « Migros » proposée");
+  await ctx254.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15928,4 +15979,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 253 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 254 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
