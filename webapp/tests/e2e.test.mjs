@@ -15816,6 +15816,55 @@ currentTest = "PFOS-P11 accueil retards";
   await ctx251.close();
 }
 
+// ---------- 252. PFOS-P12 : LA RECHERCHE DIT LES MONTANTS VRAIS ----------
+// Suite du Personal Finance OS : mesuré — un compte trouvé ne disait
+// que sa nature, un objectif que sa cible. Contrat : le compte dit son
+// SOLDE RÉEL (la formule de l'écran Comptes — ouverture + mouvements,
+// dans sa devise), l'objectif dit sa progression (« CHF X sur CHF Y »,
+// la formule goalCurrent). Aucune nouvelle formule.
+currentTest = "PFOS-P12 recherche montants";
+{
+  const ctx252 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p252 = await ctx252.newPage();
+  p252.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P12] ${msg.text()}`); });
+  await p252.goto(APP_URL);
+  await p252.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Montants" },
+      baseCurrency: "CHF",
+      accounts: [
+        { id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" },
+        { id: "sav", name: "Épargne Vacances", kind: "savings", opening: 1000, cash: false, currency: "CHF" },
+      ],
+      // +250 sur l'épargne : le solde VIT (1'250.00) — l'ouverture seule (1'000.00) serait un mensonge.
+      transactions: [
+        { id: 1, ...j(10), type: "income", amount: 250, cat: "Salaire", title: "Prime vers épargne", acc: "sav", dest: null, status: "posted" },
+      ],
+      recurrings: [],
+      goals: [{ id: "g1", name: "Voyage vacances", target: 3000, manualCurrent: 500, linked: null, monthly: 100, dueY: 2027, dueM: 6, priority: false, achieved: false }],
+      assets: [], liabilities: [], pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p252.reload();
+  await p252.waitForSelector("#tabbar button");
+  await p252.evaluate(() => { activeTab = "more"; moreView = "recherche"; render(); });
+  await p252.waitForTimeout(300);
+  await p252.fill("#rgSearchInput", "vacances");
+  await p252.waitForTimeout(300);
+  const r252 = await p252.evaluate(() => {
+    const compte = document.querySelector('#screen #rgResults [data-accid="sav"]');
+    const objectif = document.querySelector('#screen #rgResults [data-goalid="g1"]');
+    return {
+      solde: compte ? compte.textContent.includes("1'250.00") : false,
+      progression: objectif ? objectif.textContent.includes("500.00") && objectif.textContent.includes("3'000.00") : false,
+    };
+  });
+  check(r252.solde === true, "le compte trouvé dit son solde réel (CHF 1'250.00 — ouverture + mouvement, pas l'ouverture seule)");
+  check(r252.progression === true, "l'objectif trouvé dit sa progression (CHF 500.00 sur CHF 3'000.00)");
+  await ctx252.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15825,4 +15874,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 251 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 252 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

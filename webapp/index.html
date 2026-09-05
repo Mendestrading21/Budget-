@@ -5441,15 +5441,18 @@ function rgResultats() {
   const sections = [];
   const comptes = ACCOUNTS.filter(a => !a.archived && (touche(a.name) || touche(a.inst)));
   if (comptes.length) {
+    // PFOS-P12 : le compte dit son SOLDE RÉEL — la formule de l'écran
+    // Comptes (ouverture + mouvements), dans SA devise, jamais l'ouverture seule.
     sections.push(`<p class="section-title" role="heading" aria-level="2">Comptes</p>`
       + comptes.map(a => rgLigne(`data-accid="${esc(a.id)}"`, "accounts", a.name,
-        (ACCOUNT_KINDS[a.kind] || {}).label || "Compte")).join(""));
+        `${(ACCOUNT_KINDS[a.kind] || {}).label || "Compte"} · ${money(balance(a.id), accountCurrency(a.id))}`)).join(""));
   }
   const objectifs = GOALS.filter(g => touche(g.name));
   if (objectifs.length) {
     sections.push(`<p class="section-title" role="heading" aria-level="2">Objectifs</p>`
+      // PFOS-P12 : la progression réelle (goalCurrent), pas la cible seule.
       + objectifs.map(g => rgLigne(`data-goalid="${esc(g.id)}"`, "goal", g.name,
-        `Cible ${chf(g.target)}`)).join(""));
+        `${chf(goalCurrent(g))} sur ${chf(g.target)}`)).join(""));
   }
   const reviennent = RECURRINGS.filter(r => touche(r.title) || touche(r.cat));
   if (reviennent.length) {
