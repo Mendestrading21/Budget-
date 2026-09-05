@@ -25,6 +25,16 @@ Registre de la fusion, sur ordre explicite du propriétaire
   Groups sur l'App ID à la signature TestFlight ; widget et
   notifications locales à constater sur iPhone réel.
 
+### Lot de suite P8–P10 — FUSIONNÉ ET PUBLIÉ (05.09.2026)
+
+P8 (la ligne Rappels du hub dit l'urgence), P9 (recherche par montant
+exact, sabotage inerte consigné puis test durci), P10 (Cash-flow face à
+la période d'avant). CI verte sur le HEAD exact `6487d0e`
+(run `33958041170`), fusion squash PR #220 → `main` = `86493f9`, CI
+push `main` verte (run `33958843273`), publication Pages par dispatch
+au SHA exact (run `33964419334`, **succès**). Suite e2e à la fusion :
+250 parcours verts.
+
 ## Source vérifiée
 
 - Branche de release : `main`.
