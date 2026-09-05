@@ -5315,6 +5315,23 @@ function renderCashflow() {
     nbOps += 1;
   }
   const net = round2(entrees - sorties);
+  // PFOS-P10 : la fenêtre PRÉCÉDENTE de même durée — payé seulement,
+  // mêmes familles. Vide, elle est DITE vide : jamais un écart face à
+  // un zéro inventé.
+  let entreesAvant = 0, sortiesAvant = 0, nbOpsAvant = 0;
+  const debutAvant = debut - nbJours, finAvant = debut - 1;
+  for (const t of transactions) {
+    if (t.status !== "posted") continue;
+    const s = cfSerial(t.y, t.m, t.d);
+    if (s < debutAvant || s > finAvant) continue;
+    const fam = txFamille(t);
+    const v = txCHF(t);
+    if (fam === "income") entreesAvant = round2(entreesAvant + v);
+    else if (fam === "expense" || fam === "sub") sortiesAvant = round2(sortiesAvant + v);
+    else continue;
+    nbOpsAvant += 1;
+  }
+  const netAvant = round2(entreesAvant - sortiesAvant);
   const chips = `<div class="filter-row" role="group" aria-label="Période du cash-flow">
       ${CF_PERIODES.map(([id, , lbl]) => `<button type="button" class="filter-chip" data-cfperiode="${id}"
         aria-pressed="${cfPeriode === id}">${lbl}</button>`).join("")}
@@ -5365,7 +5382,17 @@ function renderCashflow() {
       ${ligne("Ponctuelles", sortiesPonctuelles, "neg")}
     </div>`;
   const aPart = `<p class="caption" style="margin:8px 0 10px;padding:0 4px">À part du net : mis de côté ${chf(misDeCote)} (toujours votre argent)${nbVirements ? ` · ${nbVirements} virement${nbVirements > 1 ? "s" : ""} interne${nbVirements > 1 ? "s" : ""}, neutre${nbVirements > 1 ? "s" : ""} par principe` : ""}.</p>`;
-  return backBar("Cash-flow") + chips + honnetete + totaux + courbe + detailSorties + aPart;
+  const ecart = round2(net - netAvant);
+  const comparaison = nbOpsAvant === 0
+    ? `<div class="card"><p class="caption" style="margin:0">Face à la période d'avant (même durée, juste avant) : aucune opération payée — rien à comparer honnêtement.</p></div>`
+    : `<div class="card">
+        <p class="caption" style="margin:0 0 4px">Face à la période d'avant (même durée, payé seulement) :</p>
+        ${ligne("Entrées d'avant", entreesAvant, "pos")}
+        ${ligne("Sorties d'avant", sortiesAvant, "neg")}
+        ${ligne("Net d'avant", netAvant, netAvant < 0 ? "neg" : "pos", true)}
+        <p class="caption" style="margin:4px 0 0">Votre net a ${ecart >= 0 ? "gagné" : "perdu"} ${chf(Math.abs(ecart))} d'une fenêtre à l'autre (${chf(ecart, true)}).</p>
+      </div>`;
+  return backBar("Cash-flow") + chips + honnetete + totaux + comparaison + courbe + detailSorties + aPart;
 }
 
 /* PFOS-P4 : RECHERCHE GLOBALE — tout retrouver, partout. La recherche de

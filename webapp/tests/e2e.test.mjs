@@ -15688,6 +15688,65 @@ currentTest = "PFOS-P9 recherche montant";
   await ctx249.close();
 }
 
+// ---------- 250. PFOS-P10 : CASH-FLOW FACE À LA PÉRIODE D'AVANT ----------
+// Suite du Personal Finance OS : mesuré — le Cash-flow (P3) dit la
+// fenêtre choisie mais jamais « est-ce mieux qu'avant ? ». Contrat :
+// l'écran compare à la fenêtre PRÉCÉDENTE de même durée (payé
+// seulement) : sorties d'avant et écart du net, chiffres écrits ;
+// une fenêtre d'avant vide le dit au lieu d'inventer un zéro comparé.
+currentTest = "PFOS-P10 cashflow comparaison";
+{
+  const ctx250 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p250 = await ctx250.newPage();
+  p250.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P10] ${msg.text()}`); });
+  await p250.goto(APP_URL);
+  await p250.evaluate(() => {
+    const j = (o) => { const d = new Date(Date.now() - o * 86400000); return { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() }; };
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Compare" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 9000, cash: true, currency: "CHF" }],
+      transactions: [
+        // Fenêtre courante (30 j) : net 3000 − 1000 = 2000.
+        { id: 1, ...j(3), type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 2, ...j(5), type: "expense", amount: 1000, cat: "Logement", title: "Loyer", acc: "cur", dest: null, status: "posted" },
+        // Fenêtre d'avant (30-60 j) : net 3000 − 1500 = 1500 → écart +500.
+        { id: 3, ...j(45), type: "income", amount: 3000, cat: "Salaire", title: "Salaire", acc: "cur", dest: null, status: "posted" },
+        { id: 4, ...j(40), type: "expense", amount: 1500, cat: "Logement", title: "Loyer + charges", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p250.reload();
+  await p250.waitForSelector("#tabbar button");
+  await p250.evaluate(() => { activeTab = "more"; moreView = "cashflow"; cfPeriode = "1M"; render(); });
+  await p250.waitForTimeout(400);
+  const cmp = await p250.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      avant: texte.includes("1'500.00"),
+      // NBSP après « CHF » : les montants sont des mots insécables.
+      ecart: texte.includes("+CHF 500.00") && texte.includes("gagné"),
+      periode: texte.includes("d'avant") || texte.includes("précédente"),
+    };
+  });
+  check(cmp.avant && cmp.periode,
+    "sur 1 mois, la fenêtre d'avant est là avec ses chiffres (sorties CHF 1'500.00)");
+  check(cmp.ecart, "l'écart du net est écrit (+CHF 500.00 face à la période d'avant)");
+  // Fenêtre d'avant VIDE (7 j : rien entre J-7 et J-14) → dit, pas inventé.
+  await p250.click('[data-cfperiode="7J"]');
+  await p250.waitForTimeout(300);
+  const vide = await p250.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return { honnete: texte.includes("aucune opération") || texte.includes("Aucune opération"),
+      pasDeFauxEcart: !texte.includes("+CHF 2'000.00 de plus") };
+  });
+  check(vide.honnete && vide.pasDeFauxEcart,
+    "une fenêtre d'avant vide est dite telle quelle — aucun écart inventé face à zéro");
+  await ctx250.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15697,4 +15756,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 249 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 250 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
