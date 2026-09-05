@@ -15970,6 +15970,65 @@ currentTest = "PFOS-P14 enseignes suggérées";
   await ctx254.close();
 }
 
+// ---------- 255. PFOS-P15 : LE CALENDRIER NE COMPTE JAMAIS LE PRÉVU ----------
+// CORRECTIF D'HONNÊTETÉ (défaut hérité de P2, repéré à l'audit) : les
+// totaux du jour additionnaient TOUTES les opérations, prévues
+// comprises — un mouvement « prévu » était annoncé « dépensé » au
+// lecteur d'écran et dans la journée ouverte. Contrat : reçu/dépensé/
+// net comptent le PAYÉ seulement ; le prévu reste VISIBLE (ligne avec
+// badge, mention « hors totaux ») mais jamais compté ; un jour
+// uniquement prévu le dit (« rien de payé ni reçu »).
+currentTest = "PFOS-P15 calendrier honnête";
+{
+  const ctx255 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p255 = await ctx255.newPage();
+  p255.on("console", msg => { if (msg.type() === "error") consoleErrors.push(`[PFOS-P15] ${msg.text()}`); });
+  await p255.goto(APP_URL);
+  await p255.evaluate(() => {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1;
+    localStorage.setItem("budget-app-state-v1", JSON.stringify({
+      version: 1, onboarded: true, isDemo: false, profile: { name: "Honnête" },
+      baseCurrency: "CHF",
+      accounts: [{ id: "cur", name: "Courant", kind: "current", opening: 5000, cash: true, currency: "CHF" }],
+      transactions: [
+        { id: 1, y, m, d: 10, type: "income", amount: 1000, cat: "Salaire", title: "Acompte", acc: "cur", dest: null, status: "posted" },
+        { id: 2, y, m, d: 12, type: "expense", amount: 200, cat: "Santé", title: "Facture prévue", acc: "cur", dest: null, status: "planned" },
+        { id: 3, y, m, d: 15, type: "expense", amount: 300, cat: "Divers", title: "Achat payé", acc: "cur", dest: null, status: "posted" },
+      ],
+      recurrings: [], goals: [], assets: [], liabilities: [],
+      pensions: [], insurances: [], documents: [], budgets: {}, bills: [],
+    }));
+  });
+  await p255.reload();
+  await p255.waitForSelector("#tabbar button");
+  await p255.evaluate(() => { activeTab = "movements"; moreVue = "calendrier"; render(); });
+  await p255.waitForTimeout(300);
+  const cellules = await p255.evaluate(() => ({
+    prevu: (document.querySelector('[data-caljour="12"]') || {}).getAttribute
+      ? document.querySelector('[data-caljour="12"]').getAttribute("aria-label") || "" : "",
+    paye: (document.querySelector('[data-caljour="15"]') || {}).getAttribute
+      ? document.querySelector('[data-caljour="15"]').getAttribute("aria-label") || "" : "",
+  }));
+  check(!cellules.prevu.includes("200.00") && /prévu/i.test(cellules.prevu),
+    `le jour uniquement prévu n'annonce AUCUN montant dépensé et se dit prévu (lu : « ${cellules.prevu} »)`);
+  check(cellules.paye.includes("300.00"),
+    "le jour payé annonce toujours son vrai montant (CHF 300.00)");
+  await p255.click('[data-caljour="12"]');
+  await p255.waitForTimeout(300);
+  const jour = await p255.evaluate(() => {
+    const texte = document.getElementById("screen").textContent;
+    return {
+      badge: texte.includes("Prévu"),
+      horsTotaux: /hors totaux|rien de payé/i.test(texte),
+      pasCompte: !texte.includes("dépensé CHF 200.00"),
+    };
+  });
+  check(jour.badge && jour.horsTotaux && jour.pasCompte,
+    "la journée ouverte montre le prévu (badge) mais le dit HORS TOTAUX — jamais compté en dépensé");
+  await ctx255.close();
+}
+
 await browser.close();
 
 // ---------- Rapport ----------
@@ -15979,4 +16038,4 @@ if (allFailures.length) {
   for (const failure of allFailures) console.error("  ✗ " + failure);
   process.exit(1);
 }
-console.log("SUITE E2E NAVIGATEUR : 254 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");
+console.log("SUITE E2E NAVIGATEUR : 255 parcours verts — accueil mensuel essentiel, ajout par intention, réserves honnêtes, formulaires réels, données restaurées inertes, fluidité et gestes des feuilles, Historique P03, accessibilité 320/390 px, parité des calculs et régressions historiques — zéro erreur console ✓");

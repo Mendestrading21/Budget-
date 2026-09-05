@@ -5244,8 +5244,16 @@ function renderCalendrierMois() {
   const parJour = new Map();
   for (const t of transactions) {
     if (!inMonth(t, y, m)) continue;
-    const g = parJour.get(t.d) || { items: [], recu: 0, depense: 0, familles: new Set() };
+    const g = parJour.get(t.d) || { items: [], recu: 0, depense: 0, familles: new Set(), prevus: 0 };
     g.items.push(t);
+    // PFOS-P15 (correctif d'honnêteté) : le PRÉVU reste visible mais
+    // n'entre JAMAIS dans reçu/dépensé/net — planifié et réel ne se
+    // mélangent pas. Il compte à part (« dont N prévue(s) »).
+    if (t.status !== "posted") {
+      g.prevus += 1;
+      parJour.set(t.d, g);
+      continue;
+    }
     const fam = txFamille(t);
     g.familles.add(fam);
     if (fam === "income") g.recu = round2(g.recu + txCHF(t));
@@ -5263,11 +5271,17 @@ function renderCalendrierMois() {
   for (let d = 1; d <= nbJours; d += 1) {
     const g = parJour.get(d);
     const net = g ? round2(g.recu - g.depense) : 0;
-    const label = g
-      ? `${d} ${monthLabel(cursor)} : ${g.items.length} opération${g.items.length > 1 ? "s" : ""}, reçu ${chf(g.recu)}, dépensé ${chf(g.depense)}, net ${chf(net, true)}`
-      : `${d} ${monthLabel(cursor)} : aucune opération`;
+    // Un jour SEULEMENT prévu le dit — aucun montant annoncé comme payé.
+    const seulementPrevu = g && g.familles.size === 0 && g.prevus > 0;
+    const label = !g
+      ? `${d} ${monthLabel(cursor)} : aucune opération`
+      : seulementPrevu
+        ? `${d} ${monthLabel(cursor)} : ${g.prevus} opération${g.prevus > 1 ? "s" : ""} prévue${g.prevus > 1 ? "s" : ""} — rien de payé ni reçu`
+        : `${d} ${monthLabel(cursor)} : ${g.items.length} opération${g.items.length > 1 ? "s" : ""}${g.prevus ? ` dont ${g.prevus} prévue${g.prevus > 1 ? "s" : ""} hors totaux` : ""}, reçu ${chf(g.recu)}, dépensé ${chf(g.depense)}, net ${chf(net, true)}`;
     const points = g ? [...g.familles].slice(0, 3)
-      .map(f => `<span class="cal-dot" style="background:${DOT[f] || "var(--coolgray)"}"></span>`).join("") : "";
+      .map(f => `<span class="cal-dot" style="background:${DOT[f] || "var(--coolgray)"}"></span>`)
+      .concat(g.prevus && g.familles.size < 3 ? ['<span class="cal-dot" style="background:var(--coolgray)"></span>'] : [])
+      .join("") : "";
     cellules.push(`<button type="button" class="cal-cell${calJour === d ? " cal-actif" : ""}${d === NOW.d && y === NOW.y && m === NOW.m ? " cal-aujourdhui" : ""}"
       data-caljour="${d}" aria-label="${esc(label)}" aria-pressed="${calJour === d}">
       <span class="cal-num">${d}</span><span class="cal-dots">${points}</span></button>`);
@@ -5290,8 +5304,12 @@ function renderCalendrierMois() {
       <div class="card empty-state"><p class="t">Aucune opération ce jour-là.</p></div>${boutonAjout}`;
   }
   const net = round2(g.recu - g.depense);
+  // PFOS-P15 : la journée dit le PAYÉ ; le prévu est nommé HORS TOTAUX.
+  const resumeJour = g.familles.size === 0 && g.prevus > 0
+    ? `${g.prevus} opération${g.prevus > 1 ? "s" : ""} prévue${g.prevus > 1 ? "s" : ""} — rien de payé ni reçu ce jour-là`
+    : `Reçu ${chf(g.recu)} · dépensé ${chf(g.depense)} · net <strong class="${net < 0 ? "neg" : "pos"}">${chf(net, true)}</strong>${g.familles.has("transfer") ? " · virements neutres, comptés à part" : ""}${g.prevus ? ` · ${g.prevus} prévue${g.prevus > 1 ? "s" : ""}, hors totaux` : ""}`;
   return grille + `<p class="section-title" role="heading" aria-level="2">Journée du ${dateTxt}</p>
-    <div class="card"><p class="caption" style="margin:0">Reçu ${chf(g.recu)} · dépensé ${chf(g.depense)} · net <strong class="${net < 0 ? "neg" : "pos"}">${chf(net, true)}</strong>${g.familles.has("transfer") ? " · virements neutres, comptés à part" : ""}</p></div>
+    <div class="card"><p class="caption" style="margin:0">${resumeJour}</p></div>
     ${g.items.sort((a, b) => b.id - a.id).map(t => txRow(t, { hideDate: true })).join("")}${boutonAjout}`;
 }
 
