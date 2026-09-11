@@ -6,6 +6,13 @@ insurers, local identities, logos, monograms or recurring cadence presets, also
 load the companion skill `/budget-identites-locales`. The companion never
 overrides Budget Prisme's financial, data, design, evidence or release rules.
 
+For an explicit black-glass, Notion-like request on P01 (Mois), also load
+`/budget-notion-glass`. This scoped design companion applies the requested
+visual direction to P01 and its directly owned sheets. Record the local visual
+exception in the page work order; Budget Prisme remains the authority for
+financial truth, data, navigation, accessibility, evidence and release. The
+bundled fictional prototype does not replace the application engine or storage.
+
 ## Active programme
 
 - Programme : **Budget Prisme** — pages P00–P18 terminées, puis
@@ -33,8 +40,8 @@ overrides Budget Prisme's financial, data, design, evidence or release rules.
   monograms, brand provenance, recurrence requirements and validator). Use it
   only together with `/budget-prisme` on its declared scope.
 
-Except for the declared companion `/budget-identites-locales`, all other Budget
-skills (`/budget-v1`, `/budget-neon-ultra`,
+Except for the declared companions `/budget-identites-locales` and
+`/budget-notion-glass`, all other Budget skills (`/budget-v1`, `/budget-neon-ultra`,
 `/budget-horizon`, `/budget-master-evolution`, `/budget-2027`,
 `/budget-web`, `/budget-production-completion` included) are legacy
 references. Do not invoke them, combine their roadmaps, or let them
