@@ -1,0 +1,4 @@
+interface:
+  display_name: "Budget Notion Glass"
+  short_description: "Un budget noir et verre, clair et vérifiable"
+  default_prompt: "Utilise $budget-notion-glass pour construire ma page Budget avec un design noir et verre, une vue du mois claire et des calculs vérifiés."

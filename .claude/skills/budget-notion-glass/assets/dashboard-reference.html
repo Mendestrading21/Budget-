@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Budget · Référence Notion Glass</title>
+  <link rel="stylesheet" href="black-glass.css">
+</head>
+<body data-budget-glass>
+  <a class="bng-skip" href="#overview">Aller au budget</a>
+  <svg class="bng-symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M20 8V5H5a2 2 0 0 0 0 4h16v11H5a2 2 0 0 1-2-2V7"/><path d="M21 12h-6v5h6M17 14.5h.5"/></symbol>
+    <symbol id="i-bank" viewBox="0 0 24 24"><path d="m3 8 9-5 9 5H3ZM5 11v7m7-7v7m7-7v7M3 21h18"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h6m4 0h6M4 17h10m4 0h2"/><circle cx="12" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-in" viewBox="0 0 24 24"><path d="M17 6 7 16m0-8v8h8"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M7 17 17 7m-8 0h8v8"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V8a2 2 0 0 1 2-2h16M7 22l-4-4 4-4m14-1v3a2 2 0 0 1-2 2H3"/></symbol>
+    <symbol id="i-goal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </defs></svg>
+  <aside class="bng-sidebar" aria-label="Navigation de la référence">
+    <a class="bng-brand" href="#overview"><span class="bng-mark">B<span>·</span></span><strong>Budget</strong></a>
+    <p class="bng-nav-label">ESPACE PERSONNEL</p>
+    <nav>
+      <a class="bng-nav-item bng-selected" href="#overview"><svg><use href="#i-grid"/></svg>Mois<span class="bng-nav-dot"></span></a>
+      <a class="bng-nav-item" href="#movements"><svg><use href="#i-clock"/></svg>Historique</a>
+      <a class="bng-nav-item" href="#budget-plan"><svg><use href="#i-wallet"/></svg>Budget</a>
+      <a class="bng-nav-item" href="#accounts"><svg><use href="#i-bank"/></svg>Comptes</a>
+      <button class="bng-nav-item" data-action="settings"><svg><use href="#i-sliders"/></svg>Gérer</button>
+    </nav>
+    <div class="bng-sidebar-bottom"><span class="bng-avatar">MP</span><div>Mon espace<small>Une vue plus claire.</small></div></div>
+  </aside>
+  <div class="bng-workspace">
+    <header class="bng-topbar"><span>Espace personnel <span class="bng-slash">/</span> <strong>Finances</strong></span><button id="privacy" class="bng-icon-button" aria-label="Masquer les montants" aria-pressed="false"><svg><use href="#i-eye"/></svg></button></header>
+    <main id="overview" tabindex="-1">
+      <div class="bng-page-heading"><div><p class="bng-eyebrow"><span class="bng-live-dot"></span>MON ESPACE FINANCIER</p><h1>Mon budget<span class="bng-title-dot">.</span></h1><p class="bng-subtitle">Ton mois, en un regard.</p></div><div class="bng-page-actions"><label class="bng-sr-only" for="period">Mois observé</label><select id="period"><option value="2026-09">Septembre 2026</option><option value="2026-08">Août 2026</option></select><button class="bng-button bng-primary" data-action="add"><svg><use href="#i-plus"/></svg><span>Ajouter une opération</span></button></div></div>
+      <div class="bng-demo-line"><span class="bng-pill">DÉMONSTRATION</span><span>Chiffres fictifs · <span id="asof"></span></span></div>
+      <div id="dashboard" class="bng-dashboard"></div>
+      <footer class="bng-footer"><span>Budget · Simplement, l’essentiel.</span><span>Modifications temporaires, effacées au rechargement.</span></footer>
+    </main>
+  </div>
+  <dialog id="sheet" aria-labelledby="sheet-title">
+    <div class="bng-dialog-heading"><h2 id="sheet-title"></h2><button class="bng-icon-button" data-action="close" aria-label="Fermer"><svg><use href="#i-close"/></svg></button></div>
+    <div id="sheet-content"></div>
+  </dialog>
+  <div id="notice" class="bng-notice" role="status" aria-live="polite"></div>
+  <noscript><p>Active JavaScript pour utiliser cette référence interactive. Les fichiers restent consultables.</p></noscript>
+  <script type="module" src="reference-ui.mjs"></script>
+</body>
+</html>
